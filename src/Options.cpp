@@ -630,6 +630,10 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
                 ChangedDisplay = 1;
 
                 Sim.Options.OptionFullscreen++;
+                if (Sim.Options.OptionFullscreen == 1) {
+                    Sim.Options.OptionScreenWindowedWidth = 640;
+                    Sim.Options.OptionScreenWindowedHeight = 480;
+                }
                 if (Sim.Options.OptionFullscreen > 2) {
                     Sim.Options.OptionFullscreen = 0;
                 }

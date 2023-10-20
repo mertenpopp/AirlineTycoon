@@ -165,13 +165,23 @@ void GameFrame::UpdateWindow() const {
         SDL_SetWindowFullscreen(m_hWnd, SDL_TRUE);
         break;
     case (1): // Windowed
-        SDL_SetWindowFullscreen(m_hWnd, 0);
-        SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
-        SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
-        SDL_SetWindowSize(m_hWnd, screenWidth, screenHeight);
-        SDL_GetWindowSize(m_hWnd, &width, &height);
-        SDL_MaximizeWindow(m_hWnd);
-        SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        // check if default window size, if so set to MaximizeWindow else set as from last session
+        if (Sim.Options.OptionScreenWindowedWidth == 640 && Sim.Options.OptionScreenWindowedHeight == 480)
+        {
+            SDL_SetWindowFullscreen(m_hWnd, 0);
+            SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
+            SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
+            SDL_SetWindowSize(m_hWnd, screenWidth, screenHeight);
+            SDL_MaximizeWindow(m_hWnd);
+            SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        } else {
+            SDL_SetWindowFullscreen(m_hWnd, 0);
+            SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
+            SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
+            SDL_SetWindowSize(m_hWnd, Sim.Options.OptionScreenWindowedWidth, Sim.Options.OptionScreenWindowedHeight);
+            SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        }
+
         break;
     case (2): // Borderless Fullscreen
         SDL_SetWindowFullscreen(m_hWnd, SDL_FALSE);
@@ -194,7 +204,9 @@ void GameFrame::UpdateFrameSize() const {
     SLONG screenW = 0, screenH = 0;
     SDL_GetWindowSize(m_hWnd, &screenW, &screenH);
     SDL_RenderSetLogicalSize(lpDD, screenW, screenH);
-
+    // update setting file
+    Sim.Options.OptionScreenWindowedWidth = screenW;
+    Sim.Options.OptionScreenWindowedHeight = screenH;
     if (Sim.Options.OptionKeepAspectRatio == 0) {
         PrimaryBm.PrimaryBm.SetTarget(XY{0, 0}, XY{screenW, screenH});
     } else {
@@ -269,8 +281,9 @@ GameFrame::GameFrame() {
     }
 
     // Base backup screen size - only used in windowed mode
-    SLONG width = 640;
-    SLONG height = 480;
+    SLONG width = Sim.Options.OptionScreenWindowedWidth;
+    SLONG height = Sim.Options.OptionScreenWindowedHeight;
+
 
     if (!static_cast<bool>(bFullscreen) || Sim.Options.OptionFullscreen == 0 || Sim.Options.OptionFullscreen == 2) {
         SDL_DisplayMode DM;
