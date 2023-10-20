@@ -168,8 +168,10 @@ void GameFrame::UpdateWindow() const {
         SDL_SetWindowFullscreen(m_hWnd, 0);
         SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
         SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
-        SDL_SetWindowSize(m_hWnd, width, height);
-        SDL_SetWindowPosition(m_hWnd, screenWidth / 2 - width / 2, screenHeight / 2 - height / 2);
+        SDL_SetWindowSize(m_hWnd, screenWidth, screenHeight);
+        SDL_GetWindowSize(m_hWnd, &width, &height);
+        SDL_MaximizeWindow(m_hWnd);
+        SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         break;
     case (2): // Borderless Fullscreen
         SDL_SetWindowFullscreen(m_hWnd, SDL_FALSE);
