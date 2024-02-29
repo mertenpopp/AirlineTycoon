@@ -13,7 +13,6 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 extern SB_CColorFX ColorFX;
-extern SLONG ZettelPos[14 * 3];
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Flugaufsicht Konstruktion, Initialisation, Destruction
@@ -763,19 +762,9 @@ void CAufsicht::OnPaint() {
     if (CurrentMenu != MENU_BRIEFING || (gMouseLButton != 0) || (gMouseRButton != 0)) {
     do_the_painting_again:
         Painted++;
-        for (SLONG c = 0; c < 7; c++) {
-            // Zettel malen:
-            if ((TafelData.Route[c].ZettelId > 0) && qPlayer.RentRouten.RentRouten[TafelData.Route[c].ZettelId].Rang == 0) {
-                RoomBm.BlitFromT(LeereZettelBms[c % 3], (ZettelPos[c * 2] - 91) * 74 / 441 + 274, (ZettelPos[c * 2 + 1] - 20) * 68 / 366 + 55);
-            }
-
-            if ((TafelData.City[c].ZettelId > 0) && qPlayer.RentCities.RentCities[TafelData.City[c].ZettelId].Rang == 0) {
-                RoomBm.BlitFromT(LeereZettelBms[c % 3], (ZettelPos[(c + 7) * 2] - 91) * 74 / 441 + 274, (ZettelPos[(c + 7) * 2 + 1] - 20) * 68 / 366 + 55);
-            }
-
-            if (TafelData.Gate[c].ZettelId > -1) {
-                RoomBm.BlitFromT(LeereZettelBms[c % 3], (ZettelPos[(c + 14) * 2] - 91) * 74 / 441 + 274, (ZettelPos[(c + 14) * 2 + 1] - 20) * 68 / 366 + 55);
-            }
+        for (SLONG c = 0; c < TafelData.ByPositions.size(); c++) {
+            RoomBm.BlitFromT(LeereZettelBms[c % 3], (TafelData.ByPositions[c]->Position.x - 91) * 74 / 441 + 274,
+                             (TafelData.ByPositions[c]->Position.y - 20) * 68 / 366 + 55);
         }
 
         // Draw Persons:

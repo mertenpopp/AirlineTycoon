@@ -19,7 +19,7 @@ class CTafel : public CStdRaum {
     CSmackerPerson SP_Fliege;
     SLONG KommVar;
 
-    CTafelData LastTafelData{};
+    std::vector<CTafelZettel> LastTafelData{};
 
     // Operations
   public:

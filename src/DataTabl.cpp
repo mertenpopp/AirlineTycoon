@@ -191,10 +191,14 @@ void CDataTable::FillWithPlaneTypes() {
 
     for (c = 0, d = 0; c < PlaneTypes.AnzEntries(); c++) {
         if (PlaneTypes.IsInAlbum(c) != 0) {
-            if (PlaneTypes[c].FirstMissions < Sim.Difficulty || (PlaneTypes[c].FirstMissions == Sim.Difficulty && PlaneTypes[c].FirstDay <= Sim.Date) ||
-                (DIFF_FREEGAME == Sim.Difficulty && PlaneTypes[c].FirstDay <= Sim.Date)) {
+            auto plane = PlaneTypes[c];
+            if (std::find(plane.AvailableIn.begin(), plane.AvailableIn.end(), CPlaneType::Available::BROKER) == plane.AvailableIn.end()) {
+                continue;
+            }
+            if (plane.FirstMissions < Sim.Difficulty || (plane.FirstMissions == Sim.Difficulty && plane.FirstDay <= Sim.Date) ||
+                (DIFF_FREEGAME == Sim.Difficulty && plane.FirstDay <= Sim.Date)) {
                 LineIndex[d] = PlaneTypes.GetIdFromIndex(c);
-                Values[d * 2 + 0] = PlaneTypes[c].Name;
+                Values[d * 2 + 0] = plane.Name;
                 Values[d * 2 + 1] = " ";
                 ValueFlags[d * 2 + 0] = FALSE;
 

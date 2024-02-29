@@ -17,7 +17,18 @@
 #include <malloc.h> // alloca
 #elif (defined(__GNUC__) || defined(__GCCXML__))
 #include <alloca.h>
-#else
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__)
+char *_strlwr(char *str) {
+    if (str == 0)
+        return 0;
+    for (int i = 0; str[i]; i++) {
+        if (str[i] >= 'A' && str[i] <= 'Z')
+            str[i] += 'a' - 'A';
+    }
+    return str;
+}
 #endif
 
 using namespace RakNet;

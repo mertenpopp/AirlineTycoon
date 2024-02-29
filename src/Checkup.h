@@ -31,9 +31,9 @@
 class CRegistryAccess {
   private:
     struct json_t *settingsJSON{nullptr};
-#if USE_REG_MIGRATION
-    HKEY hKey;
-#endif
+    #if USE_REG_MIGRATION
+        HKEY hKey;
+    #endif
 
 public:
     CRegistryAccess() = default;
@@ -41,7 +41,7 @@ public:
     ~CRegistryAccess();
     bool Open(const CString &RegistryPath);
     void Close(void);
-
+    void WriteFile();
     bool IsOpen(void);
 
     bool ReadRegistryKeyEx(char *Text, const CString &EntryName);

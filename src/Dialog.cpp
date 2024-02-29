@@ -5935,7 +5935,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 8300, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(Flag, RocketPrices[Index]);
+                    qPlayer.AddSpaceStationPart(Flag, id, StationPrices[Index]);
                     MakeSayWindow(0, TOKEN_NASA, 8302, pFontPartner);
                     PlayFanfare();
                 }

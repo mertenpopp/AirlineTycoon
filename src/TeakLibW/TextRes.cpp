@@ -44,7 +44,11 @@ void LanguageSpecifyString(char *Dst) {
 
 TEXTRES::TEXTRES() = default;
 
-TEXTRES::~TEXTRES() = default;
+TEXTRES::~TEXTRES() {
+    if (hasOverride) {
+        delete override;
+    }
+};
 
 void TEXTRES::Open(char const *source, void *cached) {
     Strings.Clear();
@@ -154,8 +158,11 @@ void TEXTRES::Open(char const *source, void *cached) {
     }
 }
 
-char *TEXTRES::GetP(ULONG group, ULONG id) {
-    char *text = nullptr;
+char *TEXTRES::FindP(ULONG group, ULONG id) {
+    char *text = FindOverridenS(group, id);
+    if (text != nullptr) {
+        return text;
+    }
     for (SLONG i = 0; i < Entries.AnzEntries(); ++i) {
         if (Entries[i].Group == group && Entries[i].Id == id) {
             text = Entries[i].Text;
@@ -164,58 +171,58 @@ char *TEXTRES::GetP(ULONG group, ULONG id) {
     }
 
     if (text == nullptr) {
-        TeakLibW_Exception(FNL, ExcTextResNotFound, group, id);
         return nullptr;
     }
 
     char *buffer = new char[strlen(text) + 1];
     strcpy(buffer, text);
     LanguageSpecifyString(buffer);
+
+   if (strlen(buffer) > 0x3FF) {
+        delete[] buffer;
+        TeakLibW_Exception(FNL, ExcTextResStaticOverflow, group, id);
+    }
+    static char result[0x3FF];
+    strcpy(result, buffer);
+    delete[] buffer;
+    return result;
+}
+
+char *TEXTRES::FindS(ULONG group, ULONG id) {
+    return TEXTRES::FindP(group, id);
+}
+
+char *TEXTRES::GetP(ULONG group, ULONG id) {
+    char *buffer = TEXTRES::FindP(group, id);
+    if (buffer == nullptr) {
+        TeakLibW_Exception(FNL, ExcTextResNotFound, group, id);
+        return nullptr;
+    }
     return buffer;
 }
 
 char *TEXTRES::GetS(ULONG group, ULONG id) {
-    char *str = TEXTRES::GetP(group, id);
-
-    if (strlen(str) > 0x3FF) {
-        delete[] str;
-        TeakLibW_Exception(FNL, ExcTextResStaticOverflow, group, id);
+    char *buffer = TEXTRES::FindS(group, id);
+    if (buffer == nullptr) {
+        TeakLibW_Exception(FNL, ExcTextResNotFound, group, id);
+        return nullptr;
     }
-    static char buffer[0x3FF];
-    strcpy(buffer, str);
-    delete[] str;
     return buffer;
 }
 
-void TEXTRES::AddText(const char *groupId, ULONG id, const char *text) {
-    ULONG group = (*(const ULONG *)groupId);
-    auto n = Entries.AnzEntries();
-    Entries.ReSize(n + 1);
-    Entries[n].Group = group;
-    Entries[n].Id = id;
-
-    char *buffer = new char[strlen(text) + 1];
-    strcpy(buffer, text);
-    Entries[n].Text = buffer;
+// Override management
+char *TEXTRES::FindOverridenS(ULONG group, ULONG id) {
+    if (!hasOverride) {
+        return nullptr;
+    }
+    return override->FindS(group, id);
 }
 
-void TEXTRES::UpdateText(const char *groupId, ULONG id, const char *newText) {
-    ULONG group = (*(const ULONG *)groupId);
-    SLONG i = 0;
-    bool found = false;
-    for (; i < Entries.AnzEntries(); ++i) {
-        if (Entries[i].Group == group && Entries[i].Id == id) {
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        TeakLibW_Exception(FNL, ExcTextResNotFound, group, id);
+void TEXTRES::SetOverrideFile(char const *c) {
+    if (!DoesFileExist(c)) {
         return;
     }
-
-    char *buffer = new char[strlen(newText) + 1];
-    strcpy(buffer, newText);
-    Entries[i].Text = buffer;
+    override = new TEXTRES();
+    override->Open(c, TEXTRES_CACHED);
+    hasOverride = true;
 }

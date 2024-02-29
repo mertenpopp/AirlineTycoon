@@ -146,7 +146,7 @@ class SBBM {
         pBitmap = 0;
         Size.x = Size.y = 0;
     }
-    SBBM(const SBBM& o) {
+    SBBM(const SBBM &o) {
         pHLObj = o.pHLObj;
         pBitmap = o.pBitmap;
         Size = o.Size;
@@ -154,7 +154,7 @@ class SBBM {
             pBitmap->IncRef();
         }
     }
-    SBBM& operator=(const SBBM& o) {
+    SBBM &operator=(const SBBM &o) {
         Destroy();
         pHLObj = o.pHLObj;
         pBitmap = o.pBitmap;
@@ -164,12 +164,12 @@ class SBBM {
         }
         return *this;
     }
-    SBBM(SBBM&& o) {
+    SBBM(SBBM &&o) {
         pHLObj = std::exchange(o.pHLObj, nullptr);
         pBitmap = std::exchange(o.pBitmap, nullptr);
         Size = std::move(o.Size);
     }
-    SBBM& operator=(SBBM&& o) {
+    SBBM &operator=(SBBM &&o) {
         Destroy();
         std::swap(pHLObj, o.pHLObj);
         std::swap(pBitmap, o.pBitmap);
@@ -188,7 +188,7 @@ class SBBM {
         }
     }
     SLONG ReSize(XY Size, SLONG flags = CREATE_SYSMEM) {
-        if (Size != SBBM::Size) {
+        if (Size != SBBM::Size || pBitmap == nullptr) {
             Destroy();
             SLONG rc = bitmapMain->CreateBitmap(&pBitmap, Size.x, Size.y, 0, CREATE_USECOLORKEY | flags);
             SBBM::Size.x = pBitmap->GetXSize();
@@ -329,7 +329,7 @@ class SBPRIMARYBM {
     SBPRIMARYBM() = default;
     void ReSize(SDL_Window *Wnd, BOOL Fullscreen, const XY &Resolution);
 
-    void ReSizePartB(SDL_Window * /*Wnd*/, BOOL /*Fullscreen*/, const XY &/*Resolution*/) {
+    void ReSizePartB(SDL_Window * /*Wnd*/, BOOL /*Fullscreen*/, const XY & /*Resolution*/) {
         // if (!Fullscreen) Offscreen.ReSize (Resolution);
     }
     void Flip(SLONG WindowX, SLONG WindowsY, BOOL ShowFPS = FALSE) { Flip(XY(WindowX, WindowsY), ShowFPS); }

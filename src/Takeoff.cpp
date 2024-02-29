@@ -151,7 +151,6 @@ int main(int argc, char *argv[]) {
         theApp.InitInstance(argc, argv);
     } catch (TeakLibException &e) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AT - Exception", e.what(), nullptr);
-        
         throw;
     }
 #else
@@ -168,22 +167,22 @@ int main(int argc, char *argv[]) {
         return 0;
 }
 
+#define LOADING_TEXT(text)                                                                                                                                     \
+    {                                                                                                                                                          \
+        PrimaryBm.BlitFrom(TitleBitmap);                                                                                                                       \
+        FontBigWhite.DrawTextBlock(&PrimaryBm.PrimaryBm, 2, 450 + 8, 640, 480, text);                                                                          \
+        FrameWnd->Invalidate();                                                                                                                                \
+        MessagePump();                                                                                                                                         \
+        PrimaryBm.BlitFrom(TitleBitmap);                                                                                                                       \
+        FontBigWhite.DrawTextBlock(&PrimaryBm.PrimaryBm, 2, 450 + 8, 640, 480, text);                                                                          \
+        FrameWnd->Invalidate();                                                                                                                                \
+        MessagePump();                                                                                                                                         \
+    }
+
 //--------------------------------------------------------------------------------------------
 // CTakeOffApp construction:
 //--------------------------------------------------------------------------------------------
-CTakeOffApp::CTakeOffApp() {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
-        printf("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
-    }
-
-    if (TTF_Init() < 0) {
-        printf("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
-    }
-
-    if (Mix_Init(MIX_INIT_OGG) < 0) {
-        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", TTF_GetError());
-    }
-}
+CTakeOffApp::CTakeOffApp() {}
 
 //--------------------------------------------------------------------------------------------
 // CTakeOffApp deconstruction:
@@ -207,103 +206,10 @@ CTakeOffApp::~CTakeOffApp() {
     gNetwork.DisConnect();
 }
 
-#define LOADING_TEXT(text)                                                                                                                                     \
-    {                                                                                                                                                          \
-        PrimaryBm.BlitFrom(TitleBitmap);                                                                                                                       \
-        FontBigWhite.DrawTextBlock(&PrimaryBm.PrimaryBm, 2, 450 + 8, 640, 480, text);                                                                          \
-        FrameWnd->Invalidate();                                                                                                                                \
-        MessagePump();                                                                                                                                         \
-        PrimaryBm.BlitFrom(TitleBitmap);                                                                                                                       \
-        FontBigWhite.DrawTextBlock(&PrimaryBm.PrimaryBm, 2, 450 + 8, 640, 480, text);                                                                          \
-        FrameWnd->Invalidate();                                                                                                                                \
-        MessagePump();                                                                                                                                         \
-    }
-
 //--------------------------------------------------------------------------------------------
-// CTakeOffApp initialization:
+// CTakeOffApp CLI
 //--------------------------------------------------------------------------------------------
-BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
-
-    char localVersionString[80];
-    strcpy(localVersionString, VersionString);
-
-    // Hdu.Disable();
-    time_t t = time(nullptr);
-    Hdu.HercPrintf(0, "Airline Tycoon Deluxe logfile");
-    Hdu.HercPrintf(0, VersionString);
-    Hdu.HercPrintf(0, "===============================================================================");
-    Hdu.HercPrintf(0, "Copyright (C) 2002 Spellbound Software");
-    Hdu.HercPrintf(0, "TakeOff.Cpp was compiled at %s at %s", __DATE__, __TIME__);
-    Hdu.HercPrintf(0, "===============================================================================");
-    Hdu.HercPrintf(0, "logging starts %s", asctime(localtime(&t)));
-
-    pTakeOffApp = this;
-
-    // Initialisierung:
-    TopWin = nullptr;
-    bFullscreen = TRUE;
-    bCursorCaptured = FALSE;
-    gMouseStartup = TRUE;
-
-    // Die Standardsprachen:
-    //#define LANGUAGE_D       0             //D-Deutsch, inklusive
-    //#define LANGUAGE_E       1             //E-Englisch, bezahlt
-    //#define LANGUAGE_F       2             //F-Französisch, bezahlt
-    //#define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
-    //#define LANGUAGE_P       4             //P-Polnisch, inklusive
-    //#define LANGUAGE_N       5             //N-Niederländisch, bezahlt
-    //#define LANGUAGE_I       6             //I-Italienisch, bezahlt
-    //#define LANGUAGE_S       7             //S-Spanisch, bezahlt
-    //#define LANGUAGE_O       8             //O-Portugisisch, bezahlt
-    //#define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
-    //#define LANGUAGE_1      10             //J-Tschechisch
-    //#define LANGUAGE_2      11             //K-noch frei
-    //#define LANGUAGE_3      12             //L-noch frei
-    //#define LANGUAGE_4      13             //M-noch frei
-    //#define LANGUAGE_5      14             //N-noch frei
-    //#define LANGUAGE_6      15             //Q-noch frei
-    //#define LANGUAGE_7      16             //R-noch frei
-    //#define LANGUAGE_8      17             //T-noch frei
-    //#define LANGUAGE_9      18             //U-noch frei
-    //#define LANGUAGE_10     19             //V-noch frei
-
-    gLanguage = LANGUAGE_E;
-    std::ifstream ifil = std::ifstream(AppPath + "misc/sabbel.dat");
-    if (ifil.is_open()) {
-        ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
-        ifil.close();
-    }
-
-    // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
-
-    // Flag-Ersatzstücke aus der Registry lesen:
-    {
-        CRegistryAccess reg(chRegKey);
-
-        SLONG bConfigNoVgaRam = 0;
-        SLONG bConfigNoSpeedyMouse = 0;
-        SLONG bConfigWinMouse = 0;
-        SLONG bConfigNoDigiSound = 0;
-
-        reg.ReadRegistryKey_l(bConfigNoVgaRam);
-        reg.ReadRegistryKey_l(bConfigNoSpeedyMouse);
-        reg.ReadRegistryKey_l(bConfigWinMouse);
-        reg.ReadRegistryKey_l(bConfigNoDigiSound);
-
-        if (bConfigNoVgaRam != 0) {
-            bNoVgaRam = TRUE;
-        }
-        if (bConfigNoSpeedyMouse != 0) {
-            bNoQuickMouse = TRUE;
-        }
-        if (bConfigWinMouse != 0) {
-            gUseWindowsMouse = TRUE;
-        }
-        if (bConfigNoDigiSound != 0) {
-            Sim.Options.OptionDigiSound = FALSE;
-        }
-    }
-
+void CTakeOffApp::CLI(int argc, char *argv[]) {
     // Schneller Mode zum Debuggen?
     for (int i = 0; i < argc; i++) {
         char *Argument = argv[i];
@@ -312,7 +218,8 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
             bFirstClass = TRUE;
         }
         if (stricmp(Argument, "/p") == 0 || stricmp(Argument, "-p") == 0 || stricmp(Argument, "p") == 0) {
-            return (FALSE);
+            exit(0);
+            return;
         }
 
         // if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
@@ -327,6 +234,11 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (stricmp(Argument, "/savedata") == 0) {
             CRLEReader::TogglePlainTextSaving(true);
         }
+
+        if (stricmp(Argument, "/updatedata") == 0) {
+            CRLEReader::ToggleUpdateDataBeforeOpening(true);
+        }
+
         // if (stricmp (Argument, "/windowed")==0) bFullscreen = FALSE;
 
         if (stricmp(Argument, "/novgaram") == 0) {
@@ -371,6 +283,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         }
         if (stricmp(Argument, "/updatepools") == 0) {
             InitPathVars();
+            CreateVideo();
 
             FrameWnd = new GameFrame;
 
@@ -383,16 +296,138 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
             UpdateHLinePool();
             exit(0);
+            return;
+        }
+
+        if (stricmp(Argument, "/update-patched-files-only") == 0) {
+            InitPathVars();
+            CRLEReader::ToggleUpdateDataBeforeOpening(true);
+            LoadCompleteFile(FullFilename("modded_ger.res", PatchPath));
+            LoadCompleteFile(FullFilename("std_ger.patched.res", PatchPath));
+            LoadCompleteFile(FullFilename("dlg_ger.patched.res", PatchPath));
+            LoadCompleteFile(FullFilename("ein_ger.patched.res", PatchPath));
+            exit(0);
+            return;
         }
     }
+}
 
-    Sim.Options.ReadOptions();
+//--------------------------------------------------------------------------------------------
+// CTakeOffApp Read Options from various places (file, registry, cli)
+//--------------------------------------------------------------------------------------------
+void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
+    // Die Standardsprachen:
+    //#define LANGUAGE_D       0             //D-Deutsch, inklusive
+    //#define LANGUAGE_E       1             //E-Englisch, bezahlt
+    //#define LANGUAGE_F       2             //F-Französisch, bezahlt
+    //#define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
+    //#define LANGUAGE_P       4             //P-Polnisch, inklusive
+    //#define LANGUAGE_N       5             //N-Niederländisch, bezahlt
+    //#define LANGUAGE_I       6             //I-Italienisch, bezahlt
+    //#define LANGUAGE_S       7             //S-Spanisch, bezahlt
+    //#define LANGUAGE_O       8             //O-Portugisisch, bezahlt
+    //#define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
+    //#define LANGUAGE_1      10             //J-Tschechisch
+    //#define LANGUAGE_2      11             //K-noch frei
+    //#define LANGUAGE_3      12             //L-noch frei
+    //#define LANGUAGE_4      13             //M-noch frei
+    //#define LANGUAGE_5      14             //N-noch frei
+    //#define LANGUAGE_6      15             //Q-noch frei
+    //#define LANGUAGE_7      16             //R-noch frei
+    //#define LANGUAGE_8      17             //T-noch frei
+    //#define LANGUAGE_9      18             //U-noch frei
+    //#define LANGUAGE_10     19             //V-noch frei
+
+    gLanguage = LANGUAGE_E;
+    std::ifstream ifil = std::ifstream(AppPath + "misc/sabbel.dat");
+    if (ifil.is_open()) {
+        ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
+        ifil.close();
+    }
+
+    // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
+    {
+        CRegistryAccess reg(chRegKey);
+
+        SLONG bConfigNoVgaRam = 0;
+        SLONG bConfigNoSpeedyMouse = 0;
+        SLONG bConfigWinMouse = 0;
+        SLONG bConfigNoDigiSound = 0;
+
+        reg.ReadRegistryKey_l(bConfigNoVgaRam);
+        reg.ReadRegistryKey_l(bConfigNoSpeedyMouse);
+        reg.ReadRegistryKey_l(bConfigWinMouse);
+        reg.ReadRegistryKey_l(bConfigNoDigiSound);
+
+        if (bConfigNoVgaRam != 0) {
+            bNoVgaRam = TRUE;
+        }
+        if (bConfigNoSpeedyMouse != 0) {
+            bNoQuickMouse = TRUE;
+        }
+        if (bConfigWinMouse != 0) {
+            gUseWindowsMouse = TRUE;
+        }
+        if (bConfigNoDigiSound != 0) {
+            Sim.Options.OptionDigiSound = FALSE;
+        }
+
+        // Options from CLI
+        CLI(argc, argv);
+
+        // Write registry and move on
+        reg.WriteFile();
+    
+        bFirstClass |=
+            static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
+    }
+}
+
+void CTakeOffApp::CreateVideo() {
+    if (hasVideo) {
+        return;
+    }
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
+        printf("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
+    }
+
+    if (TTF_Init() < 0) {
+        printf("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
+    }
+
+    if (Mix_Init(MIX_INIT_OGG) < 0) {
+        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", TTF_GetError());
+    }
+    hasVideo = true;
+}
+
+//--------------------------------------------------------------------------------------------
+// CTakeOffApp initialization:
+//--------------------------------------------------------------------------------------------
+void CTakeOffApp::InitInstance(int argc, char *argv[]) {
+    // Header
+    time_t start_time = time(nullptr);
+    Hdu.HercPrintf(0, "Airline Tycoon Deluxe logfile");
+    Hdu.HercPrintf(0, VersionString);
+    Hdu.HercPrintf(0, "===============================================================================");
+    Hdu.HercPrintf(0, "Copyright (C) 2002 Spellbound Software");
+    Hdu.HercPrintf(0, "Application was compiled at %s at %s", __DATE__, __TIME__);
+    Hdu.HercPrintf(0, "===============================================================================");
+    Hdu.HercPrintf(0, "logging starts %s", asctime(localtime(&start_time)));
+
+    pTakeOffApp = this;
+
+    // Run startup flow
+    TopWin = nullptr;
+    bFullscreen = TRUE;
+    bCursorCaptured = FALSE;
+    gMouseStartup = TRUE;
 
     InitPathVars();
-    // UpdateSavegames ();
-
-    bFirstClass |=
-        static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
+    ReadOptions(argc, argv);
+    CreateVideo();
+    Sim.SaveOptions();
+    // UpdateSavegames();
 
     FrameWnd = new GameFrame;
 
@@ -467,7 +502,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Karakters worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des personnages...")
         else
             LOADING_TEXT("Loading People...");
 
@@ -478,7 +513,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Adviseurs worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargements des conseillers...")
         else
             LOADING_TEXT("Loading Advisors...");
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glberatr.gli", GliPath)), &pGLibBerater, L_LOCMEM);
@@ -486,7 +521,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene afbeeldingen worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des graphismes...")
         else
             LOADING_TEXT("Loading miscellanous grafix...");
 
@@ -495,35 +530,45 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Vliegtuigen worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Cargement des avions...")
         else
             LOADING_TEXT("Loading planes...");
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glplanes.gli", GliPath)), &pGLibPlanes, L_LOCMEM);
 
         if (gLanguage == LANGUAGE_N)
+            LOADING_TEXT("Verscheidene teksten worden opgestart...")
+        else if (gLanguage == LANGUAGE_F)
+            LOADING_TEXT("Chargement des textes (1/4)...")
+        else
+            LOADING_TEXT("Loading modded texts...");
+        ModdedTexte.Open(FullFilename("modded_ger.res", PatchPath), TEXTRES_CACHED);
+
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Dialoogteksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des textes (2/4)...")
         else
             LOADING_TEXT("Loading dialogue texts...");
         DialogTexte.Open(FullFilename("dlg_ger.res", MiscPath), TEXTRES_CACHED);
+        DialogTexte.SetOverrideFile(FullFilename("dlg_ger.patched.res", PatchPath));
 
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene teksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des textes (3/4)...")
         else
             LOADING_TEXT("Loading miscellanous texts...");
         StandardTexte.Open(FullFilename("std_ger.res", MiscPath), TEXTRES_CACHED);
-        LadeWeitereStandardTexte();
+        StandardTexte.SetOverrideFile(FullFilename("std_ger.patched.res", PatchPath));
 
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Eenheidteksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des textes (4/4)...")
         else
             LOADING_TEXT("Loading unit texts...");
         InitEinheiten(FullFilename("ein_ger.res", MiscPath));
+        ETexte.SetOverrideFile(FullFilename("ein_ger.patched.res", PatchPath));
 
         // Großes und kleines Icon setzen:
         // FrameWnd->SetIcon (m_hBigIcon = LoadIcon(IDR_MAINFRAME1), 1);
@@ -532,7 +577,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseren...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement...")
         else
             LOADING_TEXT("Initializing...");
         InitItems();
@@ -540,7 +585,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de globe...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement du globe...")
         else
             LOADING_TEXT("Initializing globe...");
         InitGlobeMapper();
@@ -548,7 +593,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert statusbalk...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation de la barre de status...")
         else
             LOADING_TEXT("Initializing status bar...");
         InitStatusLines();
@@ -556,7 +601,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert scherm...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation de l'ecran...")
         else
             LOADING_TEXT("Initializing screen...");
 
@@ -577,7 +622,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Zoekt midi-apparaat...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Recherche hauts-parleurs midi...")
         else
             LOADING_TEXT("Looking for midi device...");
 
@@ -589,7 +634,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert geluidssysteem...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des systèmes de son...")
         else
             LOADING_TEXT("Initializing music sound system...");
 
@@ -602,7 +647,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
                 if (gLanguage == LANGUAGE_N)
                     LOADING_TEXT("Stelt het midi-volume in...")
                 else if (gLanguage == LANGUAGE_F)
-                    LOADING_TEXT("Francais...")
+                    LOADING_TEXT("Ajustement du volume...")
                 else
                     LOADING_TEXT("Setting midi volume...");
 
@@ -615,7 +660,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
                     if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT("Start de eerste midi...")
                     else if (gLanguage == LANGUAGE_F)
-                        LOADING_TEXT("Francais...")
+                        LOADING_TEXT("Lancement MIDI...")
                     else
                         LOADING_TEXT("Starting first midi...");
 
@@ -626,7 +671,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
                     if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT("Herstelt het midi-volume...")
                     else if (gLanguage == LANGUAGE_F)
-                        LOADING_TEXT("Francais...")
+                        LOADING_TEXT("Mise a zero du volume...")
                     else
                         LOADING_TEXT("Resetting midi volume...");
 
@@ -644,7 +689,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de karakterdata...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des personnages...")
         else
             LOADING_TEXT("Initializing people data...");
         Clans.ReInit("clan.csv");
@@ -670,7 +715,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
             if (gLanguage == LANGUAGE_N)
                 LOADING_TEXT("Initialiseert de r\xF6ntgenfoto's...")
             else if (gLanguage == LANGUAGE_F)
-                LOADING_TEXT("Francais...")
+                LOADING_TEXT("Creation des rayonnements ionisants X...")
             else
                 LOADING_TEXT("Initializing roentgens...");
             SkelettPool.ReSize("skelett.pol", nullptr, nullptr);
@@ -704,7 +749,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
                         LOADING_TEXT((LPCTSTR)(CString("Karakterdata wordt opgestart...") +
                                                CString("................................................................").Left(n / 4)))
                     else if (gLanguage == LANGUAGE_F)
-                        LOADING_TEXT((LPCTSTR)(CString("Initializing people data...") +
+                        LOADING_TEXT((LPCTSTR)(CString("Creation des personnages...") +
                                                CString("................................................................").Left(n / 4)))
                     else
                         LOADING_TEXT((LPCTSTR)(CString("Initializing people data...") +
@@ -717,7 +762,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Karakterdata wordt opgestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Chargement des personnages...")
         else
             LOADING_TEXT("Loading people data...");
         Clans.LoadBitmaps();
@@ -725,7 +770,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de steden...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des villes...")
         else
             LOADING_TEXT("Initializing cities...");
         Cities.ReInit("city.csv");
@@ -733,7 +778,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de vliegtuigen...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des avions...")
         else
             LOADING_TEXT("Initializing planes...");
         PlaneTypes.ReInit("planetyp.csv");
@@ -741,7 +786,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de namen...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des noms d'avion...")
         else
             LOADING_TEXT("Initializing names...");
         PlaneNames.ReInit("pnames.csv");
@@ -749,7 +794,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de kranten...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des journaux...")
         else
             LOADING_TEXT("Initializing newspapers...");
         Sim.Headlines.ReInit("stdpaper.csv");
@@ -757,7 +802,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de tips...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Francais...")
+            LOADING_TEXT("Creation des info-bulles...")
         else
             LOADING_TEXT("Initializing tooltips...");
         InitTipBms();
@@ -765,7 +810,7 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
         if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Spel wordt gestart...")
         else if (gLanguage == LANGUAGE_F)
-            LOADING_TEXT("Lancer le jeu...")
+            LOADING_TEXT("Lancement du jeu...")
         else
             LOADING_TEXT("Starting game...");
 
@@ -786,11 +831,12 @@ BOOL CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
     GameLoop(nullptr);
 
+    // Closing
+    Sim.SaveOptions();
     if (FrameWnd != nullptr) {
         delete FrameWnd;
         FrameWnd = nullptr;
     }
-    return FALSE;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -2209,167 +2255,4 @@ unsigned char *ReadableAnsiToUChar(const char *pData, const unsigned uLen) {
     }
 
     return pReturn;
-}
-
-void CTakeOffApp::LadeWeitereStandardTexte() {
-    const char TOKEN_STAT[] = "STAT";
-    const char TOKEN_MONEY[] = "Mony";
-    const char TOKEN_AKTIE[] = "Akti";
-    const char TOKEN_JOBS[] = "Jobs";
-    const char TOKEN_ARAB[] = "Arab";
-    const char TOKEN_MISC[] = "Misc";
-
-    StandardTexte.AddText(TOKEN_STAT, 10000, "E::Bodyguard discountD::Bodyguard-Rabatt");
-    StandardTexte.AddText(TOKEN_STAT, 10001, "E::InterestD::Zinsen");
-    StandardTexte.AddText(TOKEN_STAT, 10002, "E::LoansD::Kredite");
-    StandardTexte.AddText(TOKEN_STAT, 10003, "E::Planes soldD::Flugzeugverk\xE4ufe");
-    StandardTexte.AddText(TOKEN_STAT, 10004, "E::Stock tradingD::Aktiengesch\xE4\x66te");
-    StandardTexte.AddText(TOKEN_STAT, 10010, "E::Planes boughtD::Flugzeugk\xE4ufe");
-    StandardTexte.AddText(TOKEN_STAT, 10011, "E::InterestD::Zinsen");
-    StandardTexte.AddText(TOKEN_STAT, 10012, "E::LoansD::Kredite");
-    StandardTexte.AddText(TOKEN_STAT, 10013, "E::Meals f. passengersD::Essen f. Passagiere");
-    StandardTexte.AddText(TOKEN_STAT, 10014, "E::ExpansionD::Expansion");
-    StandardTexte.AddText(TOKEN_STAT, 10015, "E::Sabotage jobsD::Sabotageauftr\xE4ge");
-    StandardTexte.AddText(TOKEN_STAT, 10016, "E::Stock tradingD::Aktiengesch\xE4\x66te");
-    StandardTexte.AddText(TOKEN_STAT, 10017, "E::Agency feesD::Agenturhonorare");
-
-    StandardTexte.UpdateText(TOKEN_MONEY, 2021, "E::Kerosine for flight %sD::Kauf von Kerosin f\xFCr Flug %s");
-    StandardTexte.AddText(TOKEN_MONEY, 2022, "E::Meals for passengers for flight %sD::Essen f\xFCr Passagiere f\xFCr Flug %s");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2040, "E::Auctioning of branch officeD::Ersteigerung einer Niederlassung in %s");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2041, "E::Auctioning of routeD::Ersteigerung der Route %s");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2042, "E::Auctioning of gateD::Ersteigerung eines Gates");
-
-    StandardTexte.UpdateText(TOKEN_MONEY, 2100, "E::(Balance of route %s)D::(Saldo f\xFCr Routenflug %s)");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2101, "E::(Balance of order %s)D::(Saldo f\xFCr Auftragsflug %s)");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2102, "E::(Balance of empty flight %s)D::(Saldo f\xFCr Leerflug %s)");
-    StandardTexte.UpdateText(TOKEN_MONEY, 2103, "E::(Balance of cargo flight %s)D::(Saldo f\xFCr Frachtflug %s)");
-    StandardTexte.UpdateText(TOKEN_MONEY, 3161, "E::Emission indemnifications (paid)D::Emissions-Entsch\xE4""digung (gezahlt)");
-    StandardTexte.AddText(TOKEN_MONEY, 3163, "E::Emission indemnifications(received)D::Emissions-Entsch\xE4""digung (erhalten)");
-
-    StandardTexte.UpdateText(TOKEN_AKTIE, 3030, "E::New account balance (incl. fee)D::Neuer Kontostand (inkl. Geb\xFChr)");
-
-    StandardTexte.UpdateText(TOKEN_EXPERT, 2001, "E::SummaryD::Zusammenfassung");
-    StandardTexte.UpdateText(TOKEN_EXPERT, 2002, "E::Daily balanceD::Tagesbilanz");
-    StandardTexte.UpdateText(TOKEN_EXPERT, 2003, "E::Weekly balanceD::Wochenbilanz");
-    StandardTexte.AddText(TOKEN_EXPERT, 2004, "E::Overall balanceD::Gesamtbilanz");
-    StandardTexte.AddText(TOKEN_EXPERT, 2005, "E::Income through planesD::Flugzeugeinnahmen");
-    StandardTexte.AddText(TOKEN_EXPERT, 2006, "E::Competitors (overview)D::Konkurrenz (\xDC""bersicht)");
-    StandardTexte.AddText(TOKEN_EXPERT, 2007, "E:: SummariesD:: Zusammenfassungen");
-    StandardTexte.AddText(TOKEN_EXPERT, 2008, "E:: Weekly balance of %sD:: Wochenbilanz von %s");
-    StandardTexte.AddText(TOKEN_EXPERT, 2009, "E:: Weekly balance of %sD:: Wochenbilanz von %s");
-    StandardTexte.AddText(TOKEN_EXPERT, 2010, "E:: Weekly balance of %sD:: Wochenbilanz von %s");
-    StandardTexte.AddText(TOKEN_EXPERT, 2011, "E::Kerosene advisorD::Kerosinberater");
-    StandardTexte.AddText(TOKEN_EXPERT, 3003, "E::You need a better qualified informer for this report.D::Sie brauchen einen h\xF6her qualifizierteren Informanten um diesen Bericht zu erhalten.");
-    StandardTexte.AddText(TOKEN_EXPERT, 3004, "E::You need a better qualified kerosene advisor for this report.D::Sie brauchen einen h\xF6her qualifizierteren Kerosinberater um diesen Bericht zu erhalten.");
-
-    StandardTexte.UpdateText(TOKEN_EXPERT, 3404, "E::OrdersD::Auftr\xE4ge");
-    StandardTexte.AddText(TOKEN_EXPERT, 10000, "E::Kerosine for planeD::Kerosinkauf Flugzeug");
-    StandardTexte.AddText(TOKEN_EXPERT, 10001, "E::Kerosine for stockD::Kerosinkauf Vorrat");
-    StandardTexte.AddText(TOKEN_EXPERT, 10002, "E::Meals for passengersD::Essen f\xFCr Passagiere");
-    StandardTexte.AddText(TOKEN_EXPERT, 10003, "E::Plane rework\r\ncargo/passengersD::Flugzeugumr\xFCstung\r\nFracht/Passagiere");
-    StandardTexte.AddText(TOKEN_EXPERT, 10004, "E::Current loansD::Aktuelle Kredite");
-    StandardTexte.AddText(TOKEN_EXPERT, 10005, "E::Loan repaymentD::Kredittilgung");
-    StandardTexte.UpdateText(TOKEN_EXPERT, 3501, "E::Loan interestD::Kreditzinsen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10006, "E::Wealth taxD::Verm\xF6genssteuer");
-    StandardTexte.AddText(TOKEN_EXPERT, 10007, "E::Theft (hacking)D::Diebstahl (Hacking)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10008, "E::CompensationD::Kompensation");
-    StandardTexte.AddText(TOKEN_EXPERT, 10009, "E::paid to saboteurD::gezahlt an Saboteur");
-    StandardTexte.AddText(TOKEN_EXPERT, 10010, "E::Fine for sabotageD::Strafe wegen Sabotage");
-    StandardTexte.AddText(TOKEN_EXPERT, 10011, "E::Sabotage damageD::Schaden durch Sabotage");
-    StandardTexte.AddText(TOKEN_EXPERT, 10012, "E::Bodyguard discountD::Bodyguard-Rabatt");
-    StandardTexte.AddText(TOKEN_EXPERT, 10013, "E::received from\r\nplayersD::von Mitspielern\r\nerhalten");
-    StandardTexte.AddText(TOKEN_EXPERT, 10014, "E::Other incomeD::Sonstige Einnahmen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10015, "E::Breakdown repair costD::Pannenreparatur");
-    StandardTexte.AddText(TOKEN_EXPERT, 10016, "E::Security costD::Sicherheitskosten");
-    StandardTexte.AddText(TOKEN_EXPERT, 10017, "E::Advertisement costD::Werbungskosten");
-    StandardTexte.AddText(TOKEN_EXPERT, 10018, "E::sent to other\r\nplayersD::an Mitspieler\r\ngeschickt");
-    StandardTexte.AddText(TOKEN_EXPERT, 10019, "E::Other expensesD::Sonstige Ausgaben");
-    StandardTexte.AddText(TOKEN_EXPERT, 10020, "E::Stock saleD::Aktienverkauf");
-    StandardTexte.AddText(TOKEN_EXPERT, 10021, "E::Stock emissionsD::Aktienemissionen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10022, "E::Emission indemnifications\r\n(received)D::Emissions-Entsch\xE4""digung\r\n(erhalten)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10023, "E::Stock purchaseD::Aktienkauf");
-    StandardTexte.AddText(TOKEN_EXPERT, 10024, "E::Emission feesD::Emissions-Geb\xFChr");
-    StandardTexte.AddText(TOKEN_EXPERT, 10025, "E::Emission indemnifications\r\n(received)D::Emissions-Entsch\xE4""digung\r\n(gezahlt)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10026, "E::Planes soldD::Flugzeugverkauf");
-    StandardTexte.AddText(TOKEN_EXPERT, 10027, "E::TakeoversD::\xDC""bernahmen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10028, "E::Planes boughtD::Flugzeugkauf");
-    StandardTexte.AddText(TOKEN_EXPERT, 10029, "E::Plane equipmentD::Flugzeugausr\xFCstung");
-    StandardTexte.AddText(TOKEN_EXPERT, 10030, "E::Buying of\r\nbranch officesD::Kauf von\r\nNiederlassungen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10031, "E::Buying of routesD::Kauf von Routen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10032, "E::Buying of gatesD::Kauf von Gates");
-    StandardTexte.AddText(TOKEN_EXPERT, 10033, "E::Kerosene tanksD::Kerosintanks");
-    StandardTexte.AddText(TOKEN_EXPERT, 10034, "E::Branch office\r\nrental feesD::Mieten f\xFCr\r\nNiederlassungen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10035, "E::Route rental feesD::Mieten f\xFCr Routen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10036, "E::Credit interestD::HabenZinsen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10037, "E::Debit interestD::SollZinsen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10038, "E::Dividend receivedD::Dividende erhalten");
-    StandardTexte.AddText(TOKEN_EXPERT, 10039, "E::Dividend paidD::Dividende gezahlt");
-
-    StandardTexte.AddText(TOKEN_EXPERT, 10050, "E::Overall balance (1000 \x24)D::Bilanzsumme (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10051, "E::Business operations (1000 \x24)D::Operatives Gesch\xE4""ft (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10052, "E::Personal and rent (1000 \x24)D::Personal und Miete (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10053, "E::Interest and loans (1000 \x24)D::Zinsen und Kredite (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10054, "E::Stock trading (1000 \x24)D::Aktiengesch\xE4""fte (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10055, "E::Expansion (1000 \x24)D::Expansion (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10056, "E::Sabotage (1000 \x24)D::Sabotage (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10057, "E::Other (1000 \x24)D::Sonstiges (1000 \x80)");
-
-    StandardTexte.AddText(TOKEN_EXPERT, 10100, "E::Operating profitD::Operativer Gewinn");
-    StandardTexte.AddText(TOKEN_EXPERT, 10101, "E::Operational lossD::Operativer Verlust");
-    StandardTexte.AddText(TOKEN_EXPERT, 10102, "E::Operating balanceD::Operatives Saldo");
-    StandardTexte.AddText(TOKEN_EXPERT, 10103, "E::proportion of op. profitD::Anteil an op. Gewinn");
-    StandardTexte.AddText(TOKEN_EXPERT, 10150, "E::thereof business operationsD::davon operatives Gesch\xE4""ft");
-    StandardTexte.AddText(TOKEN_EXPERT, 10151, "E::Weekly balance (1000 \x24)D::Wochenbilanz (1000 \x80)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10152, "E::Obligations (1000 \x24)D::Verpflichtungen");
-    StandardTexte.AddText(TOKEN_EXPERT, 10153, "E::each week (1000 \x24)D::je Woche (1000 \x80)");
-
-    StandardTexte.AddText(TOKEN_EXPERT, 10200, "E::Competitor does not exist anymoreD::Konkurrent existiert nicht mehr");
-    StandardTexte.AddText(TOKEN_EXPERT, 10201, "E::%s considers us the strongest competitor!D::%s sieht uns als gr\xF6\xDFten Konkurrenten!");
-    StandardTexte.AddText(TOKEN_EXPERT, 10202, "E::%s does not have enough gates!D::%s hat nicht gen\xFCgend Gates!");
-    StandardTexte.AddText(TOKEN_EXPERT, 10203, "E::%s saves for a plane.D::%s spart aktuell auf ein Flugzeug.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10204, "E::%s wants to start flying routes.D::%s will anfangen, Routen zu fliegen.");
-
-    StandardTexte.AddText(TOKEN_EXPERT, 10300, "E::TankD::Tank");
-    StandardTexte.AddText(TOKEN_EXPERT, 10301, "E::Price/barrel (market)D::Preis/Barrel (Markt)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10302, "E::Price/barrel (tank)D::Preis/Barrel (Tank)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10303, "E::Value of tank (millions)D::Tankwert (Mio.)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10304, "E::Kerosine qualityD::Kerosinqualit\xE4t");
-    StandardTexte.AddText(TOKEN_EXPERT, 10305, "E::top of the rangeD::Mega-Ultra");
-    StandardTexte.AddText(TOKEN_EXPERT, 10306, "E::very goodD::sehr hoch");
-    StandardTexte.AddText(TOKEN_EXPERT, 10307, "E::goodD::hoch");
-    StandardTexte.AddText(TOKEN_EXPERT, 10308, "E::regularD::normal");
-    StandardTexte.AddText(TOKEN_EXPERT, 10309, "E::moderateD::m\xE4\xDFig");
-    StandardTexte.AddText(TOKEN_EXPERT, 10310, "E::badD::schlecht");
-    StandardTexte.AddText(TOKEN_EXPERT, 10311, "E::very badD::sehr schlecht");
-    StandardTexte.AddText(TOKEN_EXPERT, 10312, "E::Purchase qualityD::Einkaufsqualit\xE4t");
-    StandardTexte.AddText(TOKEN_EXPERT, 10313, "E::cheapD::billig");
-    StandardTexte.AddText(TOKEN_EXPERT, 10314, "E::Money saved (yesterday)D::Geld gespart (gestern)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10315, "E::Money saved (week)D::Geld gespart (Woche)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10316, "E::Money saved (overall)D::Geld gespart (gesamt)");
-    StandardTexte.AddText(TOKEN_EXPERT, 10317, "E::Kerosene quality is disastrous! We should buy top of the range kerosene.D::Die Kerosinqualit\xE4t ist katastrohpal! Wir sollten hochwertiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10318, "E::Kerosene quality is disastrous! We should buy %li barrel top of the range kerosene.D::Die Kerosinqualit\xE4t ist katastrohpal! Wir sollten %li Barrel hochwertiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10319, "E::Kerosene quality is bad. We should buy top of the range kerosene.D::Die Kerosinqualit\xE4t ist schlecht. Wir sollten hochwertiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10320, "E::Kerosene quality is bad. We should buy %li barrel top of the range kerosene.D::Die Kerosinqualit\xE4t ist schlecht. Wir sollten %li Barrel hochwertiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10321, "E::Kerosene quality is way too good. We should save money and buy cheap kerosene.D::Die Kerosinqualit\xE4t ist viel zu gut. Wir sollten Geld sparen und billiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10322, "E::Kerosene quality is way too good. We should save money and buy %li barrel of cheap kerosene.D::Die Kerosinqualit\xE4t ist viel zu gut. Wir sollten Geld sparen und %li Barrel billiges Kerosin kaufen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10323, "E::Kerosene quality is fine. We could save money and buy cheap kerosene if our planes can support this.D::Die Kerosinqualit\xE4t ist okay. Wir k\xF6nnten Geld sparen und billiges Kerosin kaufen, wenn unsere Flugzeuge das noch vertragen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10324, "E::Kerosene quality is fine. We could save money and buy %li barrel of cheap kerosene if our planes can support this.D::Die Kerosinqualit\xE4t ist okay. Wir k\xF6nnten Geld sparen und %li Barrel billiges Kerosin kaufen, wenn unsere Flugzeuge das noch vertragen.");
-    StandardTexte.AddText(TOKEN_EXPERT, 10350, "E::Kerosene reportD::Kerosinbericht");
-
-    /*SLONG tmpList[5] = {1, 2, 3, 5, 10};
-    for (SLONG i = 0; i < 5; ++i) {
-        DialogTexte.UpdateText(TOKEN_ARAB, 691+i, bprintf("[[P1\\MA\\141]]%li St\xFC""ck (=%%s \x80)", tmpList[i]));
-    }*/
-    for (SLONG i = 0; i < 4; ++i) {
-        DialogTexte.UpdateText(TOKEN_ARAB, 900 + i,
-                               bprintf("E::I will take the one with %lik gallons (\x24 %li).D::Ich nehme den mit %lik l (%li \x80).",
-                    TankSize[i] / 1000, TankPrice[i], TankSize[i] / 1000, TankPrice[i]));
-    }
-
-    StandardTexte.AddText(TOKEN_JOBS, 2003, "E::Route advisorD::Routenberaterin");
-
-    StandardTexte.UpdateText(TOKEN_MISC, 3201, "E::Opening hours.\xB5 \xB5Mon-Sat:10-19\xB5Sun:closedD::\xD6""ffnungszeiten.\xB5 \xB5Mo-Sa:10-19 Uhr\xB5So:geschlossen");
-
-    StandardTexte.AddText(TOKEN_MISC, 1152, "E::Mission %li: %s (%s)D::Mission %li: %s (%s)");
-    StandardTexte.AddText(TOKEN_MISC, 1153, "E::Free game: %s (%s)D::Freies Spiel: %s (%s)");
 }

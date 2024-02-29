@@ -622,6 +622,17 @@ void PLAYER::AddRocketPart(SLONG rocketPart, SLONG price) {
 }
 
 //--------------------------------------------------------------------------------------------
+// Adds a new part to a space station
+//--------------------------------------------------------------------------------------------
+void PLAYER::AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price) {
+    RocketFlags |= flag;
+    this->ChangeMoney(-price, rocketPart, "");
+
+    // Synchronize to other players
+    NetSynchronizeFlags();
+}
+
+//--------------------------------------------------------------------------------------------
 // Verläßt der Raum
 //--------------------------------------------------------------------------------------------
 void PLAYER::LeaveRoom() {

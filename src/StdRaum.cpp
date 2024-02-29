@@ -2129,9 +2129,9 @@ void CStdRaum::InitToolTips() {
                     SetMouseLook(CURSOR_HOT, 4511, -102, MENU_BUYKEROSIN, 11);
                 }
 
-                CheckCursorHighlight(CursorPos, CRect(126, 87, 198, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -20);
-                CheckCursorHighlight(CursorPos, CRect(198, 87, 234, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -21);
-                CheckCursorHighlight(CursorPos, CRect(234, 87, 327, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -22);
+                CheckCursorHighlight(CursorPos, CRect(126, 87, 223, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -20);
+                CheckCursorHighlight(CursorPos, CRect(223, 87, 254, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -21);
+                CheckCursorHighlight(CursorPos, CRect(254, 87, 327, 100), ColorOfFontBlack, CURSOR_HOT, 0, -102, MENU_BUYKEROSIN, -22);
                 break;
 
             case MENU_PLAYERLIST:
@@ -5190,42 +5190,38 @@ void CStdRaum::MenuRepaint() {
                 _tank = Sim.Players.Players[PlayerNum].Tank;
             }
 
+            // Volume total
             OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString(Kerosinpreis), FontSmallBlack, TEC_FONT_LEFT, 200, 37, 325, 113);
-            if (gLanguage == LANGUAGE_O) {
-                OnscreenBitmap.PrintAt(bprintf("%s barris", LPCTSTR(Insert1000erDots(Sim.Players.Players[PlayerNum].Tank))), FontSmallBlack, TEC_FONT_LEFT, 200,
-                                       50, 325, 113);
-            } else {
-                OnscreenBitmap.PrintAt(bprintf("%s barrel", LPCTSTR(Insert1000erDots(Sim.Players.Players[PlayerNum].Tank))), FontSmallBlack, TEC_FONT_LEFT, 200,
-                                       50, 325, 113);
-            }
+                OnscreenBitmap.PrintAt(
+                bprintf(ETexte.GetS(1000, 3000 + (Sim.Players.Players[PlayerNum].Tank > 1)), LPCTSTR(Shorten1000erDots(Sim.Players.Players[PlayerNum].Tank))),
+                    FontSmallBlack, TEC_FONT_LEFT, 200,
+                                   50,
+                                   325, 113);
 
-            if (gLanguage == LANGUAGE_O) {
-                OnscreenBitmap.PrintAt(bprintf("%s barris", LPCTSTR(Insert1000erDots(Sim.Players.Players[PlayerNum].TankInhalt))), FontSmallBlack,
-                                       TEC_FONT_RIGHT, 56, 76, 200, 113);
-            } else {
-                OnscreenBitmap.PrintAt(bprintf("%s barrel", LPCTSTR(Insert1000erDots(Sim.Players.Players[PlayerNum].TankInhalt))), FontSmallBlack,
-                                       TEC_FONT_RIGHT, 56, 76, 200, 113);
-            }
+            // Volume available
+            OnscreenBitmap.PrintAt(bprintf(ETexte.GetS(1000, 3000 + (Sim.Players.Players[PlayerNum].TankInhalt > 1)),
+                                               LPCTSTR(Shorten1000erDots(Sim.Players.Players[PlayerNum].TankInhalt))),
+                                       FontSmallBlack,
+                                    TEC_FONT_RIGHT, 56, 76, 225, 113);
             OnscreenBitmap.PrintAt(Einheiten[EINH_P].bString(Sim.Players.Players[PlayerNum].TankInhalt * 100 / _tank), FontSmallBlack, TEC_FONT_RIGHT, 56, 76,
-                                   236, 113);
+                                   256, 113);
 
-            if (gLanguage == LANGUAGE_O) {
-                OnscreenBitmap.PrintAt(bprintf("%s barris", LPCTSTR(Insert1000erDots(MenuPar2))), FontSmallBlack, TEC_FONT_RIGHT, 0, 89, 200, 113);
-            } else {
-                OnscreenBitmap.PrintAt(bprintf("%s barrel", LPCTSTR(Insert1000erDots(MenuPar2))), FontSmallBlack, TEC_FONT_RIGHT, 0, 89, 200, 113);
-            }
-            OnscreenBitmap.PrintAt(Einheiten[EINH_P].bString(MenuPar2 * 100 / _tank), FontSmallBlack, TEC_FONT_RIGHT, 56, 89, 236, 113);
-            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString(MenuInfo), FontSmallBlack, TEC_FONT_RIGHT, 56, 89, 327, 113);
+            // Buy
+            OnscreenBitmap.PrintAt(bprintf(ETexte.GetS(1000, 3000 + (MenuPar2 > 1)), LPCTSTR(Shorten1000erDots(MenuPar2))),
+                                   FontSmallBlack, TEC_FONT_RIGHT, 0, 89, 225, 113);
 
-            if (gLanguage == LANGUAGE_O) {
-                OnscreenBitmap.PrintAt(bprintf("%s barris", LPCTSTR(Insert1000erDots((MenuPar2 + Sim.Players.Players[PlayerNum].TankInhalt)))), FontSmallBlack,
-                                       TEC_FONT_RIGHT, 0, 102, 200, 160);
-            } else {
-                OnscreenBitmap.PrintAt(bprintf("%s barrel", LPCTSTR(Insert1000erDots((MenuPar2 + Sim.Players.Players[PlayerNum].TankInhalt)))), FontSmallBlack,
-                                       TEC_FONT_RIGHT, 0, 102, 200, 160);
-            }
+            OnscreenBitmap.PrintAt(Einheiten[EINH_P].bString(MenuPar2 * 100 / _tank), FontSmallBlack, TEC_FONT_RIGHT, 56, 89, 256, 113);
+            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bShortString(MenuInfo), FontSmallBlack, TEC_FONT_RIGHT, 56, 89, 327, 113);
+
+            
+            // New volume
+            OnscreenBitmap.PrintAt(bprintf(ETexte.GetS(1000, 3000 + (MenuPar2 + Sim.Players.Players[PlayerNum].TankInhalt > 1)),
+                                           LPCTSTR(Shorten1000erDots((MenuPar2 + Sim.Players.Players[PlayerNum].TankInhalt)))),
+                                   FontSmallBlack,
+                                    TEC_FONT_RIGHT, 0, 102, 225, 160);
+ 
             OnscreenBitmap.PrintAt(Einheiten[EINH_P].bString((MenuPar2 + Sim.Players.Players[PlayerNum].TankInhalt) * 100 / _tank), FontSmallBlack,
-                                   TEC_FONT_RIGHT, 56, 102, 236, 160);
+                                   TEC_FONT_RIGHT, 56, 102, 256, 160);
 
             OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString(SLONG(Rabatt)), FontSmallBlack, TEC_FONT_LEFT, 120, 120, 327, 160);
         }
@@ -5996,15 +5992,15 @@ void CStdRaum::MenuLeftClick(XY Pos) {
     case MENU_BUYKEROSIN:
         if (MouseClickArea == -102 && MouseClickId == MENU_BUYKEROSIN && MouseClickPar1 == -20) {
             MenuInfo2 = 0;
-            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(126, 87, 198, 100), ColorOfFontBlack, 0x20ff64);
+            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(126, 87, 223, 100), ColorOfFontBlack, 0x20ff64);
             CalcOpen(MenuPos + XY(318, 51 + 16), MenuInfo);
         } else if (MouseClickArea == -102 && MouseClickId == MENU_BUYKEROSIN && MouseClickPar1 == -21) {
             MenuInfo2 = 1;
-            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(198, 87, 238, 100), ColorOfFontBlack, 0x20ff64);
+            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(223, 87, 254, 100), ColorOfFontBlack, 0x20ff64);
             CalcOpen(MenuPos + XY(318, 51 + 16), MenuInfo);
         } else if (MouseClickArea == -102 && MouseClickId == MENU_BUYKEROSIN && MouseClickPar1 == -22) {
             MenuInfo2 = 2;
-            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(238, 87, 322, 100), ColorOfFontBlack, 0x20ff64);
+            ColorFX.HighlightText(OnscreenBitmap.pBitmap, CRect(254, 87, 322, 100), ColorOfFontBlack, 0x20ff64);
             CalcOpen(MenuPos + XY(318, 51 + 16), MenuInfo);
         }
         if (MouseClickArea == -102 && MouseClickId == MENU_BUYKEROSIN && MouseClickPar1 == 11) {

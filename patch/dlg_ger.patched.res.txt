@@ -1,0 +1,60 @@
+//==============================================================================
+//Modded "dlg_ger" resources
+//==============================================================================
+>Arab
+>>0000800
+  B::[[AA\800]]Eu tenho tanques para armazenagem de todas as formas, cores e tamanhos. 100k galões por $ 100.000, 1000k galões por $ 800.000, 10.000k galões por $ 7.000.000 e 10.000k galões por $ 60.000.000!
+  E::[[AA\800]]I have storage tanks in all shapes, colors and sizes. 100k gallons for $ 100.000, 1000k gallons for $ 800.000, 10.000k gallons for $ 7.000.000 and 10.000k gallons for $ 60.000.000!
+  F::[[AA\800]]J'ai des réservoirs de toutes les formes, toutes les couleurs et de toutes les tailles. 100k litres pour 100.000 €, 1000k litres pour 800.000 €, 10.000k litres pour 7.000.000 € et 10.000k litres pour 60.000.000 € !  
+  I::[[AA\800]]Ho serbatoi di stoccaggio di ogni forma, colore e dimensione. 100k litri per 100.000 $, 1000k litri per 800.000 $, 10.000k litri per 7.000.000 $ e 10.000k litri per 60.000.000 $!
+  N::[[AA\800]]Ik heb opslagtanks in alle vormen, kleuren en maten. 100k l voor 100.000$, 1000k l voor 800.000$, 10.000k l voor 7.000.000$ en 10.000k l voor 60.000.000$!
+  O::[[AA\800]]Tenho tanques de armazenamento de todas as formas, cores e tamanhos. 100k litros por 100.000$, 1000k litros por 800.000$, 10.000k litros por 7.000.000$ e 10.000k litros por 60.000.000$!
+  S::[[AA\800]]Tengo tanques de todas las formas, colores y tamaños: 100k l por 10.000.000 Pts, 1000k l por 80.000.000 Pts, 10.000k l por 700.000.000 Pts y 10.000k l por 6.000.000.000 Pts.
+  D::[[AA\800]]Ich habe Tanks in alle Formen, Farben und Größen. 100k l für € 100.000, 1000k l für € 800.000, 10.000k l für € 7.000.000 und 10.000k l für € 60.000.000!
+>>0000900
+  B::[[P1\AA\900]]Vou levar o de 100k galões ($ 100.000).
+  E::[[P1\AA\900]]I will take the one with 100k gallons ($ 100.000).
+  F::[[P1\AA\900]]Je prendrai celui qui fait 100k litres (100.000 €).
+  I::[[P1\AA\900]]Prendo quello da 100k litri (100.000 $).
+  N::[[P1\AA\900]]Ik neem de tank van 100k l (100.000 $).
+  O::[[P1\AA\900]]Levo o de 100k litros (100.000$).
+  S::[[P1\AA\900]]Me quedo con el de 100k l (10.000.000 Pts).
+  D::[[P1\AA\900]]Ich nehme den mit 100k l (100.000 €).
+>>0000901
+  B::[[P1\AA\901]]Vou levar o de 1000k galões ($ 800.000).
+  E::[[P1\AA\901]]I will take the one with 1000k gallons ($ 800.000).
+  F::[[P1\AA\901]]Je prendrai celui qui fait 1000k litres (800.000 €).
+  I::[[P1\AA\901]]Prendo quello da 1000k litri (800.000 $).
+  N::[[P1\AA\901]]Ik neem de tank van 1000k l (800.000 $).
+  O::[[P1\AA\901]]Levo o de 1000k litros (800.000$).
+  S::[[P1\AA\901]]Me quedo con el de 1000k l (80.000.000 Pts).
+  D::[[P1\AA\901]]Ich nehme den mit 1000k l (800.000 €).
+>>0000902
+  B::[[P1\AA\902]]Vou levar o de 10.000k galões ($ 7.000.000).
+  E::[[P1\AA\902]]I will take the one with 10.000k gallons ($ 7.000.000).
+  F::[[P1\AA\902]]Je prendrai celui qui fait 10.000k litres (7.000.000 €).
+  I::[[P1\AA\902]]Prendo quello da 10.000k litri (7.000.000 $).
+  N::[[P1\AA\902]]Ik neem de tank van 10.000k l (7.000.000 $).
+  O::[[P1\AA\902]]Levo o de 10.000k litros (7.000.000$).
+  S::[[P1\AA\902]]Me quedo con el de 10.000k l (700.000.000 Pts).
+  D::[[P1\AA\902]]Ich nehme den mit 10.000k l (7.000.000 €).
+>>0000903
+  B::[[P1\AA\903]]Vou levar o de 10.000k galões ($ 60.000.000).
+  E::[[P1\AA\903]]I will take the one with 100.000k gallons ($ 60.000.000).
+  F::[[P1\AA\903]]Je prendrai celui qui fait 100.000k litres (60.000.000 €).
+  I::[[P1\AA\903]]Prendo quello da 100.000k litri (60.000.000 $).
+  N::[[P1\AA\903]]Ik neem de tank van 100.000k (60.000.000 $).
+  O::[[P1\AA\903]]Levo o de 100.000k litros (60.000.000$).
+  S::[[P1\AA\903]]Me quedo con el de 100.000k l (6.000.000.000 Pts).
+  D::[[P1\AA\903]]Ich nehme den mit 100.000kl (60.000.000 €).
+
+>Boss
+>>0008600 //ATFS-Mission #02
+  B::[[BO\8600]]Você possui o seguinte número de aviões seguros:
+  E::[[BO\8600]]You've got the following number of safe aircrafts:
+  F::[[BO\8600]]Vous possedez le nombre suivant d'avions sûr:
+  I::[[BO\8600]]Possiedi il seguente numero di aerei sicuri:
+  N::[[BO\8600]]U bezit het volgende aantal veilige vliegtuigen:
+  O::[[BO\8600]]Você possui o seguinte número de aviões seguros:
+  S::[[BO\8600]]Usted posee la siguiente cantidad de aviones seguros:
+  D::[[BO\8600]]Also, Sie haben soviele sichere Flugzeuge wie folgt:

@@ -85,6 +85,7 @@ SLONG CalculateFlightCostRechnerisch(SLONG VonCity, SLONG NachCity, SLONG Verbra
 void InitEinheiten(const CString &Filename);
 CString Insert1000erDots(SLONG Value);
 CString Insert1000erDots64(__int64 Value);
+CString Shorten1000erDots(SLONG Value);
 CRect PaintTextBubble(SBBM &OffscreenBm, const XY &p1, const XY &p2, const XY &Entry);
 BOOL CheckCursorHighlight(const CRect &rect, UWORD FontColor, SLONG Look = CURSOR_HOT, SLONG TipId = 0, SLONG ClickArea = 0, SLONG ClickId = 0,
                           SLONG ClickPar1 = 0, SLONG ClickPar2 = 0);
@@ -105,6 +106,38 @@ SLONG AtGetAsyncKeyState(SLONG vKey);
 DWORD AtGetTickCount(void);
 SLONG GetCurrentYear();
 CString getCurrentDayString();
+SLONG strchrcount(CString Text, char chr);
+SLONG strchrcount(char *str, const char delimiters[]);
+//--------------------------------------------------------------------------------------------
+// Zählt die Häufigkeit des Auftretens von Enumerationswerten in einem Zeichenfolgenwert,
+// basierend auf einer gegebenen Zuordnung von Zeichenfolgen zu Enumerationswerten.
+//--------------------------------------------------------------------------------------------
+template <typename TEnum>
+std::vector<TEnum> findEnumsInString(const std::unordered_map<std::string, TEnum> &enumMap, const std::string &value, const std::string &delimiters) {
+    std::vector<TEnum> foundEnums;
+
+    size_t start = 0, end = 0;
+    while ((end = value.find_first_of(delimiters, start)) != std::string::npos) {
+        std::string token = value.substr(start, end - start);
+        if (!token.empty()) {
+            auto it = enumMap.find(token);
+            if (it != enumMap.end()) {
+                foundEnums.push_back(it->second);
+            }
+        }
+        start = end + 1;
+    }
+
+    std::string lastToken = value.substr(start);
+    if (!lastToken.empty()) {
+        auto it = enumMap.find(lastToken);
+        if (it != enumMap.end()) {
+            foundEnums.push_back(it->second);
+        }
+    }
+
+    return foundEnums;
+}
 
 //--------------------------------------------------------------------------------------------
 // Planer.Cpp:

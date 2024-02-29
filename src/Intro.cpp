@@ -20,7 +20,7 @@ extern SB_CColorFX ColorFX;
 // ULONG PlayerNum
 //--------------------------------------------------------------------------------------------
 CIntro::CIntro() : CVideo("intro.smk") {
-    pGfxMain->LoadLib(const_cast<char*>(FullFilename("titel.gli", RoomPath).c_str()), &mRoomLib, L_LOCMEM);
+    pGfxMain->LoadLib(const_cast<char *>(FullFilename("titel.gli", RoomPath).c_str()), &mRoomLib, L_LOCMEM);
     mFadeTo.ReSize(mRoomLib, GFX_TITEL);
 
     mFadeFrom.ReSize(640, 480);

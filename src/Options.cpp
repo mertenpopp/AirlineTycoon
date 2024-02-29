@@ -211,14 +211,8 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 6, StandardTexte.GetS(TOKEN_MISC, 4022 + Sim.Options.OptionFlipping));
         KlackerTafel.PrintAt(0, 7, StandardTexte.GetS(TOKEN_MISC, 4024 + Sim.Options.OptionTransparenz));
         KlackerTafel.PrintAt(0, 8, StandardTexte.GetS(TOKEN_MISC, 4026 + Sim.Options.OptionSchatten));
-
-        KlackerTafel.PrintAt(0, 10,
-                             Sim.Options.OptionFullscreen == 0   ? "# Display : Fullscreen"
-                             : Sim.Options.OptionFullscreen == 1 ? "# Display : Windowed"
-                             : Sim.Options.OptionFullscreen == 2 ? "# Display : Borderless"
-                                                                 : "???");
-        KlackerTafel.PrintAt(0, 11, ((static_cast<bool>(Sim.Options.OptionKeepAspectRatio)) ? "# Aspect Ratio: Keep" : "# Aspect Ratio: Stretch"));
-
+        KlackerTafel.PrintAt(0, 10, ModdedTexte.GetS(TOKEN_MISC, 1 + Sim.Options.OptionFullscreen));
+        KlackerTafel.PrintAt(0, 11, ModdedTexte.GetS(TOKEN_MISC, 10 + Sim.Options.OptionKeepAspectRatio));
         KlackerTafel.PrintAt(0, 13, StandardTexte.GetS(TOKEN_MISC, 4099));
     } else if (PageNum == 3) // Musik-Optionen
     {
@@ -228,7 +222,7 @@ void Options::RefreshKlackerField() {
         const bool usesOgg = Sim.Options.OptionMusicType == 2;
         SLONG musicShift = usesMidi ? -1 : 0;
 
-        KlackerTafel.PrintAt(0, 2, usesMidi ? "Music: Midi" : usesOgg ? "Music: Ogg" : "Music: Off");
+        KlackerTafel.PrintAt(0, 2, ModdedTexte.GetS(TOKEN_MISC, 20 + Sim.Options.OptionMusicType));
 
         if (Sim.Options.OptionMusicType != 0) {
             if (!usesMidi) {
@@ -241,7 +235,7 @@ void Options::RefreshKlackerField() {
             }
         }
 
-        KlackerTafel.PrintAt(0, 7, "Sound:");
+        KlackerTafel.PrintAt(0, 7, ModdedTexte.GetS(TOKEN_MISC, 30));
         KlackerTafel.PrintAt(1, 8, StandardTexte.GetS(TOKEN_MISC, 4127));
         KlackerTafel.PrintAt(1, 9, StandardTexte.GetS(TOKEN_MISC, 4122));
         KlackerTafel.PrintAt(1, 10, StandardTexte.GetS(TOKEN_MISC, 4123));
