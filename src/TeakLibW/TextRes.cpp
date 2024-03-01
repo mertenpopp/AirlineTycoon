@@ -25,12 +25,12 @@ std::string FindLanguageInString(const char* Dst, const SLONG wantedLanguageInde
 }
 
 void LanguageSpecifyString(char *Dst) {
-    const SLONG wantedLanguageIndex = 2;//gLanguage;
+    const SLONG wantedLanguageIndex = 0;//gLanguage;
 
     std::string foundText = FindLanguageInString(Dst, wantedLanguageIndex);
     if (foundText.empty()) {
         // If we haven't found the language we want, try English
-        foundText = FindLanguageInString(Dst, 1/*E - English*/);
+        foundText = FindLanguageInString(Dst, 0/*E - English*/);
     }
 
     // If we still haven't found anything, just return
