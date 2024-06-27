@@ -16,3 +16,8 @@ CMakeCache.txt
 cmake_install.cmake
 /libs/libsmacker/smk2avi
 /libs/libsmacker/driver
+gamefiles/*
+!gamefiles/*.md
+.vscode
+!.vscode/extensions.json
+.DS_Store

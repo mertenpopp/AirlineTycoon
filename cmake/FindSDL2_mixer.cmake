@@ -126,7 +126,7 @@ endif()
 
 # Define options for searching SDL2_mixer Library in a custom path
 
-set(SDL2_MIXER_PATH "" CACHE STRING "Custom SDL2 Library path")
+set(SDL2_MIXER_PATH "${SDL2_MIXER_PATH}" CACHE STRING "Custom SDL2 Library path")
 
 set(_SDL2_MIXER_NO_DEFAULT_PATH OFF)
 if(SDL2_MIXER_PATH)

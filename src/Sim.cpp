@@ -43,7 +43,7 @@ static long InitMoney[] = {1500000, 0,        2000000, 0,                       
 static SLONG MonthLength[] = {31, 28, 31, 30, 31, 30, 30, 31, 30, 31, 30, 31};
 
 char chRegKey[] = R"(Software\Spellbound Software\Airline Tycoon Deluxe\1.0)";
-char chRegKeyOld[] = R"(Software\Spellbound Software\Airline Tycoon Evolution\1.0)";
+// char chRegKeyOld[] = R"(Software\Spellbound Software\Airline Tycoon Evolution\1.0)";
 // char chRegKeyOld[] = "Software\\Spellbound Software\\Airline Tycoon FirstClass\\1.0";
 
 extern SLONG NewgameWantsToLoad;
@@ -142,7 +142,7 @@ SIM::SIM() {
 //--------------------------------------------------------------------------------------------
 // Destruktor:
 //--------------------------------------------------------------------------------------------
-SIM::~SIM() { SaveOptions(); }
+SIM::~SIM() {}
 
 //--------------------------------------------------------------------------------------------
 // Fügt einen Smacker im Flughafen hinzu:
@@ -2837,7 +2837,7 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
 
     const SLONG thisYear = GetCurrentYear();
 
-    CPlane usedPlane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd), 100, 0);
+    CPlane usedPlane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd, CPlaneType::Available::MUSEUM), 100, 0);
 
     if (thisYear < usedPlane.ptErstbaujahr) {
         TeakLibW_Exception(FNL, "Tried to add used plane that was built before this year (%d < %d)", thisYear, usedPlane.ptErstbaujahr);
@@ -3758,6 +3758,9 @@ CString SIM::GetSavegameSessionName(SLONG Index) {
             SessionName = bprintf("%-25s", StandardTexte.GetS(TOKEN_NEWGAME, 703));
             ;
         }
+        if (SessionName.size() == 0) {
+            SessionName = bprintf("%-25s", "");
+        }
     }
 
     return (SessionName);
@@ -4137,6 +4140,18 @@ void COptions::ReadOptions() {
         if (!reg.ReadRegistryKey_b(OptionKeepAspectRatio)) {
             OptionKeepAspectRatio = 1;
         }
+        if (!reg.ReadRegistryKey_u(OptionTicketPriceIncrement)) {
+            OptionTicketPriceIncrement = 10;
+        }
+        if (!reg.ReadRegistryKey_u(OptionRentOfficeTriggerPercent)) {
+            OptionRentOfficeTriggerPercent = 20;
+        }
+        if (!reg.ReadRegistryKey_u(OptionRentOfficeMinAvailable)) {
+            OptionRentOfficeMinAvailable = 0;
+        }
+        if (!reg.ReadRegistryKey_u(OptionRentOfficeMaxAvailable)) {
+            OptionRentOfficeMaxAvailable = 3;
+        }
 
         // Falls Setup nicht geladen wurde dann Standard-Parameter initialisieren
         if (!reg.ReadRegistryKey_b(OptionPlanes)) {
@@ -4365,8 +4380,6 @@ void COptions::ReadOptions() {
             Sim.GameSpeed = 30;
         }
     }
-
-    WriteOptions();
 }
 
 //--------------------------------------------------------------------------------------------
@@ -4384,8 +4397,16 @@ void COptions::WriteOptions() {
 
     CRegistryAccess reg(chRegKey);
 
+    // Modded
     reg.WriteRegistryKey_l(OptionFullscreen);
     reg.WriteRegistryKey_b(OptionKeepAspectRatio);
+    reg.WriteRegistryKey_u(OptionTicketPriceIncrement);
+    reg.WriteRegistryKey_u(OptionRentOfficeTriggerPercent);
+    reg.WriteRegistryKey_u(OptionRentOfficeMinAvailable);
+    reg.WriteRegistryKey_u(OptionRentOfficeMaxAvailable);
+
+
+    // Regular
     reg.WriteRegistryKey_b(OptionPlanes);
     reg.WriteRegistryKey_b(OptionPassengers);
     reg.WriteRegistryKey_l(OptionMusicType);
@@ -4475,6 +4496,7 @@ dont_save_talking:
     Sim.MaxDifficulty = tmp;
     Sim.MaxDifficulty2 = tmp2;
     Sim.MaxDifficulty3 = tmp3;
+    reg.WriteFile();
 }
 
 //--------------------------------------------------------------------------------------------

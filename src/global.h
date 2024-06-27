@@ -134,9 +134,10 @@ extern BOOL gRoomJustLeft; // TRUE, wenn Raum gerade verlassen wurde (wegen mess
 //--------------------------------------------------------------------------------------------
 // Text-Ressourcen:
 //--------------------------------------------------------------------------------------------
-extern TEXTRES DialogTexte;   // Die Text-Ressourcen der Dialoge
-extern TEXTRES StandardTexte; // Allgemeine Texte
-extern TEXTRES ETexte;        // Die Einheiten
+extern TEXTRES DialogTexte;     // Die Text-Ressourcen der Dialoge
+extern TEXTRES StandardTexte;   // Allgemeine Texte
+extern TEXTRES ETexte;          // Die Einheiten
+extern TEXTRES ModdedTexte;     // Modded Texte
 
 //--------------------------------------------------------------------------------------------
 // einige Flags:
@@ -195,6 +196,7 @@ extern CString IntroPath;    // Der Intro-Film
 extern CString AppPath;      // Der Ganze Pfad, z.B. "f:\project\takeoff\"
 extern CString VoicePath;    // die Sprache
 extern CString MyPlanePath;  // die eigenen Flugzeuge
+extern CString PatchPath;    // Patch path
 
 //--------------------------------------------------------------------------------------------
 // Die Simulationswelt mit ihren Parameter (Zeit, Spieler, Schwierigkeit, ..)

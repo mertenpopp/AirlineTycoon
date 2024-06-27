@@ -2302,16 +2302,16 @@ void CPlaner::HandleLButtonDown() {
                 }
 
                 if (ClientPosB.IfIsWithin(148, 40 - 2, 160, 40 - 2 + 14)) {
-                    qRRoute.TicketpreisFC += 10;
+                    qRRoute.TicketpreisFC += Sim.Options.OptionTicketPriceIncrement;
                 }
                 if (ClientPosB.IfIsWithin(160, 40 - 2, 172, 40 - 2 + 14)) {
-                    qRRoute.TicketpreisFC -= 10;
+                    qRRoute.TicketpreisFC -= Sim.Options.OptionTicketPriceIncrement;
                 }
                 if (ClientPosB.IfIsWithin(148, 40 - 2 - 13, 160, 40 - 2 - 13 + 14)) {
-                    qRRoute.Ticketpreis += 10;
+                    qRRoute.Ticketpreis += Sim.Options.OptionTicketPriceIncrement;
                 }
                 if (ClientPosB.IfIsWithin(160, 40 - 2 - 13, 172, 40 - 2 - 13 + 14)) {
-                    qRRoute.Ticketpreis -= 10;
+                    qRRoute.Ticketpreis -= Sim.Options.OptionTicketPriceIncrement;
                 }
                 /*if ((ClientPosB.y-27)/13==0)
                   {

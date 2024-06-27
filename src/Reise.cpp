@@ -23,23 +23,6 @@ extern SLONG timeReisClose;
 // Museum Konstruktion, Initialisation, Destruction
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-//--------------------------------------------------------------------------------------------
-// Zählt wie oft das Zeichen vorkommt:
-//--------------------------------------------------------------------------------------------
-SLONG strchrcount(CString Text, char chr);
-
-SLONG strchrcount(CString Text, char chr) {
-    SLONG c = 0;
-    SLONG n = 0;
-
-    for (c = n = 0; c < Text.GetLength(); c++) {
-        if (Text[SLONG(c)] == chr) {
-            n++;
-        }
-    }
-
-    return (n);
-}
 
 //--------------------------------------------------------------------------------------------
 // Bei Cities mit zwei Leerzeichen (Palm de Mallorca und Rio de Janeiro) wird nur das erste Wort genommen:

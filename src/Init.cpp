@@ -16,8 +16,6 @@ extern CPlanePartRelation gPlanePartRelations[307];
 
 SB_CFont FontVerySmall;
 
-extern char chRegKeyOld[];
-
 DWORD GetKey();
 
 //--------------------------------------------------------------------------------------------
@@ -43,6 +41,7 @@ void InitPathVars() {
     ExcelPath = prefix + "data\\%s";
     GliPath = prefix + "gli\\%s";
     MiscPath = prefix + "misc\\%s";
+    PatchPath = prefix + "patch\\%s";
     VoicePath = prefix + "voice\\%s";
     SoundPath = "sound\\%s";
     RoomPath = "room\\%s";

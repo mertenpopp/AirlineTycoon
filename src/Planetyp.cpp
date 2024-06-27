@@ -48,6 +48,7 @@ void CPlaneTypes::ReInit(const CString &TabFilename) {
     FileP = ReadLine(FileData, FileP, Line.getData(), 800);
 
     SLONG planes = CountLines(FileData, FileP);
+    BOOL numberOfColumns = strchrcount(Line.getData(), TabSeparator);
     
     PlaneTypes.ReSize(planes);
 
@@ -91,6 +92,20 @@ void CPlaneTypes::ReInit(const CString &TabFilename) {
         planeType.Verbrauch = atoi(strtok(nullptr, TabSeparator));
         planeType.Preis = atoi(strtok(nullptr, TabSeparator));
         planeType.Wartungsfaktor = FLOAT(atof(strtok(nullptr, TabSeparator)));
+        // modded: <availability>
+        std::vector<CPlaneType::Available> availability;
+        if (numberOfColumns >= 24) {
+            static const std::unordered_map<std::string, CPlaneType::Available> AvailabilityMap = {{"MUSEUM", CPlaneType::Available::MUSEUM},
+                                                                                                   {"BROKER", CPlaneType::Available::BROKER}};
+            availability = findEnumsInString(AvailabilityMap, strtok(nullptr, TabSeparator), ",");
+        }
+        if (numberOfColumns < 24) {
+            // By default, make the plane available in all places
+            availability = {CPlaneType::Available::MUSEUM, CPlaneType::Available::BROKER};
+        }
+        planeType.AvailableIn.insert(planeType.AvailableIn.end(), availability.begin(), availability.end());
+        // </availability>
+
         planeType.Kommentar = strtok(nullptr, TabSeparator);
 
         push_back(Id, std::move(planeType));
@@ -100,7 +115,8 @@ void CPlaneTypes::ReInit(const CString &TabFilename) {
 //--------------------------------------------------------------------------------------------
 // Sucht einen zufälligen (bereits erfundenen) Flugzeugtyp raus:
 //--------------------------------------------------------------------------------------------
-ULONG CPlaneTypes::GetRandomExistingType(TEAKRAND *pRand) {
+ULONG CPlaneTypes::GetRandomExistingType(
+    TEAKRAND *pRand, CPlaneType::Available in) {
     SLONG c = 0;
     SLONG Anz = 0;
     SLONG rnd = 0;
@@ -108,6 +124,9 @@ ULONG CPlaneTypes::GetRandomExistingType(TEAKRAND *pRand) {
     for (c = Anz = 0; c < AnzEntries(); c++) {
         if (IsInAlbum(c) != 0) {
             const CPlaneType &plane = (*this)[c];
+            if (std::find(plane.AvailableIn.begin(), plane.AvailableIn.end(), in) == plane.AvailableIn.end()) {
+                continue;
+            }
             if (plane.FirstMissions < Sim.Difficulty || ((plane.FirstMissions == Sim.Difficulty || Sim.Difficulty == -1) && plane.FirstDay <= Sim.Date)) {
                 Anz++;
             }
@@ -123,6 +142,9 @@ ULONG CPlaneTypes::GetRandomExistingType(TEAKRAND *pRand) {
     for (c = 0; c < AnzEntries(); c++) {
         if (IsInAlbum(c) != 0) {
             const CPlaneType &plane = (*this)[c];
+            if (std::find(plane.AvailableIn.begin(), plane.AvailableIn.end(), in) == plane.AvailableIn.end()) {
+                continue;
+            }
             if (plane.FirstMissions < Sim.Difficulty || ((plane.FirstMissions == Sim.Difficulty || Sim.Difficulty == -1) && plane.FirstDay <= Sim.Date)) {
                 rnd--;
                 if (rnd == 0) {
@@ -132,7 +154,7 @@ ULONG CPlaneTypes::GetRandomExistingType(TEAKRAND *pRand) {
         }
     }
 
-    TeakLibW_Exception(FNL, ExcNever);
+    TeakLibW_Exception(FNL, "No plane available to get a random existing type");
     return (0);
 }
 

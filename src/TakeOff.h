@@ -26,7 +26,7 @@ class CTakeOffApp {
     // ClassWizard generated virtual function overrides
     //{{AFX_VIRTUAL(CTakeOffApp)
   public:
-    virtual BOOL InitInstance(SLONG argc, char *argv[]);
+    virtual void InitInstance(SLONG argc, char *argv[]);
     virtual void WinHelp(DWORD dwData, UINT nCmd);
     //}}AFX_VIRTUAL
 
@@ -42,7 +42,11 @@ class CTakeOffApp {
     // HICON  m_hSmallIcon;
     // HICON  m_hBigIcon;
   private:
-    static void LadeWeitereStandardTexte();
+    bool          hasVideo = false;
+    void          CLI(SLONG argc, char *argv[]);
+    void          ReadOptions(SLONG argc, char *argv[]);
+    void          CreateVideo();
+    static  void  LadeWeitereStandardTexte();
 };
 
 /////////////////////////////////////////////////////////////////////////////

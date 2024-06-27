@@ -492,7 +492,9 @@ class CRLEReader {
     void SaveAsPlainText();
 
     static void TogglePlainTextSaving(bool enabled) { AlwaysSaveAsPlainText = enabled; }
+    static void ToggleUpdateDataBeforeOpening(bool enabled) { UpdateDataBeforeOpening = enabled; }
     static bool AlwaysSaveAsPlainText;
+    static bool UpdateDataBeforeOpening;
 
   private:
     SDL_RWops *Ctx;
@@ -506,6 +508,27 @@ class CRLEReader {
     SLONG Key;
 
     const char *Path;
+};
+
+class CRLEWriter {
+  public:
+                        CRLEWriter(const char *path);
+                        ~CRLEWriter(void);
+
+    bool                Close(void);
+    void                Write(const unsigned char *buffer, SLONG size);
+    SLONG               GetNextSequence(const unsigned char *buffer, SLONG size, SLONG consumed);
+    void                UpdateFromPlainText();
+
+  private:
+    SDL_RWops           *Ctx;
+    SLONG               Version;      // Will always be 0x102
+    SLONG               Key;          // Will always be 0xA5
+    const char          Magic[6];     // Will always be xtRLE
+
+    BYTE                Sequence[132];
+
+    const char          *Path;
 };
 
 class TEAKRAND {
@@ -728,17 +751,23 @@ class TEXTRES {
 
     void Open(char const *, void *);
     BUFFER_V<char> &GetB(ULONG, ULONG);
+    char *FindP(ULONG, ULONG);
+    char *FindS(ULONG, ULONG);
     char *GetP(ULONG, ULONG);
     char *GetS(ULONG, ULONG);
-    // char* GetS(ULONG, char const*);
+
     char *GetS(char const *c, ULONG i) { return GetS(*(const ULONG *)c, i); }
-    void AddText(const char *groupId, ULONG id, const char *text);
-    void UpdateText(const char *groupId, ULONG id, const char *newText);
+
+    void SetOverrideFile(char const *c);
 
   private:
-    BUFFER_V<char> Path;
-    BUFFER_V<char> Strings;
-    BUFFER_V<TEXTRES_CACHE_ENTRY> Entries;
+    char *FindOverridenS(ULONG, ULONG);
+
+    BUFFER_V<char>                  Path;
+    BUFFER_V<char>                  Strings;
+    BUFFER_V<TEXTRES_CACHE_ENTRY>   Entries;
+    BOOL                            hasOverride = false;
+    TEXTRES                         *override;
 };
 
 // static_assert(sizeof(TEXTRES) == 36, "TEXTRES size check");

@@ -33,13 +33,12 @@
 /* Include our standard type header for the integer typedef */
 
 #if defined(HAVE_STDINT_H)
-#  include <stdint.h>
+#include <stdint.h>
 #elif defined(HAVE_INTTYPES_H)
-#  include <inttypes.h>
+#include <inttypes.h>
 #elif defined(HAVE_SYS_TYPES_H)
-#  include <sys/types.h>
+#include <sys/types.h>
 #endif
-
 
 /* If your compiler supports the inline keyword in C, JSON_INLINE is
    defined to `inline', otherwise empty. In C++, the inline is always
@@ -50,11 +49,14 @@
 #define JSON_INLINE inline
 #endif
 
-
 #define json_int_t long long
 #define json_strtoint strtoll
-#define JSON_INTEGER_FORMAT "I64d"
 
+#if defined(__APPLE__) && defined(__MACH__)
+#define JSON_INTEGER_FORMAT "lld"
+#else /* TODO() - There might be an issue with this on 32bits systems */
+#define JSON_INTEGER_FORMAT "I64d"
+#endif
 
 /* If locale.h and localeconv() are available, define to 1, otherwise to 0. */
 #define JSON_HAVE_LOCALECONV 1

@@ -7,6 +7,7 @@ To run it you'll need the game assets from the either the First Class, Evolution
 Deluxe edition of the game. You can purchase these assets from GOG.com: https://www.gog.com/game/airline_tycoon_deluxe
 
 ## Major Additions
+
 - Native Linux support
 - Dedicated server browser and NAT-punchthrough multiplayer (open source server at: https://github.com/WizzardMaker/ATDMasterServer)
 
@@ -17,48 +18,20 @@ only be used for non-commercial purposes and remains property of BFG.
 
 It is therefore *not* open-source in the free software sense, for more information refer to the License.txt.
 
-## Building
+## Building and running
 
-Before building remember to clone the submodules:
-
+Before building, remember to clone the submodules:
 ```
 git submodule update --init
 ```
 
-### Windows
-The project can be build with Visual Studio.
-
-#### Dependencies
-This project relies on SDL2, instructions for downloading those dependencies can be found in `\cmake\README.md`
-
-enet should work out of the box when the git repository was correctly cloned (with submodules)
-
-#### Building
-To build the application, open the project solution with Visual Studio, select your configuration and then build like any other VS project.
-
-SDL2 needs to be at least version 2.0.12
-
-----
-
-### Linux x86 
-(AMD64 only with MultiArch for i686)
-
-###### Fedora AMD64
-sudo dnf install jansson-devel.i686 SDL2*-devel.i686
-
-###### Ubuntu x64
-sudo apt-get install libjansson-dev:i386 libsdl2*-dev:i386
-
-##### Building on AMD64
-mkdir build
-cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=../Toolchain-i686.cmake ..
-
+You can see the instructions to build and run the project in [BUILDING.md](BUILDING.md).
 
 ## Changes
 
 General:
 * Now runnable on Linux
+* Allow the game to be ran Windowed / Borderless / Fullscreen
 
 Statistics screen:
 * Showing far more categories where money was spent
@@ -127,6 +100,9 @@ Bug fixes:
     * Always rotate list of plane saldo for past 7 days
 * Consider also number of first class passengers for statistics
 * Do not show route utilization by defeated players
+* New sound options (OGG/MIDI) + patched stuttering glich when switching music on Windows 11
+* Patched Space station mission prices and texts in stats
+* Patched various text scrambling on UI
 
 AI:
 * Uses now same credit limit
@@ -154,3 +130,14 @@ Misc:
 * Buy kerosene by clicking price chart
 * Change tooltip of savegames (number of days played)
 * Decryption of data files with the run argument "/savedata"
+* Option "OptionTicketPriceIncrement" to increase ticket price increment per click
+* Director's board now allow for more post-it
+* Added options "OptionRentOffice*" to customise the branch number available / day.
+* Director's board post-it system improved and allow for more cities (up to 7)
+
+## Credits and Contributors
+
+- [WizzardMaker](https://github.com/WizzardMaker) - Main contributor and maintainer
+- [CrossVR](https://github.com/CrossVR) - Original contributor
+- [mertenpopp](https://github.com/mertenpopp) - Contributor
+- [wackfx](https://github.com/wackfx) - Contributor

@@ -314,6 +314,7 @@ class /**/ CEinheit  // 0 = km
     SLONG Umrechnung(SLONG Value) const;
     __int64 Umrechnung64(__int64 Value) const;
     char *bString(SLONG Value) const;
+    char *bShortString(SLONG Value) const;
     char *bString64(__int64 Value) const;
 };
 
@@ -348,21 +349,28 @@ class /**/ PERIOD // Eine Zeitperiode vom Datum x bis Datum y
 //--------------------------------------------------------------------------------------------
 class /**/ CTafelZettel {
   public:
-    SLONG ZettelId{}; // 0 oder Key im Routen/City Array
-    SLONG Player{};   //-1 oder der derzeitige Hauptbieter (0-3)
-    SLONG Preis{};    // Gebot (=Monatsmiete)
-    SLONG Rang{};
-    BOOL WasInterested{}; // Hat der Spieler mitgeboten?
+    enum    Type { ROUTE, GATE, CITY };
+    SLONG   ZettelId{}; // 0 oder Key im Routen/City Array
+    SLONG   Player{};   //-1 oder der derzeitige Hauptbieter (0-3)
+    SLONG   Preis{};    // Gebot (=Monatsmiete)
+    SLONG   Rang{};
+    BOOL    WasInterested{}; // Hat der Spieler mitgeboten?
+    XY      Position;
+    Type    Type;
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CTafelZettel &TafelZettel);
     friend TEAKFILE &operator>>(TEAKFILE &File, CTafelZettel &TafelZettel);
+    static bool ComparePositions(CTafelZettel *a, CTafelZettel *b) { return a->Position.x + a->Position.y < b->Position.x + b->Position.y; }
 };
 
 class /**/ CTafelData {
   public:
-    std::array<CTafelZettel, 7> Route; // Bis zu 7 Routen werden versteigert
-    std::array<CTafelZettel, 7> City;  // Bis zu 7 Orte werden versteigert
-    std::array<CTafelZettel, 7> Gate;  // Bis zu 7 Gates werden versteigert
+    std::array<CTafelZettel, 7> Route;          // Bis zu 7 Routen werden versteigert
+    std::array<CTafelZettel, 7> City;           // Bis zu 7 Orte werden versteigert
+    std::array<CTafelZettel, 7> Gate;           // Bis zu 7 Gates werden versteigert
+
+    // <TODO> Rework the whole code to only have "Entities" with a type
+    std::vector<CTafelZettel *> ByPositions; // Bis zu 7 Gates werden versteigert
 
   public:
     void Clear(void);          // Daten alle löschen ==> keine Zettel
@@ -370,6 +378,10 @@ class /**/ CTafelData {
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CTafelData &TafelData);
     friend TEAKFILE &operator>>(TEAKFILE &File, CTafelData &TafelData);
+
+  private:
+    void GetAvailableCities(std::vector<CTafelZettel> &result, std::vector<ULONG> *excluded);
+    void AssignPositions();
 };
 
 //--------------------------------------------------------------------------------------------
@@ -406,6 +418,8 @@ class /**/ CPlaneType {
     SLONG FirstMissions{};     // Ist erst verfügbar ab Mission x
     SLONG FirstDay{};          //...und auch dort erst ab Tag y
 
+    enum Available { MUSEUM, BROKER };
+
     // Technische Beschreibung
   public:
     CString Hersteller;      // Textstring, z.B. "Boing"
@@ -425,6 +439,7 @@ class /**/ CPlaneType {
     SLONG Verbrauch{};       // Kerosin in l/h
     SLONG Preis{};           // Der Neupreis in DM
     FLOAT Wartungsfaktor{};  // Faktor für die Wartungskosten
+    std::vector<Available> AvailableIn{}; // Availability
     CString Kommentar;       // Ggf. allgemeines über diese Maschine
 };
 
@@ -434,7 +449,7 @@ class /**/ CPlaneTypes : public ALBUM_V<CPlaneType> {
     CPlaneTypes() : ALBUM_V<CPlaneType>("PlaneTypes") {}
     CPlaneTypes(const CString &TabFilename);
     void ReInit(const CString &TabFilename);
-    ULONG GetRandomExistingType(TEAKRAND *pRand);
+    ULONG GetRandomExistingType(TEAKRAND *pRand, CPlaneType::Available in);
     void BlitPlaneAt(SBPRIMARYBM &TargetBm, SLONG PlaneType, SLONG Size, XY Pos, SLONG OwningPlayer);
 };
 
@@ -2166,6 +2181,7 @@ class PLAYER {
     void DoBodyguardRabatt(SLONG Money);
     void EnterRoom(SLONG RoomNum, bool bDontBroadcast = false);
     void AddRocketPart(SLONG rocketPart, SLONG price);
+    void AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price);
     UWORD GetRoom(void);                           // Gibt den aktuellen Raum zurück
     SLONG GetMissionRating(bool bAnderer = false); // Gibt aktuellen Missionserfolg als Zahl zurück
     SLONG HasBerater(SLONG Berater) const;
@@ -2374,6 +2390,10 @@ class COptions {
     BOOL OptionRoundNumber{};
     BOOL OptionSpeechBubble{};
     BOOL OptionRandomStartday{};
+    ULONG OptionTicketPriceIncrement{};
+    ULONG OptionRentOfficeTriggerPercent{};
+    ULONG OptionRentOfficeMinAvailable{};
+    ULONG OptionRentOfficeMaxAvailable{};
     std::array<CString, 4> OptionPlayerNames{};
     std::array<CString, 4> OptionAirlineNames{};
     std::array<CString, 4> OptionAirlineAbk{};
