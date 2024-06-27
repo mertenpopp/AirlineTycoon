@@ -138,6 +138,9 @@ if(MSVC)
     target_compile_features(AT PUBLIC cxx_std_17)
     target_compile_options(AT PUBLIC "/Zc:__cplusplus")
     target_compile_options(AT PUBLIC "/std:c++17")
+    target_compile_options(AT PUBLIC "$<$<CONFIG:Release>:/O2 /Ob2 /Zi /Ot /GF /Oi /Oy>")
+
+    target_link_options(AT PUBLIC "/DEBUG:FULL")
 
     set_target_properties(AT PROPERTIES
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -147,8 +150,6 @@ if(MSVC)
     target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/include/>")
     target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/lib/sentry.lib>")
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
-    add_compile_options("$<$<CONFIG:Release>:/O2 /Ob2 /Ot /GF /Oi /Oy")
-    add_link_options("$<$<CONFIG:Release>:/OPT:REF /OPT:ICF /LTCG")
 endif()
 
 if(NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
