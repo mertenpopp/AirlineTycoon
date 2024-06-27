@@ -262,10 +262,10 @@ class SB_CBitmapKey {
     SLONG lPitch;
 };
 
-typedef struct {
+struct CFRONTDATA {
     SB_CPrimaryBitmap *pBitmap{nullptr};
     SB_CBitmapCore *pBitmapCore{nullptr};
-} CFRONTDATA;
+};
 
 #define TEC_FONT_LEFT 1
 #define TEC_FONT_RIGHT 2

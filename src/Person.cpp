@@ -489,9 +489,6 @@ TEAKFILE &operator>>(TEAKFILE &File, CLAN &Clan) {
 // Gibt den Id eines Kunden zurück:  0=nur weiße; 1=beide; 2=nur braune
 //--------------------------------------------------------------------------------------------
 UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
-    SLONG Num = 0;
-    SLONG c = 0;
-    SLONG Rnd = 0;
 
     if (CheatMoreNuns != 0) {
         if (CheatMoreNuns == 1) {
@@ -505,16 +502,34 @@ UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
         }
     }
 
-    Num = 0;
+    
+    SLONG Num = 0;
 
-    for (c = 0; c < AnzEntries(); c++) {
-        if ((IsInAlbum(c) != 0) && ((*this)[c].TodayInGame != 0) && (Koffer == sign((*this)[c].HasSuitcase) || (Koffer == 99 && (*this)[c].HasSuitcase <= 0)) &&
-            ((((*this)[c].Type == CLAN_FEMALE || (*this)[c].Type == CLAN_MALE) && Browned < 2) ||
-             (((*this)[c].Type == CLAN_BROWNFEMALE || (*this)[c].Type == CLAN_BROWNMALE) && Browned > 0))) {
-            Num += (*this)[c].Wkeit;
+    std::vector<ULONG> possibleClanIds{};
+    for (SLONG c = 0; c < AnzEntries(); c++) {
+        if (IsInAlbum(c) == 0) {
+            continue;
+        }
+
+        const CLAN &clan = (*this)[c];
+        const bool isClanBrowned = clan.Type == CLAN_BROWNFEMALE || clan.Type == CLAN_BROWNMALE;
+        const bool isNotClanBrowned = clan.Type == CLAN_FEMALE || clan.Type == CLAN_MALE;
+
+        if (clan.TodayInGame != 0 &&
+            (Koffer == sign(clan.HasSuitcase) || (Koffer == 99 && clan.HasSuitcase <= 0)) &&
+            (isNotClanBrowned && Browned != 2) || (isClanBrowned && Browned != 0)) {
+            Num += clan.Wkeit;
+
+            possibleClanIds.push_back(c);
         }
     }
 
+    if (possibleClanIds.empty()) {
+        AT_Log_Generic("Failed to find any suitable person clan for: %d %d", Browned, Koffer);
+        TeakLibW_Exception(FNL, ExcNever);
+    }
+
+    SLONG Rnd;
     if (pRand != nullptr) {
         Rnd = pRand->Rand(Num);
     } else {
@@ -522,20 +537,18 @@ UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
     }
 
     Num = 0;
+    for (ULONG id : possibleClanIds) {
+        CLAN &clan = (*this)[id];
 
-    for (c = 0; c < AnzEntries(); c++) {
-        if ((IsInAlbum(c) != 0) && ((*this)[c].TodayInGame != 0) && (Koffer == sign((*this)[c].HasSuitcase) || (Koffer == 99 && (*this)[c].HasSuitcase <= 0)) &&
-            ((((*this)[c].Type == CLAN_FEMALE || (*this)[c].Type == CLAN_MALE) && Browned < 2) ||
-             (((*this)[c].Type == CLAN_BROWNFEMALE || (*this)[c].Type == CLAN_BROWNMALE) && Browned > 0))) {
-            Num += (*this)[c].Wkeit;
-            if (Num >= Rnd) {
-                return (static_cast<UBYTE>(c));
-            }
+        Num += clan.Wkeit;
+        if (Num >= Rnd) {
+            return (static_cast<UBYTE>(id));
         }
     }
 
-    TeakLibW_Exception(FNL, ExcNever);
-    return (255);
+    AT_Log_Generic("Failed to find a random suitable person clan for: %d %d %d", Browned, Koffer, Rnd);
+
+    return static_cast<UBYTE>(possibleClanIds[0]);
 }
 
 //--------------------------------------------------------------------------------------------

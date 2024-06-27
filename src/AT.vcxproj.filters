@@ -698,4 +698,9 @@
       <Filter>Resources</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\BuildTargets.targets">
+      <Filter>Resources</Filter>
+    </None>
+  </ItemGroup>
 </Project>

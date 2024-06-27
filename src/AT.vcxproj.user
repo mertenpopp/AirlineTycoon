@@ -4,7 +4,8 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)BUILD\Deployment\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommand>$(SolutionDir)BUILD\Deployment\AT.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>/savedata</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)BUILD\Deployment\</LocalDebuggerWorkingDirectory>
