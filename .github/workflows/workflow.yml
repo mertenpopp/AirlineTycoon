@@ -123,6 +123,9 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -D_WINSOCK_DEPRECATED_NO_WARNINGS=1
+        -D_CRT_SECURE_NO_WARNINGS=1
+        -DJANSSON_BUILD_DOCS=OFF
         -S ${{ github.workspace }}
 
     - name: Build
@@ -130,7 +133,7 @@ jobs:
       run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }}
 
     # Package the build results (windows)
-    - name: Package artifact
+    - name: Package artifact (Windows)
       id: artifact-win
       if: matrix.name == 'windows'
       run: |
@@ -153,8 +156,8 @@ jobs:
         echo "artifact-name=$artifactName" >> $Env:GITHUB_OUTPUT
         echo "artifact-path=$artifactPath" >> $Env:GITHUB_OUTPUT
 
-    # Package the build results (linux)
-    - name: Package artifact
+    # Package the build results (linux/macOS)
+    - name: Package artifact (Linux/MacOS)
       id: artifact-linux
       if: matrix.name == 'linux' || matrix.name == 'macos'
       run: |
