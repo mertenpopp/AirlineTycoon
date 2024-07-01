@@ -12,6 +12,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 set(GAMEFILES_FOLDER "${PROJECT_SOURCE_DIR}/gamefiles")
 set(PATCH_FOLDER "${PROJECT_SOURCE_DIR}/patch")
 
+if (MSVC)
+    add_compile_options("/Zi")
+
+    add_link_options("/DEBUG:FULL")
+    add_link_options("/OPT:REF")
+    add_link_options("/OPT:ICF")
+endif()
+
 if (WIN32)
     # Set and bind SDL folders
     set(SDL2_PATH "${CMAKE_MODULE_PATH}/sdl2")
