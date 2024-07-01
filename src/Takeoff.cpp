@@ -222,7 +222,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             return;
         }
 
-        // if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
+        if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
         // if (stricmp (Argument, "/quick")==0) bQuick = TRUE;
         // if (stricmp (Argument, "/fast")==0) bQuick = TRUE;
         if (stricmp (Argument, "/d")==0) gLanguage = LANGUAGE_D;
