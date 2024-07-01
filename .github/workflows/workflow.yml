@@ -126,7 +126,6 @@ jobs:
         -D_WINSOCK_DEPRECATED_NO_WARNINGS=1
         -D_CRT_SECURE_NO_WARNINGS=1
         -DJANSSON_BUILD_DOCS=OFF
-        -Wno-dev
         -S ${{ github.workspace }}
 
     - name: Build
