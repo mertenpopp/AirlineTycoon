@@ -151,8 +151,8 @@ if(MSVC)
 
     # Release configurations
     target_compile_definitions(AT PRIVATE "$<$<CONFIG:Release>:SENTRY;WIN32;_WINDOWS>")
-    target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include/>")
-    target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib>")
+    target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/include/>")
+    target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/lib/sentry.lib>")
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
 endif()
 
