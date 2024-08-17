@@ -40,6 +40,7 @@ if (WIN32)
         include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)
         target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)  # Pfad zu sentry.lib
     endif()
+      message(STATUS "End Sentry")
 
     # Download when SDL is not found
     if(NOT EXISTS ${SDL2_TTF_PATH})
