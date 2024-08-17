@@ -124,22 +124,16 @@ jobs:
       run: |
         brew update
         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
-        pip install sphinx
+        pip install sphinx	
 
-    - name: Verify Sentry Header Exists
-      if: matrix.name == 'windows'
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
-        if (-Not (Test-Path "D:\a\AirlineTycoon\AirlineTycoon\libs\CrashRpt\install\include\sentry.h")) {
-          Write-Host "sentry.h not found!"
-          exit 1
-        }
-        else {
-          Write-Host "sentry.h found."
-        }
-      shell: pwsh
+        # Beispiel für vcpkg oder manuelles Setup von sentry-native auf Windows
+        vcpkg install sentry-native
 
-        
     - name: Diagnose Include Paths
+      if: matrix.name == 'windows'
       run: >
         cmake -B ${{ needs.env.outputs.cmake-build-dir }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
@@ -163,11 +157,10 @@ jobs:
         -DUSE_SENTRY=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -S ${{ github.workspace }}
-        -LAH
 
     - name: Build
       # Build the program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-      run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }}
+      run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }} --verbose
 
     # Package the build results (windows)
     - name: Package artifact
