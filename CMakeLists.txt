@@ -3,7 +3,6 @@
 project (AirlineTycoon)
 
 set(CMAKE_CXX_STANDARD 17)
-option(USE_SENTRY "Enable Sentry error tracking" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -19,14 +18,6 @@ if (MSVC)
     add_link_options("/DEBUG:FULL")
     add_link_options("/OPT:REF")
     add_link_options("/OPT:ICF")
-endif()
-
-if(USE_SENTRY)
-  message(STATUS "Sentry is enabled")
-  include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)
-  target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)
-else()
-  message(STATUS "Sentry is disabled")
 endif()
 
 if (WIN32)
