@@ -130,33 +130,18 @@ jobs:
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       # Make it verbose with -DCMAKE_VERBOSE_MAKEFILE=ON
-      if: matrix.name != 'windows'
       run: >
         cmake -B ${{ needs.env.outputs.cmake-build-dir }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -S ${{ github.workspace }}
-
-    - name: Configure CMake Windows
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      # Make it verbose with -DCMAKE_VERBOSE_MAKEFILE=ON
-      if: matrix.name == 'windows'
-      run: >
-        cmake -B ${{ needs.env.outputs.cmake-build-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -D_CRT_SECURE_NO_WARNINGS
-        -D_WINSOCK_DEPRECATED_NO_WARNINGS
+        -DSENTRY=OFF
         -S ${{ github.workspace }}
 
     - name: Build
       # Build the program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-      run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }} || true
+      run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }}
 
     # Package the build results (windows)
     - name: Package artifact
