@@ -126,18 +126,13 @@ jobs:
         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
         pip install sphinx
 
-    - name: Configure CMake without Sentry (Debug Build)
-      if: matrix.name == 'windows' && matrix.build_type == 'Release'
-      run: >
-        cmake -B ${{ needs.env.outputs.cmake-build-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=Debug
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -S ${{ github.workspace }}
+    - name: Install dependencies (Windows)
+      if: matrix.name == 'windows'
+      run: |
+        # Beispiel für vcpkg oder manuelles Setup von sentry-native auf Windows
+        vcpkg install sentry-native
 
     - name: Configure CMake
-      if: matrix.name != 'windows' || (matrix.name == 'windows' && matrix.build_type != 'Release')
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       # Make it verbose with -DCMAKE_VERBOSE_MAKEFILE=ON
