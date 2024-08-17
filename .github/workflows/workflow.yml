@@ -110,11 +110,21 @@ jobs:
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@master
 
+    - name: Diagnose and fix linking issues before install
+      if: matrix.name == 'macos'
+      run: |
+        # Unlink any existing versions of python that might conflict
+        brew unlink python@3.11 || true
+        brew unlink python@3.12 || true
+        # Force link the desired python version before installation
+        brew link --overwrite python@3.12 || true
+
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
       run: |
         brew update
-        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson sphinx-doc
+        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
+        pip install sphinx
 
     - name: Diagnose Homebrew linking issues
       if: matrix.name == 'macos'
