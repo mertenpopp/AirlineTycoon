@@ -3,6 +3,7 @@
 project (AirlineTycoon)
 
 set(CMAKE_CXX_STANDARD 17)
+option(USE_SENTRY "Enable Sentry error tracking" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -20,27 +21,20 @@ if (MSVC)
     add_link_options("/OPT:ICF")
 endif()
 
+if(USE_SENTRY)
+  message(STATUS "Sentry is enabled")
+  include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)
+  target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)
+else()
+  message(STATUS "Sentry is disabled")
+endif()
+
 if (WIN32)
     # Set and bind SDL folders
     set(SDL2_PATH "${CMAKE_MODULE_PATH}/sdl2")
     set(SDL2_MIXER_PATH "${CMAKE_MODULE_PATH}/sdl2-mixer")
     set(SDL2_IMAGE_PATH "${CMAKE_MODULE_PATH}/sdl2-image")
     set(SDL2_TTF_PATH "${CMAKE_MODULE_PATH}/sdl2-ttf")
-    
-    option(USE_SENTRY "Enable Sentry error tracking" OFF)
-    
-    if (USE_SENTRY)
-      message(STATUS "Sentry is enabled")
-    else()
-      message(STATUS "Sentry is disabled")
-    endif()
-    
-    if(USE_SENTRY)
-        add_definitions(-DUSE_SENTRY)
-        include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)
-        target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)  # Pfad zu sentry.lib
-    endif()
-      message(STATUS "End Sentry")
 
     # Download when SDL is not found
     if(NOT EXISTS ${SDL2_TTF_PATH})
