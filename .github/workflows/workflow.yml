@@ -207,6 +207,7 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
+        target_commitish: ${{ github.sha }}
         name: ${{ needs.env.outputs.release-name }}
         tag_name: ${{ needs.env.outputs.release-tag }}
         prerelease: ${{ github.ref_name == 'develop' }}
