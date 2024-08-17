@@ -127,11 +127,17 @@ jobs:
         pip install sphinx
 
     - name: Verify Sentry Header Exists
+      if: matrix.name == 'windows'
       run: |
-        if [ ! -f "${{ github.workspace }}/libs/CrashRpt/install/include/sentry.h" ]; then
-          echo "sentry.h not found!"
+        if (-Not (Test-Path "D:\a\AirlineTycoon\AirlineTycoon\libs\CrashRpt\install\include\sentry.h")) {
+          Write-Host "sentry.h not found!"
           exit 1
-        fi
+        }
+        else {
+          Write-Host "sentry.h found."
+        }
+      shell: pwsh
+
         
     - name: Diagnose Include Paths
       run: >
