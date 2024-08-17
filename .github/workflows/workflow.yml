@@ -138,6 +138,16 @@ jobs:
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -S ${{ github.workspace }}
 
+    - name: Configure CMake without Sentry (Debug Build)
+      if: matrix.name == 'windows' && matrix.build_type == 'Release'
+      run: |
+        cmake -B ${{ needs.env.outputs.cmake-build-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -S ${{ github.workspace }}
+
     - name: Build
       # Build the program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       run: cmake --build ${{ needs.env.outputs.cmake-build-dir }} --config ${{ matrix.build_type }}
