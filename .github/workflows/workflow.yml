@@ -127,14 +127,14 @@ jobs:
         pip install sphinx
         
     - name: Diagnose Include Paths
-      run: |
-        cmake -B ${{ needs.env.outputs.cmake-build-dir }} \
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-        -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DSENTRY_INCLUDE_DIR=libs/CrashRpt/install/include/ \
-        -S ${{ github.workspace }} \
+      run: >
+        cmake -B ${{ needs.env.outputs.cmake-build-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DSENTRY_INCLUDE_DIR=libs/CrashRpt/install/include/
+        -S ${{ github.workspace }}
         -LAH
         
     - name: Configure CMake
