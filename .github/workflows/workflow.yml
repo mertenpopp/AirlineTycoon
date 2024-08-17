@@ -114,7 +114,13 @@ jobs:
       if: matrix.name == 'macos'
       run: |
         brew update
-        brew doctor
+        brew doctor || true  # Ignoriere Fehler von brew doctor
+
+    - name: Remove unnecessary taps
+      if: matrix.name == 'macos'
+      run: |
+        brew untap homebrew/cask || true
+        brew untap homebrew/core || true
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
