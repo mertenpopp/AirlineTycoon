@@ -135,6 +135,12 @@ set_target_properties(
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(USE_SENTRY)
+  message(STATUS "Sentry is enabled")
+else()
+  message(STATUS "Sentry is disabled")
+endif()
+
 if(MSVC)
     target_compile_features(AT PUBLIC cxx_std_17)
     target_compile_options(AT PUBLIC "/Zc:__cplusplus")
