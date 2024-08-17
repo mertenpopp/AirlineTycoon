@@ -3,7 +3,6 @@
 project (AirlineTycoon)
 
 set(CMAKE_CXX_STANDARD 17)
-option(USE_SENTRY "Enable Sentry error tracking" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
