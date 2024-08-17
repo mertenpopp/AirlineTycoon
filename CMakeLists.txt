@@ -26,6 +26,14 @@ if (WIN32)
     set(SDL2_MIXER_PATH "${CMAKE_MODULE_PATH}/sdl2-mixer")
     set(SDL2_IMAGE_PATH "${CMAKE_MODULE_PATH}/sdl2-image")
     set(SDL2_TTF_PATH "${CMAKE_MODULE_PATH}/sdl2-ttf")
+    
+    option(USE_SENTRY "Enable Sentry error tracking" OFF)
+
+    if(USE_SENTRY)
+        add_definitions(-DUSE_SENTRY)
+        include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)  # Pfad zu sentry.h
+        target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)  # Pfad zu sentry.lib
+    endif()
 
     # Download when SDL is not found
     if(NOT EXISTS ${SDL2_TTF_PATH})
