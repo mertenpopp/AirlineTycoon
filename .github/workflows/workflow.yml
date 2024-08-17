@@ -110,24 +110,17 @@ jobs:
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@master
 
-    - name: Update and diagnose Homebrew
-      if: matrix.name == 'macos'
-      run: |
-        brew update
-        brew doctor || true  # Ignoriere Fehler von brew doctor
-
-    - name: Remove unnecessary taps
-      if: matrix.name == 'macos'
-      run: |
-        brew untap homebrew/cask || true
-        brew untap homebrew/core || true
-
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
       run: |
-        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
-        # Attempt to link dependencies if necessary
-        brew link --overwrite cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson || true
+        brew update
+        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson sphinx-doc
+
+    - name: Diagnose Homebrew linking issues
+      if: matrix.name == 'macos'
+      run: |
+        brew doctor
+        brew link --overwrite cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
