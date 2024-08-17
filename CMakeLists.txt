@@ -28,10 +28,16 @@ if (WIN32)
     set(SDL2_TTF_PATH "${CMAKE_MODULE_PATH}/sdl2-ttf")
     
     option(USE_SENTRY "Enable Sentry error tracking" OFF)
-
+    
+    if (USE_SENTRY)
+      message(STATUS "Sentry is enabled")
+    else()
+      message(STATUS "Sentry is disabled")
+    endif()
+    
     if(USE_SENTRY)
         add_definitions(-DUSE_SENTRY)
-        include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)  # Pfad zu sentry.h
+        include_directories(${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/include)
         target_link_libraries(AT PRIVATE ${PROJECT_SOURCE_DIR}/libs/CrashRpt/install/lib/sentry.lib)  # Pfad zu sentry.lib
     endif()
 
