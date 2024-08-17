@@ -34,21 +34,21 @@ jobs:
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "Setting production environment variables..."
             echo "build-type=Release" >> "$GITHUB_OUTPUT"
-            echo "release-name=$VERSION Release" >> "$GITHUB_OUTPUT"
+            echo "release-name=ATD Version $VERSION Release" >> "$GITHUB_OUTPUT"
             echo "artifact-name=AT-$VERSION" >> "$GITHUB_OUTPUT"
-            echo "release-tag=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "release-tag=v$VERSION" >> "$GITHUB_OUTPUT"
         elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
             echo "Setting development environment variables..."
             echo "build-type=Release" >> "$GITHUB_OUTPUT"
-            echo "release-name=$VERSION PreRelease" >> "$GITHUB_OUTPUT"
+            echo "release-name=ATD Version $VERSION Pre-Release" >> "$GITHUB_OUTPUT"
             echo "artifact-name=AT-$VERSION-preview" >> "$GITHUB_OUTPUT"
-            echo "release-tag=$VERSION-preview" >> "$GITHUB_OUTPUT"
+            echo "release-tag=v$VERSION-preview" >> "$GITHUB_OUTPUT"
         else
             echo "Setting branch environment variables..."
             echo "build-type=Debug" >> "$GITHUB_OUTPUT"
-            echo "release-name=$VERSION Preview" >> "$GITHUB_OUTPUT"
+            echo "release-name=ATD Version $VERSION Preview" >> "$GITHUB_OUTPUT"
             echo "artifact-name=AT-$VERSION-${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "release-tag=$VERSION-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "release-tag=v$VERSION-${{ github.sha }}" >> "$GITHUB_OUTPUT"
         fi
         cat $GITHUB_OUTPUT
 
@@ -184,20 +184,17 @@ jobs:
         cat $GITHUB_OUTPUT
 
     - name: Upload sentry debug files
-      shell: bash
-      # Only publish on main build & windows
-      if: matrix.name == 'windows' && github.ref_name == 'main' && vars.SENTRY_ORG != ''
+      shell: pwsh
+      # Only publish on main/dev build & windows
+      if: matrix.name == 'windows' && (github.ref_name == 'main' || github.ref_name == 'develop') && vars.SENTRY_ORG != ''
       env:
         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         SENTRY_ORG: ${{ vars.SENTRY_ORG }}
         SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         # SENTRY_URL: https://sentry.io/
       run: |
-        curl -sL https://sentry.io/get-cli/ | bash
-        sentry-cli login
-        sentry-cli debug-files upload ./${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}/AT.pdb
-        sentry-cli debug-files upload ./${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}/AT.exe
-
+       curl -sL https://github.com/getsentry/sentry-cli/releases/download/2.32.1/sentry-cli-Windows-x86_64.exe > sentry-cli.exe
+       ./sentry-cli.exe debug-files upload ${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}/
 
     - name: Publish artifact
       uses: actions/upload-artifact@v4
