@@ -128,7 +128,7 @@ jobs:
 
     - name: Configure CMake without Sentry (Debug Build)
       if: matrix.name == 'windows' && matrix.build_type == 'Release'
-      run: |
+      run: >
         cmake -B ${{ needs.env.outputs.cmake-build-dir }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
