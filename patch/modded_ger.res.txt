@@ -1,0 +1,85 @@
+//==============================================================================
+//Modded resources
+//==============================================================================
+>Misc
+>>0000001
+  B::# Display     : Fullscreen
+  E::# Display     : Fullscreen
+  F::# Affichage   : Grand
+  I::# Display     : Fullscreen
+  N::# Display     : Fullscreen
+  O::# Display     : Fullscreen
+  S::# Display     : Fullscreen
+  D::# Display     : Fullscreen
+>>0000002
+  B::# Display     : Windowed
+  E::# Display     : Windowed
+  F::# Affichage   : Flottant
+  I::# Display     : Windowed
+  N::# Display     : Windowed
+  O::# Display     : Windowed
+  S::# Display     : Windowed
+  D::# Display     : Windowed
+>>0000003
+  B::# Display     : Borderless
+  E::# Display     : Borderless
+  F::# Affichage   : Borderless
+  I::# Display     : Borderless
+  N::# Display     : Borderless
+  O::# Display     : Borderless
+  S::# Display     : Borderless
+  D::# Display     : Borderless
+>>0000010
+  B::# Aspect Ratio: Stretch
+  E::# Aspect Ratio: Stretch
+  F::# Aspect Ratio: Etiré
+  I::# Aspect Ratio: Stretch
+  N::# Aspect Ratio: Stretch
+  O::# Aspect Ratio: Stretch
+  S::# Aspect Ratio: Stretch
+  D::# Aspect Ratio: Stretch
+>>0000011
+  B::# Aspect Ratio: Keep
+  E::# Aspect Ratio: Keep
+  F::# Aspect Ratio: Original
+  I::# Aspect Ratio: Keep
+  N::# Aspect Ratio: Keep
+  O::# Aspect Ratio: Keep
+  S::# Aspect Ratio: Keep
+  D::# Aspect Ratio: Keep
+>>0000020
+  B::# Music: Off
+  E::# Music: Off
+  F::# Musique: Off
+  I::# Music: Off
+  N::# Music: Off
+  O::# Music: Off
+  S::# Music: Off
+  D::# Music: Off
+>>0000021
+  B::# Music: MIDI
+  E::# Music: MIDI
+  F::# Musique: MIDI
+  I::# Music: MIDI
+  N::# Music: MIDI
+  O::# Music: MIDI
+  S::# Music: MIDI
+  D::# Music: MIDI
+>>0000022
+  B::# Music: Ogg
+  E::# Music: Ogg
+  F::# Musique: Ogg
+  I::# Music: Ogg
+  N::# Music: Ogg
+  O::# Music: Ogg
+  S::# Music: Ogg
+  D::# Music: Ogg
+>>0000030
+  B::# Sound:
+  E::# Sound:
+  F::# Son:
+  I::# Sound:
+  N::# Sound:
+  O::# Sound:
+  S::# Sound:
+  D::# Sound:

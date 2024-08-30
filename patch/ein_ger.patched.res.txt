@@ -1,0 +1,22 @@
+//==============================================================================
+//Modded "ein_ger" resources
+//==============================================================================
+>00001000
+>>00003000
+  B::%s barril
+  E::%s barrel
+  F::%s tonneau
+  I::%s barile
+  N::%s trommel
+  O::%s barril
+  S::%s barril
+  D::%s fass
+>>00003001
+  B::%s barris
+  E::%s barrels
+  F::%s tonneaux
+  I::%s barili
+  N::%s trommels
+  O::%s barris
+  S::%s barriles
+  D::%s fässer

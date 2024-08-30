@@ -5,54 +5,53 @@
 /////////////////////////////////////////////////////////////////////////////
 // Museum window
 
-class CMuseum : public CStdRaum
-{
-// Construction
-public:
-	CMuseum(BOOL bHandy, ULONG PlayerNum);
+class CMuseum : public CStdRaum {
+    // Construction
+  public:
+    CMuseum(BOOL bHandy, ULONG PlayerNum);
 
-// Attributes
-public:
-   SBBM        BlockBm;             //Fenster für Flugzeug-Details
-   SLONG       CurrentTip;          //Dieser Tip wird gerade angezeigt
-   GfxLib     *pMenuLib;
-   SBBMS       MiniPlanes;
+    // Attributes
+  public:
+    SBBM BlockBm;       // Fenster fÃ¼r Flugzeug-Details
+    SLONG CurrentTip{}; // Dieser Tip wird gerade angezeigt
+    GfxLib *pMenuLib{};
+    SBBMS MiniPlanes;
 
-   SBFX        TriebwerkFx;
+    SBFX TriebwerkFx;
 
-   CAnimation  RotorAnim;
-               
-   SLONG       TriggerSkelett;
-   SLONG       TriggerMann;
-   SLONG       TriggerEmergency;
+    CAnimation RotorAnim;
 
-   CSmackerPerson SP_Mann;
-   CSmackerPerson SP_Skelett;
-   CSmackerPerson SP_SwingPlane;
+    SLONG TriggerSkelett;
+    SLONG TriggerMann;
+    SLONG TriggerEmergency;
 
-// Operations
-public:
-   void ReloadBitmaps(void);
-   void BuyUsedPlane(void);
-   void SellUsedPlane(void);
+    CSmackerPerson SP_Mann;
+    CSmackerPerson SP_Skelett;
+    CSmackerPerson SP_SwingPlane;
 
-// Overrides
-	// ClassWizard generated virtual function overrides
-   //{{AFX_VIRTUAL(CMuseum)
-	//}}AFX_VIRTUAL
+    // Operations
+  public:
+    static void ReloadBitmaps(void);
+    void BuyUsedPlane(void);
+    void SellUsedPlane(void);
 
-// Implementation
-public:
-	virtual ~CMuseum();
+    // Overrides
+    // ClassWizard generated virtual function overrides
+    //{{AFX_VIRTUAL(CMuseum)
+    //}}AFX_VIRTUAL
 
-	// Generated message map functions
-protected:
-	//{{AFX_MSG(CMuseum)
-	virtual void OnPaint();
-	virtual void OnLButtonDown(UINT nFlags, CPoint point);
-	virtual void OnRButtonDown(UINT nFlags, CPoint point);
-	//}}AFX_MSG
-	//DECLARE_MESSAGE_MAP()
+    // Implementation
+  public:
+    virtual ~CMuseum();
+
+    // Generated message map functions
+  protected:
+    //{{AFX_MSG(CMuseum)
+    virtual void OnPaint();
+    virtual void OnLButtonDown(UINT nFlags, CPoint point);
+    virtual void OnRButtonDown(UINT nFlags, CPoint point);
+    //}}AFX_MSG
+    // DECLARE_MESSAGE_MAP()
 };
 
 /////////////////////////////////////////////////////////////////////////////

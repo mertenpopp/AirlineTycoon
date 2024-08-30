@@ -2,62 +2,61 @@
 // RouteBox.h : Der Schalter und das Hinterzimmer von RouteBox!
 //============================================================================================
 
-class CRouteBox : public CStdRaum
-{
-// Construction
-public:
-	CRouteBox(BOOL bHandy, ULONG PlayerNum);
+class CRouteBox : public CStdRaum {
+    // Construction
+  public:
+    CRouteBox(BOOL bHandy, ULONG PlayerNum);
 
-// Data
-public:
-// Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CRouteBox)
-	//}}AFX_VIRTUAL
+    // Data
+  public:
+    // Overrides
+    // ClassWizard generated virtual function overrides
+    //{{AFX_VIRTUAL(CRouteBox)
+    //}}AFX_VIRTUAL
 
-   CDataTable Table;
+    CDataTable Table;
 
-   SLONG      DisplayPlayer;           //Bits 0-3 sind belegt
-   SLONG      Filter;
+    SLONG DisplayPlayer; // Bits 0-3 sind belegt
+    SLONG Filter;
 
-   SBBM       ListBm;                  //Der Text in der Liste
-   SBBM       TipBm;                   //Die Tip-Bitmap mit Text
-   SBBM       MapBm;                   //Die Karte
-   SBBM       HakenBm;
-   SBBM       HereBm;
-   SBBM       NoPaperBm;
-   SBBMS      PlayerBms;
-   SBBMS      EckenBms;
-   SBBMS      FilterBms;
-             
-   SLONG      RoutePage;
-   SLONG      RoutePageMax;
+    SBBM ListBm; // Der Text in der Liste
+    SBBM TipBm;  // Die Tip-Bitmap mit Text
+    SBBM MapBm;  // Die Karte
+    SBBM HakenBm;
+    SBBM HereBm;
+    SBBM NoPaperBm;
+    SBBMS PlayerBms;
+    SBBMS EckenBms;
+    SBBMS FilterBms;
 
-   SLONG      CurrentTip;
-   SLONG      CurrentTipIndex;         //Index im Table-Array
+    SLONG RoutePage;
+    SLONG RoutePageMax;
 
-   SLONG      LastTip;
+    SLONG CurrentTip{};
+    SLONG CurrentTipIndex; // Index im Table-Array
 
-   BUFFER<BOOL> IsBuyable;
+    SLONG LastTip{};
 
-// Implementation
-public:
-	virtual ~CRouteBox();
+    BUFFER_V<BOOL> IsBuyable;
 
-   void RepaintList (void);
-   void RepaintTip (void);
-   void RepaintMap (void);
-   void UpdateDataTable (void);
+    // Implementation
+  public:
+    virtual ~CRouteBox();
 
-	// Generated message map functions
-protected:
-	//{{AFX_MSG(CRouteBox)
-	virtual void OnLButtonDown(UINT nFlags, CPoint point);
-   virtual void OnLButtonDblClk(UINT nFlags, CPoint point);
-	virtual void OnPaint();
-	virtual void OnRButtonDown(UINT nFlags, CPoint point);
-	//}}AFX_MSG
-	//DECLARE_MESSAGE_MAP()
+    void RepaintList(void);
+    void RepaintTip(void);
+    void RepaintMap(void);
+    void UpdateDataTable(void);
+
+    // Generated message map functions
+  protected:
+    //{{AFX_MSG(CRouteBox)
+    virtual void OnLButtonDown(UINT nFlags, CPoint point);
+    virtual void OnLButtonDblClk(UINT nFlags, CPoint point);
+    virtual void OnPaint();
+    virtual void OnRButtonDown(UINT nFlags, CPoint point);
+    //}}AFX_MSG
+    // DECLARE_MESSAGE_MAP()
 };
 
 /////////////////////////////////////////////////////////////////////////////

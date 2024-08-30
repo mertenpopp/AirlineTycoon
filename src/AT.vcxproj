@@ -15,18 +15,18 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E318F494-F778-3754-B59C-540034A81803}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
     <Keyword>Win32Proj</Keyword>
     <Platform>x64</Platform>
     <ProjectName>AT</ProjectName>
     <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
     <VcpkgEnabled>false</VcpkgEnabled>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -39,14 +39,10 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="do_not_import_user.props" Condition="exists('do_not_import_user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="Project.props" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">P:/Projekte/Major Games/BASE/AirlineTycoon/src/../BUILD/</LocalDebuggerWorkingDirectory>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">P:/Projekte/Major Games/BASE/AirlineTycoon/src/../BUILD/</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)BUILD\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)BUILD\</LocalDebuggerWorkingDirectory>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)BUILD\AT\$(Configuration)\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)BUILD\AT\$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)BUILD\Int\AT\$(Configuration)\</IntDir>
@@ -62,7 +58,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)libs\libsmacker;$(SolutionDir)libs\CrashRpt\install\include;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)libs\libsmacker;$(SolutionDir)libs\jansson\include;$(SolutionDir)libs\CrashRpt\install\include;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -m /Zc:__cplusplus</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -94,7 +90,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>$(SolutionDir)BUILD\TeakLib\$(Configuration)\TeakLibW.lib;$(SolutionDir)BUILD\SSE\$(Configuration)\SSE.lib;$(SolutionDir)BUILD\SBLib\$(Configuration)\SBLib.lib;$(SolutionDir)BUILD\libsmacker\$(Configuration)\libsmacker.lib;$(SolutionDir)BUILD\raknet\$(Configuration)\raknet.lib;$(SolutionDir)BUILD\enet\$(Configuration)\enet.lib;$(SolutionDir)libs\CrashRpt\install\lib\sentry.lib;$(SolutionDir)cmake\sdl2-ttf\lib\x64\SDL2_ttf.lib;$(SolutionDir)cmake\sdl2-image\lib\x64\SDL2_image.lib;$(SolutionDir)cmake\sdl2-mixer\lib\x64\SDL2_mixer.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2main.lib;ws2_32.lib;Winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;dbghelp.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)BUILD\TeakLib\$(Configuration)\TeakLibW.lib;$(SolutionDir)BUILD\SSE\$(Configuration)\SSE.lib;$(SolutionDir)BUILD\SBLib\$(Configuration)\SBLib.lib;$(SolutionDir)BUILD\libsmacker\$(Configuration)\libsmacker.lib;$(SolutionDir)BUILD\raknet\$(Configuration)\raknet.lib;$(SolutionDir)BUILD\enet\$(Configuration)\enet.lib;$(SolutionDir)BUILD\jansson\$(Configuration)\jansson.lib;$(SolutionDir)libs\CrashRpt\install\lib\sentry.lib;$(SolutionDir)cmake\sdl2-ttf\lib\x64\SDL2_ttf.lib;$(SolutionDir)cmake\sdl2-image\lib\x64\SDL2_image.lib;$(SolutionDir)cmake\sdl2-mixer\lib\x64\SDL2_mixer.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2main.lib;ws2_32.lib;Winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;dbghelp.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -108,13 +104,19 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe" "$(SolutionDir)BUILD\Deployment\AT.exe" /Y</Command>
+      <Command>$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe /updatepatchesonly &amp;&amp; copy "$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe" "$(SolutionDir)BUILD\Deployment\AT.exe" || set errorlevel=0</Command>
       <Message>Copying AT.exe to Deployment folder</Message>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>xcopy "$(SolutionDir)patch" "$(SolutionDir)BUILD\AT\$(Configuration)\patch" /E /I /Y</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>Copy all patch files into the build directory</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)libs\libsmacker;$(SolutionDir)libs\CrashRpt\install\include;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\SBLib\include;$(SolutionDir)libs\raknet\Include;$(SolutionDir)libs\enet\include;$(SolutionDir)libs\libsmacker;$(SolutionDir)libs\jansson\include;$(SolutionDir)libs\CrashRpt\install\include;$(SolutionDir)cmake\sdl2-ttf\include;$(SolutionDir)cmake\sdl2\include;$(SolutionDir)cmake\sdl2-image\include;$(SolutionDir)cmake\sdl2-mixer\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) -m /Zc:__cplusplus</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -145,7 +147,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>$(SolutionDir)BUILD\TeakLib\$(Configuration)\TeakLibW.lib;$(SolutionDir)BUILD\SSE\$(Configuration)\SSE.lib;$(SolutionDir)BUILD\SBLib\$(Configuration)\SBLib.lib;$(SolutionDir)BUILD\libsmacker\$(Configuration)\libsmacker.lib;$(SolutionDir)BUILD\raknet\$(Configuration)\raknet.lib;$(SolutionDir)BUILD\enet\$(Configuration)\enet.lib;$(SolutionDir)libs\CrashRpt\install\lib\sentry.lib;$(SolutionDir)cmake\sdl2-ttf\lib\x64\SDL2_ttf.lib;$(SolutionDir)cmake\sdl2-image\lib\x64\SDL2_image.lib;$(SolutionDir)cmake\sdl2-mixer\lib\x64\SDL2_mixer.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2main.lib;ws2_32.lib;Winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;dbghelp.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)BUILD\TeakLib\$(Configuration)\TeakLibW.lib;$(SolutionDir)BUILD\SSE\$(Configuration)\SSE.lib;$(SolutionDir)BUILD\SBLib\$(Configuration)\SBLib.lib;$(SolutionDir)BUILD\libsmacker\$(Configuration)\libsmacker.lib;$(SolutionDir)BUILD\raknet\$(Configuration)\raknet.lib;$(SolutionDir)BUILD\enet\$(Configuration)\enet.lib;$(SolutionDir)BUILD\jansson\$(Configuration)\jansson.lib;$(SolutionDir)libs\CrashRpt\install\lib\sentry.lib;$(SolutionDir)cmake\sdl2-ttf\lib\x64\SDL2_ttf.lib;$(SolutionDir)cmake\sdl2-image\lib\x64\SDL2_image.lib;$(SolutionDir)cmake\sdl2-mixer\lib\x64\SDL2_mixer.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2.lib;$(SolutionDir)cmake\sdl2\lib\x64\SDL2main.lib;ws2_32.lib;Winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;dbghelp.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -159,15 +161,22 @@
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe" "$(SolutionDir)BUILD\Deployment\AT.exe" /Y</Command>
+      <Command>$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe /updatepatchesonly &amp;&amp; copy "$(SolutionDir)BUILD\AT\$(Configuration)\AT.exe" "$(SolutionDir)BUILD\Deployment\AT.exe" || set errorlevel=0</Command>
       <Message>Copying AT.exe to Deployment folder</Message>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>xcopy "$(SolutionDir)patch" "$(SolutionDir)BUILD\AT\$(Configuration)\patch" /E /I /Y</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>Copy all patch files into the build directory</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Buero.cpp">
     </ClCompile>
     <ClCompile Include="city.cpp">
     </ClCompile>
+    <ClCompile Include="CVideo.cpp" />
     <ClCompile Include="DataTabl.cpp">
     </ClCompile>
     <ClCompile Include="Route.cpp">
@@ -266,8 +275,6 @@
     </ClCompile>
     <ClCompile Include="PNet.cpp">
     </ClCompile>
-    <ClCompile Include="Protect.cpp">
-    </ClCompile>
     <ClCompile Include="reise.cpp">
     </ClCompile>
     <ClCompile Include="Ricks.cpp">
@@ -283,8 +290,6 @@
     <ClCompile Include="Schedule.cpp">
     </ClCompile>
     <ClCompile Include="Security.cpp">
-    </ClCompile>
-    <ClCompile Include="SecurityManager.cpp">
     </ClCompile>
     <ClCompile Include="Sim.cpp">
     </ClCompile>
@@ -334,7 +339,7 @@
       <Project>{454F153F-B61F-31E2-9984-2745E3971ECB}</Project>
       <Name>TeakLibW</Name>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)libs\enet\enet.vcxproj">
+    <ProjectReference Include="$(SolutionDir)libs\enet.vcxproj">
       <Project>{B898D422-B378-3905-8236-44CFE0782E95}</Project>
       <Name>enet</Name>
     </ProjectReference>
@@ -342,7 +347,7 @@
       <Project>{4AA2C8BF-0465-3DBE-98E0-5FE3CE95A284}</Project>
       <Name>libsmacker</Name>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)libs\raknet\raknet.vcxproj">
+    <ProjectReference Include="$(SolutionDir)libs\raknet.vcxproj">
       <Project>{C06FE35D-C5BE-37AE-B585-F88B766AA89A}</Project>
       <Name>raknet</Name>
     </ProjectReference>
@@ -363,6 +368,7 @@
     <ClInclude Include="class.h" />
     <ClInclude Include="Colorfx.h" />
     <ClInclude Include="Credits.h" />
+    <ClInclude Include="CVideo.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="Designer.h" />
     <ClInclude Include="DutyFree.h" />

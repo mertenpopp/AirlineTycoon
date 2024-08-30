@@ -1,72 +1,72 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
-SB_CFont::SB_CFont(void)
-    : Surface(NULL)
-    , Texture(NULL)
-    , VarWidth(NULL)
-    , VarHeight(NULL)
-    , Hidden(false)
-    , Tabulator(NULL)
-    , LineSpace(1.5f)
-    , Bitmap(NULL)
-{
-}
+SB_CFont::SB_CFont()
+    : Surface(nullptr), Texture(nullptr), VarWidth(nullptr), VarHeight(nullptr), Hidden(false), Tabulator(nullptr), LineSpace(1.5F), Bitmap(nullptr) {}
 
-SB_CFont::~SB_CFont(void)
-{
-    if (Texture)
+SB_CFont::~SB_CFont() {
+    if (Texture != nullptr) {
         SDL_DestroyTexture(Texture);
+    }
 
-    if (Surface)
+    if (Surface != nullptr) {
         SDL_FreeSurface(Surface);
+    }
 
-    if (VarWidth)
-        delete[] VarWidth;
+    { delete[] VarWidth; }
 
-    if (VarHeight)
-        delete[] VarHeight;
+    { delete[] VarHeight; }
 }
 
-bool SB_CFont::Load(SDL_Renderer* renderer, const char* path, struct HPALETTE__*)
-{
-    SDL_RWops* file = SDL_RWFromFile(path, "rb");
-    if (SDL_RWread(file, &Header, sizeof(Header), 1) != 1)
+bool SB_CFont::Load(SDL_Renderer * /*renderer*/, const char *path, struct HPALETTE__ * /*unused*/) {
+    SDL_RWops *file = SDL_RWFromFile(path, "rb");
+    if (SDL_RWread(file, &Header, sizeof(Header), 1) != 1) {
+        SDL_RWclose(file);
         return false;
+    }
 
-    BYTE* pixels = new BYTE[Header.szPixels];
-    if (SDL_RWread(file, pixels, 1, Header.szPixels) != Header.szPixels)
+    BYTE *pixels = new BYTE[Header.szPixels];
+    if (SDL_RWread(file, pixels, 1, Header.szPixels) != Header.szPixels) {
+        SDL_RWclose(file);
         return false;
+    }
 
-    SDL_Color* colors = new SDL_Color[Header.NumColors + 1];
-    if (SDL_RWread(file, colors, 1, Header.szColors) != Header.szColors)
+    auto *colors = new SDL_Color[Header.NumColors + 1];
+    if (SDL_RWread(file, colors, 1, Header.szColors) != Header.szColors) {
+        SDL_RWclose(file);
         return false;
+    }
 
     // Some fonts will refer beyond the palette, set those pixels to transparent
     memset(colors + Header.NumColors, 0, sizeof(SDL_Color));
 
     VarWidth = new BYTE[0x100];
-    if (SDL_RWread(file, VarWidth, 0x100, 1) != 1)
+    if (SDL_RWread(file, VarWidth, 0x100, 1) != 1) {
+        SDL_RWclose(file);
         return false;
+    }
 
     VarHeight = new BYTE[0x100];
-    if (SDL_RWread(file, VarHeight, 0x100, 1) != 1)
+    if (SDL_RWread(file, VarHeight, 0x100, 1) != 1) {
+        SDL_RWclose(file);
         return false;
+    }
 
     word chars = Header.HiChar - Header.LoChar + 1;
-    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormatFrom(pixels, Header.Width, Header.Height * chars, 8, Header.Width, SDL_PIXELFORMAT_INDEX8);
-    for (int i = 0; i < Header.NumColors; i++)
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(pixels, Header.Width, Header.Height * chars, 8, Header.Width, SDL_PIXELFORMAT_INDEX8);
+    for (SLONG i = 0; i < Header.NumColors; i++) {
         Swap(colors[i].r, colors[i].b); // Convert BGR to RGB
+    }
     SDL_SetPaletteColors(surf->format->palette, colors, 0, Header.NumColors + 1);
     Surface = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB565, 0);
     SDL_SetColorKey(Surface, SDL_TRUE, 0);
     SDL_FreeSurface(surf);
     delete[] colors;
     delete[] pixels;
+    SDL_RWclose(file);
     return true;
 }
 
-SLONG SB_CFont::DrawTextBlock(class SB_CBitmapCore* bmp, RECT* block, const char* str, SLONG length, SLONG offset, bool hidden)
-{
+SLONG SB_CFont::DrawTextBlock(class SB_CBitmapCore *bmp, RECT *block, const char *str, SLONG length, SLONG offset, bool hidden) {
     this->Bitmap = bmp;
     this->Hidden = hidden;
     if (length == 0) {
@@ -122,16 +122,14 @@ SLONG SB_CFont::DrawTextBlock(class SB_CBitmapCore* bmp, RECT* block, const char
             str = str + i;
             offset = offset + i;
         }
-    }
-    else {
+    } else {
         offset = 0xffff;
     }
     return offset;
 }
 
-void SB_CFont::DrawTextWithTabs(class SB_CBitmapCore* bmp, SLONG x, SLONG y, const char* str, SLONG length, bool hidden)
-{
-    int i = 0;
+void SB_CFont::DrawTextWithTabs(class SB_CBitmapCore *bmp, SLONG x, SLONG y, const char *str, SLONG length, bool hidden) {
+    SLONG i = 0;
     this->Bitmap = bmp;
     this->Hidden = hidden;
     this->Pos.x = x;
@@ -143,7 +141,7 @@ void SB_CFont::DrawTextWithTabs(class SB_CBitmapCore* bmp, SLONG x, SLONG y, con
     while (0 < length) {
         switch (*str) {
         case '\t':
-            if (i < this->NumTabs && this->Tabulator) {
+            if (i < this->NumTabs && (this->Tabulator != nullptr)) {
                 str++;
                 switch (this->Tabulator[i].Style) {
                 case 1:
@@ -157,6 +155,8 @@ void SB_CFont::DrawTextWithTabs(class SB_CBitmapCore* bmp, SLONG x, SLONG y, con
                     break;
                 case 4:
                     this->Pos.x = this->Tabulator[i].Width - GetWidthAt(str, length - 1, '\t');
+                    break;
+                default:
                     break;
                 }
                 i++;
@@ -182,23 +182,19 @@ void SB_CFont::DrawTextWithTabs(class SB_CBitmapCore* bmp, SLONG x, SLONG y, con
         }
         length--;
     }
-    return;
 }
 
-void SB_CFont::SetTabulator(TABS* pTabs, ULONG szTabs)
-{
-    if (this->Tabulator) {
+void SB_CFont::SetTabulator(TABS *pTabs, ULONG szTabs) {
+    if (this->Tabulator != nullptr) {
         delete[] this->Tabulator;
-        this->Tabulator = NULL;
+        this->Tabulator = nullptr;
     }
-    this->NumTabs = (word)(szTabs / sizeof(TABS));
+    this->NumTabs = static_cast<word>(szTabs / sizeof(TABS));
     this->Tabulator = new TABS[this->NumTabs];
     memcpy(this->Tabulator, pTabs, szTabs);
-    return;
 }
 
-SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore* bmp, RECT* block, const char* str, SLONG length, SLONG offset, bool hidden)
-{
+SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore *bmp, RECT *block, const char *str, SLONG length, SLONG offset, bool hidden) {
     this->Bitmap = bmp;
     this->Hidden = hidden;
     if (length == 0) {
@@ -211,7 +207,7 @@ SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore* bmp, RECT* block, const c
         this->Start.x = this->Pos.x;
         this->Pos.y = block->top;
         while (length != 0) {
-            int i = GetWordLength(str, length);
+            SLONG i = GetWordLength(str, length);
             if (0 < i) {
                 SLONG width = GetWidth(str, i);
                 if (block->right < this->Pos.x + width) {
@@ -247,31 +243,28 @@ SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore* bmp, RECT* block, const c
                 i++;
             }
             length -= i;
-            if (length < 1) break;
+            if (length < 1) {
+                break;
+            }
             str += i;
         }
         return (this->Pos.y + this->Header.Height) - block->top;
     }
-    else {
-        return 0xffff;
-    }
+    return 0xffff;
 }
 
-SLONG SB_CFont::DrawTextBlock(class SB_CBitmapCore* bmp, SLONG l, SLONG t, SLONG r, SLONG b, const char* str, SLONG length, SLONG offset, bool hidden)
-{
-    RECT rect{ l, t, r, b };
+SLONG SB_CFont::DrawTextBlock(class SB_CBitmapCore *bmp, SLONG l, SLONG t, SLONG r, SLONG b, const char *str, SLONG length, SLONG offset, bool hidden) {
+    RECT rect{l, t, r, b};
     return DrawTextBlock(bmp, &rect, str, length, offset, hidden);
 }
 
-SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore* bmp, SLONG l, SLONG t, SLONG r, SLONG b, const char* str, SLONG length, SLONG offset, bool hidden)
-{
-    RECT rect{ l, t, r, b };
+SLONG SB_CFont::PreviewTextBlock(class SB_CBitmapCore *bmp, SLONG l, SLONG t, SLONG r, SLONG b, const char *str, SLONG length, SLONG offset, bool hidden) {
+    RECT rect{l, t, r, b};
     return PreviewTextBlock(bmp, &rect, str, length, offset, hidden);
 }
 
-SLONG SB_CFont::GetWidthAt(const char* str, SLONG offset, char ch)
-{
-    int i = 0;
+SLONG SB_CFont::GetWidthAt(const char *str, SLONG /*offset*/, char ch) {
+    SLONG i = 0;
     while (true) {
         switch (*str) {
         case -0x4b:
@@ -280,15 +273,18 @@ SLONG SB_CFont::GetWidthAt(const char* str, SLONG offset, char ch)
         case '\n':
         case '\r':
             return i;
+        default:
+            break;
         }
-        if (*str == ch) break;
+        if (*str == ch) {
+            break;
+        }
         i += GetWidth(*str++);
     }
     return i;
 }
 
-SLONG SB_CFont::GetWordLength(const char* str, SLONG offset)
-{
+SLONG SB_CFont::GetWordLength(const char *str, SLONG offset) {
     dword length = 0;
     while (offset != 0) {
         switch (str[length]) {
@@ -307,25 +303,20 @@ SLONG SB_CFont::GetWordLength(const char* str, SLONG offset)
     return length;
 }
 
-SLONG SB_CFont::GetWidth(unsigned char ch)
-{
-    if ((this->Header.Flags & 1) == 1)
+SLONG SB_CFont::GetWidth(unsigned char ch) {
+    if ((this->Header.Flags & 1) == 1) {
         return *(this->VarWidth + ch);
-    else
-        return this->Header.Width;
+    }
+    return this->Header.Width;
 }
 
-SLONG SB_CFont::GetWidth(const char* str, SLONG offset)
-{
+SLONG SB_CFont::GetWidth(const char *str, SLONG offset) {
     SLONG width = 0;
-    if (offset == 0)
-    {
+    if (offset == 0) {
         offset = strlen(str);
     }
-    while (offset != 0)
-    {
-        switch (*str)
-        {
+    while (offset != 0) {
+        switch (*str) {
         case -0x4b:
         case '\0':
         case '\t':
@@ -341,19 +332,17 @@ SLONG SB_CFont::GetWidth(const char* str, SLONG offset)
     return width;
 }
 
-bool SB_CFont::DrawChar(unsigned char ch, bool)
-{
-    if (this->VarHeight)
-    {
-        if (this->Bitmap != (SB_CBitmapCore*)0x0)
-        {
+bool SB_CFont::DrawChar(unsigned char ch, bool /*unused*/) {
+    if (this->VarHeight != nullptr) {
+        if (this->Bitmap != (SB_CBitmapCore *)nullptr) {
             SDL_Rect srcRect;
             srcRect.x = 0;
             srcRect.y = (*(this->VarHeight + ch) - this->Header.LoChar) * this->Header.Height;
             srcRect.w = this->Header.Width;
             srcRect.h = this->Header.Height;
-            if (!this->Hidden)
-                this->Bitmap->BlitChar(Surface, Pos.x, Pos.y, &srcRect, 1);
+            if (!this->Hidden) {
+                this->Bitmap->BlitChar(Surface, Pos.x, Pos.y, srcRect);
+            }
         }
         this->Pos.x = this->Pos.x + GetWidth(ch);
         return true;
@@ -361,8 +350,7 @@ bool SB_CFont::DrawChar(unsigned char ch, bool)
     return false;
 }
 
-bool SB_CFont::DrawWord(const char* str, SLONG offset)
-{
+bool SB_CFont::DrawWord(const char *str, SLONG offset) {
     do {
         if (offset == 0) {
             return true;
@@ -370,16 +358,13 @@ bool SB_CFont::DrawWord(const char* str, SLONG offset)
         if (*str == -0x4b) {
             this->Pos.y = this->Pos.y + SLONG(this->Header.Height * LineSpace);
             this->Pos.x = this->Start.x;
-        }
-        else {
+        } else {
             if (*str == '\n') {
                 this->Pos.y = this->Pos.y + SLONG(this->Header.Height * LineSpace);
-            }
-            else {
+            } else {
                 if (*str == '\r') {
                     this->Pos.x = this->Start.x;
-                }
-                else {
+                } else {
                     if (!DrawChar(*str, true)) {
                         return false;
                     }

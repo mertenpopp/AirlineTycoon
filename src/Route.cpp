@@ -1,328 +1,290 @@
 //============================================================================================
 // Route.cpp : Routinen zum verwalten der Flugrouten (CRoute, CRouten)
 //============================================================================================
-#include "Stdafx.h"
+#include "StdAfx.h"
+#include <sstream>
 
-static const char FileId[] = "Rout";
+SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
+SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
 
-SLONG ReadLine (BUFFER<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-
-//Daten des aktuellen Savegames beim laden:
+// Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
 extern SLONG SaveVersionSub;
 
 //============================================================================================
-//CRoute::
+// CRoute::
 //============================================================================================
-//So viele fliegen (Potentiell) hier
+// So viele fliegen (Potentiell) hier
 //============================================================================================
-SLONG CRoute::AnzPassagiere(void)
-{
-   SLONG DayFaktor;
+SLONG CRoute::AnzPassagiere() const {
+    SLONG DayFaktor = 0;
 
-        if (Sim.Date<3)  DayFaktor=1000;
-   else if (Sim.Date<9)  DayFaktor=900;
-   else if (Sim.Date<29) DayFaktor=750;
-   else                  DayFaktor=650;
+    if (Sim.Date < 3) {
+        DayFaktor = 1000;
+    } else if (Sim.Date < 9) {
+        DayFaktor = 900;
+    } else if (Sim.Date < 29) {
+        DayFaktor = 750;
+    } else {
+        DayFaktor = 650;
+    }
 
-   return ((SLONG)(sqrt (Cities[VonCity].Einwohner * double(Cities[NachCity].Einwohner))*Faktor/DayFaktor/2*3/4));
+    return (static_cast<SLONG>(sqrt(Cities[VonCity].Einwohner * DOUBLE(Cities[NachCity].Einwohner)) * Faktor / DayFaktor / 2 * 3 / 4));
 }
 
-BOOL CRoute::operator > (const CRoute &p) const { return (Cities[VonCity].Name>Cities[p.VonCity].Name); }
-BOOL CRoute::operator < (const CRoute &p) const { return (Cities[VonCity].Name<Cities[p.VonCity].Name); }
+BOOL CRoute::operator>(const CRoute &p) const { return static_cast<BOOL>(Cities[VonCity].Name > Cities[p.VonCity].Name); }
+BOOL CRoute::operator<(const CRoute &p) const { return static_cast<BOOL>(Cities[VonCity].Name < Cities[p.VonCity].Name); }
 
 //--------------------------------------------------------------------------------------------
-//Eine CRoute-Objekt speichern:
+// Eine CRoute-Objekt speichern:
 //--------------------------------------------------------------------------------------------
-TEAKFILE &operator << (TEAKFILE &File, const CRoute &r)
-{
-   File << r.Ebene << r.VonCity << r.NachCity;
-   File << r.Miete << r.Faktor  << r.Bedarf;
+TEAKFILE &operator<<(TEAKFILE &File, const CRoute &r) {
+    File << r.Ebene << r.VonCity << r.NachCity;
+    File << r.Miete << r.Faktor << r.Bedarf;
 
-   return (File);
-}
-
-//--------------------------------------------------------------------------------------------
-//Eine CRoute-Objekt laden:
-//--------------------------------------------------------------------------------------------
-TEAKFILE &operator >> (TEAKFILE &File, CRoute &r)
-{
-   File >> r.Ebene >> r.VonCity >> r.NachCity;
-   File >> r.Miete >> r.Faktor  >> r.Bedarf;
-
-   return (File);
-}
-
-//============================================================================================
-//CRouten::
-//============================================================================================
-//Konstruktor:
-//============================================================================================
-CRouten::CRouten (const CString &TabFilename) : ALBUM<CRoute> (Routen, "Routen")
-{
-   //ReInit (TabFilename);
-   DebugBreak();
+    return (File);
 }
 
 //--------------------------------------------------------------------------------------------
-//Dateien neu laden:
+// Eine CRoute-Objekt laden:
 //--------------------------------------------------------------------------------------------
-void CRouten::ReInit (const CString &TabFilename, bool bNoDoublettes)
-{
-   //CStdioFile    Tab;
-   BUFFER<char>  Line(300);
-   long          Id, Id2;
+TEAKFILE &operator>>(TEAKFILE &File, CRoute &r) {
+    File >> r.Ebene >> r.VonCity >> r.NachCity;
+    File >> r.Miete >> r.Faktor >> r.Bedarf;
 
-   //Load Table header:
-   BUFFER<UBYTE> FileData (*LoadCompleteFile (FullFilename (TabFilename, ExcelPath)));
-   SLONG         FileP=0;
-
-   //Die erste Zeile einlesen
-   FileP=ReadLine (FileData, FileP, Line, 300);
-
-   Routen.ReSize (0);
-   IsInAlbum (0x11000000);
-   Routen.ReSize (MAX_ROUTES);
-
-   while (1)
-   {
-      if (FileP>=FileData.AnzEntries()) break;
-      FileP=ReadLine (FileData, FileP, Line, 300);
-
-      //if (!Tab.ReadString (Line, 300)) break;
-      TeakStrRemoveEndingCodes (Line, "\xd\xa\x1a\r");
-
-      SLONG   HelperEbene = atoi (strtok (Line, TabSeparator));
-      CString Helper1     = strtok (NULL, TabSeparator);
-      CString Helper2     = strtok (NULL, TabSeparator);
-      ULONG   VonCity     = Cities.GetIdFromName ((char*)(LPCTSTR)KorrigiereUmlaute (Helper1));
-      ULONG   NachCity    = Cities.GetIdFromName ((char*)(LPCTSTR)KorrigiereUmlaute (Helper2));
-
-      //Looking for doubles (may be turned off for compatibility)
-      if (bNoDoublettes)
-      {
-         for (SLONG c=0; c<(SLONG)AnzEntries(); c++)
-            if (IsInAlbum(c) && (*this)[c].VonCity==VonCity && (*this)[c].NachCity==NachCity)
-               goto skip_this_city_because_it_exists_twice;
-      }
-
-      //Tabellenzeile hinzufügen:
-      Id=GetUniqueId();
-      (*this)+=Id;
-
-      //SpeedUp durch direkten Zugriff:
-      Id=(*this)(Id);
-      (*this)[Id].Ebene    = HelperEbene;
-      (*this)[Id].VonCity  = VonCity;
-      (*this)[Id].NachCity = NachCity;
-      (*this)[Id].Miete    = atol (strtok (NULL, TabSeparator));
-      (*this)[Id].Faktor   = atof (strtok (NULL, TabSeparator));
-      (*this)[Id].Bedarf   = 0;
-      (*this)[Id].bNewInDeluxe = (Cities[VonCity].bNewInAddOn==2 || Cities[NachCity].bNewInAddOn==2);
-
-      //Tabellenzeile hinzufügen:
-      Id2=GetUniqueId();
-      (*this)+=Id2;
-
-      //SpeedUp durch direkten Zugriff:
-      Id2=(*this)(Id2);
-      (*this)[Id2].Ebene    = (*this)[Id].Ebene;
-      (*this)[Id2].VonCity  = (*this)[Id].NachCity;
-      (*this)[Id2].NachCity = (*this)[Id].VonCity;
-      (*this)[Id2].Miete    = (*this)[Id].Miete;
-      (*this)[Id2].Faktor   = (*this)[Id].Faktor;
-      (*this)[Id2].Bedarf   = 0;
-      (*this)[Id2].bNewInDeluxe = (*this)[Id].bNewInDeluxe;
-
-      skip_this_city_because_it_exists_twice:;
-   }
-
-   this->Sort ();
-}
-
-//--------------------------------------------------------------------------------------------
-//Dateien neu laden:
-//--------------------------------------------------------------------------------------------
-void CRouten::ReInitExtend (const CString &TabFilename)
-{
-   //CStdioFile    Tab;
-   BUFFER<char>  Line(300);
-   long          Id, Id2;
-   long          linenumber=0;
-
-   //Load Table header:
-   BUFFER<UBYTE> FileData (*LoadCompleteFile (FullFilename (TabFilename, ExcelPath)));
-   SLONG         FileP=0;
-
-   //Die erste Zeile einlesen
-   FileP=ReadLine (FileData, FileP, Line, 300);
-
-   Routen.ReSize (MAX_ROUTES);
-   SLONG NumUsed = (SLONG)GetNumUsed();
-
-   while (1)
-   {
-      if (FileP>=FileData.AnzEntries()) break;
-      FileP=ReadLine (FileData, FileP, Line, 300);
-
-      if (linenumber<NumUsed/2) { linenumber++; continue; }
-      linenumber++;
-
-      TeakStrRemoveEndingCodes (Line, "\xd\xa\x1a\r");
-
-      SLONG   HelperEbene = atoi (strtok (Line, TabSeparator));
-      CString Helper1     = strtok (NULL, TabSeparator);
-      CString Helper2     = strtok (NULL, TabSeparator);
-      ULONG   VonCity     = Cities.GetIdFromName ((char*)(LPCTSTR)KorrigiereUmlaute (Helper1));
-      ULONG   NachCity    = Cities.GetIdFromName ((char*)(LPCTSTR)KorrigiereUmlaute (Helper2));
-
-      //Tabellenzeile hinzufügen:
-      Id=GetUniqueId();
-      (*this)+=Id;
-
-      //SpeedUp durch direkten Zugriff:
-      Id=(*this)(Id);
-      (*this)[Id].Ebene    = HelperEbene;
-      (*this)[Id].VonCity  = VonCity;
-      (*this)[Id].NachCity = NachCity;
-      (*this)[Id].Miete    = atol (strtok (NULL, TabSeparator));
-      (*this)[Id].Faktor   = atof (strtok (NULL, TabSeparator));
-      (*this)[Id].Bedarf   = 0;
-      (*this)[Id].bNewInDeluxe = (Cities[VonCity].bNewInAddOn==2 || Cities[NachCity].bNewInAddOn==2);
-
-      //Tabellenzeile hinzufügen:
-      Id2=GetUniqueId();
-      (*this)+=Id2;
-
-      //SpeedUp durch direkten Zugriff:
-      Id2=(*this)(Id2);
-      (*this)[Id2].Ebene    = (*this)[Id].Ebene;
-      (*this)[Id2].VonCity  = (*this)[Id].NachCity;
-      (*this)[Id2].NachCity = (*this)[Id].VonCity;
-      (*this)[Id2].Miete    = (*this)[Id].Miete;
-      (*this)[Id2].Faktor   = (*this)[Id].Faktor;
-      (*this)[Id2].Bedarf   = 0;
-      (*this)[Id2].bNewInDeluxe = (*this)[Id].bNewInDeluxe;
-   }
-
-   this->Sort ();
-}
-
-//--------------------------------------------------------------------------------------------
-//Wie viele Leute warten auf einen Flug?:
-//--------------------------------------------------------------------------------------------
-void CRouten::NewDay (void)
-{
-   SLONG c;
-
-   if (Sim.Date==0)
-   {
-      for (c=0; c<Routen.AnzEntries(); c++)
-         if (IsInAlbum(c))
-         {
-            Routen[c].Bedarf = SLONG(Routen[c].AnzPassagiere()*4.27);
-         }
-   }
-   else
-   {
-      for (c=0; c<Routen.AnzEntries(); c++)
-         if (IsInAlbum(c))
-         {
-            Routen[c].Bedarf = (Routen[c].Bedarf * 6 + (SLONG(Routen[c].AnzPassagiere()*4.27)))/7;
-         }
-   }
-}
-
-//--------------------------------------------------------------------------------------------
-//Speichert ein CRouten Datum:
-//--------------------------------------------------------------------------------------------
-TEAKFILE &operator << (TEAKFILE &File, const CRouten &r)
-{
-   if (SaveVersion==1 && SaveVersionSub<12)
-      File << r.Routen;
-   else
-   {
-      File << r.Routen;
-      File << *((ALBUM<CRoute>*)&r);
-   }
-
-   return (File);
-}
-
-//--------------------------------------------------------------------------------------------
-//Lädt ein CRouten Datum:
-//--------------------------------------------------------------------------------------------
-TEAKFILE &operator >> (TEAKFILE &File, CRouten &r)
-{
-   if (SaveVersion==1 && SaveVersionSub<12)
-      File >> r.Routen;
-   else
-   {
-      File >> r.Routen;
-      File >> *((ALBUM<CRoute>*)&r);
-   }
-
-   return (File);
+    return (File);
 }
 
 //============================================================================================
-//CRentRoute::
+// CRouten::
 //============================================================================================
-//Konstruktor:
+// Konstruktor:
 //============================================================================================
-CRentRoute::CRentRoute ()
-{
-   Rang         = 0;
-   Auslastung   = 0;
-   AuslastungFC = 0;
-   Image        = 0;
-   Miete        = 0;
-   LastFlown    = 99;
-   TageMitVerlust = 0;
-   TageMitGering  = 99;
-
-   RoutenAuslastung = 0;
-   HeuteBefoerdert  = 0;
+CRouten::CRouten(const CString & /*TabFilename*/) : ALBUM_V<CRoute>("Routen") {
+    // ReInit (TabFilename);
+    DebugBreak();
 }
 
 //--------------------------------------------------------------------------------------------
-//Gibt zurück, wieviele Routen der Spieler besitzt:
+// Dateien neu laden:
 //--------------------------------------------------------------------------------------------
-SLONG CRentRouten::GetNumUsed(void)
-{
-   SLONG c, Anz=0;
+void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
+    // CStdioFile    Tab;
+    BUFFER_V<char> Line(300);
 
-   for (c=0; c<SLONG(Routen.AnzEntries()); c++)
-      if (Routen.IsInAlbum(c) && RentRouten[c].Rang!=0)
-      {
-         Anz++;
-      }
+    // Load Table header:
+    auto FileData = LoadCompleteFile(FullFilename(TabFilename, ExcelPath));
+    SLONG FileP = 0;
 
-   return (Anz);
+    // Die erste Zeile einlesen
+    FileP = ReadLine(FileData, FileP, Line.getData(), 300);
+
+    SLONG routes = CountLines(FileData, FileP) * 2; //2x for "to" and "back"
+
+    ReSize(0);
+    ReSize(routes);
+
+    while (true) {
+        if (FileP >= FileData.AnzEntries()) {
+            break;
+        }
+        FileP = ReadLine(FileData, FileP, Line.getData(), 300);
+
+        // if (!Tab.ReadString (Line, 300)) break;
+        TeakStrRemoveEndingCodes(Line.getData(), "\xd\xa\x1a\r");
+
+        SLONG HelperEbene = atoi(strtok(Line.getData(), TabSeparator));
+        CString Helper1 = strtok(nullptr, TabSeparator);
+        CString Helper2 = strtok(nullptr, TabSeparator);
+
+        ULONG VonCity;
+        ULONG NachCity;
+
+        const char *errorStr = "Tried to create route between %s and %s, but a city was not found: %s";
+        try {
+            VonCity = Cities.GetIdFromName(KorrigiereUmlaute(Helper1).c_str());
+        } catch (std::runtime_error&) {
+            TeakLibW_Exception(FNL, errorStr, Helper1.c_str(), Helper2.c_str(), Helper1.c_str());
+        }
+
+        try {
+            NachCity = Cities.GetIdFromName(KorrigiereUmlaute(Helper2).c_str());
+        } catch (std::runtime_error &) {
+            TeakLibW_Exception(FNL, errorStr, Helper1.c_str(), Helper2.c_str(), Helper2.c_str());
+        }
+
+        // Looking for doubles (may be turned off for compatibility)
+        bool skip = false;
+        if (bNoDoublettes) {
+            for (SLONG c = 0; c < AnzEntries(); c++) {
+                if ((IsInAlbum(c) != 0) && (*this)[c].VonCity == VonCity && (*this)[c].NachCity == NachCity) {
+                    skip = true;
+                }
+            }
+        }
+
+        if (!skip) {
+            CRoute routeHin;
+            routeHin.Ebene = HelperEbene;
+            routeHin.VonCity = VonCity;
+            routeHin.NachCity = NachCity;
+            routeHin.Miete = atol(strtok(nullptr, TabSeparator));
+            routeHin.Faktor = atof(strtok(nullptr, TabSeparator));
+            routeHin.Bedarf = 0;
+            routeHin.bNewInDeluxe = static_cast<BOOL>(Cities[VonCity].bNewInAddOn == 2 || Cities[NachCity].bNewInAddOn == 2);
+
+            CRoute routeHer = routeHin;
+            std::swap(routeHer.VonCity, routeHer.NachCity);
+
+            (*this) += routeHin;
+            (*this) += routeHer;
+        }
+    }
+
+    this->Sort();
 }
 
 //--------------------------------------------------------------------------------------------
-//Speichert ein RentRouten-Objekt:
+// Dateien neu laden:
 //--------------------------------------------------------------------------------------------
-TEAKFILE &operator << (TEAKFILE &File, const CRentRoute &r)
-{
-   File << r.Rang             << r.LastFlown       << r.AvgFlown;
-   File << r.Auslastung       << r.Image           << r.Miete;
-   File << r.Ticketpreis      << r.TicketpreisFC   << r.TageMitVerlust << r.TageMitGering;
-   File << r.RoutenAuslastung << r.HeuteBefoerdert << r.AuslastungFC;
+void CRouten::ReInitExtend(const CString &TabFilename) {
+    // CStdioFile    Tab;
+    BUFFER_V<char> Line(300);
+    SLONG linenumber = 0;
 
-   return (File);
+    // Load Table header:
+    auto FileData = LoadCompleteFile(FullFilename(TabFilename, ExcelPath));
+    SLONG FileP = 0;
+
+    // Die erste Zeile einlesen
+    FileP = ReadLine(FileData, FileP, Line.getData(), 300);
+
+    SLONG routes = CountLines(FileData, FileP) * 2;
+    
+    ReSize(routes);
+    auto NumUsed = GetNumUsed();
+
+    while (true) {
+        if (FileP >= FileData.AnzEntries()) {
+            break;
+        }
+        FileP = ReadLine(FileData, FileP, Line.getData(), 300);
+
+        if (linenumber < NumUsed / 2) {
+            linenumber++;
+            continue;
+        }
+        linenumber++;
+
+        TeakStrRemoveEndingCodes(Line.getData(), "\xd\xa\x1a\r");
+
+        SLONG HelperEbene = atoi(strtok(Line.getData(), TabSeparator));
+        CString Helper1 = strtok(nullptr, TabSeparator);
+        CString Helper2 = strtok(nullptr, TabSeparator);
+        ULONG VonCity = Cities.GetIdFromName(const_cast<char *>((LPCTSTR)KorrigiereUmlaute(Helper1)));
+        ULONG NachCity = Cities.GetIdFromName(const_cast<char *>((LPCTSTR)KorrigiereUmlaute(Helper2)));
+
+        CRoute routeHin;
+        routeHin.Ebene = HelperEbene;
+        routeHin.VonCity = VonCity;
+        routeHin.NachCity = NachCity;
+        routeHin.Miete = atol(strtok(nullptr, TabSeparator));
+        routeHin.Faktor = atof(strtok(nullptr, TabSeparator));
+        routeHin.Bedarf = 0;
+        routeHin.bNewInDeluxe = static_cast<BOOL>(Cities[VonCity].bNewInAddOn == 2 || Cities[NachCity].bNewInAddOn == 2);
+
+        CRoute routeHer = routeHin;
+        std::swap(routeHer.VonCity, routeHer.NachCity);
+
+        (*this) += routeHin;
+        (*this) += routeHer;
+    }
+
+    this->Sort();
 }
 
 //--------------------------------------------------------------------------------------------
-//Lädt ein RentRouten-Objekt:
+// Wie viele Leute warten auf einen Flug?:
 //--------------------------------------------------------------------------------------------
-TEAKFILE &operator >> (TEAKFILE &File, CRentRoute &r)
-{
-   File >> r.Rang             >> r.LastFlown       >> r.AvgFlown;
-   File >> r.Auslastung       >> r.Image           >> r.Miete;
-   File >> r.Ticketpreis      >> r.TicketpreisFC   >> r.TageMitVerlust >> r.TageMitGering;
-   File >> r.RoutenAuslastung >> r.HeuteBefoerdert >> r.AuslastungFC;
+void CRouten::NewDay() {
+    SLONG c = 0;
 
-   return (File);
+    if (Sim.Date == 0) {
+        for (c = 0; c < Routen.AnzEntries(); c++) {
+            if (IsInAlbum(c) != 0) {
+                Routen[c].Bedarf = SLONG(Routen[c].AnzPassagiere() * 4.27);
+            }
+        }
+    } else {
+        for (c = 0; c < Routen.AnzEntries(); c++) {
+            if (IsInAlbum(c) != 0) {
+                Routen[c].Bedarf = (Routen[c].Bedarf * 6 + (SLONG(Routen[c].AnzPassagiere() * 4.27))) / 7;
+            }
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------
+// Speichert ein CRouten Datum:
+//--------------------------------------------------------------------------------------------
+TEAKFILE &operator<<(TEAKFILE &File, const CRouten &r) {
+    File << *((const ALBUM_V<CRoute> *)&r);
+
+    return (File);
+}
+
+//--------------------------------------------------------------------------------------------
+// LÃ¤dt ein CRouten Datum:
+//--------------------------------------------------------------------------------------------
+TEAKFILE &operator>>(TEAKFILE &File, CRouten &r) {
+    File >> *((ALBUM_V<CRoute> *)&r);
+
+    return (File);
+}
+
+//============================================================================================
+// CRentRoute::
+//============================================================================================
+//--------------------------------------------------------------------------------------------
+// Gibt zurÃ¼ck, wieviele Routen der Spieler besitzt:
+//--------------------------------------------------------------------------------------------
+SLONG CRentRouten::GetNumUsed() {
+    SLONG c = 0;
+    SLONG Anz = 0;
+
+    for (c = 0; c < SLONG(Routen.AnzEntries()); c++) {
+        if ((Routen.IsInAlbum(c) != 0) && RentRouten[c].Rang != 0) {
+            Anz++;
+        }
+    }
+
+    return (Anz);
+}
+
+//--------------------------------------------------------------------------------------------
+// Speichert ein RentRouten-Objekt:
+//--------------------------------------------------------------------------------------------
+TEAKFILE &operator<<(TEAKFILE &File, const CRentRoute &r) {
+    File << r.Rang << r.LastFlown << r.AvgFlown;
+    File << r.Auslastung << r.Image << r.Miete;
+    File << r.Ticketpreis << r.TicketpreisFC << r.TageMitVerlust << r.TageMitGering;
+    File << r.RoutenAuslastung << r.HeuteBefoerdert << r.AuslastungFC;
+    File << r.WocheBefoerdert;
+
+    return (File);
+}
+
+//--------------------------------------------------------------------------------------------
+// LÃ¤dt ein RentRouten-Objekt:
+//--------------------------------------------------------------------------------------------
+TEAKFILE &operator>>(TEAKFILE &File, CRentRoute &r) {
+    File >> r.Rang >> r.LastFlown >> r.AvgFlown;
+    File >> r.Auslastung >> r.Image >> r.Miete;
+    File >> r.Ticketpreis >> r.TicketpreisFC >> r.TageMitVerlust >> r.TageMitGering;
+    File >> r.RoutenAuslastung >> r.HeuteBefoerdert >> r.AuslastungFC;
+    if (SaveVersionSub >= 200) {
+        File >> r.WocheBefoerdert;
+    }
+
+    return (File);
 }

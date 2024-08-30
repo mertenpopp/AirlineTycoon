@@ -3,129 +3,123 @@
 // Statistk.h : Der Statistik-Screen
 //============================================================================================
 
-class CStatButton
-{
-   public:
-      SLONG  Id;                       //Frei w‰hlbar, aber bitte immer eindeutig
-      SLONG  HelpId;                   //ToolTipID
-      CRect  HotArea;                  //MouseArea, wo der Button gehighlighted wird
-      XY     BitmapOffset;             //Hierhin wird die Button-Bitmap geblittet
-      XY    *BitmapOffset2;            //Referenzmˆglichkeit f¸r bewegte Buttons
-      SBBM  *BitmapNormal;             //Normale Bitmap oder NULL
-      SBBM  *BitmapHi;                 //Bitmap f¸rs Highlight oder NULL
-      SBBM  *BitmapClicked;            //Bitmap f¸rs Geclickte oder NULL
-      SBBM  *BitmapSuperHi;            //Nur f¸r Toggle-Buttons: Highlight, wenn geklickt
-      BOOL   IsToggle;                 //Ist es ein Toggle-Button?
-      DWORD  LastClicked;              //Wann wurde er zum letzten Mal geklickt (intern)
+class CStatButton {
+  public:
+    SLONG Id{};                   // Frei w√§hlbar, aber bitte immer eindeutig
+    SLONG HelpId{};               // ToolTipID
+    CRect HotArea{};              // MouseArea, wo der Button gehighlighted wird
+    XY BitmapOffset{};            // Hierhin wird die Button-Bitmap geblittet
+    XY *BitmapOffset2{};          // Referenzm√∂glichkeit f√ºr bewegte Buttons
+    SBBM *BitmapNormal{nullptr};  // Normale Bitmap oder NULL
+    SBBM *BitmapHi{nullptr};      // Bitmap f√ºrs Highlight oder NULL
+    SBBM *BitmapClicked{nullptr}; // Bitmap f√ºrs Geclickte oder NULL
+    SBBM *BitmapSuperHi{nullptr}; // Nur f√ºr Toggle-Buttons: Highlight, wenn geklickt
+    BOOL IsToggle{};              // Ist es ein Toggle-Button?
+    DWORD LastClicked{};          // Wann wurde er zum letzten Mal geklickt (intern)
 
-   public:
-      void ReSize (SLONG Id, SLONG  HelpId, CRect HotArea, XY BitmapOffset, XY *BitmapOffset2, SBBM *BitmapNormal, SBBM *BitmapHi, SBBM *BitmapClicked, SBBM *BitmapSuperHi, BOOL IsToggle);
+  public:
+    void ReSize(SLONG Id, SLONG HelpId, CRect HotArea, XY BitmapOffset, XY *BitmapOffset2, SBBM *BitmapNormal, SBBM *BitmapHi, SBBM *BitmapClicked,
+                SBBM *BitmapSuperHi, BOOL IsToggle);
 };
 
-#define	MAX_GROUP			3				// Anzahl der Gruppen
-#define	MAX_ITEMS			16				// Anzahl der Eintr‰ge je Gruppe
-#define	LINE_DISTANCE		20				// Abstand der Zeilen
+#define LINE_DISTANCE 10 // Abstand der Zeilen
 
-#define	TYP_LINEFEED		0				// Leerzeile
-#define	TYP_GROUP			1				// Gruppe
-#define	TYP_SUM_CURR		2				// Summe einer Gruppe
-#define	TYP_SUM_CURR_N		3				// Summe einer Gruppe (-)
-#define	TYP_SUM_DIFF		4				// Differenz der Summen
-#define  TYP_SHAREVALUE		5				// Wert aller Aktien zusammen
+#define TYP_LINEFEED 0   // Leerzeile
+#define TYP_GROUP 1      // Gruppe
+#define TYP_SUM_CURR 2   // Summe einer Gruppe
+#define TYP_SUM_CURR_N 3 // Summe einer Gruppe (-)
+#define TYP_SUM_DIFF 4   // Differenz der Summen
+#define TYP_SHAREVALUE 5 // Wert aller Aktien zusammen
 
-#define	TYP_VALUE			20				// Normale Zahl
-#define	TYP_CURRENCY		21				// W‰hrung
-#define	TYP_PERCENT    	22				// Prozent
-#define	TYP_SINGLE_PERCENT 23		   // Prozent, aber nicht in Abh‰ngigkeit von der Vorvariable
+#define TYP_VALUE 20          // Normale Zahl
+#define TYP_CURRENCY 21       // W√§hrung
+#define TYP_PERCENT 22        // Prozent
+#define TYP_SINGLE_PERCENT 23 // Prozent, aber nicht in Abh√§ngigkeit von der Vorvariable
+#define TYP_UNAVAILABLE 24    // ???, weil der Berater fehlt
 
-
-typedef struct tagItem
-{
-	bool	visible;
-	short	textId;
-	short	define;
-	short	typOfItem;
-
+typedef struct tagItem {
+    bool visible{};
+    SWORD textId{};
+    SWORD define{};
+    SWORD typOfItem{};
+    SWORD beraterSkill{};
+    SWORD beraterSkillInfo{};
 } ITEM;
 
+class CStatistik : public CStdRaum {
+    // Construction
+  public:
+    CStatistik(BOOL bHandy, ULONG PlayerNum);
 
-class CStatistik : public CStdRaum
-{
-// Construction
-public:
-	CStatistik(BOOL bHandy, ULONG PlayerNum);
+    BUFFER_V<CStatButton> StatButtons; // Die Statistik Buttons
 
-   BUFFER<CStatButton> StatButtons;    //Die Statistik Buttons
+    SBBM HighlightBar; // Der helle Balken f√ºr die optische Auswahl
+    SBBM TopSaver;     // Verhindert, da√ü der obere Rand von den Zoomicons √ºberschrien wird
 
-   SBBM     HighlightBar;              //Der helle Balken f¸r die optische Auswahl
-   SBBM     TopSaver;                  //Verhindert, daﬂ der obere Rand von den Zoomicons ¸berschrien wird
+    SBBM DropDownBackgroundBm; // Die Hintergrundbitmap
+    SBBM DropDownBm;           // Die Hintergrundbitmap mit Linien drauf
+    SBBMS UpDownArrows;        // Die Buttons zum runter/raufscrollen
 
-   SBBM     DropDownBackgroundBm;      //Die Hintergrundbitmap
-   SBBM     DropDownBm;                //Die Hintergrundbitmap mit Linien drauf
-   SBBMS    UpDownArrows;              //Die Buttons zum runter/raufscrollen
-                                      
-   SBBM     TextTableBm;               //Die Bitmap mit den Texten (kann von der Drop-Down Liste ¸berdeckt werden)
-                                      
-   SBBMS    LupeLogoBms;               //Die Lupe mit dem Firmenlogo
-   SBBMS    LupeZoomBms;               //Die Lupe mit +/s
-   SBBMS    ButtonGeldBms;             //Die Buttons mit dem Geld
-   SBBMS    ButtonRouteBms;            //Die Buttons mit der Route
-                                      
-   SBBMS    ExitBms;                   //Das Exit-Schild
-   SBBMS    LogoBms;                   //Die Vier groﬂen Spielerlogos in 3 varianten
-	SBBMS		PobelBms;
+    SBBM TextTableBm; // Die Bitmap mit den Texten (kann von der Drop-Down Liste √ºberdeckt werden)
 
-   XY       DropDownPos;
-   SLONG    DropDownSpeed;
+    SBBMS LupeLogoBms;    // Die Lupe mit dem Firmenlogo
+    SBBMS LupeZoomBms;    // Die Lupe mit +/s
+    SBBMS ButtonGeldBms;  // Die Buttons mit dem Geld
+    SBBMS ButtonRouteBms; // Die Buttons mit der Route
 
-	SBBM		Haeckchen;
+    SBBMS ExitBms; // Das Exit-Schild
+    SBBMS LogoBms; // Die Vier gro√üen Spielerlogos in 3 varianten
+    SBBMS PobelBms;
 
-   SB_CFont StatFonts[5];             //0=Schwarz, 1-4=Farben der Spieler
+    XY DropDownPos;
+    SLONG DropDownSpeed;
 
+    SBBM Haeckchen;
 
-	// Diese Werte am besten in der Registry
-	// speichern.
-	bool		_fGraphVisible;							// true -> Der Graph ist sichtbar, ansonsten die schnˆden Zahlen
-	bool		_playerMask[4];							// Diese Spieler wurden zur Ansicht ausgew‰hlt
-	BYTE		_group;										// Die angew‰hlte Gruppe (*0=Finanzen, 1=?, 2=?)
-	long		_days;										// Anzahl der darzustellenden Tage
-	long		_newDays;									// F¸r eine Animation
-	ITEM		_iArray[MAX_GROUP][MAX_ITEMS];		// Merkt sich f¸r jede Gruppe welche Eintr‰ge selektiert sind.
+    SB_CFont StatFonts[5]; // 0=Schwarz, 1-4=Farben der Spieler
 
-	// Tempor‰re Werte
-	short		_selectedItem;
-	short		_oldSelectedItem;
-	double	_yAxis;
-	double	_xGraph;
-	double	_yGraph;
+    // Diese Werte am besten in der Registry
+    // speichern.
+    bool _fGraphVisible;                  // true -> Der Graph ist sichtbar, ansonsten die schn√∂den Zahlen
+    std::array<bool, 4> _playerMask{};    // Diese Spieler wurden zur Ansicht ausgew√§hlt
+    BYTE _group;                          // Die angew√§hlte Gruppe (*0=Finanzen, 1=?, 2=?)
+    SLONG _days;                          // Anzahl der darzustellenden Tage
+    SLONG _newDays;                       // F√ºr eine Animation
+    std::array<std::array<ITEM, STAT_MAX_ITEMS>, STAT_MAX_GROUPS> _iArray{};
 
-	bool		_fRepaint;
+    // Tempor√§re Werte
+    short _selectedItem;
+    short _oldSelectedItem;
+    DOUBLE _yAxis{};
+    DOUBLE _xGraph{};
+    DOUBLE _yGraph{};
 
-// Attributes
-public:
+    bool _fRepaint;
 
-// Operations
-public:
-// Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CStatistik)
-	//}}AFX_VIRTUAL
+    // Attributes
+  public:
+    // Operations
+  public:
+    // Overrides
+    // ClassWizard generated virtual function overrides
+    //{{AFX_VIRTUAL(CStatistik)
+    //}}AFX_VIRTUAL
 
-// Implementation
-public:
-	virtual ~CStatistik();
+    // Implementation
+  public:
+    virtual ~CStatistik();
 
-	// Generated message map functions
-protected:
-   void	 RepaintGraphWindow (void);
-	void	 CalcGraph (void);
+    // Generated message map functions
+  protected:
+    void RepaintGraphWindow(void);
+    void CalcGraph(void);
 
-   void RepaintTextWindow (void);
+    void RepaintTextWindow(void);
 
-	//{{AFX_MSG(CStatistik)
-	virtual void OnLButtonDown(UINT nFlags, CPoint point);
-	virtual void OnPaint();
-	virtual void OnRButtonDown(UINT nFlags, CPoint point);
-	//}}AFX_MSG
-	//DECLARE_MESSAGE_MAP()
+    //{{AFX_MSG(CStatistik)
+    virtual void OnLButtonDown(UINT nFlags, CPoint point);
+    virtual void OnPaint();
+    virtual void OnRButtonDown(UINT nFlags, CPoint point);
+    //}}AFX_MSG
+    // DECLARE_MESSAGE_MAP()
 };
