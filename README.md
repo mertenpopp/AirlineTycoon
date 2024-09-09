@@ -141,3 +141,5 @@ Misc:
 - [CrossVR](https://github.com/CrossVR) - Original contributor
 - [mertenpopp](https://github.com/mertenpopp) - Contributor
 - [wackfx](https://github.com/wackfx) - Contributor
+- [CrazyOrange](https://github.com/CrazyOrange) - Contributor
+- [Heftie](https://github.com/Heftie) - Contributor

@@ -27,7 +27,7 @@ jobs:
       id: compute-env
       run: |
         VERSION=$(grep -oP 'FILE_VERSION\s+\K\d+(,\s+\d+){2}' src/Res/resource.h | sed -E 's/[, ]+/./g')
-
+        
         echo "cmake-build-dir=cmake-build" >> "$GITHUB_OUTPUT"
         echo "artifact-dir=artifacts" >> "$GITHUB_OUTPUT"
 
@@ -111,8 +111,8 @@ jobs:
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
+      # Temporary fix, see https://github.com/actions/setup-python/issues/577
       run: |           
-         # Temporary fix, see https://github.com/actions/setup-python/issues/577
          rm /usr/local/bin/2to3-3.12 || true
          rm /usr/local/bin/idle3.12 || true
          rm /usr/local/bin/pydoc3.12 || true
@@ -200,12 +200,18 @@ jobs:
         name: ${{ steps.artifact-win.outputs.artifact-name || steps.artifact-linux.outputs.artifact-name }}
         path: ${{ steps.artifact-win.outputs.artifact-path || steps.artifact-linux.outputs.artifact-path }}
 
-  release:
+  release: 
     runs-on: ubuntu-latest
-    needs: [ build, env ]
-    if: github.ref_type == 'tag'
+    needs: [ build, env ]   
+    if: github.ref_name == 'main' || github.ref_name == 'develop'
 
     steps:
+    - uses: actions/checkout@v4
+    - name: Create tag
+      shell: bash
+      run: |
+        git tag -f ${{ needs.env.outputs.release-tag }}
+        git push origin -f ${{ needs.env.outputs.release-tag }}	
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
@@ -219,6 +225,6 @@ jobs:
         name: ${{ needs.env.outputs.release-name }}
         tag_name: ${{ needs.env.outputs.release-tag }}
         prerelease: ${{ github.ref_name == 'develop' }}
-        draft: ${{ github.ref_name == 'main' }}
+        draft: ${{ github.ref_name == 'main' || github.ref_name == 'develop' }}
         files: |
           ${{ needs.env.outputs.artifact-dir }}/${{ needs.env.outputs.artifact-name }}*
