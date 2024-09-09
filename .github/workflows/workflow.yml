@@ -111,8 +111,14 @@ jobs:
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
-      run: |
-        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
+      run: |           
+         # Temporary fix, see https://github.com/actions/setup-python/issues/577
+         rm /usr/local/bin/2to3 || true
+         rm /usr/local/bin/idle3 || true
+         rm /usr/local/bin/pydoc3 || true
+         rm /usr/local/bin/python3 || true
+         rm /usr/local/bin/python3-config || true
+         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
