@@ -97,8 +97,8 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
     SLONG oldy = 0;
     SLONG offy = 0;
 
-   //if (!Sim.bNetwork)
-   //   return;
+    // if (!Sim.bNetwork)
+    //    return;
 
     if (FromPlayer != Sim.localPlayer) {
         static SLONG LastTime = 0;
@@ -149,7 +149,7 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
         gBroadcastBm.BlitFrom(TempBm, 0, -(TempBm.Size.y - 220));
     }
 
-   gBroadcastTimeout = 600;
+    gBroadcastTimeout = 600;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -157,9 +157,9 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
 //  bJustForEmergency : if true, then this call will only be used it this function hasn't been
 //                      called normally for half a second
 //--------------------------------------------------------------------------------------------
-void PumpBroadcastBitmap (bool bJustForEmergency) {
+void PumpBroadcastBitmap(bool bJustForEmergency) {
     if (gBroadcastBm.Size.y == 0) {
-      return;
+        return;
     }
 
     static SLONG LastTimeCalled = 0;
@@ -225,7 +225,7 @@ void PumpNetwork() {
             ULONG Par2 = 0;
 
             Message >> MessageType;
-            AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
+            // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
 
             switch (MessageType) {
             case ATNET_SETSPEED:
@@ -1845,8 +1845,8 @@ void PumpNetwork() {
 
                 for (c = 0; c < 20; c++)
                     if (rActionId[c] != rChkActionId[c]) {
-                        DisplayBroadcastMessage(bprintf("Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]),
-                                                        Translate_ACTION(rChkActionId[c])));
+                        DisplayBroadcastMessage(
+                            bprintf("Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c])));
                         AT_Log_I("AtNet", "Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c]));
                     }
 #endif
