@@ -15,19 +15,9 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-
-std::vector<XY> AvailablePositions = {
-    XY(005, 7), XY(100, 25),
-    XY(200, 10), XY(300, 36),
-    XY(400, 25), XY(500, 31), // First line
-    XY(000, 115), XY(95, 131),
-    XY(195, 124), XY(285, 146),
-    XY(385, 140), XY(490, 168), // Second line
-    XY(10, 245), XY(120, 234),
-    XY(224, 261), XY(327, 255),
-    XY(440, 290)
-};
-
+std::vector<XY> AvailablePositions = {XY(005, 7),   XY(100, 25),  XY(200, 10),  XY(300, 36),  XY(400, 25),  XY(500, 31),  // First line
+                                      XY(000, 115), XY(95, 131),  XY(195, 124), XY(285, 146), XY(385, 140), XY(490, 168), // Second line
+                                      XY(10, 245),  XY(120, 234), XY(224, 261), XY(327, 255), XY(440, 290)};
 
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
@@ -43,7 +33,7 @@ CTafel::CTafel(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum, "tafe
 
     // Make a copy of pointed objects
     for (CTafelZettel *ptr : TafelData.ByPositions) {
-        LastTafelData.push_back(*ptr); 
+        LastTafelData.push_back(*ptr);
     }
 
     LeereZettelBms.ReSize(pRoomLib, "ZETTEL04", 3);
@@ -121,7 +111,7 @@ void CTafel::OnPaint() {
         if (entry->Type == CTafelZettel::Type::ROUTE) {
             continue;
         }
- 
+
         if (RoomBm.BlitFromT(ZettelBms[c], entry->Position.x, entry->Position.y) == 0) {
             RepaintZettel(c);
             RoomBm.BlitFromT(ZettelBms[c], entry->Position.x, entry->Position.y);
@@ -192,8 +182,9 @@ void CTafel::RepaintZettel(SLONG n) {
             ZettelBms[n].ReSize(LeereZettel.Size);
             ZettelBms[n].BlitFrom(LeereZettel);
 
-            ZettelBms[n].PrintAt(bprintf("%s-%s", (LPCTSTR)Cities[Routen[entry->ZettelId].VonCity].Kuerzel, (LPCTSTR)Cities[Routen[entry->ZettelId].NachCity].Kuerzel),
-                                 FontSmallBlack, TEC_FONT_CENTERED, XY(3, 30), XY(ZettelBms[n].Size.x - 3, 202));
+            ZettelBms[n].PrintAt(
+                bprintf("%s-%s", (LPCTSTR)Cities[Routen[entry->ZettelId].VonCity].Kuerzel, (LPCTSTR)Cities[Routen[entry->ZettelId].NachCity].Kuerzel),
+                FontSmallBlack, TEC_FONT_CENTERED, XY(3, 30), XY(ZettelBms[n].Size.x - 3, 202));
 
             ZettelBms[n].PrintAt(Cities[Routen[entry->ZettelId].VonCity].Name, FontSmallBlack, TEC_FONT_CENTERED, XY(3, 34 + 15),
                                  XY(ZettelBms[n].Size.x - 3, 202));
@@ -206,8 +197,7 @@ void CTafel::RepaintZettel(SLONG n) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_CENTERED, XY(3, 72 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 202));
             }
-            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 95 + 20),
-                                 XY(ZettelBms[n].Size.x - 3, 202));
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 95 + 20), XY(ZettelBms[n].Size.x - 3, 202));
         }
     } else if (entry->Type == CTafelZettel::Type::CITY) // City
     {
@@ -218,16 +208,14 @@ void CTafel::RepaintZettel(SLONG n) {
             ZettelBms[n].BlitFrom(LeereZettel);
 
             ZettelBms[n].PrintAt(StandardTexte.GetS(TOKEN_MISC, 2501), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 28 + 8), XY(ZettelBms[n].Size.x - 3, 132));
-            ZettelBms[n].PrintAt(Cities[entry->ZettelId].Name, FontSmallBlack, TEC_FONT_CENTERED, XY(3, 28 + 30),
-                                 XY(ZettelBms[n].Size.x - 3, 132));
+            ZettelBms[n].PrintAt(Cities[entry->ZettelId].Name, FontSmallBlack, TEC_FONT_CENTERED, XY(3, 28 + 30), XY(ZettelBms[n].Size.x - 3, 132));
 
             // Bisheriger Höchstbieter & Gebot:
             if (entry->Player != -1) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_LEFT, XY(13, 55 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 132));
             }
-            p +=
-                ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
+            p += ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
                                       XY(ZettelBms[n].Size.x - 3, 132));
         }
     } else if (entry->Type == CTafelZettel::Type::GATE) // Gate
@@ -238,16 +226,15 @@ void CTafel::RepaintZettel(SLONG n) {
             ZettelBms[n].ReSize(LeereZettel.Size);
             ZettelBms[n].BlitFrom(LeereZettel);
 
-            ZettelBms[n].PrintAt(bprintf(StandardTexte.GetS(TOKEN_MISC, 2500), entry->ZettelId + 1), FontSmallBlack, TEC_FONT_CENTERED,
-                                 XY(3, 18 + 15), XY(ZettelBms[n].Size.x - 3, 102));
+            ZettelBms[n].PrintAt(bprintf(StandardTexte.GetS(TOKEN_MISC, 2500), entry->ZettelId + 1), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 18 + 15),
+                                 XY(ZettelBms[n].Size.x - 3, 102));
 
             // Bisheriger Höchstbieter & Gebot:
             if (entry->Player != -1) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_LEFT, XY(13, 45 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 202));
             }
-            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 60 + 30),
-                                 XY(ZettelBms[n].Size.x - 3, 202));
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 60 + 30), XY(ZettelBms[n].Size.x - 3, 202));
         }
     }
 }
@@ -285,18 +272,16 @@ void CTafel::OnLButtonDown(UINT nFlags, CPoint point) {
             if (point.y < 440) {
                 for (c = TafelData.ByPositions.size() - 1; c >= 0; c--) {
                     CTafelZettel *entry = TafelData.ByPositions[c];
-                    if (XY(point)
-                            .IfIsWithin(entry->Position.x, entry->Position.y, entry->Position.x + LeereZettelBms[c % 3].Size.x,
-                                        entry->Position.y + LeereZettelBms[c % 3].Size.y)) {
+                    if (XY(point).IfIsWithin(entry->Position.x, entry->Position.y, entry->Position.x + LeereZettelBms[c % 3].Size.x,
+                                             entry->Position.y + LeereZettelBms[c % 3].Size.y)) {
 
                         if (entry->Player != LastTafelData[c].Player) {
                             // Undo auction
                             entry->Player = LastTafelData[c].Player;
                             entry->Preis = LastTafelData[c].Preis;
                             entry->WasInterested = LastTafelData[c].WasInterested;
-                        }
-                        else if (entry->Type == CTafelZettel::Type::CITY && entry->Player != PlayerNum &&
-                            Sim.Players.Players[Sim.localPlayer].RentCities.RentCities[entry->ZettelId].Rang == 0) {
+                        } else if (entry->Type == CTafelZettel::Type::CITY && entry->Player != PlayerNum &&
+                                   Sim.Players.Players[Sim.localPlayer].RentCities.RentCities[entry->ZettelId].Rang == 0) {
                             if ((Sim.bNetwork != 0) && entry->Player != -1 && Sim.Players.Players[entry->Player].Owner == 2) {
                                 SIM::SendSimpleMessage(ATNET_ADVISOR, Sim.Players.Players[entry->Player].NetworkID, 0, PlayerNum, c);
                             }
@@ -401,10 +386,10 @@ void CTafelData::Randomize(SLONG Day) {
     if (GlobalUse(USE_TRAVELHOLDING)) {
         ULONG citiesToPick = 0;
         ULONG maxCities = Sim.Difficulty == DIFF_NORMAL ? max(4, Sim.Options.OptionRentOfficeMaxAvailable) : Sim.Options.OptionRentOfficeMaxAvailable;
-        
+
         std::vector<CTafelZettel> availableCities;
         GetAvailableCities(availableCities, Sim.Difficulty == DIFF_NORMAL ? &CityIds : nullptr);
-        
+
         // Sim.Difficulty == DIFF_NORMAL: Add more in easier difficulties
         for (c = 0; c < min(Sim.Difficulty == DIFF_NORMAL ? 10 : Day, 10); c++) {
             BOOL shouldRun = localRand.Rand(100) < Sim.Options.OptionRentOfficeTriggerPercent;
@@ -412,7 +397,7 @@ void CTafelData::Randomize(SLONG Day) {
             if (!availableCities.size() || !shouldRun || citiesToPick >= maxCities) {
                 continue;
             }
-    
+
             citiesToPick += 1;
         }
 
@@ -468,7 +453,7 @@ void CTafelData::Randomize(SLONG Day) {
             NumGates++;
         }
     }
-    
+
     AssignPositions();
 }
 
@@ -557,7 +542,7 @@ void CTafelData::AssignPositions() {
     }
 }
 
-    //--------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------
 // Speichert ein TafelZettel-Objekt:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator<<(TEAKFILE &File, const CTafelZettel &TafelZettel) {
