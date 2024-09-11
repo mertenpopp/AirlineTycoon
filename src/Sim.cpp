@@ -4162,7 +4162,7 @@ void COptions::ReadOptions() {
             OptionTicketPriceIncrement = 10;
         }
         if (!reg.ReadRegistryKey_u(OptionRentOfficeTriggerPercent)) {
-            OptionRentOfficeTriggerPercent = 20;
+            OptionRentOfficeTriggerPercent = 30;
         }
         if (!reg.ReadRegistryKey_u(OptionRentOfficeMinAvailable)) {
             OptionRentOfficeMinAvailable = 0;
