@@ -4168,7 +4168,7 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
         MenuBms.ReSize(pMenuLib1, "BLOCK LEFT RIGHT");
         OnscreenBitmap.ReSize(MenuBms[0].Size);
         MenuPage = 0;
-        MenuPar4 = "";
+        MenuPar4.clear();
         MenuDataTable.FillWithXPlaneTypes();
         MenuPageMax = ((MenuDataTable.AnzRows - 1) / 13) * 13;
         break;
@@ -4220,14 +4220,14 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
     case MENU_ENTERTCPIP:
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("rename.gli", GliPath)), &pMenuLib1, L_LOCMEM);
         MenuBms.ReSize(pMenuLib1, "MENU");
-        Optionen[0] = "";
+        Optionen[0].clear();
         OnscreenBitmap.ReSize(MenuBms[0].Size);
         break;
 
     case MENU_BROADCAST:
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("broad.gli", GliPath)), &pMenuLib1, L_LOCMEM);
         MenuBms.ReSize(pMenuLib1, "MENU PL0 PL1 PL2 PL3 PL4 PL5 PL6 PL7");
-        Optionen[0] = "";
+        Optionen[0].clear();
         OnscreenBitmap.ReSize(MenuBms[0].Size);
         CStdRaum::MenuPar1 = 15;
         break;
@@ -4401,7 +4401,7 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glchat.gli", GliPath)), &pMenuLib1, L_LOCMEM);
         MenuBms.ReSize(pMenuLib1, "CHAT TEXTAREA");
         OnscreenBitmap.ReSize(MenuBms[0].Size);
-        Optionen[0] = "";
+        Optionen[0].clear();
         MenuBms[1].PrintAt(
             bprintf(StandardTexte.GetS(TOKEN_MISC, 3004), Sim.Players.Players[MenuPar1].NameX.c_str(), Sim.Players.Players[MenuPar1].AirlineX.c_str()),
             FontNormalGrey, TEC_FONT_LEFT, 6, 119, 279, 147);

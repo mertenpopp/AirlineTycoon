@@ -270,10 +270,7 @@ void CPlaner::PaintGlobeRoutes() {
                     f = 0;
                 }
 
-                SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0,
-                                                                           (c == 1 || c == 3) ? f : 0,
-                                                                           (c == 0) ? f : 0);
-
+                SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0, (c == 1 || c == 3) ? f : 0, (c == 0) ? f : 0);
 
                 GlobeBm.pBitmap->SetPixel(pxy.x - 6, pxy.y, color);
                 GlobeBm.pBitmap->SetPixel(pxy.x - 6 - 1, pxy.y, color);
@@ -341,9 +338,7 @@ void CPlaner::PaintGlobeRoutes() {
                         f = 0;
                     }
 
-                    SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0,
-                                                                               (c == 1 || c == 3) ? f : 0,
-                                                                               (c == 0) ? f : 0);
+                    SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0, (c == 1 || c == 3) ? f : 0, (c == 0) ? f : 0);
 
                     GlobeBm.pBitmap->Line(pxy.x - 6, pxy.y, lastpxy.x - 6, lastpxy.y, color);
                 }
@@ -415,9 +410,7 @@ void CPlaner::PaintGlobeRoutes() {
                         f = 0;
                     }
 
-                    SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0,
-                                                                               (c == 1 || c == 3) ? f : 0,
-                                                                               (c == 0) ? f : 0);
+                    SB_Hardwarecolor color = GlobeBm.pBitmap->GetHardwarecolor((c >= 2) ? f : 0, (c == 1 || c == 3) ? f : 0, (c == 0) ? f : 0);
 
                     GlobeBm.pBitmap->Line(pxy.x - 6, pxy.y, lastpxy.x - 6, lastpxy.y, color);
                 }
