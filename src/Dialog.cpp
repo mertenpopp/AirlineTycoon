@@ -327,11 +327,11 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 break;
 
             case 1040: // Sabotage an Flugzeug oder Person? ==>+<==
-                //#ifdef _DEBUG
+                // #ifdef _DEBUG
                 MakeSayWindow(1, TOKEN_SABOTAGE, 1047, 1048 + 1, TRUE, &FontDialog, &FontDialogLight);
-                //#else
-                //                  MakeSayWindow (1, TOKEN_SABOTAGE, 1047, 1048, TRUE, &FontDialog, &FontDialogLight);
-                //#endif
+                // #else
+                //                   MakeSayWindow (1, TOKEN_SABOTAGE, 1047, 1048, TRUE, &FontDialog, &FontDialogLight);
+                // #endif
                 break;
             case 1047:
                 if ((qPlayer.ArabMode != 0) || (qPlayer.ArabMode2 != 0) || (qPlayer.ArabMode3 != 0)) {
