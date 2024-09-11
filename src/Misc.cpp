@@ -49,7 +49,6 @@ SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG Lin
     return (c);
 }
 
-
 //--------------------------------------------------------------------------------------------
 // Zählt wie oft das Zeichen vorkommt:
 //--------------------------------------------------------------------------------------------
@@ -150,7 +149,7 @@ void CheckCString(CString *String) {
     CString tmp;
 
     tmp = *String;
-    *String = "";
+    String->clear();
     *String = tmp;
 }
 
@@ -450,7 +449,6 @@ int CustomMessageBox(ULONG Type, LPCTSTR Title, char Buffer[256], const SDL_Mess
     return buttonId;
 }
 
-
 //--------------------------------------------------------------------------------------------
 // Berechnet das interne Datum aus "3-12-1994", "1/11/1992", "1.1.1900", ..
 //--------------------------------------------------------------------------------------------
@@ -691,15 +689,15 @@ void HEADLINES::Init() {
 
     for (c = 0; c < 3; c++) {
         CurrentChain[c] = 0;
-        FlexiCity[c] = "";
+        FlexiCity[c].clear();
         FlexiNumber[c] = 0;
     }
 
     for (c = 0; c < 30; c++) {
-        Headline[c].Headline = "";
+        Headline[c].Headline.clear();
         Headline[c].PictureId = 0;
         Headline[c].PicturePriority = 0;
-        Override[c].Headline = "";
+        Override[c].Headline.clear();
         Override[c].PictureId = 0;
         Override[c].PicturePriority = 0;
     }

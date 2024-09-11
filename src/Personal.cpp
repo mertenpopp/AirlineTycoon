@@ -333,7 +333,7 @@ void CWorkers::ReInit(const CString &TabFilename, const CString &TabFilename2) {
     Workers.ReSize(0);
     Workers.ReSize(MAX_WORKERS);
     Num = 0;
-     
+
     while (true) {
         if (FileP >= FileData.AnzEntries()) {
             break;
@@ -631,7 +631,7 @@ CWorker CWorkers::createBerater(TEAKRAND &LocalRand, SLONG typ) const {
     worker.Gehalt = (30 + LocalRand.Rand(80)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
     worker.Alter = (19 + LocalRand.Rand(50));
-    worker.Kommentar = "";
+    worker.Kommentar.clear();
     worker.Employer = WORKER_RESERVE;
     worker.Happyness = 100;
     worker.WarnedToday = 0;
@@ -647,7 +647,7 @@ CWorker CWorkers::createPilot(TEAKRAND &LocalRand) const {
     worker.Gehalt = (30 + LocalRand.Rand(83)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
     worker.Alter = (19 + LocalRand.Rand(50));
-    worker.Kommentar = "";
+    worker.Kommentar.clear();
     worker.Employer = WORKER_RESERVE;
     worker.Happyness = 100;
     worker.WarnedToday = 0;
@@ -663,7 +663,7 @@ CWorker CWorkers::createStewardess(TEAKRAND &LocalRand) const {
     worker.Gehalt = (30 + LocalRand.Rand(60)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt * 100 / 80 / 200 + LocalRand.Rand(30) + 20);
     worker.Alter = (19 + LocalRand.Rand(40));
-    worker.Kommentar = "";
+    worker.Kommentar.clear();
     worker.Employer = WORKER_RESERVE;
     worker.Happyness = 100;
     worker.WarnedToday = 0;

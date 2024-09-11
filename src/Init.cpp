@@ -35,7 +35,7 @@ void InitPathVars() {
 
     // fallback check
     if (!DoesDirectoryExist(prefix)) {
-        prefix = "";
+        prefix.clear();
     }
 
     ExcelPath = prefix + "data\\%s";

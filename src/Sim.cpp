@@ -683,11 +683,11 @@ void SIM::ChooseStartup() {
         qPlayer.RentRouten.RentRouten.ReSize(0);
         qPlayer.RentRouten.RentRouten.ReSize(Routen.AnzEntries());
 
-        for (d = 0; d < Players.AnzPlayers; d++) {
-            qPlayer.DisplayRoutes[d] = FALSE;
-            qPlayer.DisplayPlanes[d] = FALSE;
+        for (d = 0; d < qPlayer.DisplayRoutes.size(); d++) {
+            qPlayer.DisplayRoutes[d] = static_cast<UBYTE>(0);
+            qPlayer.DisplayPlanes[d] = static_cast<UBYTE>(0);
         }
-        qPlayer.DisplayPlanes[c] = TRUE;
+        qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(1);
 
         qPlayer.Gates.Gates.ReSize(30);
         qPlayer.Gates.NumRented = 0;
@@ -4345,13 +4345,13 @@ void COptions::ReadOptions() {
         // Namen der Spieler
         for (c = 0; c < 4; c++) {
             if (!reg.ReadRegistryKeyEx(Buffer, bprintf("Player%li", c))) {
-                OptionPlayerNames[c] = "";
+                OptionPlayerNames[c].clear();
             } else {
                 OptionPlayerNames[c] = Buffer;
             }
 
-            OptionAirlineNames[c] = "";
-            OptionAirlineAbk[c] = "";
+            OptionAirlineNames[c].clear();
+            OptionAirlineAbk[c].clear();
         }
 
         // Schwierigkeitsgrad decodieren:

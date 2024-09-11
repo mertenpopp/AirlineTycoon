@@ -135,9 +135,9 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
             }
         }
 
-        for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
-            qPlayer.DisplayRoutes[c] = FALSE;
-            qPlayer.DisplayPlanes[c] = FALSE;
+        for (SLONG c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
+            qPlayer.DisplayRoutes[c] = 0U;
+            qPlayer.DisplayPlanes[c] = 0U;
         }
     } else {
 #ifdef WIN32
@@ -241,19 +241,19 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
 
     // Wenn jemand keinen Berater (mehr) hat, dann alle fremden Routen/Flugzeuge unsichtbar machen:
     if (qPlayer.HasBerater(BERATERTYP_INFO) == 0) {
-        for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (SLONG c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
             if (c != SLONG(PlayerNum)) {
-                qPlayer.DisplayRoutes[c] = FALSE;
-                qPlayer.DisplayPlanes[c] = FALSE;
+                qPlayer.DisplayRoutes[c] = static_cast<UBYTE>(0);
+                qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(0);
             }
         }
     }
 
     // Und wenn jemand Pleite ist, dann den auch unsichtbar machen:
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
         if (c != SLONG(PlayerNum) && (Sim.Players.Players[c].IsOut != 0)) {
-            qPlayer.DisplayRoutes[c] = FALSE;
-            qPlayer.DisplayPlanes[c] = FALSE;
+            qPlayer.DisplayRoutes[c] = static_cast<UBYTE>(0);
+            qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(0);
         }
     }
 
