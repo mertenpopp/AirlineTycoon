@@ -6753,7 +6753,7 @@ void PLAYER::DoBodyguardRabatt(SLONG Money) {
 //--------------------------------------------------------------------------------------------
 // Wirft alle Arbeiter raus:
 //--------------------------------------------------------------------------------------------
-void PLAYER::SackWorkers() const {
+void PLAYER::SackWorkers() {
     SLONG c = 0;
 
     for (c = 0; c < Workers.Workers.AnzEntries(); c++) {
@@ -6765,6 +6765,8 @@ void PLAYER::SackWorkers() const {
             }
         }
     }
+
+    UpdatePilotCount();
 }
 
 //--------------------------------------------------------------------------------------------
