@@ -2226,7 +2226,7 @@ class PLAYER {
     void RobotInit(void);
     void RobotExecuteAction(void);
     void RouteWegnehmen(SLONG Routenindex, SLONG NeuerBesitzer = -1);
-    void SackWorkers(void) const;
+    void SackWorkers(void);
     void UpdateAuftragsUsage(void);
     void UpdateFrachtauftragsUsage(void);
     void UpdateWalkSpeed(void);
