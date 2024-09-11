@@ -279,7 +279,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gQuickTestRun = 2 + atoi(argv[i]);
             }
 
-            if (gQuickTestRun > 0) {
+            if (gQuickTestRun == 1) {
                 gAutoQuitOnDay = 99; /* auto-quit in freegame */
             }
         }
@@ -293,26 +293,26 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     AT_Log("Reading options");
 
     // Die Standardsprachen:
-    //#define LANGUAGE_D       0             //D-Deutsch, inklusive
-    //#define LANGUAGE_E       1             //E-Englisch, bezahlt
-    //#define LANGUAGE_F       2             //F-Französisch, bezahlt
-    //#define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
-    //#define LANGUAGE_P       4             //P-Polnisch, inklusive
-    //#define LANGUAGE_N       5             //N-Niederländisch, bezahlt
-    //#define LANGUAGE_I       6             //I-Italienisch, bezahlt
-    //#define LANGUAGE_S       7             //S-Spanisch, bezahlt
-    //#define LANGUAGE_O       8             //O-Portugisisch, bezahlt
-    //#define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
-    //#define LANGUAGE_1      10             //J-Tschechisch
-    //#define LANGUAGE_2      11             //K-noch frei
-    //#define LANGUAGE_3      12             //L-noch frei
-    //#define LANGUAGE_4      13             //M-noch frei
-    //#define LANGUAGE_5      14             //N-noch frei
-    //#define LANGUAGE_6      15             //Q-noch frei
-    //#define LANGUAGE_7      16             //R-noch frei
-    //#define LANGUAGE_8      17             //T-noch frei
-    //#define LANGUAGE_9      18             //U-noch frei
-    //#define LANGUAGE_10     19             //V-noch frei
+    // #define LANGUAGE_D       0             //D-Deutsch, inklusive
+    // #define LANGUAGE_E       1             //E-Englisch, bezahlt
+    // #define LANGUAGE_F       2             //F-Französisch, bezahlt
+    // #define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
+    // #define LANGUAGE_P       4             //P-Polnisch, inklusive
+    // #define LANGUAGE_N       5             //N-Niederländisch, bezahlt
+    // #define LANGUAGE_I       6             //I-Italienisch, bezahlt
+    // #define LANGUAGE_S       7             //S-Spanisch, bezahlt
+    // #define LANGUAGE_O       8             //O-Portugisisch, bezahlt
+    // #define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
+    // #define LANGUAGE_1      10             //J-Tschechisch
+    // #define LANGUAGE_2      11             //K-noch frei
+    // #define LANGUAGE_3      12             //L-noch frei
+    // #define LANGUAGE_4      13             //M-noch frei
+    // #define LANGUAGE_5      14             //N-noch frei
+    // #define LANGUAGE_6      15             //Q-noch frei
+    // #define LANGUAGE_7      16             //R-noch frei
+    // #define LANGUAGE_8      17             //T-noch frei
+    // #define LANGUAGE_9      18             //U-noch frei
+    // #define LANGUAGE_10     19             //V-noch frei
 
     // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
     CRegistryAccess reg(chRegKey);
@@ -361,7 +361,10 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     CLI(argc, argv);
 
     // Write registry and move on
-    reg.WriteFile();
+
+    if (gQuickTestRun == 0) {
+        reg.WriteFile();
+    }
 }
 
 void CTakeOffApp::CreateVideo() {
@@ -404,9 +407,9 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
     bCursorCaptured = FALSE;
     gMouseStartup = TRUE;
 
-    DoAppPath();                /* get installation directory */
-    ReadOptions(argc, argv);    /* read options and language settings in some versions (sabbel.dat). Needs installation directory! */
-    InitPathVars();             /* sets path for all game files needs both installation directory AND language settings */
+    DoAppPath();             /* get installation directory */
+    ReadOptions(argc, argv); /* read options and language settings in some versions (sabbel.dat). Needs installation directory! */
+    InitPathVars();          /* sets path for all game files needs both installation directory AND language settings */
 
     bFirstClass |=
         static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
@@ -460,7 +463,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             InitSoundSystem(FrameWnd->m_hWnd);
         }
 
-        if(pRoomLib != nullptr) {
+        if (pRoomLib != nullptr) {
             if (Sim.Options.OptionViewedIntro == 0 && IntroPath.GetLength() != 0) {
                 Sim.Gamestate = GAMESTATE_INTRO | GAMESTATE_WORKING;
                 TopWin = new CIntro();
@@ -598,7 +601,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         else
             LOADING_TEXT("Initializing screen...");
 
-        if(pRoomLib != nullptr) {
+        if (pRoomLib != nullptr) {
             TitleBitmap.ReSize(pRoomLib, GFX_TITEL);
             PrimaryBm.BlitFrom(TitleBitmap);
             gMousePosition = XY(600, 440);
@@ -2141,35 +2144,6 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
     VoiceScheduler.Clear();
 }
-
-#ifdef DEBUG
-//void CTakeOffApp::CheckSystem(void) {
-//    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
-//        static SLONG Emergency = 0;
-//
-//        if (Emergency == 0) {
-//            for (SLONG d = 0; d < Sim.Players.Players[c].Letters.Letters.AnzEntries(); d++) {
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Subject) == NULL)
-//                    Emergency = TRUE;
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Letter) == NULL)
-//                    Emergency = TRUE;
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Absender) == NULL)
-//                    Emergency = TRUE;
-//            }
-//
-//            for (SLONG d = 0; d < Sim.Players.Players[c].Statistiken.AnzEntries(); d++) {
-//                if (Sim.Players.Players[c].Statistiken[d].Days.AnzEntries() == 0)
-//                    Emergency = TRUE;
-//                if (Sim.Players.Players[c].Statistiken[d].Months.AnzEntries() == 0)
-//                    Emergency = TRUE;
-//            }
-//
-//            if (Emergency)
-//                DebugBreak();
-//        }
-//    }
-//}
-#endif
 
 //--------------------------------------------------------------------------------------------
 // Ruft das Help-File auf:
