@@ -384,7 +384,7 @@ class /**/ CTafelData {
     friend TEAKFILE &operator>>(TEAKFILE &File, CTafelData &TafelData);
 
   private:
-    void GetAvailableCities(std::vector<CTafelZettel> &result, std::vector<ULONG> *excluded);
+    void GetAvailableCities(std::vector<CTafelZettel> &result, const std::vector<ULONG> &excluded);
     void AssignPositions();
 };
 
