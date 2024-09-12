@@ -7,13 +7,17 @@
 #include "AtNet.h"
 #include "Tafel.h" //Die Tafel bei der Flughafenaufsicht
 #include "gltafel.h"
-#include <random>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
+
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Tafel", __VA_ARGS__)
+#define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Tafel", __VA_ARGS__)
+#define AT_Info(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Tafel", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("Tafel", __VA_ARGS__)
 
 std::vector<XY> AvailablePositions = {XY(005, 7),   XY(100, 25),  XY(200, 10),  XY(300, 36),  XY(400, 25),  XY(500, 31),  // First line
                                       XY(000, 115), XY(95, 131),  XY(195, 124), XY(285, 146), XY(385, 140), XY(490, 168), // Second line
@@ -174,8 +178,7 @@ void CTafel::RepaintZettel(SLONG n) {
     CTafelZettel *entry = TafelData.ByPositions[n];
     SBBM &LeereZettel = LeereZettelBms[n % 3];
 
-    if (entry->Type == CTafelZettel::Type::ROUTE) // Route
-    {
+    if (entry->Type == CTafelZettel::Type::ROUTE) {
         if (entry->ZettelId <= 0) {
             ZettelBms[n].Destroy();
         } else {
@@ -199,8 +202,7 @@ void CTafel::RepaintZettel(SLONG n) {
             }
             ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 95 + 20), XY(ZettelBms[n].Size.x - 3, 202));
         }
-    } else if (entry->Type == CTafelZettel::Type::CITY) // City
-    {
+    } else if (entry->Type == CTafelZettel::Type::CITY) {
         if (entry->ZettelId <= -1) {
             ZettelBms[n].Destroy();
         } else {
@@ -218,8 +220,7 @@ void CTafel::RepaintZettel(SLONG n) {
             p += ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
                                       XY(ZettelBms[n].Size.x - 3, 132));
         }
-    } else if (entry->Type == CTafelZettel::Type::GATE) // Gate
-    {
+    } else if (entry->Type == CTafelZettel::Type::GATE) {
         if (entry->ZettelId <= -1) {
             ZettelBms[n].Destroy();
         } else {
@@ -357,7 +358,7 @@ void CTafelData::Randomize(SLONG Day) {
     SLONG f = 0;
     SLONG Anz = 0;
 
-    std::vector<ULONG> CityIds(7);
+    std::vector<ULONG> citiesToExclude;
     SLONG NumGates = 0;
 
     for (c = 0; c < 7; c++) {
@@ -372,45 +373,54 @@ void CTafelData::Randomize(SLONG Day) {
     }
 
     if (Sim.Difficulty == DIFF_NORMAL) {
-        CityIds[0] = Cities(Sim.HomeAirportId);
-        CityIds[1] = Cities(Sim.MissionCities[0]);
-        CityIds[2] = Cities(Sim.MissionCities[1]);
-        CityIds[3] = Cities(Sim.MissionCities[2]);
-        CityIds[4] = Cities(Sim.MissionCities[3]);
-        CityIds[5] = Cities(Sim.MissionCities[4]);
-        CityIds[6] = Cities(Sim.MissionCities[5]);
+        citiesToExclude.resize(7);
+        citiesToExclude[0] = Cities(Sim.HomeAirportId);
+        citiesToExclude[1] = Cities(Sim.MissionCities[0]);
+        citiesToExclude[2] = Cities(Sim.MissionCities[1]);
+        citiesToExclude[3] = Cities(Sim.MissionCities[2]);
+        citiesToExclude[4] = Cities(Sim.MissionCities[3]);
+        citiesToExclude[5] = Cities(Sim.MissionCities[4]);
+        citiesToExclude[6] = Cities(Sim.MissionCities[5]);
     }
 
     TEAKRAND localRand(Sim.Date + Sim.StartTime);
 
     if (GlobalUse(USE_TRAVELHOLDING)) {
-        ULONG citiesToPick = 0;
-        ULONG maxCities = Sim.Difficulty == DIFF_NORMAL ? max(4, Sim.Options.OptionRentOfficeMaxAvailable) : Sim.Options.OptionRentOfficeMaxAvailable;
+        ULONG maxCities = Sim.Options.OptionRentOfficeMaxAvailable;
+        if (Sim.Difficulty == DIFF_NORMAL && maxCities < 4) {
+            maxCities = 4;
+        }
+
+        SLONG numTries = min(Day, 10);
+        if (Sim.Difficulty == DIFF_NORMAL && numTries < 10) {
+            numTries = 10;
+        }
 
         std::vector<CTafelZettel> availableCities;
-        GetAvailableCities(availableCities, Sim.Difficulty == DIFF_NORMAL ? &CityIds : nullptr);
+        GetAvailableCities(availableCities, citiesToExclude);
 
-        // Sim.Difficulty == DIFF_NORMAL: Add more in easier difficulties
-        for (c = 0; c < min(Sim.Difficulty == DIFF_NORMAL ? 10 : Day, 10); c++) {
+        ULONG citiesToPick = 0;
+        for (c = 0; c < numTries; c++) {
             BOOL shouldRun = localRand.Rand(100) < Sim.Options.OptionRentOfficeTriggerPercent;
             // Should we consider adding a city to the board through pseudo-RNG ?
-            if (!availableCities.size() || !shouldRun || citiesToPick >= maxCities) {
+            if (!shouldRun || citiesToPick >= availableCities.size() || citiesToPick >= maxCities) {
                 continue;
             }
 
             citiesToPick += 1;
         }
 
-        // Players might set a min value (default is 0 so this should be OK).
+        // Players might set a min value
+        citiesToPick = std::max(citiesToPick, Sim.Options.OptionRentOfficeMinAvailable);
         // Also, we don't want to set more than the availableCities or more than 7 (because UI doesn't manage it yet).
-        if (citiesToPick < Sim.Options.OptionRentOfficeMinAvailable) {
-            citiesToPick = min(min(availableCities.size(), Sim.Options.OptionRentOfficeMinAvailable), 7);
-        }
+        citiesToPick = std::min({citiesToPick, (ULONG)availableCities.size(), 7U});
 
-        for (int i = 0; i < citiesToPick; i++) {
+        AT_Log("citiesToPick = %d (numTries = %d), availableCities = %d", citiesToPick, numTries, availableCities.size());
+
+        for (SLONG i = 0; i < citiesToPick; i++) {
             // Take and remove the first city
             // availableCities is randomized so it should work just fine.
-            if (!availableCities.size()) {
+            if (availableCities.empty()) {
                 break;
             }
             auto city = availableCities.front();
@@ -457,7 +467,7 @@ void CTafelData::Randomize(SLONG Day) {
     AssignPositions();
 }
 
-void CTafelData::GetAvailableCities(std::vector<CTafelZettel> &results, std::vector<ULONG> *excluded) {
+void CTafelData::GetAvailableCities(std::vector<CTafelZettel> &results, const std::vector<ULONG> &excluded) {
     SLONG cityIndex = 0;
     results.clear();
 
@@ -475,8 +485,8 @@ void CTafelData::GetAvailableCities(std::vector<CTafelZettel> &results, std::vec
             continue;
         }
 
-        // Exlude the city if the ID is in the excluded array
-        if (excluded != nullptr && std::find(excluded->begin(), excluded->end(), cityIndex) != excluded->end()) {
+        // Exclude the city if the ID is in the excluded array
+        if (std::find(excluded.begin(), excluded.end(), cityIndex) != excluded.end()) {
             continue;
         }
 
@@ -487,53 +497,45 @@ void CTafelData::GetAvailableCities(std::vector<CTafelZettel> &results, std::vec
         taffel.Rang = PlayerUsed + 1;
         results.push_back(taffel);
     }
-    std::random_device rd; // Initialize a random device
-    std::mt19937 gen(rd());
-    std::shuffle(results.begin(), results.end(), gen);
+
+    TeakURBG rnd(Sim.Date + Sim.StartTime);
+    std::shuffle(results.begin(), results.end(), rnd);
 }
 
 void CTafelData::AssignPositions() {
     ByPositions.clear();
     std::vector<XY> unusedPositions = AvailablePositions;
 
-    // Seed the random number generator
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    TeakURBG rnd(Sim.Date + Sim.StartTime);
+    std::shuffle(unusedPositions.begin(), unusedPositions.end(), rnd);
 
-    for (int i = 0; i < 7; i++) {
-        if (!unusedPositions.size()) {
-            continue;
-        }
+    SLONG posIndex = 0;
+    for (SLONG i = 0; i < 7 && (posIndex < unusedPositions.size()); i++) {
         if (City[i].ZettelId != -1) {
             City[i].Type = CTafelZettel::CITY;
-
-            // Assign a random position and remove it from the cloned array
-            int randomIndex = std::rand() % unusedPositions.size();
-            City[i].Position = unusedPositions[randomIndex];
-            unusedPositions.erase(unusedPositions.begin() + randomIndex);
+            City[i].Position = unusedPositions[posIndex++];
 
             // Add to the ByPosition array (ordered by position ASC)
             auto it = std::lower_bound(ByPositions.begin(), ByPositions.end(), &City[i], CTafelZettel::ComparePositions);
             ByPositions.insert(it, &City[i]);
         }
+    }
+
+    for (SLONG i = 0; i < 7 && (posIndex < unusedPositions.size()); i++) {
         if (Route[i].ZettelId != 0) {
             Route[i].Type = CTafelZettel::ROUTE;
-
-            // Assign a random position and remove it from the cloned array
-            int randomIndex = std::rand() % unusedPositions.size();
-            Route[i].Position = unusedPositions[randomIndex];
-            unusedPositions.erase(unusedPositions.begin() + randomIndex);
+            Route[i].Position = unusedPositions[posIndex++];
 
             // Add to the ByPosition array (ordered by position ASC)
             auto it = std::lower_bound(ByPositions.begin(), ByPositions.end(), &Route[i], CTafelZettel::ComparePositions);
             ByPositions.insert(it, &Route[i]);
         }
+    }
+
+    for (SLONG i = 0; i < 7 && (posIndex < unusedPositions.size()); i++) {
         if (Gate[i].ZettelId != -1) {
             Gate[i].Type = CTafelZettel::GATE;
-
-            // Assign a random position and remove it from the cloned array
-            int randomIndex = std::rand() % unusedPositions.size();
-            Gate[i].Position = unusedPositions[randomIndex];
-            unusedPositions.erase(unusedPositions.begin() + randomIndex);
+            Gate[i].Position = unusedPositions[posIndex++];
 
             // Add to the ByPosition array (ordered by position ASC)
             auto it = std::lower_bound(ByPositions.begin(), ByPositions.end(), &Gate[i], CTafelZettel::ComparePositions);
