@@ -859,6 +859,15 @@
   O::Dividendo pago
   S::Dividendo pagado
   D::Dividende ausgezahlt
+>>0010040
+  B::Freight orders
+  E::Freight orders
+  F::Freight orders
+  I::Freight orders
+  N::Freight orders
+  O::Freight orders
+  S::Freight orders
+  D::Frachtaufträge
 
 >>0010050
   B::Saldo geral ($ 1000)
