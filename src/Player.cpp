@@ -5735,18 +5735,28 @@ void PLAYER::RobotExecuteAction() {
         {
             SLONG Cheapest = 0;
 
-            for (c = 0; c < 7; c++) {
-                if ((TafelData.Gate[c].ZettelId > -1) && TafelData.Gate[c].Player != PlayerNum) {
+            for (c = 0; c < TafelData.ByPositions.size(); c++) {
+                auto &qZettel = *TafelData.ByPositions[c];
+                if (qZettel.Type != CTafelZettel::Type::GATE) {
+                    continue;
+                }
+                if ((qZettel.ZettelId > -1) && qZettel.Player != PlayerNum) {
                     break;
                 }
             }
 
-            if (c < 7) {
+            if (c < TafelData.ByPositions.size()) {
                 SLONG n = -1;
                 Cheapest = 99999999;
-                for (c = 0; c < 7; c++) {
-                    if ((TafelData.Gate[c].ZettelId > -1) && TafelData.Gate[c].Player != PlayerNum &&
-                        (TafelData.Gate[c].Preis < Cheapest || TafelData.Gate[c].Player == dislike || RobotUse(ROBOT_ALWAYS_BUY_GATES))) {
+                for (c = 0; c < TafelData.ByPositions.size(); c++) {
+                    auto &qZettel = *TafelData.ByPositions[c];
+                    if (qZettel.Type != CTafelZettel::Type::GATE) {
+                        continue;
+                    }
+                    if (qZettel.ZettelId < 0 || qZettel.Player == PlayerNum) {
+                        continue;
+                    }
+                    if ((TafelData.Gate[c].Preis < Cheapest || TafelData.Gate[c].Player == dislike || RobotUse(ROBOT_ALWAYS_BUY_GATES))) {
                         Cheapest = TafelData.Gate[c].Preis;
                         n = c;
                     }
@@ -5766,23 +5776,30 @@ void PLAYER::RobotExecuteAction() {
         // Niederlassung erwerben:
         if (((SavesForPlane == 0) && (SavesForRocket == 0)) || Sim.Date < 5 || LocalRandom.Rand(25) == 0 ||
             (RobotUse(ROBOT_USE_BUY_MORE_ABROAD) && LocalRandom.Rand(3) == 0)) {
-            for (c = 0; c < 7; c++) {
-                if (TafelData.City[c].Player != PlayerNum && TafelData.City[c].ZettelId > -1 &&
-                    RentCities.RentCities[Cities(TafelData.City[c].ZettelId)].Rang == 0) {
-                    if (((TafelData.City[c].Player != -1 && (Sympathie[TafelData.City[c].Player] < 40 || RobotUse(ROBOT_USE_BUY_MORE_ABROAD) ||
-                                                             LocalRandom.Rand(10) == 0 || (Sim.Date > 10 && LocalRandom.Rand(5) == 0))) ||
-                         (TafelData.City[c].Player == -1 && LocalRandom.Rand(3) == 0)) &&
-                        BilanzGestern.GetSumme() > TafelData.City[c].Preis * 10 && Credit * 2 < Money * 3 && Money > 0 &&
-                        ((TafelData.Route[c].Player == dislike || RobotUse(ROBOT_USE_BUY_MORE_ABROAD) || RobotUse(ROBOT_USE_ABROAD)))) {
-                        if (TafelData.City[c].Player == Sim.localPlayer &&
-                            (Sim.Players.Players[Sim.localPlayer].HasBerater(BERATERTYP_INFO) >= rnd.Rand(100))) {
-                            Sim.Players.Players[Sim.localPlayer].Messages.AddMessage(
-                                BERATERTYP_INFO, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9002), (LPCTSTR)NameX, (LPCTSTR)AirlineX,
-                                                         (LPCTSTR)Cities[TafelData.City[c].ZettelId].Name));
-                        }
-                        TafelData.City[c].Preis += TafelData.City[c].Preis / 10;
-                        TafelData.City[c].Player = PlayerNum;
+            for (SLONG c = 0; c < TafelData.ByPositions.size(); c++) {
+                auto &qZettel = *TafelData.ByPositions[c];
+                if (qZettel.Type != CTafelZettel::Type::CITY) {
+                    continue;
+                }
+                if (qZettel.ZettelId < 0 || qZettel.Player == PlayerNum) {
+                    continue;
+                }
+                if (RentCities.RentCities[Cities(qZettel.ZettelId)].Rang != 0) {
+                    continue;
+                }
+                if (((qZettel.Player != -1 && (Sympathie[qZettel.Player] < 40 || RobotUse(ROBOT_USE_BUY_MORE_ABROAD) || LocalRandom.Rand(10) == 0 ||
+                                               (Sim.Date > 10 && LocalRandom.Rand(5) == 0))) ||
+                     (qZettel.Player == -1 && LocalRandom.Rand(3) == 0)) &&
+                    BilanzGestern.GetSumme() > qZettel.Preis * 10 && Credit * 2 < Money * 3 && Money > 0 &&
+                    ((qZettel.Player == dislike || RobotUse(ROBOT_USE_BUY_MORE_ABROAD) || RobotUse(ROBOT_USE_ABROAD)))) {
+
+                    if (qZettel.Player == Sim.localPlayer && (Sim.Players.Players[Sim.localPlayer].HasBerater(BERATERTYP_INFO) >= rnd.Rand(100))) {
+                        Sim.Players.Players[Sim.localPlayer].Messages.AddMessage(BERATERTYP_INFO,
+                                                                                 bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9002), (LPCTSTR)NameX,
+                                                                                         (LPCTSTR)AirlineX, (LPCTSTR)Cities[TafelData.City[c].ZettelId].Name));
                     }
+                    TafelData.City[c].Preis += TafelData.City[c].Preis / 10;
+                    TafelData.City[c].Player = PlayerNum;
                 }
             }
         }
@@ -5910,7 +5927,6 @@ void PLAYER::RobotExecuteAction() {
         for (SLONG pass = 1; pass <= 2; pass++) {
             if (Money > 1000000) {
                 ULONG newflag = (1 << LocalRandom.Rand(9));
-
                 if ((SecurityNeeded & newflag) != 0U) {
                     SecurityFlags |= newflag;
                 }
