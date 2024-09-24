@@ -8,10 +8,12 @@
 //============================================================================================
 #include "defines.h"
 #include "HLine.h"
+#include "Sbbm.h"
+#include "sbl.h"
+#include "SSE.h"
+#include "TeakLibW.h"
 
 #include <array>
-
-typedef BUFFER_V<UBYTE> BUFFER_UBYTE;
 
 class CPlane;
 class CPlaner;

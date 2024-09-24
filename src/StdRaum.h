@@ -3,6 +3,11 @@
 
 /////////////////////////////////////////////////////////////////////////////
 // Das Standard Raum Template
+#pragma once
+
+#include <SDL_events.h>
+
+class CSmackerPerson;
 
 class CStdRaum {
     // Construction

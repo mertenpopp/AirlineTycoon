@@ -413,7 +413,7 @@ void CTafelData::Randomize(SLONG Day) {
         // Players might set a min value
         citiesToPick = std::max(citiesToPick, Sim.Options.OptionRentOfficeMinAvailable);
         // Also, we don't want to set more than the availableCities or more than 7 (because UI doesn't manage it yet).
-        citiesToPick = std::min({citiesToPick, (ULONG)availableCities.size(), 7U});
+        citiesToPick = std::min({citiesToPick, (ULONG)availableCities.size(), (ULONG)7U});
 
         AT_Log("citiesToPick = %d (numTries = %d), availableCities = %d", citiesToPick, numTries, availableCities.size());
 

@@ -1,5 +1,10 @@
 #pragma once
 
+#include "TeakLibW.h"
+
+#include "SDL_render.h"
+#include "SDL_surface.h"
+
 #include <list>
 #include <map>
 #include <unordered_map>

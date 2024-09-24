@@ -11,6 +11,8 @@
 #ifndef _SSE_
 #define _SSE_
 
+#include "SDL_mixer.h"
+
 #include <list>
 #include <string>
 

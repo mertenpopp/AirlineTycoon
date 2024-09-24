@@ -2,6 +2,8 @@
 // Editor.h : Der Flugzeugeditor
 //============================================================================================
 
+#include "StdRaum.h"
+
 #define NUM_PLANE_BODY 5    // Anzahl der Rümpfe
 #define NUM_PLANE_COCKPIT 5 // Anzahl der Cockpits
 #define NUM_PLANE_HECK 7    // Anzahl der Hecks
