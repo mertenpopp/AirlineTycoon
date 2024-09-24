@@ -1,6 +1,7 @@
 //============================================================================================
 // Proto.h - Funktionsprototypen:
 //============================================================================================
+#pragma once
 
 //--------------------------------------------------------------------------------------------
 // AtNet.Cpp:
@@ -70,7 +71,6 @@ SLONG AddToNthDigit(SLONG Value, SLONG Digit, SLONG Add);
 #define MESSAGEBOX_INFO SDL_MESSAGEBOX_INFORMATION
 void SimpleMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 int AbortMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
-
 
 DOUBLE GetFrameRate(void);
 CString ConvertDate2String(UWORD Date);

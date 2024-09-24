@@ -5,6 +5,9 @@
 #ifndef hline_h
 #define hline_h
 
+#include "sbl.h"
+#include "TeakLibW.h"
+
 class CHLPool;
 
 #pragma pack(push, pragma_gene)

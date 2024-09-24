@@ -17,6 +17,15 @@
 
 // #define VOICES_OPTIONAL //Voices werden verwendet, wenn sie da sind; ansonsten auch nicht schlimm
 
+#include "stdstring.h"
+typedef CStdStringA CString;
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+
+#include <stdint.h>
+
 // Meine (konsequenten) Variablentypen
 typedef uint16_t UWORD;
 typedef int16_t SWORD;

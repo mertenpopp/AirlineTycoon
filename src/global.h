@@ -210,6 +210,9 @@ extern CKlackerPlanes gKlackerPlanes;
 //--------------------------------------------------------------------------------------------
 // Globale Daten und Tabellen:
 //--------------------------------------------------------------------------------------------
+typedef BUFFER_V<UWORD> BUFFER_UWORD;
+typedef BUFFER_V<UBYTE> BUFFER_UBYTE;
+
 extern BRICKS Bricks;   // Die Bauteile
 extern AIRPORT Airport; // und ihre Verwendung
 extern CLANS Clans;

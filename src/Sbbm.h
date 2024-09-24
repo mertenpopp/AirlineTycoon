@@ -5,8 +5,10 @@
 #ifndef sbbm_h
 #define sbbm_h
 
-#include "HLine.h"
 #include <utility>
+
+class CHLPool;
+class CHLObj;
 
 //--------------------------------------------------------------------------------------------
 // Liest den aktuellen Taktzyklenzähler der CPU
