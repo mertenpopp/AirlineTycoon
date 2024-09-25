@@ -1,3 +1,4 @@
+#pragma once
 // AirportView.h : header file
 //
 

@@ -1,3 +1,4 @@
+#pragma once
 //------------------------------------------------------------------------------------
 // Verschiendene CNetConn.CommStates für das Spiel:
 #define CS_EMPTY 0    // Keine Netzwerkverbindung aktiv

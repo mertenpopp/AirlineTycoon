@@ -1,3 +1,4 @@
+#pragma once
 // CBuero.h : header file
 //
 

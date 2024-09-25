@@ -1,3 +1,4 @@
+#pragma once
 // NewGamePopup.h : header file
 //
 #include "SbLib.h"

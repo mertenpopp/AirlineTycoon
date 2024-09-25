@@ -1,3 +1,4 @@
+#pragma once
 // AskBrick.h : header file
 //
 

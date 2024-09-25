@@ -1,3 +1,4 @@
+#pragma once
 // Options.h : header file
 //
 

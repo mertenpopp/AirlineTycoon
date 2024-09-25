@@ -1,3 +1,4 @@
+#pragma once
 //============================================================================================
 // Checkup.h : Prüft diverse Sachen der Rechnerkonfiguration und liefert die Basis für
 //             Registry-Zugriffe                                                          [TH]
@@ -31,11 +32,11 @@
 class CRegistryAccess {
   private:
     struct json_t *settingsJSON{nullptr};
-    #if USE_REG_MIGRATION
-        HKEY hKey;
-    #endif
+#if USE_REG_MIGRATION
+    HKEY hKey;
+#endif
 
-public:
+  public:
     CRegistryAccess() = default;
     CRegistryAccess(const CString &RegistryPath);
     ~CRegistryAccess();

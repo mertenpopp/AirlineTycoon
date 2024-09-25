@@ -1,3 +1,4 @@
+#pragma once
 // DutyFree.h : header file
 //
 

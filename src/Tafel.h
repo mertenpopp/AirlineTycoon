@@ -1,3 +1,4 @@
+#pragma once
 // Tafel.h : header file
 //
 
