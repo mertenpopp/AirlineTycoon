@@ -3,6 +3,10 @@
 // WeltAll.h : Das Fernglass ins WeltAll
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CSternschnuppe {
   private:
     SLONG StartIndex; // 0-2 oder -1= Empty

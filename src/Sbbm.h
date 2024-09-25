@@ -5,6 +5,9 @@
 #ifndef sbbm_h
 #define sbbm_h
 
+#include "defines.h"
+#include "sbl.h"
+
 #include <utility>
 
 class CHLPool;

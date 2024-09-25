@@ -5,6 +5,11 @@
 /////////////////////////////////////////////////////////////////////////////
 // Options window
 
+#include "defines.h"
+#include "StdRaum.h"
+
+#include <SDL_timer.h>
+
 class Options : public CStdRaum {
     // Construction
   public:

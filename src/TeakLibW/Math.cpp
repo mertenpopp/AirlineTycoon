@@ -1,4 +1,5 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 void memswap(void *dst, void *src, ULONG size) {
     for (ULONG i = size; i > 0; --i) {

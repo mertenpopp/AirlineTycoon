@@ -3,6 +3,10 @@
 // Makler.h : Der Raum des Flugzeugmaklers
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // Makler window
 

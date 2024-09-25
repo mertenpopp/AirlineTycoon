@@ -10,6 +10,8 @@
 // Link: "Checkup.h"
 //============================================================================================
 
+#include "defines.h"
+
 //--------------------------------------------------------------------------------------------
 // Gibt Zugriff auf die Registry und bedient sich fast wie eine Fileklasse; speichert die
 // Daten nicht digital, sondern auf ASCII-Basis (und somit editierbar)

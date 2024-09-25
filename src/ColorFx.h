@@ -5,6 +5,9 @@
 // Anleitung: "i:\projekt\sbl\doku\CColorFx.txt"
 //============================================================================================
 
+#include "defines.h"
+#include "sbl.h"
+
 class SB_CColorFXTypeHelper {};
 typedef SB_CColorFXTypeHelper *SB_CColorFXType;
 

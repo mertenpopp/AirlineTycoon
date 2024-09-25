@@ -1,8 +1,12 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
+
+#include <SDL_filesystem.h>
 
 #include <cstdio>
-#include <stdexcept>
+#include <memory>
 #include <mutex>
+#include <stdexcept>
 
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Dbg", __VA_ARGS__)
 #define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Dbg", __VA_ARGS__)

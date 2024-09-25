@@ -110,7 +110,6 @@ add_executable (AT
     SmackPrs.cpp
     Sound.cpp
     Statistk.cpp
-    StdAfx.cpp
     StdRaum.cpp
     Synthese.cpp
     Tafel.cpp
@@ -147,10 +146,6 @@ if(MSVC)
     target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/include/>")
     target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/lib/sentry.lib>")
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
-endif()
-
-if(NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
-    target_precompile_headers(AT PUBLIC StdAfx.h)
 endif()
 
 if(NOT CMAKE_BUILD_TYPE)

@@ -1,6 +1,10 @@
 #pragma once
 // Intro.cpp : Der Render-Intro
 
+#include "CVideo.h"
+#include "defines.h"
+#include "Sbbm.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // CIntro window
 class CIntro : public CVideo {

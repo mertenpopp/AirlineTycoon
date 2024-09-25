@@ -1,9 +1,12 @@
 //============================================================================================
 // City.Cpp - Routinen zur Verwaltung von Städten
 //============================================================================================
-#include <cmath>
+#include "class.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
-#include "StdAfx.h"
+#include <cmath>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

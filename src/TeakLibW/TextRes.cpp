@@ -1,6 +1,5 @@
-#include <regex>
-
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 #define AT_Log(...) AT_Log_I("TextRes", __VA_ARGS__)
 

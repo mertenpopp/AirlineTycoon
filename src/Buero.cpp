@@ -1,10 +1,12 @@
 //============================================================================================
 // Buero.cpp : Das Büro des Spielers
 //============================================================================================
-#include "StdAfx.h"
 #include "Buero.h"
+#include "ColorFx.h"
 #include "glBueroDrk.h"
 #include "glbuero.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

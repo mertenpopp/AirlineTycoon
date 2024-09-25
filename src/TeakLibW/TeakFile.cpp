@@ -1,4 +1,6 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
+#include "helper.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -241,7 +243,7 @@ BOOL DoesFileExist(char const *path) {
 
 BOOL DoesDirectoryExist(char const *path) {
     std::string str(path);
-    while(!str.empty() && str[str.length() - 1] == '\\') {
+    while (!str.empty() && str[str.length() - 1] == '\\') {
         str.resize(str.length() - 1);
     }
     if (fs::is_directory(str)) {
@@ -273,7 +275,7 @@ BUFFER_V<BYTE> LoadCompleteFile(char const *path) {
         converter.SaveAsPlainText();
         converter.Close();
     }
-    
+
     // Read file and return
     CRLEReader reader(path);
     BUFFER_V<BYTE> buffer(reader.GetSize());
@@ -282,7 +284,6 @@ BUFFER_V<BYTE> LoadCompleteFile(char const *path) {
     }
     return buffer;
 }
-
 
 CRLEWriter::CRLEWriter(const char *path) : Ctx(nullptr), Version(0x102), Key(0xA5), Magic("xtRLE"), Path(path), Sequence() {}
 CRLEWriter::~CRLEWriter() { Close(); }

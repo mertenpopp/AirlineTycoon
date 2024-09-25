@@ -1,8 +1,12 @@
 //============================================================================================
 // Sound.Cpp - Management von Midi und Wave Routinen
 //============================================================================================
-#include "StdAfx.h"
+#include "defines.h"
+#include "global.h"
+#include "Proto.h"
 #include "Synthese.h"
+#include "TeakLibW.h"
+
 #include <filesystem>
 
 #define AT_Log(...) AT_Log_I("Sound", __VA_ARGS__)
@@ -391,7 +395,7 @@ BOOL CVoiceScheduler::IsVoicePlaying() {
 }
 
 //--------------------------------------------------------------------------------------------
-//Überwacht die Voices:
+// Überwacht die Voices:
 //--------------------------------------------------------------------------------------------
 void CVoiceScheduler::Pump() {
     if (AnzEntries() > 0 && (IsVoicePlaying() == 0)) {
@@ -660,7 +664,7 @@ void SBFX::Destroy() {
     }
 }
 
-void SBFX::Fusion(BUFFER_V<SBFX *>& Fx, SLONG NumFx) {
+void SBFX::Fusion(BUFFER_V<SBFX *> &Fx, SLONG NumFx) {
     std::vector<FX *> Elements;
     Elements.resize(NumFx);
 

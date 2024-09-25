@@ -1,11 +1,16 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "helper.h"
+#include "Proto.h"
+#include "sbl.h"
+
+#include <SDL_surface.h>
+#include <SDL_timer.h>
 
 #define AT_Log(...) AT_Log_I("Rendering", __VA_ARGS__)
 
 Uint16 get_pixel16(SDL_Surface *surface, SLONG x, SLONG y);
 
 void put_pixel16(SDL_Surface *surface, SLONG x, SLONG y, Uint16 pixel);
-
 SB_CBitmapMain::SB_CBitmapMain(SDL_Renderer *render) : Renderer(render) {}
 
 SB_CBitmapMain::~SB_CBitmapMain() {
@@ -237,9 +242,7 @@ SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(ULONG color) {
 #endif
 }
 
-SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(char r, char g, char b) {
-    return SB_Hardwarecolor(SDL_MapRGB(lpDDSurface->format, r, g, b));
-}
+SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(char r, char g, char b) { return SB_Hardwarecolor(SDL_MapRGB(lpDDSurface->format, r, g, b)); }
 
 ULONG SB_CBitmapCore::Clear(SB_Hardwarecolor hwcolor, const RECT *pRect) {
     auto color = (dword)hwcolor;
@@ -390,7 +393,7 @@ ULONG SB_CBitmapCore::Blit(class SB_CBitmapCore *core, SLONG x, SLONG y, const C
     return SDL_BlitSurface(lpDDSurface, &src, core->lpDDSurface, &dst);
 }
 
-ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y) {
+ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore *core, SLONG x, SLONG y) {
     if (!lpDDSurface || !core->lpDDSurface) {
         return 0;
     }
@@ -412,8 +415,8 @@ ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y) {
     return 0;
 }
 
-ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y, const CRect& rect) {
-    if(!lpDDSurface) {
+ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore *core, SLONG x, SLONG y, const CRect &rect) {
+    if (!lpDDSurface) {
         return 0;
     }
 

@@ -1,9 +1,11 @@
 //============================================================================================
 // Museum.cpp : Das Museum mit den alten Flugzeugen
 //============================================================================================
-#include "StdAfx.h"
 #include "Museum.h"
+
 #include "glmuseum.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

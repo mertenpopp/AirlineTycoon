@@ -3,31 +3,41 @@
 //============================================================================================
 // Link: "StdRaum.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "StdRaum.h"
 
 #include "ArabAir.h"
 #include "Aufsicht.h"
 #include "Bank.h"
 #include "Buero.h"
+#include "ColorFx.h"
 #include "Designer.h"
 #include "DutyFree.h"
 #include "Editor.h"
 #include "Fracht.h"
+#include "global.h"
+#include "Globe.h"
+#include "helper.h"
 #include "Kiosk.h"
 #include "Makler.h"
 #include "Museum.h"
 #include "Nasa.h"
+#include "Personal.h"
+#include "Planer.h"
+#include "Proto.h"
 #include "Ricks.h"
 #include "RouteBox.h"
 #include "Sabotage.h"
 #include "Security.h"
 #include "WeltAll.h"
 #include "Werbung.h"
+#include "Werkstat.h"
 #include "World.h"
 
 #include "AtNet.h"
 #include "SbLib.h"
 #include "network.h"
+
+#include <SDL.h>
 
 #ifdef _DEBUG
 #undef THIS_FILE

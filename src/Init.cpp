@@ -1,9 +1,12 @@
 //============================================================================================
 // Init.cpp : Routinen zur initialisierung:
 //============================================================================================
-#include "StdAfx.h"
 #include "Checkup.h"
 #include "Editor.h"
+#include "global.h"
+#include "glstd.h"
+#include "Proto.h"
+
 #include <algorithm>
 #include <sstream>
 

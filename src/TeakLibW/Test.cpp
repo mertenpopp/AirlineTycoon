@@ -1,4 +1,5 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 #include <iostream>
 
@@ -71,7 +72,7 @@ template <typename T> void expect_nonexist_func(ALBUM_V<T> &list, SLONG id, SLON
     bool exception = false;
     try {
         list[id] = T(99);
-    } catch (const std::runtime_error& e) {
+    } catch (const std::runtime_error &e) {
         exception = true;
     }
     if (!exception) {

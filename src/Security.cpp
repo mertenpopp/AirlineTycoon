@@ -1,10 +1,12 @@
 //============================================================================================
 // Security.cpp : Der Security-Raum
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Security.h"
+
+#include "AtNet.h"
+#include "global.h"
 #include "glsecurity.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

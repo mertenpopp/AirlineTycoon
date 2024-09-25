@@ -3,6 +3,9 @@
 // Editor.h : Der Flugzeugeditor
 //============================================================================================
 
+#include "class.h"
+#include "defines.h"
+#include "TeakLibW.h"
 #include "StdRaum.h"
 
 #define NUM_PLANE_BODY 5    // Anzahl der Rümpfe

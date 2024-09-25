@@ -1,8 +1,11 @@
 //============================================================================================
 // Player.cpp : Routinen zum verwalten der Spieler
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
 #define forall(c, object) for ((c) = 0; (c) < SLONG((object).AnzEntries()); (c)++)
 
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Player", __VA_ARGS__)

@@ -1,10 +1,14 @@
 //============================================================================================
 // Editor.cpp : Der Flugzeugeditor
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
+#include "ColorFx.h"
 #include "Editor.h"
 #include "gleditor.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
 #include <fstream>
 #include <string>
 #include <sstream>

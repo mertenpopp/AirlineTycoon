@@ -5,6 +5,10 @@
 /////////////////////////////////////////////////////////////////////////////
 // CAufsicht window
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CAufsicht : public CStdRaum {
     // Construction
   public:

@@ -1,7 +1,11 @@
 //============================================================================================
 // Route.cpp : Routinen zum verwalten der Flugrouten (CRoute, CRouten)
 //============================================================================================
-#include "StdAfx.h"
+#include "class.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
 #include <sstream>
 
 SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
@@ -79,7 +83,7 @@ void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
     // Die erste Zeile einlesen
     FileP = ReadLine(FileData, FileP, Line.getData(), 300);
 
-    SLONG routes = CountLines(FileData, FileP) * 2; //2x for "to" and "back"
+    SLONG routes = CountLines(FileData, FileP) * 2; // 2x for "to" and "back"
 
     ReSize(0);
     ReSize(routes);
@@ -103,7 +107,7 @@ void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
         const char *errorStr = "Tried to create route between %s and %s, but a city was not found: %s";
         try {
             VonCity = Cities.GetIdFromName(KorrigiereUmlaute(Helper1).c_str());
-        } catch (std::runtime_error&) {
+        } catch (std::runtime_error &) {
             TeakLibW_Exception(FNL, errorStr, Helper1.c_str(), Helper2.c_str(), Helper1.c_str());
         }
 

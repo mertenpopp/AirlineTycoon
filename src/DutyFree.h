@@ -5,6 +5,10 @@
 /////////////////////////////////////////////////////////////////////////////
 // CDutyFree window
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CDutyFree : public CStdRaum {
     // Construction
   public:

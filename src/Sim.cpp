@@ -1,45 +1,49 @@
 //============================================================================================
 // Sim.cpp : Routinen zur allgemeinen Simulationsverwaltung:
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 #include "Checkup.h"
+#include "global.h"
+#include "helper.h"
+#include "Personal.h"
+#include "Proto.h"
 #include "Sabotage.h"
+
 #include <filesystem>
 #include <numeric>
 
 #define AT_Log(...) AT_Log_I("Sim", __VA_ARGS__)
 
-                        // Für Menschen       Für Computer
-                        // Money    Credit    Money    Credit
-static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                                                       // DIFF_FREEGAME
-                           5000000, 0,        200000,  0,                                                        // DIFF_TUTORIAL
-                           5000000, 0,        500000,  0,                                                        // FIRST
-                           3000000, 0,        1000000, 0,                                                        // DIFF_EASY
-                           2000000, 0,        3000000, 0,                                                        // DIFF_NORMAL
-                           1800000, 0,        4000000, 0,                                                        // DIFF_HARD
-                           1500000, 0,        6000000, 0,                                                        // DIFF_FINAL
-                           0,       0,        0,       0,        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Nada
-                           3000000, 10000000, 1000000, 10000000,                                                 // DIFF_ADDON01
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON02
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON03
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON04
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON05
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON06
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON07
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON08
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON09
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON10
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS01
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS02
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS03
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS04
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS05
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS06
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS07
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS08
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS09
-                           3000000, 0,        3000000, 0};                                                       // DIFF_ATFS10
+// Für Menschen       Für Computer
+// Money    Credit    Money    Credit
+static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                                                        // DIFF_FREEGAME
+                            5000000, 0,        200000,  0,                                                        // DIFF_TUTORIAL
+                            5000000, 0,        500000,  0,                                                        // FIRST
+                            3000000, 0,        1000000, 0,                                                        // DIFF_EASY
+                            2000000, 0,        3000000, 0,                                                        // DIFF_NORMAL
+                            1800000, 0,        4000000, 0,                                                        // DIFF_HARD
+                            1500000, 0,        6000000, 0,                                                        // DIFF_FINAL
+                            0,       0,        0,       0,        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Nada
+                            3000000, 10000000, 1000000, 10000000,                                                 // DIFF_ADDON01
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON02
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON03
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON04
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON05
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON06
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON07
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON08
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON09
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON10
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS01
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS02
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS03
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS04
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS05
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS06
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS07
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS08
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS09
+                            3000000, 0,        3000000, 0};                                                       // DIFF_ATFS10
 
 static SLONG MonthLength[] = {31, 28, 31, 30, 31, 30, 30, 31, 30, 31, 30, 31};
 
@@ -2864,7 +2868,7 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
     }
 
     if (thisYear == usedPlane.ptErstbaujahr) {
-        usedPlane.Baujahr = thisYear; //fallback for when the plane is brand new
+        usedPlane.Baujahr = thisYear; // fallback for when the plane is brand new
     } else {
         usedPlane.Baujahr = thisYear - rnd.Rand(thisYear - usedPlane.ptErstbaujahr);
     }

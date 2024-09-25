@@ -5,6 +5,9 @@
 /////////////////////////////////////////////////////////////////////////////
 // HallDiskMenu window
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class HallDiskMenu : public CStdRaum {
     // Construction
   public:

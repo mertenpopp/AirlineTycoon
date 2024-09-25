@@ -3,12 +3,21 @@
 //============================================================================================
 // Links: "AirportView.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "AirportView.h"
+
 #include "AskBrick.h"
 #include "AtNet.h"
+#include "class.h"
+#include "ColorFx.h"
+#include "global.h"
 #include "HLine.h"
 #include "HalldiskMenu.h"
+#include "helper.h"
+#include "Proto.h"
+#include "Sbbm.h"
 #include "Synthese.h"
+
+#include <SDL_ttf.h>
 
 extern CHLPool HLPool;
 

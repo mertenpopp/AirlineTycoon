@@ -1,6 +1,11 @@
 #pragma once
 
+#include "defines.h"
 #include "MessageIdentifiers.h"
+#include "SbLib.h"
+#include "TeakLibW.h"
+
+#include <memory>
 
 // Direct play identifiers
 constexpr auto DPPLAYERTYPE_GROUP = 0x0000;
@@ -97,7 +102,7 @@ class IServerSearchable {
     virtual SBList<std::shared_ptr<SBStr>> *GetSessionListAsync() = 0;
     virtual bool StartGetSessionListAsync() = 0;
     virtual bool JoinSession(const SBStr &, SBStr) = 0;
-    virtual void SetMasterServer(const SBStr& masterServer, const int port) = 0;
+    virtual void SetMasterServer(const SBStr &masterServer, const int port) = 0;
 };
 
 class BaseNetworkType {

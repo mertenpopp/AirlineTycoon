@@ -1,9 +1,11 @@
 //============================================================================================
 // Kiosk.cpp : Das Zeitungskiosk
 //============================================================================================
-#include "StdAfx.h"
 #include "Kiosk.h"
+
 #include "glkiosk.h"
+#include "global.h"
+#include "Proto.h"
 
 #define GFX_FEUER (0x0000005245554546)
 #define GFX_REIFEN (0x00004e4546494552)

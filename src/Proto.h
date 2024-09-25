@@ -3,6 +3,14 @@
 //============================================================================================
 #pragma once
 
+#include "class.h"
+#include "defines.h"
+#include "Sbbm.h"
+#include "sbl.h"
+#include "TeakLibW.h"
+
+#include <SDL_messagebox.h>
+
 //--------------------------------------------------------------------------------------------
 // AtNet.Cpp:
 //--------------------------------------------------------------------------------------------
@@ -99,7 +107,6 @@ CString CreateNumeratedFreeFilename(const CString &DirAndFilename);
 CString GetFilenameFromFullFilename(CString FullFilename);
 #ifndef WIN32
 BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy);
-void DebugBreak(void);
 #endif
 DWORD AtGetTime(void);
 SLONG AtGetAsyncKeyState(SLONG vKey);

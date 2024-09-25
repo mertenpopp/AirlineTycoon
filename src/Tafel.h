@@ -2,6 +2,10 @@
 // Tafel.h : header file
 //
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // CTafel window
 

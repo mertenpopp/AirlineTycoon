@@ -5,6 +5,13 @@
 /////////////////////////////////////////////////////////////////////////////
 // Das Standard Raum Template
 
+#include "class.h"
+#include "defines.h"
+#include "Sbbm.h"
+#include "sbl.h"
+#include "SmackPrs.h"
+#include "TeakLibW.h"
+
 #include <SDL_events.h>
 
 class CSmackerPerson;

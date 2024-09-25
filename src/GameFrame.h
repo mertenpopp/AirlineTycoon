@@ -2,6 +2,9 @@
 // GameFrame.h : header file
 //
 
+#include "defines.h"
+#include "StdRaum.h"
+
 #include <SDL_events.h>
 
 enum InputFlags {

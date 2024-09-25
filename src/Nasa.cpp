@@ -3,9 +3,11 @@
 //============================================================================================
 // Link: "Nasa.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "Nasa.h"
+
 #include "glnasa.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

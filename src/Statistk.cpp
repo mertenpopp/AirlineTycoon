@@ -3,9 +3,13 @@
 //============================================================================================
 // Link: "Statistk.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "Statistk.h"
+
+#include "ColorFx.h"
+#include "global.h"
 #include "glstat.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -3,6 +3,10 @@
 // Fracht.h : Der Fracht Schalter (neu im Add-On)
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CFrachtRaum : public CStdRaum {
     // Construction
   public:

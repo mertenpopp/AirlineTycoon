@@ -3,10 +3,14 @@
 //============================================================================================
 // Link: "DutyFree.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "DutyFree.h"
+
+#include "AtNet.h"
+#include "ColorFx.h"
 #include "glduty.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

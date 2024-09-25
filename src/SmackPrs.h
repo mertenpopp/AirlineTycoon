@@ -33,6 +33,10 @@
 //--------------------------------------------------------------------------------------------
 // Eine Animation einer kompletten Figur:
 //--------------------------------------------------------------------------------------------
+#include "class.h"
+#include "defines.h"
+#include "TeakLibW.h"
+
 typedef XY CRepeat;
 typedef XY CPostWait;
 
