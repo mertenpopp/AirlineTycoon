@@ -1,3 +1,4 @@
+#pragma once
 //============================================================================================
 // TakeOff.h : main header file for the TAKEOFF application
 //============================================================================================
@@ -42,11 +43,11 @@ class CTakeOffApp {
     // HICON  m_hSmallIcon;
     // HICON  m_hBigIcon;
   private:
-    bool          hasVideo = false;
-    void          CLI(SLONG argc, char *argv[]);
-    void          ReadOptions(SLONG argc, char *argv[]);
-    void          CreateVideo();
-    static  void  LadeWeitereStandardTexte();
+    bool hasVideo = false;
+    void CLI(SLONG argc, char *argv[]);
+    void ReadOptions(SLONG argc, char *argv[]);
+    void CreateVideo();
+    static void LadeWeitereStandardTexte();
 };
 
 /////////////////////////////////////////////////////////////////////////////

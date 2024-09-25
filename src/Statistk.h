@@ -1,3 +1,4 @@
+#pragma once
 
 //============================================================================================
 // Statistk.h : Der Statistik-Screen
@@ -80,11 +81,11 @@ class CStatistik : public CStdRaum {
 
     // Diese Werte am besten in der Registry
     // speichern.
-    bool _fGraphVisible;                  // true -> Der Graph ist sichtbar, ansonsten die schnöden Zahlen
-    std::array<bool, 4> _playerMask{};    // Diese Spieler wurden zur Ansicht ausgewählt
-    BYTE _group;                          // Die angewählte Gruppe (*0=Finanzen, 1=?, 2=?)
-    SLONG _days;                          // Anzahl der darzustellenden Tage
-    SLONG _newDays;                       // Für eine Animation
+    bool _fGraphVisible;               // true -> Der Graph ist sichtbar, ansonsten die schnöden Zahlen
+    std::array<bool, 4> _playerMask{}; // Diese Spieler wurden zur Ansicht ausgewählt
+    BYTE _group;                       // Die angewählte Gruppe (*0=Finanzen, 1=?, 2=?)
+    SLONG _days;                       // Anzahl der darzustellenden Tage
+    SLONG _newDays;                    // Für eine Animation
     std::array<std::array<ITEM, STAT_MAX_ITEMS>, STAT_MAX_GROUPS> _iArray{};
 
     // Temporäre Werte

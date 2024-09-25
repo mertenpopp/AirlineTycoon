@@ -1,3 +1,9 @@
+#pragma once
+
+#include "defines.h"
+#include "GameFrame.h"
+#include "TakeOff.h"
+
 #ifdef DEBUG
 extern void __cdecl Msg(LPSTR fmt, ...);
 #else

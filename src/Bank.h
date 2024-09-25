@@ -1,3 +1,4 @@
+#pragma once
 //============================================================================================
 // Bank.h : Der Bankraum (Header File)
 //============================================================================================
@@ -26,12 +27,12 @@ class Bank : public CStdRaum {
 
     // Attributes
   public:
-    SLONG CurrentText{};      // Nummer des aktuellen Dialogs
-    SLONG CurrentValue{};     // Betrag über den gerade geredet wird..
-    SBBM TipBm;               // Fenster für Flugzeug-Tips
-    SLONG CurrentAktie;       //Über dieses Flugzeug wir geredet
-    SLONG CurrentTip;         // Dieser Tip wird gerade angezeigt
-    SLONG KontoType;          //-1=Kein Menü offen; 1=Kredit aufnehmen; 2=Tilgen
+    SLONG CurrentText{};  // Nummer des aktuellen Dialogs
+    SLONG CurrentValue{}; // Betrag über den gerade geredet wird..
+    SBBM TipBm;           // Fenster für Flugzeug-Tips
+    SLONG CurrentAktie;   // Über dieses Flugzeug wir geredet
+    SLONG CurrentTip;     // Dieser Tip wird gerade angezeigt
+    SLONG KontoType;      //-1=Kein Menü offen; 1=Kredit aufnehmen; 2=Tilgen
     SBBM ZettelBm;
     GfxLib *pMenuLib{};
 

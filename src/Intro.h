@@ -1,3 +1,4 @@
+#pragma once
 // Intro.cpp : Der Render-Intro
 
 /////////////////////////////////////////////////////////////////////////////
@@ -7,7 +8,7 @@ class CIntro : public CVideo {
   public:
     CIntro();
     virtual ~CIntro();
-    
+
     void OnVideoCancel() override;
 
     // Attributes

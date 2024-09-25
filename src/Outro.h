@@ -1,3 +1,4 @@
+#pragma once
 // Outro.cpp : Der Render-Outro
 
 /////////////////////////////////////////////////////////////////////////////
@@ -6,7 +7,7 @@
 class COutro : public CVideo {
     // Construction
   public:
-    COutro(const CString &SmackName) : CVideo(SmackName) { }
+    COutro(const CString &SmackName) : CVideo(SmackName) {}
 
     void OnVideoDone() override { Sim.Gamestate = GAMESTATE_BOOT; }
     void OnVideoCancel() override { Sim.Gamestate = GAMESTATE_BOOT; }

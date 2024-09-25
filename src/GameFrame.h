@@ -1,5 +1,8 @@
+#pragma once
 // GameFrame.h : header file
 //
+
+#include <SDL_events.h>
 
 enum InputFlags {
     None = 0,

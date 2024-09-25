@@ -1,3 +1,4 @@
+#pragma once
 // HallDiskMenu.h : header file
 //
 

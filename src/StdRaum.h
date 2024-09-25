@@ -1,9 +1,9 @@
+#pragma once
 // StdRaum.h : header file
 //
 
 /////////////////////////////////////////////////////////////////////////////
 // Das Standard Raum Template
-#pragma once
 
 #include <SDL_events.h>
 

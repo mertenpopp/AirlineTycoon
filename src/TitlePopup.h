@@ -1,3 +1,4 @@
+#pragma once
 // TitlePopup.h : header file
 //
 

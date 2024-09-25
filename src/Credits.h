@@ -1,3 +1,4 @@
+#pragma once
 // CCredits.h : header file
 //
 
