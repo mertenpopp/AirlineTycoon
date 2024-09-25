@@ -1,10 +1,12 @@
-#include "StdAfx.h"
-#include "SbLib.h"
-#include "network.h"
+
 #include "BitStream.h"
+#include "defines.h"
+#include "network.h"
+#include "SbLib.h"
+
 #include "BaseNetworkType.hpp"
-#include "RAKNetNetwork.hpp"
 #include "ENetNetwork.hpp"
+#include "RAKNetNetwork.hpp"
 
 #ifdef ENET_NETWORK
 SBNetwork::SBNetwork(bool) : mState(SBNETWORK_SESSION_FINISHED), mHost(NULL), mMaster(NULL), mSearchTime(0), mServer(), mSocket() {

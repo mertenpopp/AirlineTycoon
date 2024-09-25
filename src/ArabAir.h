@@ -3,6 +3,10 @@
 // ArabAir.h : Der Schalter und das Hinterzimmer von ArabAir!
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CArabAir : public CStdRaum {
     // Construction
   public:

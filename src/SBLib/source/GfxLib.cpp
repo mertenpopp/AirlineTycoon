@@ -1,4 +1,6 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "helper.h"
+#include "sbl.h"
 
 #pragma pack(push)
 #pragma pack(1)
@@ -65,8 +67,8 @@ GfxMain::~GfxMain() {
 }
 
 SLONG GfxMain::LoadLib(char *path, class GfxLib **out, SLONG /*unused*/) {
-    if(!DoesFileExist(path)) {
-        TeakLibW_Exception(FNL, "Can't open %s!", path);    
+    if (!DoesFileExist(path)) {
+        TeakLibW_Exception(FNL, "Can't open %s!", path);
     }
 
     Libs.emplace_back(this, nullptr, path, 0, 0, nullptr);

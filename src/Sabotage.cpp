@@ -3,10 +3,12 @@
 //============================================================================================
 // Link: "Sabotage.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Sabotage.h"
+
+#include "AtNet.h"
+#include "global.h"
 #include "glsabo.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

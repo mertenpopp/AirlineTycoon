@@ -4,6 +4,9 @@
 // Statistk.h : Der Statistik-Screen
 //============================================================================================
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CStatButton {
   public:
     SLONG Id{};                   // Frei wählbar, aber bitte immer eindeutig

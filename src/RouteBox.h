@@ -3,6 +3,9 @@
 // RouteBox.h : Der Schalter und das Hinterzimmer von RouteBox!
 //============================================================================================
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CRouteBox : public CStdRaum {
     // Construction
   public:

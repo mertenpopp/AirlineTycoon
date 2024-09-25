@@ -1,13 +1,15 @@
-#include "StdAfx.h"
-#include "SbLib.h"
-#include "network.h"
-#include <ctime>
 #include "BitStream.h"
-#include "RAKNetNetwork.hpp"
+#include "network.h"
+#include "Proto.h"
+#include "SbLib.h"
+
 #include "NatPunchthroughClient.h"
-#include "UDPProxyClient.h"
-#include <StringCompressor.h>
+#include "RAKNetNetwork.hpp"
 #include "RAKNetRoomCallbacks.hpp"
+#include "UDPProxyClient.h"
+
+#include <ctime>
+#include <StringCompressor.h>
 
 using namespace RakNet;
 #define AT_Log(...) AT_Log_I("RAKNetNetwork", __VA_ARGS__)

@@ -21,6 +21,8 @@
 #include "stdstring.h"
 typedef CStdStringA CString;
 
+#include <SDL_keycode.h>
+
 #ifdef WIN32
 #include <windows.h>
 #endif

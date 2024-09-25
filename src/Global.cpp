@@ -1,7 +1,8 @@
 //============================================================================================
 // Global.h - Inkarnationen der globalen Variablen
 //============================================================================================
-#include "StdAfx.h"
+
+#include "global.h"
 
 //--------------------------------------------------------------------------------------------
 // Zu erst die Ausnahmen:
@@ -132,10 +133,10 @@ BOOL gRoomJustLeft; // TRUE, wenn Raum gerade verlassen wurde (wegen messagePump
 //--------------------------------------------------------------------------------------------
 // Text-Ressourcen:
 //--------------------------------------------------------------------------------------------
-TEXTRES DialogTexte;    // Die Text-Ressourcen der Dialoge
-TEXTRES StandardTexte;  // Allgemeine Texte
-TEXTRES ModdedTexte;    // Modded Texts
-TEXTRES ETexte;         // Die Einheiten
+TEXTRES DialogTexte;   // Die Text-Ressourcen der Dialoge
+TEXTRES StandardTexte; // Allgemeine Texte
+TEXTRES ModdedTexte;   // Modded Texts
+TEXTRES ETexte;        // Die Einheiten
 
 //--------------------------------------------------------------------------------------------
 // einige Flags:
@@ -202,9 +203,9 @@ CString GliPath;      // diverse GLI-Dateien
 CString SmackerPath;  // Die Smacker-Filmchen
 CString IntroPath;    // Der Intro-Film
 CString AppPath;      // Der Ganze Pfad, z.B. "f:\project\takeoff\"
-CString VoicePath;   // die Sprache
-CString MyPlanePath; // die eigenen Flugzeuge
-CString PatchPath;   // Patches path
+CString VoicePath;    // die Sprache
+CString MyPlanePath;  // die eigenen Flugzeuge
+CString PatchPath;    // Patches path
 
 //--------------------------------------------------------------------------------------------
 // Die Simulationswelt mit ihren Parameter (Zeit, Spieler, Schwierigkeit, ..)

@@ -3,7 +3,15 @@
 //============================================================================================
 // Link: "SBBM.h"
 //============================================================================================
-#include "StdAfx.h"
+
+#include "Sbbm.h"
+
+#include "ColorFx.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
+#include <SDL_ttf.h>
 
 extern SB_CColorFX ColorFX;
 extern XY MouseCursorOffset;
@@ -675,9 +683,7 @@ void SBPRIMARYBM::Flip(XY WindowPos, BOOL /*ShowFPS*/) {
     }
 }
 
-dword SBPRIMARYBM::Clear(dword color) {    
-    return SDL_FillRect(PrimaryBm.GetSurface(), nullptr, color);
-}
+dword SBPRIMARYBM::Clear(dword color) { return SDL_FillRect(PrimaryBm.GetSurface(), nullptr, color); }
 
 void SBBMS::ReSize(GfxLib *gfxLibrary, __int64 graphicID, ...) {
     SLONG count = 0;

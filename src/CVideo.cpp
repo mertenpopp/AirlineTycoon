@@ -1,10 +1,13 @@
 //============================================================================================
 // CVideo.cpp : Ein Smacker Video
 //============================================================================================
-#include "StdAfx.h"
 #include "CVideo.h"
+#include "global.h"
+#include "Proto.h"
+
 #include <cmath>
 #include <smacker.h>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE

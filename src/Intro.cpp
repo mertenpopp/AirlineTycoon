@@ -1,10 +1,12 @@
 //============================================================================================
 // Intro.cpp : Der Render-Intro
 //============================================================================================
-#include "StdAfx.h"
-#include "CVideo.h"
-#include "Intro.h"
+#include "ColorFx.h"
 #include "gltitel.h"
+#include "global.h"
+#include "Intro.h"
+#include "Proto.h"
+
 #include <cmath>
 #include <smacker.h>
 

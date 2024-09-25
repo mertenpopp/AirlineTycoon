@@ -3,6 +3,9 @@
 // Planer.h : Die Basisklasse für Globe und Laptop
 //============================================================================================
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CPlaner : public CStdRaum {
     // Construction
   public:

@@ -3,14 +3,17 @@
 //============================================================================================
 // Link: "AtNet.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 
 #include "Buero.h"
+#include "global.h"
+#include "helper.h"
+#include "network.h"
+#include "Proto.h"
+#include "SbLib.h"
+
 #include <cmath>
 
-#include "SbLib.h"
-#include "network.h"
 extern SBNetwork gNetwork;
 
 #define GFX_MENU (0x00000000554e454d)

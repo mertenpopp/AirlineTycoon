@@ -1,4 +1,5 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 const char *ExcAlbumInsert = "Album: %s += failed!";
 const char *ExcAlbumFind = "Album: %s [] failed!";

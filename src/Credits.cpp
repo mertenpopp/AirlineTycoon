@@ -1,8 +1,9 @@
 // CCredits.cpp : implementation file
 //
-#include "StdAfx.h"
 #include "Credits.h"
 #include "glcredit.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

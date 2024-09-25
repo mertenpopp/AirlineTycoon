@@ -4,13 +4,15 @@
 /////////////////////////////////////////////////////////////////////////////
 // COutro window
 
+#include "CVideo.h"
+
 class COutro : public CVideo {
     // Construction
   public:
     COutro(const CString &SmackName) : CVideo(SmackName) {}
 
-    void OnVideoDone() override { Sim.Gamestate = GAMESTATE_BOOT; }
-    void OnVideoCancel() override { Sim.Gamestate = GAMESTATE_BOOT; }
+    void OnVideoDone() override;
+    void OnVideoCancel() override;
 };
 
 /////////////////////////////////////////////////////////////////////////////

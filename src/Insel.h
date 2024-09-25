@@ -3,6 +3,9 @@
 // Insel.h : Die Insel mit den Raketen
 //============================================================================================
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CInsel : public CStdRaum {
     // Construction
   public:

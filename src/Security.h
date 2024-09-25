@@ -3,6 +3,10 @@
 // Security.h : Der Security-Raum!
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CSecurity : public CStdRaum {
     // Construction
   public:

@@ -1,8 +1,11 @@
 //============================================================================================//============================================================================================
 // Auftrag.cpp : Routinen für die Aufträge die die Spieler haben
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
+#include "class.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;

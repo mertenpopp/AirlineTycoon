@@ -5,6 +5,9 @@
 /////////////////////////////////////////////////////////////////////////////
 // AskBrick window
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class AskBrick : public CStdRaum {
     // Construction
   public:

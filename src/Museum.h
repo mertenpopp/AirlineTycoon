@@ -3,6 +3,10 @@
 // Museum.h : Das Museum mit den alten Flugzeugen
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // Museum window
 

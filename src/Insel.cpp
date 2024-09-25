@@ -3,10 +3,12 @@
 //============================================================================================
 // Link: "Insel.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "ColorFx.h"
 #include "Insel.h"
 #include "glinsel.h"
 #include "glnoinsl.h"
+#include "global.h"
+#include "Proto.h"
 
 #define ROOM_LIMIT DIFF_NORMAL
 

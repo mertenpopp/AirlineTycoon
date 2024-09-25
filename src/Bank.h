@@ -3,6 +3,10 @@
 // Bank.h : Der Bankraum (Header File)
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class Bank : public CStdRaum {
     // Construction
   public:

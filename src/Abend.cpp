@@ -3,9 +3,12 @@
 //============================================================================================
 // Link: "Abend.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "Abend.h"
+#include "ColorFx.h"
 #include "glabend.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

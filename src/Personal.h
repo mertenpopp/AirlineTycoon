@@ -3,6 +3,10 @@
 // Personal.h - Das Personalbüro des Spielers
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // CPersonal window
 

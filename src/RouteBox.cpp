@@ -1,11 +1,14 @@
 //============================================================================================
 // RouteBox.cpp : Die Routen Mieten und anschauen!
 //============================================================================================
-#include "StdAfx.h"
 #include "RouteBox.h"
 
 #include "AtNet.h"
+#include "global.h"
 #include "glrb.h"
+#include "helper.h"
+#include "Proto.h"
+
 #include <cmath>
 
 #ifdef _DEBUG

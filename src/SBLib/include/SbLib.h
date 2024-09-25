@@ -1,9 +1,14 @@
 #pragma once
 
+#include "stdstring.h"
+
 #include <string>
 #include <list>
 
-#define FOREACH_SB(elementType, element, list) elementType* element; for ((list).GetFirst(); !(list).IsLast() && (element = static_cast<elementType*>((list).GetLastAccessed()),true); (list).GetNext())  // NOLINT(bugprone-macro-parentheses)
+#define FOREACH_SB(elementType, element, list)                                                                                                                 \
+    elementType *element;                                                                                                                                      \
+    for ((list).GetFirst(); !(list).IsLast() && (element = static_cast<elementType *>((list).GetLastAccessed()), true);                                        \
+         (list).GetNext()) // NOLINT(bugprone-macro-parentheses)
 
 typedef CStdString SBStr;
 

@@ -1,4 +1,3 @@
-#include "StdAfx.h"
 #include "SbLib.h"
 #include "network.h"
 #include "ENetNetwork.hpp"

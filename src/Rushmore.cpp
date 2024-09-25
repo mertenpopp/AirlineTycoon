@@ -1,9 +1,11 @@
 //============================================================================================
 // Rushmore.cpp : Der Berg mit den Tafeln
 //============================================================================================
-#include "StdAfx.h"
 #include "Rushmore.h"
+
+#include "global.h"
 #include "glrush.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

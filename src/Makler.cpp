@@ -1,9 +1,12 @@
 //============================================================================================
 // Makler.cpp : Der Raum des Flugzeugmaklers
 //============================================================================================
-#include "StdAfx.h"
 #include "Makler.h"
+
+#include "ColorFx.h"
 #include "glmakler.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

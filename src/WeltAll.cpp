@@ -1,9 +1,13 @@
 //============================================================================================
 // WeltAll.cpp : Das Fernglass ins WeltAll
 //============================================================================================
-#include "StdAfx.h"
 #include "WeltAll.h"
+
+#include "ColorFx.h"
+#include "global.h"
 #include "glweltall.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

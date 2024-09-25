@@ -3,10 +3,12 @@
 //============================================================================================
 // Link: "reise.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Reise.h"
+
+#include "AtNet.h"
+#include "global.h"
 #include "glreiseb.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -22,7 +24,6 @@ extern SLONG timeReisClose;
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Museum Konstruktion, Initialisation, Destruction
 //////////////////////////////////////////////////////////////////////////////////////////////
-
 
 //--------------------------------------------------------------------------------------------
 // Bei Cities mit zwei Leerzeichen (Palm de Mallorca und Rio de Janeiro) wird nur das erste Wort genommen:

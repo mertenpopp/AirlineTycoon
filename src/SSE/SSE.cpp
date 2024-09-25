@@ -1,4 +1,10 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "Proto.h"
+#include "sbl.h"
+#include "SSE.h"
+
+#include <SDL_mixer.h>
+
 #include <algorithm>
 #include <vector>
 

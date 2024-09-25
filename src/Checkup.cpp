@@ -17,9 +17,9 @@
 //
 //  Läßt man den CDFile-Parameter leer, so wird der CD-Speed Check ggf. übersprungen.
 //============================================================================================
-#include "StdAfx.h"
 
 #include "Checkup.h"
+#include "global.h"
 
 #include <jansson.h>
 

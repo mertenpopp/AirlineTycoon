@@ -3,6 +3,9 @@
 #define RAKNET_NETWORK
 
 #include "BaseNetworkType.hpp"
+#include "SbLib.h"
+
+#include <memory>
 
 #ifdef ENET_NETWORK
 

@@ -3,11 +3,15 @@
 //============================================================================================
 // Link: "Options.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "Options.h"
+
 #include "AtNet.h"
-#include "SbLib.h"
+#include "global.h"
 #include "glstart.h"
+#include "helper.h"
 #include "network.h"
+#include "Proto.h"
+#include "SbLib.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

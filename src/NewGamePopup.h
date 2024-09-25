@@ -1,8 +1,12 @@
 #pragma once
 // NewGamePopup.h : header file
 //
-#include "SbLib.h"
+#include "defines.h"
 #include "network.h"
+#include "SbLib.h"
+#include "StdRaum.h"
+
+#include <SDL_timer.h>
 
 /////////////////////////////////////////////////////////////////////////////
 // NewGamePopup window

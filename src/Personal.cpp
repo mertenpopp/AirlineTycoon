@@ -3,8 +3,12 @@
 //============================================================================================
 // Link: "Personal.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "Personal.h"
+
+#include "global.h"
 #include "glpers.h"
+#include "helper.h"
+#include "Proto.h"
 
 #define AT_Log(...) // AT_Log_I("Personal", __VA_ARGS__)
 

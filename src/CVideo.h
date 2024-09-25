@@ -1,5 +1,8 @@
 #pragma once
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CVideo : public CStdRaum {
     // Construction
   public:
@@ -23,7 +26,7 @@ class CVideo : public CStdRaum {
   public:
     virtual ~CVideo();
 
-    virtual void OnVideoDone()   {}
+    virtual void OnVideoDone() {}
     virtual void OnVideoCancel() {}
 
     // Generated message map functions

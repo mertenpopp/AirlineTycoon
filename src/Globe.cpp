@@ -3,9 +3,12 @@
 //============================================================================================
 // Link: "Globe.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "glglobe.h"
 #include "glglobea.h"
+#include "global.h"
+#include "Globe.h"
+#include "glstd.h"
+#include "Proto.h"
 
 #define GFX_GLOBE (0x00000045424f4c47)
 #define GFX_GLASS (0x0000005353414c47)
@@ -355,7 +358,7 @@ void CGlobe::OnPaint() {
         ///////////////////////////////////////////////////////////////////////////////////////////
         //// Mouse evaluation                                                                  ////
         ///////////////////////////////////////////////////////////////////////////////////////////
-        
+
         // Is Cursor over Block?
         CurrentBlock = -1;
         IsInClientArea = FALSE;

@@ -3,9 +3,12 @@
 //============================================================================================
 // Link: "LastMin.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "LastMin.h"
+
 #include "AtNet.h"
 #include "gllast.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

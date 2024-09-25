@@ -1,4 +1,6 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
+
 #include <SDL_image.h>
 
 const char *ExcPrimarySurface = "CreatePrimarySurface failed";

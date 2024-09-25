@@ -3,8 +3,11 @@
 //============================================================================================
 // Link: "HLine.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "HLine.h"
+
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -132,7 +135,7 @@ void CHLObj::BlitAt(SB_CBitmapCore *pBitmap, XY Target) {
                         mov     ebx, JumpBuffer[eax*4]       ;Load Label-Table
                         jmp     ebx
 
-                                     // Gerade Anzahl kopieren:
+                                  // Gerade Anzahl kopieren:
                         CopyWords08: mov     eax, 8
 
                         mov     cl, [esi+7]
@@ -171,7 +174,7 @@ void CHLObj::BlitAt(SB_CBitmapCore *pBitmap, XY Target) {
                         mov     ebx, JumpBuffer[eax*4]       ;Load Label-Table
                         jmp     ebx
 
-                                     // Ungerade Anzahl kopieren:
+                                  // Ungerade Anzahl kopieren:
                         CopyWords07: mov     cl, [esi+6]
                         mov     bx, WORD PTR [edx+ecx*2]
                         shl     ebx, 16
@@ -563,7 +566,7 @@ void CHLPool::AddBitmap(__int64 graphicID, SB_CBitmapCore *pBitmap, PALETTE *Pal
             *reinterpret_cast<const __int64 *>("CONVERTD");
     }
 
-    //Ähnlichkeitstabelle berechnen:
+    // Ähnlichkeitstabelle berechnen:
     {
         SLONG x = 0;
         SLONG y = 0;

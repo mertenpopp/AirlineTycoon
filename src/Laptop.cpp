@@ -3,11 +3,15 @@
 //============================================================================================
 // Link: "Laptop.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "Laptop.h"
+
 #include "glglobe.h"
 #include "glglobeb.h"
 #include "glglobec.h"
 #include "glglobed.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #define RDTSC __asm _emit 0x0F __asm _emit 0x31
 

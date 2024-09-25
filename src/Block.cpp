@@ -1,7 +1,16 @@
 //============================================================================================
 // Block.cpp : Routinen für den Notizblock der Spieler
 //============================================================================================
-#include "StdAfx.h"
+
+#include "class.h"
+#include "ColorFx.h"
+#include "defines.h"
+#include "global.h"
+#include "Globe.h"
+#include "helper.h"
+#include "Laptop.h"
+#include "Proto.h"
+#include "sbl.h"
 
 #include <climits>
 

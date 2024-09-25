@@ -3,6 +3,10 @@
 // Sabotage.h : Sabotageraum
 //============================================================================================
 
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
+
 class CSabotage : public CStdRaum {
     // Construction
   public:

@@ -1,8 +1,11 @@
 //============================================================================================
 // World.cpp : Telefonat mit den Niederlassungen
 //============================================================================================
-#include "StdAfx.h"
 #include "World.h"
+
+#include "ColorFx.h"
+#include "global.h"
+#include "Proto.h"
 
 #define GFX_SAT1 (0x0000000031544153)
 #define GFX_WORLD (0x000000444c524f57)

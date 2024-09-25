@@ -1,12 +1,19 @@
 //============================================================================================
 // Misc.cpp : Diverse Sachen
 //============================================================================================
-#include "StdAfx.h"
-#include <cmath>
+
+#include "ColorFx.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
+#include <SDL_filesystem.h>
+#include <SDL_timer.h>
 
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <locale>
 
