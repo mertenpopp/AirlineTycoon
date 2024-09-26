@@ -176,7 +176,6 @@ void CTafel::OnPaint() {
 // void CTafel::OnPaint()
 //--------------------------------------------------------------------------------------------
 void CTafel::RepaintZettel(SLONG n) {
-    SLONG p = 0;
     CTafelZettel *entry = TafelData.ByPositions[n];
     SBBM &LeereZettel = LeereZettelBms[n % 3];
 
@@ -219,7 +218,7 @@ void CTafel::RepaintZettel(SLONG n) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_LEFT, XY(13, 55 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 132));
             }
-            p += ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
                                       XY(ZettelBms[n].Size.x - 3, 132));
         }
     } else if (entry->Type == CTafelZettel::Type::GATE) {

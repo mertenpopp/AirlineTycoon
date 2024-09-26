@@ -272,8 +272,8 @@ void CSmackerClip::NextSyllable() {
         }
 
         char buffer[200];
-
-        strncpy(buffer, p, 200);
+        strncpy(buffer, p, sizeof(buffer));
+        buffer[sizeof(buffer) - 1] = '\0';
         char *pp = strchr(buffer, '|');
 
         if (pp != nullptr) {

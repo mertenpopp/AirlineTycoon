@@ -14,8 +14,8 @@
 
 #define AT_Log(...) AT_Log_I("Sim", __VA_ARGS__)
 
-// Für Menschen       Für Computer
-// Money    Credit    Money    Credit
+// Für Menschen     Für Computer
+// Money   Credit   Money    Credit
 static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                                                        // DIFF_FREEGAME
                             5000000, 0,        200000,  0,                                                        // DIFF_TUTORIAL
                             5000000, 0,        500000,  0,                                                        // FIRST

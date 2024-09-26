@@ -2596,7 +2596,6 @@ void CStdRaum::PostPaint() {
 
     XY p;
     SLONG c = 0;
-    SLONG Rand = 0;
 
     if ((IsDialogOpen() != 0) && (qPlayer.DialogWin != nullptr) && (PayingForCall != 0)) {
         if (SLONG((Sim.Time - LetzteEinheit) / 50) > (2 - UsingHandy) * 10 + (3 - Ferngespraech) * 60) {
@@ -3058,8 +3057,6 @@ void CStdRaum::PostPaint() {
                     }
                 }
             }
-        } else {
-            Rand++;
         }
     }
 
@@ -3068,8 +3065,6 @@ void CStdRaum::PostPaint() {
     } else if (gBroadcastBm.Size.y > 0) {
         ColorFX.BlitWhiteTrans(TRUE, gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10 - (10 - gBroadcastBm.Size.y) * 20, 10 + (10 - gBroadcastBm.Size.y) * 5));
     }
-
-    Rand = 0;
 
     if (bHandy == FALSE) {
         if ((ForceRedrawTip != 0) || CurrentTipType != LastTipType || LastTipId != CurrentTipId || CurrentTipIdPar1 != LastTipIdPar1 ||
@@ -3853,7 +3848,7 @@ void CStdRaum::OnPaint() { OnPaint(FALSE); }
 void CStdRaum::OnPaint(BOOL /*bHandyDialog*/) {
     ReferenceCursorPos = gMousePosition;
 
-    if ((PleaseCancelTextBubble != 0) && (bHandy == 0) || (CheatAutoSkip != 0)) {
+    if ((PleaseCancelTextBubble != 0 && bHandy == 0) || (CheatAutoSkip != 0)) {
         PleaseCancelTextBubble = FALSE;
         if (IsDialogOpen() != 0) {
             PreLButtonDown(WasLButtonDownPoint);
@@ -5522,7 +5517,7 @@ void CStdRaum::MenuRepaint() {
         for (c = 0; c < 6; c++) {
             CAuftrag &qAuftrag = AuslandsAuftraege[MenuPar1][c];
 
-            if (qAuftrag.Praemie != 0) {
+            if (qAuftrag.Praemie > 0) {
                 CITY &qVon = Cities[qAuftrag.VonCity];
                 CITY &qNach = Cities[qAuftrag.NachCity];
 

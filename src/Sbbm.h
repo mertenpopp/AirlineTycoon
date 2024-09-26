@@ -110,8 +110,6 @@ extern CBench Bench;
 extern SDL_Renderer *lpDD;
 extern SB_CBitmapMain *bitmapMain;
 
-XYZ DetectCurrentDisplayResolution(void);
-
 // Eine Teak Bitmap:
 class SBBM {
   public:

@@ -33,7 +33,7 @@ class CVideo : public CStdRaum {
   public:
     //{{AFX_MSG(COutro)
     void OnLButtonDown(UINT nFlags, CPoint point) override;
-    virtual void OnPaint();
+    void OnPaint() override;
     void OnRButtonDown(UINT nFlags, CPoint point) override;
     BOOL OnSetCursor(void *pWnd, UINT nHitTest, UINT message) override;
     void OnMouseMove(UINT nFlags, CPoint point) override;

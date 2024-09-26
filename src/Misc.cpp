@@ -37,7 +37,6 @@ const char TOKEN_STAT[] = "STAT";
 //--------------------------------------------------------------------------------------------
 // Liest eine Zeile aus einem Buffer aus:
 //--------------------------------------------------------------------------------------------
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 
 SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength) {
     SLONG c = 0;
@@ -1735,7 +1734,7 @@ CString Insert1000erDots(SLONG Value) {
         }
     }
 
-    sprintf(Tmp, "%i", Value);
+    snprintf(Tmp, sizeof(Tmp), "%i", Value);
 
     l = short(strlen(Tmp));
 
@@ -1784,7 +1783,7 @@ CString Insert1000erDots64(__int64 Value) {
         }
     }
 
-    sprintf(Tmp, "%lli", Value);
+    snprintf(Tmp, sizeof(Tmp), "%lli", Value);
 
     l = short(strlen(Tmp));
 

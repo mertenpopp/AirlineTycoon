@@ -1,6 +1,7 @@
 
 #include "BitStream.h"
 #include "defines.h"
+#include "global.h"
 #include "network.h"
 #include "SbLib.h"
 
@@ -384,6 +385,9 @@ void SBNetwork::SetProvider(SBProviderEnum type) {
     }
     case SBProviderEnum::SBNETWORK_ENET:
         mNetwork = new ENetNetwork();
+        break;
+    case SBProviderEnum::SBNETWORK_NONE:
+        TeakLibW_Exception(FNL, ExcNever);
         break;
     }
 

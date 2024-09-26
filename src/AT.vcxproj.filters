@@ -4,10 +4,7 @@
     <ClCompile Include="Sound.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Stdraum.cpp">
+    <ClCompile Include="StdRaum.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Synthese.cpp">
@@ -151,7 +148,7 @@
     <ClCompile Include="HLine.cpp">
       <Filter>Source Files\GFX</Filter>
     </ClCompile>
-    <ClCompile Include="Gameframe.cpp">
+    <ClCompile Include="GameFrame.cpp">
       <Filter>Source Files\GFX</Filter>
     </ClCompile>
     <ClCompile Include="AirportView.cpp">
@@ -305,7 +302,7 @@
     <ClInclude Include="Colorfx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Gameframe.h">
+    <ClInclude Include="GameFrame.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HLine.h">
@@ -327,9 +324,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SSE.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Stdraum.h">
@@ -632,23 +626,11 @@
     <ClInclude Include="Abend.h">
       <Filter>Header Files\Screens</Filter>
     </ClInclude>
-    <ClInclude Include="Blenden.h">
-      <Filter>Header Files\Old</Filter>
-    </ClInclude>
-    <ClInclude Include="Cblenden.h">
-      <Filter>Header Files\Old</Filter>
-    </ClInclude>
-    <ClInclude Include="cd_prot.h">
-      <Filter>Header Files\Old</Filter>
-    </ClInclude>
     <ClInclude Include="class.h">
       <Filter>Header Files\Defines</Filter>
     </ClInclude>
     <ClInclude Include="Credits.h">
       <Filter>Header Files\Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="fillfile.h">
-      <Filter>Header Files\Old</Filter>
     </ClInclude>
     <ClInclude Include="HalldiskMenu.h">
       <Filter>Header Files\Screens</Filter>
@@ -665,7 +647,7 @@
     <ClInclude Include="net.h">
       <Filter>Header Files\Defines</Filter>
     </ClInclude>
-    <ClInclude Include="NewgamePopup.h">
+    <ClInclude Include="NewGamePopup.h">
       <Filter>Header Files\Screens</Filter>
     </ClInclude>
     <ClInclude Include="Options.h">
@@ -673,9 +655,6 @@
     </ClInclude>
     <ClInclude Include="Outro.h">
       <Filter>Header Files\Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="SecurityManager.h">
-      <Filter>Header Files\Old</Filter>
     </ClInclude>
     <ClInclude Include="Synthese.h">
       <Filter>Header Files\Defines</Filter>

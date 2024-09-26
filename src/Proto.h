@@ -64,7 +64,9 @@ void UnloadCrashHandling(void);
 //--------------------------------------------------------------------------------------------
 // Misc.Cpp:
 //--------------------------------------------------------------------------------------------
+SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 CString RemoveAccents(CString str);
+SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
 SLONG GetAnzBits(ULONG Flags);
 DOUBLE GetAlphaFromXY(XY Delta);
 void DrawChart(SBBM &TipBm, ULONG Color, const BUFFER_V<SLONG> &Values, SLONG MinValue, SLONG MaxValue, const XY &TopLeft, const XY &TopRight,
@@ -82,7 +84,6 @@ SLONG AddToNthDigit(SLONG Value, SLONG Digit, SLONG Add);
 void SimpleMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 int AbortMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 
-DOUBLE GetFrameRate(void);
 CString ConvertDate2String(UWORD Date);
 UWORD ConvertString2Date(char *String);
 void DoAppPath(void);

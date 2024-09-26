@@ -8,9 +8,6 @@
 
 #include <sstream>
 
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
-
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
 extern SLONG SaveVersionSub;
@@ -101,8 +98,8 @@ void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
         CString Helper1 = strtok(nullptr, TabSeparator);
         CString Helper2 = strtok(nullptr, TabSeparator);
 
-        ULONG VonCity;
-        ULONG NachCity;
+        ULONG VonCity{};
+        ULONG NachCity{};
 
         const char *errorStr = "Tried to create route between %s and %s, but a city was not found: %s";
         try {

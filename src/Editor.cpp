@@ -10,8 +10,8 @@
 #include "Proto.h"
 
 #include <fstream>
-#include <string>
 #include <sstream>
+#include <string>
 
 #if __cplusplus < 201703L // If the version of C++ is less than 17
 #include <experimental/filesystem>
@@ -1017,7 +1017,7 @@ void CEditor::OnPaint() {
         wartungtext = StandardTexte.GetS(TOKEN_MISC, 8506); // gut
     }
     if (wartung > -10) {
-        wartungtext = StandardTexte.GetS(TOKEN_MISC, 8505); //über normal
+        wartungtext = StandardTexte.GetS(TOKEN_MISC, 8505); // über normal
     }
     if (wartung >= 0) {
         wartungtext = StandardTexte.GetS(TOKEN_MISC, 8504); // normal
