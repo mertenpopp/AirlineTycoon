@@ -1006,7 +1006,7 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
                     // Anzahl+=min(Sim.Date-3-(PlayerNum+2)%4, PlaneTypes[qPlane.TypeId].AnzBegleiter);
 
                     // Durchschnittlich 80%
-                    NumServicePoints += (80 - 50) / 15;
+                    NumServicePoints += Anzahl * ((80 - 50) / 15);
                 }
             }
         } else {
