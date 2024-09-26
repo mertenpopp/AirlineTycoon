@@ -483,7 +483,7 @@ BOOL SBPRIMARYBM::BlitFrom(SBBM & /*TecBitmap*/, SLONG /*tx*/, SLONG /*ty*/, SLO
 BOOL SBPRIMARYBM::BlitFromT(SBBM & /*TecBitmap*/, XY /*p1*/, XY /*p2*/) { return 0; }
 BOOL SBPRIMARYBM::BlitFromT(SBBM & /*TecBitmap*/, SLONG /*tx*/, SLONG /*ty*/, SLONG /*tx2*/, SLONG /*ty2*/) { return 0; }
 
-void SBPRIMARYBM::Flip(XY WindowPos, BOOL /*ShowFPS*/) {
+void SBPRIMARYBM::Flip(XY /*WindowPos*/, BOOL /*ShowFPS*/) {
     if (gFramesToDrawBeforeFirstBlend == 0 && gBlendState != -1 && (Sim.Options.OptionBlenden != 0) && (bLeaveGameLoop == 0)) {
         if (gBlendState == -2) {
             gBlendState = 8;

@@ -19,8 +19,3 @@ SLONG CalcInertiaVelocity(SLONG a, SLONG b) {
 }
 
 SLONG Calc1nSum(SLONG a) { return a * (a + 1) / 2; }
-
-DOUBLE GetFrameRate() {
-    TeakLibW_Exception(FNL, ExcNotImplemented);
-    return 42.0;
-}

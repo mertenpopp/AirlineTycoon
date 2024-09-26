@@ -11,8 +11,6 @@
 
 extern SB_CColorFX ColorFX;
 
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-
 //--------------------------------------------------------------------------------------------
 // Die Ausmaße einer Brick-Bitmap zurückgeben:
 //--------------------------------------------------------------------------------------------

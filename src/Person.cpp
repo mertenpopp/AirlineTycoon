@@ -17,8 +17,6 @@ extern SB_CColorFX ColorFX;
 static char THIS_FILE[] = __FILE__;
 #endif
 
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
 extern SLONG SaveVersionSub;
@@ -519,7 +517,7 @@ UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
         const bool isClanBrowned = clan.Type == CLAN_BROWNFEMALE || clan.Type == CLAN_BROWNMALE;
         const bool isNotClanBrowned = clan.Type == CLAN_FEMALE || clan.Type == CLAN_MALE;
 
-        if (clan.TodayInGame != 0 && (Koffer == sign(clan.HasSuitcase) || (Koffer == 99 && clan.HasSuitcase <= 0)) && (isNotClanBrowned && Browned != 2) ||
+        if ((clan.TodayInGame != 0 && (Koffer == sign(clan.HasSuitcase) || (Koffer == 99 && clan.HasSuitcase <= 0)) && (isNotClanBrowned && Browned != 2)) ||
             (isClanBrowned && Browned != 0)) {
             Num += clan.Wkeit;
 

@@ -19,9 +19,6 @@ extern SLONG ReifenCosts[];
 extern SLONG ElektronikCosts[];
 extern SLONG SicherheitCosts[];
 
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
-
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
 extern SLONG SaveVersionSub;

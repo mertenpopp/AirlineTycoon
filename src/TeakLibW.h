@@ -14,7 +14,6 @@ extern char *bprintf(char const *, ...);
 extern char *bitoa(SLONG);
 extern char *bitoa(long);
 extern char *bitoa(long long);
-extern void here(char *, SLONG);
 
 extern const char *ExcAssert;
 extern const char *ExcGuardian;
@@ -550,9 +549,9 @@ class CRLEWriter {
     SLONG Key;           // Will always be 0xA5
     const char Magic[6]; // Will always be xtRLE
 
-    BYTE Sequence[132];
+    const char *Path{};
 
-    const char *Path;
+    BYTE Sequence[132];
 };
 
 class TEAKRAND {
@@ -780,7 +779,6 @@ struct TEXTRES_CACHE_ENTRY {
 class TEXTRES {
   public:
     TEXTRES();
-    TEXTRES(char const *, void *);
     ~TEXTRES(void);
 
     void Open(char const *source);
@@ -788,7 +786,14 @@ class TEXTRES {
     char *GetP(ULONG, ULONG);
     char *GetS(ULONG, ULONG);
 
-    char *GetS(char const *c, ULONG i) { return GetS(*(const ULONG *)c, i); }
+    char *GetS(char const *c, ULONG i) {
+        ULONG code{};
+        code |= ((ULONG)c[0] << 0);
+        code |= ((ULONG)c[1] << 8);
+        code |= ((ULONG)c[2] << 16);
+        code |= ((ULONG)c[3] << 24);
+        return GetS(code, i);
+    }
 
     void SetOverrideFile(char const *c);
 
@@ -809,6 +814,8 @@ class TEXTRES {
 
 #define VIDRAMBM (void *)1
 #define SYSRAMBM (void *)2
+
+XYZ DetectCurrentDisplayResolution(void);
 
 class TECBM {
   public:

@@ -28,13 +28,10 @@ SB_CColorFX::SB_CColorFX(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bi
 void SB_CColorFX::ReInit(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bitmap) {
     SLONG c = 0;
     SLONG d = 0;
-    SLONG AnzRBits = 0;
     SLONG ShiftR = 0;
     SLONG MaskR = 0;
-    SLONG AnzGBits = 0;
     SLONG ShiftG = 0;
     SLONG MaskG = 0;
-    SLONG AnzBBits = 0;
     SLONG ShiftB = 0;
     SLONG MaskB = 0;
 
@@ -45,19 +42,16 @@ void SB_CColorFX::ReInit(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bi
 
     for (c = 0; c < 32; c++) {
         if ((MaskR & (1 << c)) != 0) {
-            AnzRBits++;
             if (c > ShiftR) {
                 ShiftR = c;
             }
         }
         if ((MaskG & (1 << c)) != 0) {
-            AnzGBits++;
             if (c > ShiftG) {
                 ShiftG = c;
             }
         }
         if ((MaskB & (1 << c)) != 0) {
-            AnzBBits++;
             if (c > ShiftB) {
                 ShiftB = c;
             }

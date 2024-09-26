@@ -222,7 +222,6 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_MISC, 4120));
 
         const bool usesMidi = Sim.Options.OptionMusicType == 1;
-        const bool usesOgg = Sim.Options.OptionMusicType == 2;
         SLONG musicShift = usesMidi ? -1 : 0;
 
         KlackerTafel.PrintAt(0, 2, ModdedTexte.GetS(TOKEN_MISC, 20 + Sim.Options.OptionMusicType));
@@ -376,9 +375,6 @@ void Options::OnPaint() {
     if (TimerFailure != 0) {
         KlackerTafel.Klack(); // Tafel notfalls asynchron aktualisieren
     }
-
-    static SLONG cnt = 0;
-    cnt++;
 
     // Die Standard Paint-Sachen kann der Basisraum erledigen
     CStdRaum::OnPaint();

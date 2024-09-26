@@ -96,26 +96,26 @@ void HDU::HercPrintfMsg(SDL_LogPriority lvl, const char *origin, const char *for
     std::string prefix{};
     std::string suffix{};
     if (lvl == SDL_LOG_PRIORITY_ERROR) {
-        int size = snprintf(nullptr, 0, "\e[1;31m#%d %s || ", numErrors, origin) + 1;
+        int size = snprintf(nullptr, 0, "\033[1;31m#%d %s || ", numErrors, origin) + 1;
         std::unique_ptr<char[]> buf(new char[size]);
-        snprintf(buf.get(), size, "\e[1;31m#%d %s || ", numErrors, origin);
+        snprintf(buf.get(), size, "\033[1;31m#%d %s || ", numErrors, origin);
         prefix = {buf.get(), buf.get() + size - 1};
 
-        suffix = "\e[m";
+        suffix = "\033[m";
     } else if (lvl == SDL_LOG_PRIORITY_WARN) {
-        int size = snprintf(nullptr, 0, "\e[1;33m#%d %s || ", numWarnings, origin) + 1;
+        int size = snprintf(nullptr, 0, "\033[1;33m#%d %s || ", numWarnings, origin) + 1;
         std::unique_ptr<char[]> buf(new char[size]);
-        snprintf(buf.get(), size, "\e[1;33m#%d %s || ", numWarnings, origin);
+        snprintf(buf.get(), size, "\033[1;33m#%d %s || ", numWarnings, origin);
         prefix = {buf.get(), buf.get() + size - 1};
 
-        suffix = "\e[m";
+        suffix = "\033[m";
     } else {
-        int size = snprintf(nullptr, 0, "\e[1;32m%s || ", origin) + 1;
+        int size = snprintf(nullptr, 0, "\033[1;32m%s || ", origin) + 1;
         std::unique_ptr<char[]> buf(new char[size]);
-        snprintf(buf.get(), size, "\e[1;32m%s || ", origin);
+        snprintf(buf.get(), size, "\033[1;32m%s || ", origin);
         prefix = {buf.get(), buf.get() + size - 1};
 
-        suffix = "\e[m";
+        suffix = "\033[m";
     }
 
     va_list args;
@@ -123,8 +123,6 @@ void HDU::HercPrintfMsg(SDL_LogPriority lvl, const char *origin, const char *for
     SDL_LogMessageV(SDL_LOG_CATEGORY_APPLICATION, lvl, (prefix + format + suffix).c_str(), args);
     va_end(args);
 }
-
-void here(char *file, SLONG line) { AT_Info("Here in %s, line %li", file, line); }
 
 SLONG TeakLibW_Exception(const char *file, SLONG line, const char *format, ...) {
     char buffer[128];

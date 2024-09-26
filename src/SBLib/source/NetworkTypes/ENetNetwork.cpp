@@ -1,6 +1,8 @@
-#include "SbLib.h"
-#include "network.h"
 #include "ENetNetwork.hpp"
+
+#include "global.h"
+#include "network.h"
+#include "SbLib.h"
 
 ENetNetwork::ENetNetwork() : mServer(), mHost(nullptr), mMaster(nullptr), mSocket() {
     TEAKRAND rand;
@@ -145,6 +147,10 @@ SLONG ENetNetwork::GetMessageCount() {
 
             /* Reset the peer's client information. */
             event.peer->data = NULL;
+
+        case ENET_EVENT_TYPE_NONE:
+            TeakLibW_Exception(FNL, ExcNever);
+            break;
         }
     }
 

@@ -13,6 +13,8 @@ const char *ExcRead = "Can't read %s!";
 const char *ExcWrite = "Can't write %s!";
 const char *ExcSeek = "Can't seek %s at %li!";
 
+BOOL isCRLE(char const *path);
+
 TEAKFILE::TEAKFILE()
     : Ctx(nullptr), Path(nullptr), MemPointer(0), MemBufferUsed(0)
 

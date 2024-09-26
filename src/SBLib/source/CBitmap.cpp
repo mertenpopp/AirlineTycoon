@@ -148,7 +148,6 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
     int py = 0;
     int xe = 0;
     int ye = 0;
-    int i = 0;
     dx = x2 - x1;
     dy = y2 - y1;
     dx1 = fabs(dx);
@@ -166,7 +165,7 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
             xe = x1;
         }
         SetPixel(x, y, hwcolor);
-        for (i = 0; x < xe; i++) {
+        while (x < xe) {
             x = x + 1;
             if (px < 0) {
                 px = px + 2 * dy1;
@@ -191,7 +190,7 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
             ye = y1;
         }
         SetPixel(x, y, hwcolor);
-        for (i = 0; y < ye; i++) {
+        while (y < ye) {
             y = y + 1;
             if (py <= 0) {
                 py = py + 2 * dx1;

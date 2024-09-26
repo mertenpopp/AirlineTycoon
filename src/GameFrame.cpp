@@ -2018,13 +2018,6 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
             CheatSound();
         }
 
-        if (nChar == ATKEY_F5) {
-            SLONG x = 0;
-            x++;
-
-            // SecurityFlags
-        }
-
         // ATMISSALL
         if (TypeBuffer[21] == 'A' && TypeBuffer[22] == 'T' && TypeBuffer[23] == 'M' && TypeBuffer[24] == 'I' && TypeBuffer[25] == 'S' &&
             TypeBuffer[26] == 'S' && TypeBuffer[27] == 'A' && TypeBuffer[28] == 'L' && TypeBuffer[29] == 'L') {

@@ -183,4 +183,4 @@ void CVideo::OnMouseMove(UINT nFlags, CPoint point) { FrameWnd->OnMouseMove(nFla
 //--------------------------------------------------------------------------------------------
 // void CVideo::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 //--------------------------------------------------------------------------------------------
-void CVideo::OnKeyDown(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/) { OnVideoCancel(); }
+void CVideo::OnKeyDown(UINT /*nChar*/, UINT /*nRepCnt*/, UINT /*nFlags*/) { OnVideoCancel(); }

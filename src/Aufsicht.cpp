@@ -26,8 +26,6 @@ extern SB_CColorFX ColorFX;
 //--------------------------------------------------------------------------------------------
 CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum, "aufsicht.gli", GFX_AUFSICHT) {
     SLONG c = 0;
-    SLONG d = 0;
-    SLONG e = 0;
 
     Sim.ShowExtrablatt = -1;
     Sim.FocusPerson = -1;

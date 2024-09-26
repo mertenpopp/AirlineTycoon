@@ -472,15 +472,27 @@ TEAKFILE &operator<<(TEAKFILE &File, const CBilanz &Bilanz) {
 TEAKFILE &operator>>(TEAKFILE &File, CBilanz &Bilanz) {
     if (SaveVersionSub < 200) {
         // old save version used SLONG and not long long
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wundefined-reinterpret-cast"
-#define COMP(x) (reinterpret_cast<SLONG &>(x))
-        File >> COMP(Bilanz.HabenZinsen) >> COMP(Bilanz.Tickets) >> COMP(Bilanz.Auftraege);
-        File >> COMP(Bilanz.HabenRendite) >> COMP(Bilanz.SollRendite);
-        File >> COMP(Bilanz.SollZinsen) >> COMP(Bilanz.KerosinGespart) >> COMP(Bilanz.Personal);
-        File >> COMP(Bilanz.Vertragsstrafen) >> COMP(Bilanz.Wartung) >> COMP(Bilanz.Gatemiete);
-        File >> COMP(Bilanz.Citymiete) >> COMP(Bilanz.Routenmiete);
-#pragma GCC diagnostic pop
+        SLONG HabenZinsen, Tickets, Auftraege, HabenRendite, SollRendite, SollZinsen, KerosinGespart;
+        SLONG Personal, Vertragsstrafen, Wartung, Gatemiete, Citymiete, Routenmiete;
+        File >> HabenZinsen >> Tickets >> Auftraege;
+        File >> HabenRendite >> SollRendite;
+        File >> SollZinsen >> KerosinGespart >> Personal;
+        File >> Vertragsstrafen >> Wartung >> Gatemiete;
+        File >> Citymiete >> Routenmiete;
+
+        Bilanz.HabenZinsen = HabenZinsen;
+        Bilanz.Tickets = Tickets;
+        Bilanz.Auftraege = Auftraege;
+        Bilanz.HabenRendite = HabenRendite;
+        Bilanz.SollRendite = SollRendite;
+        Bilanz.SollZinsen = SollZinsen;
+        Bilanz.KerosinGespart = KerosinGespart;
+        Bilanz.Personal = Personal;
+        Bilanz.Vertragsstrafen = Vertragsstrafen;
+        Bilanz.Wartung = Wartung;
+        Bilanz.Gatemiete = Gatemiete;
+        Bilanz.Citymiete = Citymiete;
+        Bilanz.Routenmiete = Routenmiete;
 
         return (File);
     }

@@ -521,8 +521,6 @@ void AirportView::OnPaint() {
     ULONG d = 0;
     ULONG t1 = 0;
     ULONG t2 = 0;
-    static SLONG Pos = 0;
-    static UWORD Alpha = 0;
     static UBYTE FlackerCount = 0;
     static SLONG ParallaxIndex[5] = {-1, -1, -1, -1, -1}; // Die direkten Brick Indices fürs Paralax
     XY &ViewPos = Sim.Players.Players[PlayerNum].ViewPos;
@@ -555,8 +553,6 @@ void AirportView::OnPaint() {
     SLONG RouteBoxIndex = Bricks(static_cast<SLONG>(0x10000000) + 421);
 
     SLONG RightClip = 640;
-
-    SLONG AnzElements = 0;
 
     SLONG cnt = 0;
     for (c = 0; c < static_cast<ULONG>(Sim.AirportSmacks.AnzEntries()); c++) {
@@ -670,7 +666,6 @@ void AirportView::OnPaint() {
             }
         }
 
-        Alpha += 256;
         FlackerCount++;
 
         if ((PersonsToAdd != 0) && rand() % 4 == 0 && Sim.Persons.GetNumFree() > 20) {
@@ -761,7 +756,6 @@ void AirportView::OnPaint() {
                                                                     d * (sizes[0] + sizes[1]),
                                                                 WinP1.y - 18 + 18);
                                 BrickWait[ParallaxIndex[0]].Stop();
-                                AnzElements++;
                             }
                         }
 
@@ -771,7 +765,6 @@ void AirportView::OnPaint() {
                                 Bricks[ParallaxIndex[2]].BlitAt(PrimaryBm, 0, ((100000 - (ViewPos.x * 30)) >> 6) % sizes[2] - sizes[2] + d * sizes[2],
                                                                 WinP1.y - 18 + 18 + 34);
                                 BrickWait[ParallaxIndex[2]].Stop();
-                                AnzElements++;
                             }
                         }
 
@@ -781,7 +774,6 @@ void AirportView::OnPaint() {
                                 Bricks[ParallaxIndex[3]].BlitAt(PrimaryBm, 0, ((100000 - (ViewPos.x * 42)) >> 6) % sizes[3] - sizes[3] + d * sizes[3],
                                                                 WinP1.y - 18 + 18 + 34 + 44);
                                 BrickWait[ParallaxIndex[3]].Stop();
-                                AnzElements++;
                             }
                         }
 
@@ -791,7 +783,6 @@ void AirportView::OnPaint() {
                                 Bricks[ParallaxIndex[4]].BlitAt(PrimaryBm, 0, ((100000 - (ViewPos.x * 56)) >> 6) % sizes[4] - sizes[4] + d * sizes[4],
                                                                 WinP1.y - 18 + 18 + 34 + 44 + 72);
                                 BrickWait[ParallaxIndex[4]].Stop();
-                                AnzElements++;
                             }
                         }
                     }
@@ -1207,8 +1198,6 @@ void AirportView::OnPaint() {
                                 }
                             }
 
-                            AnzElements++;
-
                             // Durchleuchter-screen blitten?
                             if (Editor != EDITOR_BUILDS && BrickId == ScannerIndex) {
                                 XY p = qBuild.ScreenPos - ViewPos + WinP1;
@@ -1456,8 +1445,6 @@ void AirportView::OnPaint() {
             if (Editor != EDITOR_NONE) {
                 PrimaryBm.BlitFrom(StatusLineBms[Editor], WinP1.x, WinP2.y - StatusLineSizeY);
             }
-
-            Pos++;
         }
     }
 }
@@ -2283,7 +2270,7 @@ void AIRPORT::GetRandomShop(XY &ReturnPosition, SLONG &ReturnStatePar, SLONG Cla
             Buffer[Anz++] = c;
             if (Anz == 20) {
                 hprintf(0, "Buffer exceded!");
-                here(FNL);
+                TeakLibW_Exception(FNL, ExcNever);
                 break;
             }
         }
@@ -2555,7 +2542,7 @@ XY AIRPORT::GetRandomTypedRune(ULONG BrickId, UBYTE Par, bool AcceptError, TEAKR
             Buffer[Anz++] = c;
             if (Anz == 20) {
                 hprintf(0, "Buffer exceded!");
-                here(FNL);
+                TeakLibW_Exception(FNL, ExcNever);
                 break;
             }
         }

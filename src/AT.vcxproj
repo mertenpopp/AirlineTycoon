@@ -31,7 +31,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -230,7 +230,7 @@
     </ClCompile>
     <ClCompile Include="Fracht.cpp">
     </ClCompile>
-    <ClCompile Include="Gameframe.cpp">
+    <ClCompile Include="GameFrame.cpp">
     </ClCompile>
     <ClCompile Include="Global.cpp">
     </ClCompile>
@@ -264,7 +264,7 @@
     </ClCompile>
     <ClCompile Include="Nasa.cpp">
     </ClCompile>
-    <ClCompile Include="NewgamePopup.cpp">
+    <ClCompile Include="NewGamePopup.cpp">
     </ClCompile>
     <ClCompile Include="Options.cpp">
     </ClCompile>
@@ -308,9 +308,7 @@
     </ClCompile>
     <ClCompile Include="Statistk.cpp">
     </ClCompile>
-    <ClCompile Include="stdafx.cpp">
-    </ClCompile>
-    <ClCompile Include="Stdraum.cpp">
+    <ClCompile Include="StdRaum.cpp">
     </ClCompile>
     <ClCompile Include="Synthese.cpp">
     </ClCompile>
@@ -369,10 +367,7 @@
     <ClInclude Include="AtNet.h" />
     <ClInclude Include="Aufsicht.h" />
     <ClInclude Include="Bank.h" />
-    <ClInclude Include="Blenden.h" />
     <ClInclude Include="Buero.h" />
-    <ClInclude Include="Cblenden.h" />
-    <ClInclude Include="cd_prot.h" />
     <ClInclude Include="Checkup.h" />
     <ClInclude Include="class.h" />
     <ClInclude Include="Colorfx.h" />
@@ -382,9 +377,8 @@
     <ClInclude Include="Designer.h" />
     <ClInclude Include="DutyFree.h" />
     <ClInclude Include="Editor.h" />
-    <ClInclude Include="fillfile.h" />
     <ClInclude Include="Fracht.h" />
-    <ClInclude Include="Gameframe.h" />
+    <ClInclude Include="GameFrame.h" />
     <ClInclude Include="glabend.h" />
     <ClInclude Include="glarab.h" />
     <ClInclude Include="glauf.h" />
@@ -462,7 +456,7 @@
     <ClInclude Include="Museum.h" />
     <ClInclude Include="Nasa.h" />
     <ClInclude Include="net.h" />
-    <ClInclude Include="NewgamePopup.h" />
+    <ClInclude Include="NewGamePopup.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="Outro.h" />
     <ClInclude Include="Personal.h" />
@@ -479,11 +473,9 @@
     <ClInclude Include="sbl.h" />
     <ClInclude Include="Schedule.h" />
     <ClInclude Include="Security.h" />
-    <ClInclude Include="SecurityManager.h" />
     <ClInclude Include="Smackprs.h" />
     <ClInclude Include="SSE.h" />
     <ClInclude Include="Statistk.h" />
-    <ClInclude Include="stdafx.h" />
     <ClInclude Include="Stdraum.h" />
     <ClInclude Include="stdstring.h" />
     <ClInclude Include="Synthese.h" />

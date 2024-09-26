@@ -1429,7 +1429,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
             case 9304:
             case 9403:
             case 9404:
-                MenuStart(MENU_GAMEOVER, static_cast<SLONG>(static_cast<SLONG>(qPlayer.HasWon()) == 0));
+                MenuStart(MENU_GAMEOVER, static_cast<SLONG>(qPlayer.HasWon() == false));
                 hprintf("Event: Mission abgeschlossen, Spiel wird beendet.");
                 break;
 
