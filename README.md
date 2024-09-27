@@ -29,11 +29,11 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 
 ## Changes
 
-General:
+### General
 * Now runnable on Linux
 * Allow the game to be ran Windowed / Borderless / Fullscreen
 
-Statistics screen:
+### Statistics screen
 * Showing far more categories where money was spent
    * For example income from freight jobs, total tons transported, money spent on planes, sabotage or stocks and money gained from interest, credit or stocks
 * Accurate summation of money spent
@@ -43,17 +43,17 @@ Statistics screen:
 * Fix rendering of graph when zooming out
 * Fix display of mission target
 
-Information menu:
+### Information menu
 * Much more information on balance sheet depending on skill of your financial advisor
 * New financial summary for quick assessment of the financial health of your airline (e.g. operating profit)
 * Multiple balance sheets (for previous day / week / overall)
 * More information from spy (e.g. weekly balance and financial summary for each competitor)
 * Detailed information from kerosene advisor (quality / value of kerosene, money saved by using tanks)
 
-Option menu:
+### Option menu
 * Game Speed is adjustable in options menu. Available values: 1, 5, 10, 15, 20, 25, 30 (default value). The hosts game speed is synced to clients in a network game.
 
-Keyboard navigation:
+### Keyboard navigation
 * Allow Enter/Backspace in calculator
 * Enable keyboard navigation in Laptop / Globe (arrow keys)
 * Enable keyboard navigation in HR folder
@@ -65,7 +65,7 @@ Keyboard navigation:
 * Adjust route ticket prices in larger steps (using Shift/Ctrl)
 * Arrow key navigation for many different menus
 
-Employees:
+### Employees
 * More pilots/attendants available for hire
 * Slightly increase competence of randomly generated employees
 * Generate randomized advisors as well
@@ -76,7 +76,7 @@ Employees:
 * The 10% change when increasing/decreasing salary now always refers to the original salary
 * Regularly increase worker happiness if company image is great
 
-Kerosene:
+### Kerosene
 * Adjust impact of bad kerosene:
     * Now depends on ratio of bad kerosene in tank (quadratic function now instead of yes/no)
     * Amount of plane damage due to bad kerosene increased
@@ -85,7 +85,7 @@ Kerosene:
 * ArabAir offers much larger kerosene tanks
 * Do not remember selected kerosene quality for auto purchase (was an undocumented and convoluted 'feature')
 
-Bug fixes:
+### Bug fixes
 * Fixed frozen windows on laptop
 * Integer overflow fixed when emitting lots of stock (resulted in loosing money when emitting)
 * Fixed formula for credit limit
@@ -122,7 +122,7 @@ Bug fixes:
 * Evolution mission 02: Only need to have five planes with full safety upgrades, not all of them in case more than five were bought
 * Fixed many random crashes
 
-AI:
+### AI
 * Uses now same credit limit
 * Uses now same rules for trading stock
     * Trading fee (100 + 10% of volume) now also for computer players (fee existed only for player)
@@ -139,7 +139,7 @@ AI:
     * Computer players will switch to routes in most games eventually
     * Computer players however will use a small cheat that regularly improves their image
 
-Misc:
+### Misc
 * Reduce (~ half) cost of plane security upgrades
 * Spy reports enemy activity based on skill
 * ArabAir opens one hour earlier
