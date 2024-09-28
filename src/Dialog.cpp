@@ -3052,45 +3052,33 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CanCancelEmpty = TRUE;
             } break;
             case 8801: {
-                bool bAnywon = false;
+                SLONG Anz = 0;
                 SLONG won = -1;
-                SLONG c = 0;
-                SLONG d = -1;
+                SLONG best = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
-                            bAnywon = true;
                             won = c;
+                            Anz++;
+                            if (c == PlayerNum && Sim.MaxDifficulty3 < DIFF_ATFS05) {
+                                Sim.Options.OptionLastMission3 = DIFF_ATFS05;
+                                Sim.MaxDifficulty3 = DIFF_ATFS05;
+                                Sim.Options.WriteOptions();
+                            }
                         }
-                        if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
-                            d = c;
+                        if (best == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[best].GetMissionRating()) {
+                            best = c;
                         }
                     }
                 }
 
                 // Missionsziel erreicht?
-                if (!bAnywon) {
+                if (Anz == 0) {
                     // Nein:
-                    MakeSayWindow(0, TOKEN_BOSS, 8802, pFontPartner, (LPCTSTR)Sim.Players.Players[d].AirlineX);
+                    MakeSayWindow(0, TOKEN_BOSS, 8802, pFontPartner, (LPCTSTR)Sim.Players.Players[best].AirlineX);
                 } else {
                     // Ja: Hat es einer erreicht, oder mehrere?
-                    SLONG c = 0;
-                    SLONG Anz = 0;
-
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
-                        if (Sim.Players.Players[c].IsOut == 0) {
-                            if (Sim.Players.Players[c].HasWon() != 0) {
-                                Anz++;
-                                if (c == PlayerNum && Sim.MaxDifficulty3 < DIFF_ATFS05) {
-                                    Sim.Options.OptionLastMission3 = DIFF_ATFS05;
-                                    Sim.MaxDifficulty3 = DIFF_ATFS05;
-                                    Sim.Options.WriteOptions();
-                                }
-                            }
-                        }
-                    }
-
                     if (Anz == 1) {
                         MakeSayWindow(0, TOKEN_BOSS, 8803, pFontPartner, (LPCTSTR)Sim.Players.Players[won].AirlineX);
                     } else {
@@ -3226,41 +3214,35 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CanCancelEmpty = TRUE;
             } break;
             case 9001: {
-                SLONG c = 0;
-                SLONG d = -1;
+                SLONG Anz = 0;
+                SLONG won = -1;
+                SLONG best = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
-                        if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
-                            d = c;
+                        if (Sim.Players.Players[c].HasWon() != 0) {
+                            won = c;
+                            Anz++;
+                            if (c == PlayerNum && Sim.MaxDifficulty3 < DIFF_ATFS07) {
+                                Sim.Options.OptionLastMission3 = DIFF_ATFS07;
+                                Sim.MaxDifficulty3 = DIFF_ATFS07;
+                                Sim.Options.WriteOptions();
+                            }
+                        }
+                        if (best == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[best].GetMissionRating()) {
+                            best = c;
                         }
                     }
                 }
 
                 // Missionsziel erreicht?
-                if (Sim.Players.Players[d].HasWon() == 0) {
+                if (Anz == 0) {
                     // Nein:
-                    MakeSayWindow(0, TOKEN_BOSS, 9002, pFontPartner, (LPCTSTR)Sim.Players.Players[d].AirlineX);
+                    MakeSayWindow(0, TOKEN_BOSS, 9002, pFontPartner, (LPCTSTR)Sim.Players.Players[best].AirlineX);
                 } else {
                     // Ja: Hat es einer erreicht, oder mehrere?
-                    SLONG c = 0;
-                    SLONG Anz = 0;
-
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
-                        if (Sim.Players.Players[c].IsOut == 0) {
-                            if (Sim.Players.Players[c].HasWon() != 0) {
-                                Anz++;
-                                if (c == PlayerNum && Sim.MaxDifficulty3 < DIFF_ATFS07) {
-                                    Sim.Options.OptionLastMission3 = DIFF_ATFS07;
-                                    Sim.MaxDifficulty3 = DIFF_ATFS07;
-                                    Sim.Options.WriteOptions();
-                                }
-                            }
-                        }
-                    }
-
                     if (Anz == 1) {
-                        MakeSayWindow(0, TOKEN_BOSS, 9003, pFontPartner, (LPCTSTR)Sim.Players.Players[d].AirlineX);
+                        MakeSayWindow(0, TOKEN_BOSS, 9003, pFontPartner, (LPCTSTR)Sim.Players.Players[won].AirlineX);
                     } else {
                         CString tmp;
 
