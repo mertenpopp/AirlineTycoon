@@ -10,26 +10,19 @@ const char *ExcTextResFormat = "Bad TextRes format: %s (%li)";
 const char *ExcTextResNotFound = "The following translation was not found: %s>>%li";
 
 SLONG gLanguage;
-const std::string allLanguageTokens = "DEFTPNISOBJKLMNQRTUV";
 
-std::string FindLanguageInString(const char* Dst, const SLONG wantedLanguageIndex) {
-
-    const std::string targetLanguageToken(1, allLanguageTokens[wantedLanguageIndex]);
-    std::regex languageTextPattern("^.*" + targetLanguageToken + "::(.*?)(?:[" + allLanguageTokens + "]::.*)?$");
-
+std::string TEXTRES::FindLanguageInString(const char *Dst, const SLONG wantedLanguageIndex) {
     std::smatch match;
     std::string s(Dst);
-    if (std::regex_search(s, match, languageTextPattern)) {
+    if (std::regex_search(s, match, mLanguageTextPatterns[wantedLanguageIndex])) {
         return match[1];
-    } else {
-        return "";
     }
+    return {};
 }
 
-void LanguageSpecifyString(char *Dst) {
-    SLONG wantedLanguageIndex = min(gLanguage, allLanguageTokens.length());
-
-    if (wantedLanguageIndex != gLanguage) {
+void TEXTRES::LanguageSpecifyString(char *Dst) {
+    SLONG wantedLanguageIndex = gLanguage;
+    if (wantedLanguageIndex >= mLanguageTextPatterns.size()) {
         static bool warned = false;
         if (!warned) {
             AT_Log("Language %li not found, using fallback english", gLanguage);
@@ -54,7 +47,16 @@ void LanguageSpecifyString(char *Dst) {
     Dst[foundText.length()] = 0;
 }
 
-TEXTRES::TEXTRES() = default;
+TEXTRES::TEXTRES() {
+    const std::string allLanguageTokens = "DEFTPNISOBJKLMNQRTUV";
+    mLanguageTextPatterns.reserve(allLanguageTokens.size());
+
+    static char buffer[30];
+    for (const char &c : allLanguageTokens) {
+        snprintf(buffer, sizeof(buffer), "^.*%c::(.*?)(?:[%c]::.*)?$", c, c);
+        mLanguageTextPatterns.emplace_back(buffer);
+    }
+}
 
 TEXTRES::~TEXTRES() {
     if (hasOverride) {
