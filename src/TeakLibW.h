@@ -1,5 +1,6 @@
 #pragma once
 
+#include <regex>
 #include <vector>
 
 extern void memswap(void *, void *, ULONG);
@@ -776,6 +777,10 @@ class TEXTRES {
 
   private:
     char *FindOverridenS(ULONG, ULONG);
+    std::string FindLanguageInString(const char *Dst, const SLONG wantedLanguageIndex);
+    void LanguageSpecifyString(char *Dst);
+
+    std::vector<std::regex> mLanguageTextPatterns;
 
     BUFFER_V<char> Path;
     BUFFER_V<char> Strings;
