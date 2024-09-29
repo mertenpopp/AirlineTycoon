@@ -627,7 +627,7 @@ SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, 
 void InitEinheiten(const CString &Filename) {
     SLONG c = 0;
 
-    ETexte.Open(Filename, TEXTRES_CACHED);
+    ETexte.Open(Filename);
 
     Einheiten.ReSize(14);
 

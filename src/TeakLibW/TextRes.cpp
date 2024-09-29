@@ -11,52 +11,54 @@ const char *ExcTextResNotFound = "The following translation was not found: %s>>%
 
 SLONG gLanguage;
 
-std::string TEXTRES::FindLanguageInString(const char *Dst, const SLONG wantedLanguageIndex) {
-    std::smatch match;
-    std::string s(Dst);
-    if (std::regex_search(s, match, mLanguageTextPatterns[wantedLanguageIndex])) {
-        return match[1];
+inline bool checkStartAnyLang(char *str) {
+    bool longEnough = (str && str[0] && str[1] && str[2]);
+    if (!longEnough) {
+        return false;
     }
-    return {};
+
+    return (str[1] == ':' && str[2] == ':');
 }
 
-void TEXTRES::LanguageSpecifyString(char *Dst) {
-    SLONG wantedLanguageIndex = gLanguage;
-    if (wantedLanguageIndex >= mLanguageTextPatterns.size()) {
-        static bool warned = false;
-        if (!warned) {
-            AT_Log("Language %li not found, using fallback english", gLanguage);
-            warned = true;
-        }
-
-        wantedLanguageIndex = 1;
+inline bool checkStartSpecificLang(char *str, char langIdent) {
+    bool longEnough = (str && str[0] && str[1] && str[2]);
+    if (!longEnough) {
+        return false;
     }
 
-    std::string foundText = FindLanguageInString(Dst, wantedLanguageIndex);
-    if (foundText.empty()) {
-        // If we haven't found the language we want, try English
-        foundText = FindLanguageInString(Dst, 1/*E - English*/);
-    }
+    return (str[0] == langIdent && str[1] == ':' && str[2] == ':');
+}
 
-    // If we still haven't found anything, just return
-    if (foundText.empty()) {
+void TEXTRES::LanguageSpecifyString(char *Dst, bool fallback) {
+    const char *langs = "DEFTPNISOBJKLMNQRTUV";
+    char lang = fallback ? 'E' : langs[gLanguage];
+
+    if (!checkStartAnyLang(Dst)) {
         return;
     }
 
-    memmove(Dst, foundText.c_str(), foundText.length());
-    Dst[foundText.length()] = 0;
-}
+    for (SLONG i = 0; Dst[i] != 0; ++i) {
+        if (checkStartSpecificLang(Dst + i, lang)) {
+            SLONG j = i + 2;
+            while ((Dst[j] != 0) && !checkStartAnyLang(Dst + j)) {
+                ++j;
+            }
+            memmove(Dst, &Dst[i + 3], j - i - 3);
+            Dst[j - i - 3] = 0;
+            if (j - i - 3 > 0 && Dst[j - i - 4] == 32) {
+                Dst[j - i - 4] = 0;
+            }
+            return;
+        }
+    }
 
-TEXTRES::TEXTRES() {
-    const std::string allLanguageTokens = "DEFTPNISOBJKLMNQRTUV";
-    mLanguageTextPatterns.reserve(allLanguageTokens.size());
-
-    static char buffer[30];
-    for (const char &c : allLanguageTokens) {
-        snprintf(buffer, sizeof(buffer), "^.*%c::(.*?)(?:[%c]::.*)?$", c, c);
-        mLanguageTextPatterns.emplace_back(buffer);
+    /* use english as a fallback */
+    if (!fallback) {
+        LanguageSpecifyString(Dst, true);
     }
 }
+
+TEXTRES::TEXTRES() { ResultStr.resize(0xFFF); }
 
 TEXTRES::~TEXTRES() {
     if (hasOverride) {
@@ -64,120 +66,117 @@ TEXTRES::~TEXTRES() {
     }
 };
 
-void TEXTRES::Open(char const *source, void *cached) {
+void TEXTRES::Open(char const *source) {
     Strings.Clear();
     Path.Clear();
     Entries.Clear();
-    if (cached != nullptr) {
-        SLONG Group = -1;
-        SLONG Identifier = -1;
 
-        if (!DoesFileExist(source)) {
-            AT_Log("TextRes file not found: %s", source);
-            return;
-        }
+    SLONG Group = -1;
+    SLONG Identifier = -1;
 
-        auto FileBuffer = LoadCompleteFile(source);
-        char *String = new char[0x400U];
-        if (String == nullptr) {
-            TeakLibW_Exception(FNL, ExcOutOfMem);
-        }
-
-        SLONG AnzStrings = 0;
-        SLONG AnzEntries = 0;
-        for (SLONG i = 0, j = 0; i < FileBuffer.AnzEntries(); i += j) {
-            if (FileBuffer[i] == '>' && FileBuffer[i + 1] == '>') {
-                ++AnzEntries;
-            }
-            SLONG AnzChars = 0;
-            SLONG AnzNonSpace = 0;
-            for (j = 0; j + i < FileBuffer.AnzEntries() && FileBuffer[j + i] != '\r' && FileBuffer[j + i] != '\n' && FileBuffer[j + i] != '\x1A'; ++j) {
-                if (FileBuffer[j + i] == '/' && FileBuffer[j + i + 1] == '/') {
-                    AnzChars = -1;
-                }
-                if (AnzChars >= 0) {
-                    ++AnzChars;
-                }
-                if (FileBuffer[j + i] != ' ' && AnzChars >= 0) {
-                    AnzNonSpace = AnzChars;
-                }
-            }
-            if (FileBuffer[i] == ' ' && FileBuffer[i + 1] == ' ' && FileBuffer[i + 2] != ' ') {
-                AnzStrings += AnzNonSpace + 1;
-            }
-            while (j + i < FileBuffer.AnzEntries() && (FileBuffer[j + i] == '\r' || FileBuffer[j + i] == '\n' || FileBuffer[j + i] == '\x1A')) {
-                ++j;
-            }
-        }
-        Strings.ReSize(AnzStrings + 5);
-        Entries.ReSize(AnzEntries);
-
-        for (SLONG i = 0; i < Entries.AnzEntries(); ++i) {
-            Entries[i].Text = nullptr;
-        }
-
-        AnzStrings = 0;
-        AnzEntries = -1;
-        for (SLONG i = 0, j = 0; i < FileBuffer.AnzEntries(); i += j) {
-            SLONG Size = 0;
-            if (FileBuffer.AnzEntries() - i <= 1023) {
-                Size = FileBuffer.AnzEntries() - i;
-            } else {
-                Size = 1023;
-            }
-            memcpy(String, FileBuffer.getData() + i, Size);
-            for (j = 0; i + j < FileBuffer.AnzEntries() && String[j] != '\r' && String[j] != '\n' && String[j] != '\x1A'; ++j) {
-                ;
-            }
-            String[j] = 0;
-            TeakStrRemoveCppComment(String);
-            TeakStrRemoveEndingCodes(String, " ");
-            if (String[0] == '>' && String[1] != '>') {
-                if (strlen(String + 1) == 4) {
-                    Group = *reinterpret_cast<SLONG *>(String + 1);
-                } else {
-                    Group = atoi(String + 1);
-                }
-            }
-            if (String[0] == '>' && String[1] == '>') {
-                if (strlen(String + 2) == 4) {
-                    Identifier = *reinterpret_cast<SLONG *>(String + 2);
-                } else {
-                    Identifier = atoi(String + 2);
-                }
-                ++AnzEntries;
-            }
-            if (String[0] == ' ' && String[1] == ' ' && strlen(String) > 2 && AnzEntries >= 0) {
-                if (Entries[AnzEntries].Text != nullptr) {
-                    strcat(Entries[AnzEntries].Text, String + 2);
-                    strcat(Entries[AnzEntries].Text, "");
-                    AnzStrings += strlen(String + 2) + 1;
-                } else {
-                    if (AnzEntries >= Entries.AnzEntries()) {
-                        TeakLibW_Exception(FNL, ExcImpossible, "");
-                    }
-                    Entries[AnzEntries].Group = Group;
-                    Entries[AnzEntries].Id = Identifier;
-                    Entries[AnzEntries].Text = Strings.getData() + AnzStrings;
-                    strcpy(Entries[AnzEntries].Text, String + 2);
-                    if (strlen(String + 2) + AnzStrings >= Strings.AnzEntries()) {
-                        TeakLibW_Exception(FNL, ExcImpossible, "");
-                    }
-                    AnzStrings += strlen(String + 2) + 1;
-                }
-            }
-            while (j + i < FileBuffer.AnzEntries() && (FileBuffer[j + i] == '\r' || FileBuffer[j + i] == '\n' || FileBuffer[j + i] == '\x1A')) {
-                ++j;
-            }
-        }
-        { delete[] String; }
-    } else {
-        Path.ReSize(strlen(source) + 1);
-        strcpy(Path.getData(), source);
+    if (!DoesFileExist(source)) {
+        AT_Log("TextRes file not found: %s", source);
+        return;
     }
+
+    auto FileBuffer = LoadCompleteFile(source);
+    char *String = new char[0x400U];
+    if (String == nullptr) {
+        TeakLibW_Exception(FNL, ExcOutOfMem);
+    }
+
+    SLONG AnzStrings = 0;
+    SLONG AnzEntries = 0;
+    for (SLONG i = 0, j = 0; i < FileBuffer.AnzEntries(); i += j) {
+        if (FileBuffer[i] == '>' && FileBuffer[i + 1] == '>') {
+            ++AnzEntries;
+        }
+        SLONG AnzChars = 0;
+        SLONG AnzNonSpace = 0;
+        for (j = 0; j + i < FileBuffer.AnzEntries() && FileBuffer[j + i] != '\r' && FileBuffer[j + i] != '\n' && FileBuffer[j + i] != '\x1A'; ++j) {
+            if (FileBuffer[j + i] == '/' && FileBuffer[j + i + 1] == '/') {
+                AnzChars = -1;
+            }
+            if (AnzChars >= 0) {
+                ++AnzChars;
+            }
+            if (FileBuffer[j + i] != ' ' && AnzChars >= 0) {
+                AnzNonSpace = AnzChars;
+            }
+        }
+        if (FileBuffer[i] == ' ' && FileBuffer[i + 1] == ' ' && FileBuffer[i + 2] != ' ') {
+            AnzStrings += AnzNonSpace + 1;
+        }
+        while (j + i < FileBuffer.AnzEntries() && (FileBuffer[j + i] == '\r' || FileBuffer[j + i] == '\n' || FileBuffer[j + i] == '\x1A')) {
+            ++j;
+        }
+    }
+    Strings.ReSize(AnzStrings + 5);
+    Entries.ReSize(AnzEntries);
+
+    for (SLONG i = 0; i < Entries.AnzEntries(); ++i) {
+        Entries[i].Text = nullptr;
+    }
+
+    AnzStrings = 0;
+    AnzEntries = -1;
+    for (SLONG i = 0, j = 0; i < FileBuffer.AnzEntries(); i += j) {
+        SLONG Size = 0;
+        if (FileBuffer.AnzEntries() - i <= 1023) {
+            Size = FileBuffer.AnzEntries() - i;
+        } else {
+            Size = 1023;
+        }
+        memcpy(String, FileBuffer.getData() + i, Size);
+        for (j = 0; i + j < FileBuffer.AnzEntries() && String[j] != '\r' && String[j] != '\n' && String[j] != '\x1A'; ++j) {
+            ;
+        }
+        String[j] = 0;
+        TeakStrRemoveCppComment(String);
+        TeakStrRemoveEndingCodes(String, " ");
+        if (String[0] == '>' && String[1] != '>') {
+            if (strlen(String + 1) == 4) {
+                Group = *reinterpret_cast<SLONG *>(String + 1);
+            } else {
+                Group = atoi(String + 1);
+            }
+        }
+        if (String[0] == '>' && String[1] == '>') {
+            if (strlen(String + 2) == 4) {
+                Identifier = *reinterpret_cast<SLONG *>(String + 2);
+            } else {
+                Identifier = atoi(String + 2);
+            }
+            ++AnzEntries;
+        }
+        if (String[0] == ' ' && String[1] == ' ' && strlen(String) > 2 && AnzEntries >= 0) {
+            if (Entries[AnzEntries].Text != nullptr) {
+                strcat(Entries[AnzEntries].Text, String + 2);
+                strcat(Entries[AnzEntries].Text, "");
+                AnzStrings += strlen(String + 2) + 1;
+            } else {
+                if (AnzEntries >= Entries.AnzEntries()) {
+                    TeakLibW_Exception(FNL, ExcImpossible, "");
+                }
+                Entries[AnzEntries].Group = Group;
+                Entries[AnzEntries].Id = Identifier;
+                Entries[AnzEntries].Text = Strings.getData() + AnzStrings;
+                strcpy(Entries[AnzEntries].Text, String + 2);
+                if (strlen(String + 2) + AnzStrings >= Strings.AnzEntries()) {
+                    TeakLibW_Exception(FNL, ExcImpossible, "");
+                }
+                AnzStrings += strlen(String + 2) + 1;
+            }
+        }
+        while (j + i < FileBuffer.AnzEntries() && (FileBuffer[j + i] == '\r' || FileBuffer[j + i] == '\n' || FileBuffer[j + i] == '\x1A')) {
+            ++j;
+        }
+    }
+
+    delete[] String;
 }
 
-char *TEXTRES::FindP(ULONG group, ULONG id) {
+char *TEXTRES::FindTranslation(ULONG group, ULONG id) {
     char *text = FindOverridenS(group, id);
     if (text != nullptr) {
         return text;
@@ -193,26 +192,18 @@ char *TEXTRES::FindP(ULONG group, ULONG id) {
         return nullptr;
     }
 
-    char *buffer = new char[strlen(text) + 1];
-    strcpy(buffer, text);
-    LanguageSpecifyString(buffer);
-
-   if (strlen(buffer) > 0x3FF) {
-        delete[] buffer;
+    if (strlen(text) > ResultStr.size()) {
         TeakLibW_Exception(FNL, ExcTextResStaticOverflow, group, id);
     }
-    static char result[0x3FF];
-    strcpy(result, buffer);
-    delete[] buffer;
-    return result;
-}
 
-char *TEXTRES::FindS(ULONG group, ULONG id) {
-    return TEXTRES::FindP(group, id);
+    strncpy(ResultStr.data(), text, ResultStr.size());
+    ResultStr[(int)ResultStr.size()] = '\0';
+    LanguageSpecifyString(ResultStr.data());
+    return ResultStr.data();
 }
 
 char *TEXTRES::GetP(ULONG group, ULONG id) {
-    char *buffer = TEXTRES::FindP(group, id);
+    char *buffer = FindTranslation(group, id);
     if (buffer == nullptr) {
         TeakLibW_Exception(FNL, ExcTextResNotFound, group, id);
         return nullptr;
@@ -221,7 +212,7 @@ char *TEXTRES::GetP(ULONG group, ULONG id) {
 }
 
 char *TEXTRES::GetS(ULONG group, ULONG id) {
-    char *buffer = TEXTRES::FindS(group, id);
+    char *buffer = FindTranslation(group, id);
     if (buffer == nullptr) {
         long long lGroup = group;
         AT_Log(ExcTextResNotFound, reinterpret_cast<char *>(&lGroup), id);
@@ -237,7 +228,7 @@ char *TEXTRES::FindOverridenS(ULONG group, ULONG id) {
     if (!hasOverride) {
         return nullptr;
     }
-    return override->FindS(group, id);
+    return override->FindTranslation(group, id);
 }
 
 void TEXTRES::SetOverrideFile(char const *c) {
@@ -245,6 +236,6 @@ void TEXTRES::SetOverrideFile(char const *c) {
         return;
     }
     override = new TEXTRES();
-    override->Open(c, TEXTRES_CACHED);
+    override->Open(c);
     hasOverride = true;
 }

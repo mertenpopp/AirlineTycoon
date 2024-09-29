@@ -44,7 +44,6 @@ extern TEAKRAND HeadlineRand;     // Alles, was die zeitungen Angeht
 //--------------------------------------------------------------------------------------------
 // Die Registratur:
 //--------------------------------------------------------------------------------------------
-extern CRegistration Registration;
 extern SLONG MissionKeys[];  // Die Schlüsselwerte für die Registry
 extern SLONG MissionKeys2[]; // Die Schlüsselwerte für die Registry
 extern SLONG MissionKeys3[]; // Die Schlüsselwerte für die Registry
