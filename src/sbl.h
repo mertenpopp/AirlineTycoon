@@ -1,5 +1,10 @@
 #pragma once
 
+#include "TeakLibW.h"
+
+#include "SDL_render.h"
+#include "SDL_surface.h"
+
 #include <list>
 #include <map>
 #include <unordered_map>
@@ -28,7 +33,7 @@ extern SLONG GetHighestSetBit(SLONG mask);
 
 class GfxLib {
   public:
-    GfxLib(void *, SDL_Renderer *, char *, SLONG, SLONG, SLONG *);
+    GfxLib(void *, SDL_Renderer *, const char *, SLONG, SLONG, SLONG *);
 
     struct _GfxStruct *ReloadSurface(__int64);
     static SLONG Restore(void);
@@ -76,11 +81,11 @@ class GfxMain {
   public:
     GfxMain(SDL_Renderer *);
     ~GfxMain(void);
-    GfxMain(const GfxMain&) = delete;
-    GfxMain& operator=(const GfxMain&) = delete;
+    GfxMain(const GfxMain &) = delete;
+    GfxMain &operator=(const GfxMain &) = delete;
 
     SLONG Restore(void);
-    SLONG LoadLib(char *, class GfxLib **, SLONG);
+    SLONG LoadLib(const char *, class GfxLib **, SLONG);
     SLONG ReleaseLib(class GfxLib *);
     void KillLib(class GfxLib *);
     SLONG GetListId(class GfxLib *, __int64);
@@ -104,7 +109,7 @@ struct SB_Hardwarecolor {
 class SB_CBitmapCore {
   public:
     SB_CBitmapCore() = default;
-    SB_CBitmapCore(SLONG id) : Id(id) { }
+    SB_CBitmapCore(SLONG id) : Id(id) {}
 
     ULONG AddAlphaMsk(void);
     ULONG AddZBuffer(ULONG, ULONG);
@@ -147,7 +152,10 @@ class SB_CBitmapCore {
 
     SLONG GetRef() const { return RefCounter; }
     void IncRef() { ++RefCounter; }
-    bool DecRef() { assert(RefCounter > 0); return (0 == --RefCounter); }
+    bool DecRef() {
+        assert(RefCounter > 0);
+        return (0 == --RefCounter);
+    }
     SLONG getId() const { return Id; }
 
     friend class SB_CBitmapMain;
@@ -169,8 +177,8 @@ class SB_CCursor {
   public:
     SB_CCursor(class SB_CPrimaryBitmap *, class SB_CBitmapCore * = NULL);
     ~SB_CCursor(void);
-    SB_CCursor(const SB_CCursor&) = delete;
-    SB_CCursor& operator=(const SB_CCursor&) = delete;
+    SB_CCursor(const SB_CCursor &) = delete;
+    SB_CCursor &operator=(const SB_CCursor &) = delete;
 
     SLONG Create(class SB_CBitmapCore *);
     SLONG SetImage(class SB_CBitmapCore *);
@@ -212,9 +220,8 @@ class SB_CPrimaryBitmap : public SB_CBitmapCore {
   private:
     void Delete(void);
 
-    
-    XY TargetSize{640,480};
-    XY TargetOffset{0,0};
+    XY TargetSize{640, 480};
+    XY TargetOffset{0, 0};
 
     SDL_Window *Window{};
     SB_CCursor *Cursor{};
@@ -224,8 +231,8 @@ class SB_CBitmapMain {
   public:
     SB_CBitmapMain(SDL_Renderer *);
     ~SB_CBitmapMain(void);
-    SB_CBitmapMain(const SB_CBitmapMain&) = delete;
-    SB_CBitmapMain& operator=(const SB_CBitmapMain&) = delete;
+    SB_CBitmapMain(const SB_CBitmapMain &) = delete;
+    SB_CBitmapMain &operator=(const SB_CBitmapMain &) = delete;
 
     ULONG Release(void);
     ULONG CreateBitmap(SB_CBitmapCore **, GfxLib *, __int64, ULONG);
@@ -243,14 +250,14 @@ class SB_CBitmapKey {
   public:
     SB_CBitmapKey(class SB_CBitmapCore &);
     ~SB_CBitmapKey(void);
-    SB_CBitmapKey(const SB_CBitmapKey&) = delete;
-    SB_CBitmapKey& operator=(const SB_CBitmapKey&) = delete;
-    SB_CBitmapKey(SB_CBitmapKey&& o) {
+    SB_CBitmapKey(const SB_CBitmapKey &) = delete;
+    SB_CBitmapKey &operator=(const SB_CBitmapKey &) = delete;
+    SB_CBitmapKey(SB_CBitmapKey &&o) {
         Surface = std::exchange(o.Surface, nullptr);
         Bitmap = std::exchange(o.Bitmap, nullptr);
         lPitch = std::exchange(o.lPitch, 0);
     }
-    SB_CBitmapKey& operator=(SB_CBitmapKey&& o) {
+    SB_CBitmapKey &operator=(SB_CBitmapKey &&o) {
         std::swap(Surface, o.Surface);
         std::swap(Bitmap, o.Bitmap);
         std::swap(lPitch, o.lPitch);
@@ -307,8 +314,8 @@ class SB_CFont {
 
     SB_CFont(void);
     ~SB_CFont(void);
-    SB_CFont(const SB_CFont&) = delete;
-    SB_CFont& operator=(const SB_CFont&) = delete;
+    SB_CFont(const SB_CFont &) = delete;
+    SB_CFont &operator=(const SB_CFont &) = delete;
 
     void DrawTextA(class SB_CBitmapCore *, SLONG, SLONG, const char *, SLONG = 0, bool = false);
     void DrawTextWithTabs(class SB_CBitmapCore *, SLONG, SLONG, const char *, SLONG = 0, bool = false);
@@ -351,4 +358,3 @@ class SB_CFont {
     FLOAT LineSpace;
     SB_CBitmapCore *Bitmap;
 };
-

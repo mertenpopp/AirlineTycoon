@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // WeltAll.h : Das Fernglass ins WeltAll
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CSternschnuppe {
   private:

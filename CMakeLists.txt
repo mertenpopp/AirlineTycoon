@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Tidy")
+    set(CMAKE_BUILD_TYPE Release)
+    add_compile_definitions(NDEBUG)
+    # enable clang-tidy
+    set(CMAKE_CXX_CLANG_TIDY clang-tidy; -header-filter=.;)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
@@ -62,4 +67,3 @@ add_subdirectory (libs)
 # Include sub-projects.
 add_subdirectory (src)
 
-install(TARGETS AT DESTINATION "${PROJECT_INSTALL_DIR}")

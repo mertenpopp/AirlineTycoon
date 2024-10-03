@@ -1,8 +1,12 @@
 //============================================================================================
 // Sound.Cpp - Management von Midi und Wave Routinen
 //============================================================================================
-#include "StdAfx.h"
+#include "defines.h"
+#include "global.h"
+#include "Proto.h"
 #include "Synthese.h"
+#include "TeakLibW.h"
+
 #include <filesystem>
 
 #define AT_Log(...) AT_Log_I("Sound", __VA_ARGS__)
@@ -138,7 +142,7 @@ BOOL CreateSpeechSBFX(const CString &String, SBFX *pFx, SLONG PlayerNum, BOOL *b
     if (!checked) {
         checked = true;
 
-        useOgg = DoesFileExist("voice/aa/100.ogg"); //test dummy file to check for ogg files
+        useOgg = DoesFileExist(FullFilename("aa/100.ogg", VoicePath)); // test dummy file to check for ogg files
         AT_Log("Decided to use %s for voice files", useOgg ? ".ogg" : ".raw");
     }
 
@@ -391,7 +395,7 @@ BOOL CVoiceScheduler::IsVoicePlaying() {
 }
 
 //--------------------------------------------------------------------------------------------
-//Überwacht die Voices:
+// Überwacht die Voices:
 //--------------------------------------------------------------------------------------------
 void CVoiceScheduler::Pump() {
     if (AnzEntries() > 0 && (IsVoicePlaying() == 0)) {
@@ -660,7 +664,7 @@ void SBFX::Destroy() {
     }
 }
 
-void SBFX::Fusion(BUFFER_V<SBFX *>& Fx, SLONG NumFx) {
+void SBFX::Fusion(BUFFER_V<SBFX *> &Fx, SLONG NumFx) {
     std::vector<FX *> Elements;
     Elements.resize(NumFx);
 

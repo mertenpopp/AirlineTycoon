@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // Ricks.h : Der Schalter und das Hinterzimmer von Ricks!
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CRicks : public CStdRaum {
     // Construction

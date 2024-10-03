@@ -1,10 +1,13 @@
 //============================================================================================
 // Aufsicht.cpp : Das Büro der Flugaufsicht
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 #include "Aufsicht.h"
+#include "ColorFx.h"
+#include "GameMechanic.h"
 #include "glauf.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -23,8 +26,6 @@ extern SB_CColorFX ColorFX;
 //--------------------------------------------------------------------------------------------
 CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum, "aufsicht.gli", GFX_AUFSICHT) {
     SLONG c = 0;
-    SLONG d = 0;
-    SLONG e = 0;
 
     Sim.ShowExtrablatt = -1;
     Sim.FocusPerson = -1;
@@ -66,90 +67,45 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
 
     // Prüfen wer, welche Routen hat (wg. Spielziel):
     if (Sim.GetHour() == 9 && Sim.GetMinute() == 0 && Sim.Difficulty == DIFF_NORMAL) {
-        ULONG CityIds[7];
+        std::array<SLONG, 6> cityIds;
 
-        CityIds[0] = Cities(Sim.HomeAirportId);
-        CityIds[1] = Cities(Sim.MissionCities[0]);
-        CityIds[2] = Cities(Sim.MissionCities[1]);
-        CityIds[3] = Cities(Sim.MissionCities[2]);
-        CityIds[4] = Cities(Sim.MissionCities[3]);
-        CityIds[5] = Cities(Sim.MissionCities[4]);
-        CityIds[6] = Cities(Sim.MissionCities[5]);
+        auto homeAirportId = Cities(Sim.HomeAirportId);
+        for (SLONG i = 0; i < cityIds.size(); i++) {
+            cityIds[i] = Cities(Sim.MissionCities[i]);
+        }
 
         for (c = 0; c < Sim.Players.AnzPlayers; c++) {
             PLAYER &qPlayer = Sim.Players.Players[c];
 
-            if (qPlayer.IsOut == 0) {
-                qPlayer.ConnectFlags = 0;
-                for (d = qPlayer.Planes.AnzEntries() - 1; d >= 0; d--) {
-                    if (qPlayer.Planes.IsInAlbum(d) != 0) {
-                        CFlugplan &qPlan = qPlayer.Planes[d].Flugplan;
+            if (qPlayer.IsOut != 0) {
+                continue;
+            }
 
-                        for (e = qPlan.Flug.AnzEntries() - 1; e >= 0; e--) {
-                            if (qPlan.Flug[e].ObjectType == 1) {
-                                if (qPlayer.RentRouten.RentRouten[Routen(qPlan.Flug[e].ObjectId)].Rang != 0U) {
-                                    if (qPlayer.RentRouten.RentRouten[Routen(qPlan.Flug[e].ObjectId)].Auslastung > 20) {
-                                        ULONG a = Routen[qPlan.Flug[e].ObjectId].VonCity;
-                                        ULONG b = Routen[qPlan.Flug[e].ObjectId].NachCity;
+            qPlayer.NumMissionRoutes = 0;
 
-                                        if (a > 0x1000000) {
-                                            a = Cities(a);
-                                        }
-                                        if (b > 0x1000000) {
-                                            b = Cities(b);
-                                        }
+            const auto &qRRouten = qPlayer.RentRouten.RentRouten;
+            for (SLONG i = 0; i < qRRouten.AnzEntries(); i++) {
+                const auto &rentRoute = qRRouten[i];
+                if (rentRoute.Rang == 0 || rentRoute.RoutenAuslastung <= 20) {
+                    continue;
+                }
 
-                                        if (CityIds[0] == a && CityIds[1] == b) {
-                                            qPlayer.ConnectFlags |= 0x0001;
-                                        }
-                                        if (CityIds[0] == a && CityIds[2] == b) {
-                                            qPlayer.ConnectFlags |= 0x0002;
-                                        }
-                                        if (CityIds[0] == a && CityIds[3] == b) {
-                                            qPlayer.ConnectFlags |= 0x0004;
-                                        }
-                                        if (CityIds[0] == a && CityIds[4] == b) {
-                                            qPlayer.ConnectFlags |= 0x0008;
-                                        }
-                                        if (CityIds[0] == a && CityIds[5] == b) {
-                                            qPlayer.ConnectFlags |= 0x0010;
-                                        }
-                                        if (CityIds[0] == a && CityIds[6] == b) {
-                                            qPlayer.ConnectFlags |= 0x0020;
-                                        }
+                ULONG a = Cities(Routen[i].VonCity);
+                ULONG b = Cities(Routen[i].NachCity);
 
-                                        if (CityIds[0] == b && CityIds[1] == a) {
-                                            qPlayer.ConnectFlags |= 0x0100;
-                                        }
-                                        if (CityIds[0] == b && CityIds[2] == a) {
-                                            qPlayer.ConnectFlags |= 0x0200;
-                                        }
-                                        if (CityIds[0] == b && CityIds[3] == a) {
-                                            qPlayer.ConnectFlags |= 0x0400;
-                                        }
-                                        if (CityIds[0] == b && CityIds[4] == a) {
-                                            qPlayer.ConnectFlags |= 0x0800;
-                                        }
-                                        if (CityIds[0] == b && CityIds[5] == a) {
-                                            qPlayer.ConnectFlags |= 0x1000;
-                                        }
-                                        if (CityIds[0] == b && CityIds[6] == a) {
-                                            qPlayer.ConnectFlags |= 0x2000;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                if (a != homeAirportId) {
+                    std::swap(a, b);
+                    if (a != homeAirportId) {
+                        continue;
                     }
                 }
 
-                for (d = e = 0; d < 32; d++) {
-                    if ((qPlayer.ConnectFlags & (1 << d)) != 0) {
-                        e++;
+                for (const auto cityId : cityIds) {
+                    if (b == cityId) {
+                        qPlayer.NumMissionRoutes++;
+                        break;
                     }
                 }
-
-                qPlayer.ConnectFlags = e;
             }
         }
     }
@@ -357,11 +313,16 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
 #ifdef DEMO
         if (Sim.Date >= 100)
             StartDialog(TALKER_BOSS, MEDIUM_AIR, 30);
-        else
 #endif
 
-            // Uhrig's Aufträge:
-            if (Sim.Difficulty == DIFF_ADDON09) {
+        auto &qPlayer = Sim.Players.Players[Sim.localPlayer];
+        if ((CheatTestGame != 0 || CheatAutoSkip != 0) && qPlayer.Money < 500000) {
+            qPlayer.Money = 1000000;
+            // log: hprintf ("Event: localPlayer gets Money-Boost for testing reasons");
+        }
+
+        // Uhrig's Aufträge:
+        if (Sim.Difficulty == DIFF_ADDON09) {
             for (SLONG c = 0; c < 4; c++) {
                 PLAYER &qPlayer = Sim.Players.Players[c];
 
@@ -375,7 +336,7 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
                     qPlayer.NumOrderFlightsToday2 = qPlayer.NumOrderFlightsToday;
                     qPlayer.Statistiken[STAT_AUFTRAEGE].AddAtPastDay(5);
 
-                    if (qPlayer.Owner != 1) {
+                    if (qPlayer.Owner != 1 || !qPlayer.RobotUse(ROBOT_UHRIG_FLIGHTS_AUTO)) {
                         qPlayer.Add5UhrigFlights();
                     }
                 }
@@ -453,6 +414,9 @@ CAufsicht::~CAufsicht() {
         }
 
         bool bAnyBombs = false;
+        GameMechanic::executeSabotageMode2(bAnyBombs);
+        GameMechanic::executeSabotageMode3();
+
         for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 PLAYER &qPlayer = Sim.Players.Players[c];
@@ -462,178 +426,11 @@ CAufsicht::~CAufsicht() {
                 }
 
                 qPlayer.NumFlights = 0;
-                qPlayer.WaitWorkTill = -1;
                 qPlayer.WorkCountdown = 1;
                 qPlayer.WaitWorkTill = 0;
 
                 if (qPlayer.Owner == 1) {
                     qPlayer.WalkToRoom(UBYTE(ROOM_BURO_A + c * 10));
-                }
-
-                bool bFremdsabotage = false;
-                if (Sim.Players.Players[c].ArabMode2 < 0) {
-                    Sim.Players.Players[c].ArabMode2 = -Sim.Players.Players[c].ArabMode2;
-                    bFremdsabotage = true;
-                }
-
-                if (qPlayer.ArabMode2 != 0) {
-                    PLAYER &qOpfer = Sim.Players.Players[qPlayer.ArabOpfer2];
-
-                    if (!bFremdsabotage) {
-                        Sim.Players.Players[c].Statistiken[STAT_SABOTIERT].AddAtPastDay(1);
-                    }
-
-                    switch (qPlayer.ArabMode2) {
-                    case 1: // Bakterien im Kaffee
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 8;
-                        }
-                        qOpfer.Sympathie[c] -= 10;
-                        qOpfer.SickTokay = TRUE;
-                        PLAYER::NetSynchronizeFlags();
-                        break;
-
-                    case 2: // Virus im Notepad
-                        if ((qOpfer.HasItem(ITEM_LAPTOP) != 0) && qOpfer.LaptopVirus == 0) {
-                            qOpfer.LaptopVirus = 1;
-                        }
-                        break;
-
-                    case 3: // Bombe im Büro
-                        bAnyBombs = true;
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 25;
-                        }
-                        qOpfer.Sympathie[c] -= 50;
-                        qOpfer.OfficeState = 1;
-                        qOpfer.WalkToRoom(UBYTE(ROOM_BURO_A + qOpfer.PlayerNum * 10));
-                        break;
-
-                    case 4: // Streik provozieren
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 40;
-                        }
-                        qOpfer.StrikePlanned = TRUE;
-                        break;
-                    default:
-                        hprintf("Aufsicht.cpp: Default case should not be reached.");
-                        DebugBreak();
-                    }
-
-                    // Für's nächste Briefing vermerken:
-                    Sim.SabotageActs.ReSize(Sim.SabotageActs.AnzEntries() + 1);
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].Player = bFremdsabotage ? -2 : c;
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].ArabMode = 2075 + qPlayer.ArabMode2 - 1;
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].Opfer = qPlayer.ArabOpfer2;
-
-                    qPlayer.ArabMode2 = 0;
-                }
-
-                bFremdsabotage = false;
-                if (Sim.Players.Players[c].ArabMode3 < 0) {
-                    Sim.Players.Players[c].ArabMode3 = -Sim.Players.Players[c].ArabMode3;
-                    bFremdsabotage = true;
-                }
-
-                if (qPlayer.ArabMode3 != 0) {
-                    PLAYER &qOpfer = Sim.Players.Players[qPlayer.ArabOpfer3];
-
-                    Sim.Players.Players[c].Statistiken[STAT_SABOTIERT].AddAtPastDay(1);
-
-                    switch (qPlayer.ArabMode3) {
-                    case 1: // Fremde Broschüren
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 8;
-                        }
-                        qOpfer.WerbeBroschuere = qPlayer.PlayerNum;
-                        PLAYER::NetSynchronizeFlags();
-                        break;
-
-                    case 2: // Telefone sperren
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 15;
-                        }
-                        qOpfer.TelephoneDown = 1;
-                        PLAYER::NetSynchronizeFlags();
-                        break;
-
-                    case 3: // Presseerklärung
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 25;
-                        }
-                        qOpfer.Presseerklaerung = 1;
-                        PLAYER::NetSynchronizeFlags();
-                        Sim.Players.Players[Sim.localPlayer].Letters.AddLetter(
-                            FALSE, bprintf(StandardTexte.GetS(TOKEN_LETTER, 509), (LPCTSTR)qOpfer.AirlineX, (LPCTSTR)qOpfer.NameX, (LPCTSTR)qOpfer.AirlineX),
-                            "", "", 0);
-                        if (qOpfer.PlayerNum == Sim.localPlayer) {
-                            qOpfer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2020));
-                        }
-
-                        {
-                            // Für alle Flugzeuge die er besitzt, die Passagierzahl aktualisieren:
-                            for (SLONG d = 0; d < qOpfer.Planes.AnzEntries(); d++) {
-                                if (qOpfer.Planes.IsInAlbum(d) != 0) {
-                                    CPlane &qPlane = qOpfer.Planes[d];
-
-                                    for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
-                                        if (qPlane.Flugplan.Flug[e].ObjectType == 1) {
-                                            qPlane.Flugplan.Flug[e].CalcPassengers(qOpfer.PlayerNum, qPlane);
-                                        }
-                                    }
-                                    // qPlane.Flugplan.Flug[e].CalcPassengers (qPlane.TypeId, (LPCTSTR)qOpfer.PlayerNum, (LPCTSTR)qPlane);
-                                }
-                            }
-                        }
-                        break;
-
-                    case 4: // Bankkonto hacken
-                        qOpfer.ChangeMoney(-1000000, 3502, "");
-                        if (!bFremdsabotage) {
-                            qPlayer.ChangeMoney(1000000, 3502, "");
-                        }
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 30;
-                        }
-                        break;
-
-                    case 5: // Flugzeug festsetzen
-                        if (!bFremdsabotage) {
-                            qPlayer.ArabHints += 50;
-                        }
-                        if (qOpfer.Planes.IsInAlbum(qPlayer.ArabPlane) != 0) {
-                            qOpfer.Planes[qPlayer.ArabPlane].PseudoProblem = 15;
-                        }
-                        break;
-
-                    case 6: // Route klauen
-                        qPlayer.ArabHints += 70;
-                        qOpfer.RouteWegnehmen(Routen(qPlayer.ArabPlane), qPlayer.PlayerNum);
-                        {
-                            for (SLONG d = 0; d < Routen.AnzEntries(); d++) {
-                                if ((Routen.IsInAlbum(d) != 0) && Routen[d].VonCity == Routen[qPlayer.ArabPlane].NachCity &&
-                                    Routen[d].NachCity == Routen[qPlayer.ArabPlane].VonCity) {
-                                    qOpfer.RouteWegnehmen(d, qPlayer.PlayerNum);
-                                    break;
-                                }
-                            }
-                        }
-                        if (qOpfer.PlayerNum == Sim.localPlayer) {
-                            qOpfer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2021));
-                        }
-                        break;
-                    default:
-                        hprintf("Aufsicht.cpp: Default case should not be reached.");
-                        DebugBreak();
-                    }
-
-                    // Für's nächste Briefing vermerken:
-                    Sim.SabotageActs.ReSize(Sim.SabotageActs.AnzEntries() + 1);
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].Player = bFremdsabotage ? -2 : c;
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].ArabMode = 2090 + qPlayer.ArabMode3;
-                    Sim.SabotageActs[Sim.SabotageActs.AnzEntries() - 1].Opfer = qPlayer.ArabOpfer3;
-
-                    qPlayer.ArabMode3 = 0;
                 }
             }
         }
@@ -898,6 +695,14 @@ void CAufsicht::OnPaint() {
     }
 
     CStdRaum::PumpToolTips();
+
+    if (Sim.Date == gAutoQuitOnDay) {
+        exit(0);
+    }
+    if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
+        OnRButtonDown(0, CPoint());
+        qPlayer.CallItADay = TRUE;
+    }
 }
 
 //--------------------------------------------------------------------------------------------

@@ -3,10 +3,15 @@
 //============================================================================================
 // Link: "DutyFree.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "DutyFree.h"
+
+#include "AtNet.h"
+#include "ColorFx.h"
+#include "GameMechanic.h"
 #include "glduty.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -282,85 +287,41 @@ void CDutyFree::OnLButtonDown(UINT nFlags, CPoint point) {
             }
         } else if (MouseClickArea == ROOM_SHOP1) {
             if (MouseClickId == 10) {
-                if (qPlayer.LaptopVirus == 1) {
+                auto ret = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_LAPTOP);
+                if (ret == GameMechanic::BuyItemResult::DeniedVirus1) {
                     StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 2000);
-                } else if (qPlayer.LaptopVirus == 2) {
+                } else if (ret == GameMechanic::BuyItemResult::DeniedVirus2) {
                     StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 2010);
-                } else if (qPlayer.LaptopVirus == 3) {
+                } else if (ret == GameMechanic::BuyItemResult::DeniedVirus3) {
                     StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 2020);
-                } else if (Sim.Date <= DAYS_WITHOUT_LAPTOP) {
+                } else if (ret == GameMechanic::BuyItemResult::DeniedLaptopNotYetAvailable) {
                     // Laptop ist in der ersten 7 Tagen gesperrt:
                     StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 3);
-                } else if (Sim.LaptopSoldTo == -1) {
-                    if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
-                        qPlayer.DropItem(ITEM_LAPTOP);
-                    }
-                    if (qPlayer.HasSpaceForItem() != 0) {
-                        if (qPlayer.HasItem(ITEM_LAPTOP) == 0) {
-                            qPlayer.BuyItem(ITEM_LAPTOP);
-                        }
-
-                        SIM::SendSimpleMessage(ATNET_TAKETHING, 0, ITEM_LAPTOP, PlayerNum);
-
-                        SLONG delta = -atoi(StandardTexte.GetS(TOKEN_ITEM, 2000 + qPlayer.LaptopQuality));
-                        qPlayer.ChangeMoney(delta, 9999, StandardTexte.GetS(TOKEN_ITEM, 1000 + qPlayer.LaptopQuality));
-                        SIM::SendSimpleMessage(ATNET_CHANGEMONEY, 0, Sim.localPlayer, delta, STAT_A_SONSTIGES);
-
-                        qPlayer.DoBodyguardRabatt(atoi(StandardTexte.GetS(TOKEN_ITEM, 2000 + qPlayer.LaptopQuality)));
-
-                        qPlayer.LaptopQuality++;
-                        if (Sim.Options.OptionEffekte != 0) {
-                            PayFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
-                        }
-
-                        switch (qPlayer.LaptopQuality) {
-                        case 1:
-                            qPlayer.LaptopBattery = 40;
-                            break;
-                        case 2:
-                            qPlayer.LaptopBattery = 80;
-                            break;
-                        case 3:
-                            qPlayer.LaptopBattery = 200;
-                            break;
-                        case 4:
-                            qPlayer.LaptopBattery = 1440;
-                            break;
-                        default:
-                            hprintf("DutyFree.cpp: Default case should not be reached.");
-                            DebugBreak();
-                        }
-
-                        if (qPlayer.LaptopQuality < 4) {
-                            StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 4);
-                        }
-
-                        Sim.LaptopSoldTo = PlayerNum;
-                    }
-                } else {
+                } else if (ret == GameMechanic::BuyItemResult::DeniedLaptopAlreadySold) {
                     StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 1, Sim.LaptopSoldTo);
-                }
-            } else if (MouseClickId == 400 || MouseClickId == 500 || MouseClickId == 600 || MouseClickId == 700) {
-                if (qPlayer.HasSpaceForItem() != 0) {
-                    if (MouseClickId == 400) {
-                        qPlayer.BuyItem(ITEM_MG);
-                    } else if (MouseClickId == 500) {
-                        qPlayer.BuyItem(ITEM_FILOFAX);
-                    } else if (MouseClickId == 600) {
-                        qPlayer.BuyItem(ITEM_HANDY);
-                    } else if (MouseClickId == 700) {
-                        qPlayer.BuyItem(ITEM_BIER);
-                    }
-
+                } else if (ret == GameMechanic::BuyItemResult::Ok) {
                     if (Sim.Options.OptionEffekte != 0) {
                         PayFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
                     }
 
-                    SLONG delta = -atoi(StandardTexte.GetS(TOKEN_ITEM, 2000 + MouseClickId));
-                    qPlayer.ChangeMoney(delta, 9999, StandardTexte.GetS(TOKEN_ITEM, 1000 + MouseClickId));
-                    SIM::SendSimpleMessage(ATNET_CHANGEMONEY, 0, Sim.localPlayer, delta, STAT_A_SONSTIGES);
+                    if (qPlayer.LaptopQuality < 4) {
+                        StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 4);
+                    }
+                }
+            } else if (MouseClickId == 400 || MouseClickId == 500 || MouseClickId == 600 || MouseClickId == 700) {
+                auto ret = GameMechanic::BuyItemResult::DeniedInvalidParam;
+                if (MouseClickId == 400) {
+                    ret = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_MG);
+                } else if (MouseClickId == 500) {
+                    ret = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_FILOFAX);
+                } else if (MouseClickId == 600) {
+                    ret = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_HANDY);
+                } else if (MouseClickId == 700) {
+                    ret = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_BIER);
+                }
 
-                    qPlayer.DoBodyguardRabatt(atoi(StandardTexte.GetS(TOKEN_ITEM, 2000 + MouseClickId)));
+                if (ret == GameMechanic::BuyItemResult::Ok && Sim.Options.OptionEffekte != 0) {
+                    PayFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
                 }
             }
         } else {

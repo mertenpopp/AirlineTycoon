@@ -1,6 +1,12 @@
+#pragma once
 //============================================================================================
 // Laptop.h : header file
 //============================================================================================
+
+#include "defines.h"
+#include "Planer.h"
+#include "SmackPrs.h"
+
 class CLaptop : public CPlaner {
     // Construction:
   public:

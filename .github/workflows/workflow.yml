@@ -3,13 +3,14 @@ name: build and package
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "master" ]
 
 jobs:
   env:
     runs-on: ubuntu-latest
+
     outputs:
         cmake-build-dir: ${{ steps.compute-env.outputs.cmake-build-dir }}
         artifact-name: ${{ steps.compute-env.outputs.artifact-name }}
@@ -17,6 +18,7 @@ jobs:
         build-type: ${{ steps.compute-env.outputs.build-type }}
         release-name: ${{ steps.compute-env.outputs.release-name }}
         release-tag: ${{ steps.compute-env.outputs.release-tag }}
+
     steps:
     # Get the code
     - uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
         echo "cmake-build-dir=cmake-build" >> "$GITHUB_OUTPUT"
         echo "artifact-dir=artifacts" >> "$GITHUB_OUTPUT"
 
-        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+        if [ "${{ github.ref }}" == "refs/heads/master" ]; then
             echo "Setting production environment variables..."
             echo "build-type=Release" >> "$GITHUB_OUTPUT"
             echo "release-name=ATD Version $VERSION Release" >> "$GITHUB_OUTPUT"
@@ -55,7 +57,6 @@ jobs:
   build:
     needs: env
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
 
     strategy:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
@@ -103,29 +104,29 @@ jobs:
       if: matrix.name == 'linux'
       run: |
         sudo apt-get update
-        sudo apt-get install libjansson-dev libsdl2*-dev
+        sudo apt-get install libjansson-dev libsdl2-dev libsdl2-gfx-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev
 
     - name: Setup homebrew (macOS)
       if: matrix.name == 'macos'
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@master
 
-    - name: Diagnose and fix linking issues before install
-      if: matrix.name == 'macos'
-      run: |
-        # Unlink any existing versions of python that might conflict
-        brew unlink python@3.11 || true
-        brew unlink python@3.12 || true
-        # Force link the desired python version before installation
-        brew link --overwrite python@3.12 || true
-
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
       run: |
-        brew update
-        brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
-        pip install sphinx
-        
+         # Temporary fix, see https://github.com/actions/setup-python/issues/577
+         rm /usr/local/bin/2to3-3.12 || true
+         rm /usr/local/bin/idle3.12 || true
+         rm /usr/local/bin/pydoc3.12 || true
+         rm /usr/local/bin/python3.12 || true
+         rm /usr/local/bin/python3.12-config || true
+         rm /usr/local/bin/2to3 || true
+         rm /usr/local/bin/idle3 || true
+         rm /usr/local/bin/pydoc3 || true
+         rm /usr/local/bin/python3 || true
+         rm /usr/local/bin/python3-config || true
+         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -181,19 +182,6 @@ jobs:
         echo "artifact-path=$ARTIFACT_PATH" >> "$GITHUB_OUTPUT"
         cat $GITHUB_OUTPUT
 
-    - name: Upload sentry debug files
-      shell: pwsh
-      # Only publish on main/dev build & windows
-      if: matrix.name == 'windows' && (github.ref_name == 'main' || github.ref_name == 'develop') && vars.SENTRY_ORG != ''
-      env:
-        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-        SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
-        # SENTRY_URL: https://sentry.io/
-      run: |
-       curl -sL https://github.com/getsentry/sentry-cli/releases/download/2.32.1/sentry-cli-Windows-x86_64.exe > sentry-cli.exe
-       ./sentry-cli.exe debug-files upload ${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}/
-
     - name: Publish artifact
       uses: actions/upload-artifact@v4
       with:
@@ -203,7 +191,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [ build, env ]
-    if: github.ref_name == 'main' || github.ref_name == 'develop'
+    if: github.ref_type == 'tag'
 
     steps:
     - name: Download artifacts
@@ -219,6 +207,5 @@ jobs:
         name: ${{ needs.env.outputs.release-name }}
         tag_name: ${{ needs.env.outputs.release-tag }}
         prerelease: ${{ github.ref_name == 'develop' }}
-        draft: ${{ github.ref_name == 'main' }}
         files: |
           ${{ needs.env.outputs.artifact-dir }}/${{ needs.env.outputs.artifact-name }}*

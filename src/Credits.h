@@ -1,8 +1,12 @@
+#pragma once
 // CCredits.h : header file
 //
 
 /////////////////////////////////////////////////////////////////////////////
 // CCredits window
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class CCredits : public CStdRaum {
     // Construction

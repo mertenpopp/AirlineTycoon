@@ -1,11 +1,12 @@
 //============================================================================================
 // Route.cpp : Routinen zum verwalten der Flugrouten (CRoute, CRouten)
 //============================================================================================
-#include "StdAfx.h"
-#include <sstream>
+#include "class.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
-SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
+#include <sstream>
 
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
@@ -79,7 +80,7 @@ void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
     // Die erste Zeile einlesen
     FileP = ReadLine(FileData, FileP, Line.getData(), 300);
 
-    SLONG routes = CountLines(FileData, FileP) * 2; //2x for "to" and "back"
+    SLONG routes = CountLines(FileData, FileP) * 2; // 2x for "to" and "back"
 
     ReSize(0);
     ReSize(routes);
@@ -97,13 +98,13 @@ void CRouten::ReInit(const CString &TabFilename, bool bNoDoublettes) {
         CString Helper1 = strtok(nullptr, TabSeparator);
         CString Helper2 = strtok(nullptr, TabSeparator);
 
-        ULONG VonCity;
-        ULONG NachCity;
+        ULONG VonCity{};
+        ULONG NachCity{};
 
         const char *errorStr = "Tried to create route between %s and %s, but a city was not found: %s";
         try {
             VonCity = Cities.GetIdFromName(KorrigiereUmlaute(Helper1).c_str());
-        } catch (std::runtime_error&) {
+        } catch (std::runtime_error &) {
             TeakLibW_Exception(FNL, errorStr, Helper1.c_str(), Helper2.c_str(), Helper1.c_str());
         }
 
@@ -160,7 +161,7 @@ void CRouten::ReInitExtend(const CString &TabFilename) {
     FileP = ReadLine(FileData, FileP, Line.getData(), 300);
 
     SLONG routes = CountLines(FileData, FileP) * 2;
-    
+
     ReSize(routes);
     auto NumUsed = GetNumUsed();
 
@@ -270,6 +271,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const CRentRoute &r) {
     File << r.Ticketpreis << r.TicketpreisFC << r.TageMitVerlust << r.TageMitGering;
     File << r.RoutenAuslastung << r.HeuteBefoerdert << r.AuslastungFC;
     File << r.WocheBefoerdert;
+    File << r.RoutenAuslastungBot << r.AuslastungBot << r.AuslastungFirstClassBot;
 
     return (File);
 }
@@ -285,6 +287,7 @@ TEAKFILE &operator>>(TEAKFILE &File, CRentRoute &r) {
     if (SaveVersionSub >= 200) {
         File >> r.WocheBefoerdert;
     }
+    File >> r.RoutenAuslastungBot >> r.AuslastungBot >> r.AuslastungFirstClassBot;
 
     return (File);
 }

@@ -3,7 +3,15 @@
 //============================================================================================
 // Link: "SBBM.h"
 //============================================================================================
-#include "StdAfx.h"
+
+#include "Sbbm.h"
+
+#include "ColorFx.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
+#include <SDL_ttf.h>
 
 extern SB_CColorFX ColorFX;
 extern XY MouseCursorOffset;
@@ -475,7 +483,7 @@ BOOL SBPRIMARYBM::BlitFrom(SBBM & /*TecBitmap*/, SLONG /*tx*/, SLONG /*ty*/, SLO
 BOOL SBPRIMARYBM::BlitFromT(SBBM & /*TecBitmap*/, XY /*p1*/, XY /*p2*/) { return 0; }
 BOOL SBPRIMARYBM::BlitFromT(SBBM & /*TecBitmap*/, SLONG /*tx*/, SLONG /*ty*/, SLONG /*tx2*/, SLONG /*ty2*/) { return 0; }
 
-void SBPRIMARYBM::Flip(XY WindowPos, BOOL /*ShowFPS*/) {
+void SBPRIMARYBM::Flip(XY /*WindowPos*/, BOOL /*ShowFPS*/) {
     if (gFramesToDrawBeforeFirstBlend == 0 && gBlendState != -1 && (Sim.Options.OptionBlenden != 0) && (bLeaveGameLoop == 0)) {
         if (gBlendState == -2) {
             gBlendState = 8;
@@ -529,7 +537,7 @@ void SBPRIMARYBM::Flip(XY WindowPos, BOOL /*ShowFPS*/) {
 
               if (gBlendState==4)
               {
-            //Jaja, sehr seltsam. Warum, daß steht in Gameframe.cpp
+            //Jaja, sehr seltsam. Warum, daß steht in GameFrame.cpp
             SLONG c=0;
 
             SB_CBitmapKey SrcKey(PrimaryBm);
@@ -675,9 +683,7 @@ void SBPRIMARYBM::Flip(XY WindowPos, BOOL /*ShowFPS*/) {
     }
 }
 
-dword SBPRIMARYBM::Clear(dword color) {    
-    return SDL_FillRect(PrimaryBm.GetSurface(), nullptr, color);
-}
+dword SBPRIMARYBM::Clear(dword color) { return SDL_FillRect(PrimaryBm.GetSurface(), nullptr, color); }
 
 void SBBMS::ReSize(GfxLib *gfxLibrary, __int64 graphicID, ...) {
     SLONG count = 0;

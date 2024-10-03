@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // Werkstat.h : Der Schalter und das Hinterzimmer von ArabAir!
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CWerkstatt : public CStdRaum {
     // Construction

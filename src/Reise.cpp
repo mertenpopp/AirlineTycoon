@@ -3,10 +3,13 @@
 //============================================================================================
 // Link: "reise.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Reise.h"
+
+#include "AtNet.h"
+#include "GameMechanic.h"
+#include "global.h"
 #include "glreiseb.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -22,7 +25,6 @@ extern SLONG timeReisClose;
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Museum Konstruktion, Initialisation, Destruction
 //////////////////////////////////////////////////////////////////////////////////////////////
-
 
 //--------------------------------------------------------------------------------------------
 // Bei Cities mit zwei Leerzeichen (Palm de Mallorca und Rio de Janeiro) wird nur das erste Wort genommen:
@@ -307,20 +309,17 @@ void CReisebuero::OnPaint() {
 // void CReisebuero::OnPaint()
 //--------------------------------------------------------------------------------------------
 void CReisebuero::RepaintZettel(SLONG n) {
-    if (ReisebueroAuftraege[n].Praemie > 0) {
-        ZettelBms[n].ReSize(gZettelBms[n % 3].Size);
-        ZettelBms[n].BlitFrom(gZettelBms[n % 3]);
+    ZettelBms[n].ReSize(gZettelBms[n % 3].Size);
+    ZettelBms[n].BlitFrom(gZettelBms[n % 3]);
 
-        ZettelBms[n].PrintAt(
-            bprintf("%s-%s", (LPCTSTR)Cities[ReisebueroAuftraege[n].VonCity].Kuerzel, (LPCTSTR)Cities[ReisebueroAuftraege[n].NachCity].Kuerzel), FontSmallBlack,
-            TEC_FONT_CENTERED, XY(3, 10), XY(ZettelBms[n].Size.x - 3, 29));
+    ZettelBms[n].PrintAt(bprintf("%s-%s", (LPCTSTR)Cities[ReisebueroAuftraege[n].VonCity].Kuerzel, (LPCTSTR)Cities[ReisebueroAuftraege[n].NachCity].Kuerzel),
+                         FontSmallBlack, TEC_FONT_CENTERED, XY(3, 10), XY(ZettelBms[n].Size.x - 3, 29));
 
-        ZettelBms[n].PrintAt(ShortenLongCities(Cities[ReisebueroAuftraege[n].VonCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 31),
-                             XY(ZettelBms[n].Size.x - 3, 102));
-        ZettelBms[n].PrintAt("-", FontSmallBlack, TEC_FONT_CENTERED, XY(3, 42), XY(ZettelBms[n].Size.x - 3, 102));
-        ZettelBms[n].PrintAt(ShortenLongCities(Cities[ReisebueroAuftraege[n].NachCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 54),
-                             XY(ZettelBms[n].Size.x - 3, 102));
-    }
+    ZettelBms[n].PrintAt(ShortenLongCities(Cities[ReisebueroAuftraege[n].VonCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 31),
+                         XY(ZettelBms[n].Size.x - 3, 102));
+    ZettelBms[n].PrintAt("-", FontSmallBlack, TEC_FONT_CENTERED, XY(3, 42), XY(ZettelBms[n].Size.x - 3, 102));
+    ZettelBms[n].PrintAt(ShortenLongCities(Cities[ReisebueroAuftraege[n].NachCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 54),
+                         XY(ZettelBms[n].Size.x - 3, 102));
 }
 
 //--------------------------------------------------------------------------------------------
@@ -343,8 +342,7 @@ void CReisebuero::OnLButtonDown(UINT nFlags, CPoint point) {
         if (MouseClickArea == ROOM_REISEBUERO && MouseClickId == 999) {
             qPlayer.LeaveRoom();
         } else if (MouseClickArea == ROOM_REISEBUERO && MouseClickId == 20) {
-            if ((qPlayer.HasItem(ITEM_SPINNE) == 0) && (qPlayer.HasSpaceForItem() != 0)) {
-                qPlayer.BuyItem(ITEM_SPINNE);
+            if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_SPINNE)) {
                 KommVar2 = 2;
                 KommVar = 0;
             }
@@ -354,23 +352,12 @@ void CReisebuero::OnLButtonDown(UINT nFlags, CPoint point) {
             if (ReisebueroAuftraege[c].Praemie > 0) {
                 if (RoomPos.IfIsWithin(ZettelPos[c * 2], ZettelPos[c * 2 + 1], ZettelPos[c * 2] + gZettelBms[c % 3].Size.x,
                                        ZettelPos[c * 2 + 1] + gZettelBms[c % 3].Size.y)) {
-                    if (qPlayer.Auftraege.GetNumFree() < 3) {
-                        qPlayer.Auftraege.ReSize(qPlayer.Auftraege.AnzEntries() + 10);
-                    }
+
+                    SLONG outId = -1;
+                    GameMechanic::takeFlightJob(qPlayer, c, outId);
 
                     PlayUniversalFx("paptake.raw", Sim.Options.OptionEffekte);
 
-                    qPlayer.Auftraege += ReisebueroAuftraege[c];
-                    qPlayer.NetUpdateOrder(ReisebueroAuftraege[c]);
-
-                    // Für den Statistikscreen:
-                    qPlayer.Statistiken[STAT_AUFTRAEGE].AddAtPastDay(1);
-
-                    SIM::SendSimpleMessage(ATNET_SYNCNUMFLUEGE, 0, Sim.localPlayer, static_cast<SLONG>(qPlayer.Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0)),
-                                           static_cast<SLONG>(qPlayer.Statistiken[STAT_LMAUFTRAEGE].GetAtPastDay(0)));
-
-                    ReisebueroAuftraege[c].Praemie = -1000;
-                    qPlayer.NetUpdateTook(2, c);
                     break;
                 }
             }

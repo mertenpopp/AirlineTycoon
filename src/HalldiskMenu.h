@@ -1,8 +1,12 @@
+#pragma once
 // HallDiskMenu.h : header file
 //
 
 /////////////////////////////////////////////////////////////////////////////
 // HallDiskMenu window
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class HallDiskMenu : public CStdRaum {
     // Construction

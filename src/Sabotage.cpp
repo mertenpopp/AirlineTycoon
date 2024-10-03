@@ -3,10 +3,13 @@
 //============================================================================================
 // Link: "Sabotage.h"
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Sabotage.h"
+
+#include "AtNet.h"
+#include "GameMechanic.h"
+#include "global.h"
 #include "glsabo.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -178,14 +181,14 @@ void CSabotage::OnPaint() {
             NewTip = (gMousePosition.y - (MenuPos.y + 25)) / 13 + MenuPage;
 
             if (NewTip >= 0 && NewTip - MenuPage < 13 && NewTip < MenuDataTable.LineIndex.AnzEntries() &&
-                (Sim.Players.Players[qPlayer.ArabOpfer].Planes.IsInAlbum(MenuDataTable.LineIndex[NewTip]) != 0)) {
+                (Sim.Players.Players[qPlayer.ArabOpferSelection].Planes.IsInAlbum(MenuDataTable.LineIndex[NewTip]) != 0)) {
                 if (NewTip != CurrentTip) {
                     MenuRepaint();
                     // DrawPlaneTipContents (OnscreenBitmap,
                     // &PlaneTypes[Sim.Players.Players[(SLONG)qPlayer.ArabOpfer].Planes[MenuDataTable.LineIndex[NewTip]].TypeId],
                     // &Sim.Players.Players[(SLONG)qPlayer.ArabOpfer].Planes[MenuDataTable.LineIndex[NewTip]],
-                    DrawPlaneTipContents(OnscreenBitmap, nullptr, &Sim.Players.Players[qPlayer.ArabOpfer].Planes[MenuDataTable.LineIndex[NewTip]], XY(6, 6),
-                                         XY(6, 28), &FontSmallBlack, &FontSmallBlack, FALSE, TRUE);
+                    DrawPlaneTipContents(OnscreenBitmap, nullptr, &Sim.Players.Players[qPlayer.ArabOpferSelection].Planes[MenuDataTable.LineIndex[NewTip]],
+                                         XY(6, 6), XY(6, 28), &FontSmallBlack, &FontSmallBlack, FALSE, TRUE);
                 }
 
                 if (MenuDataTable.ValueFlags[0 + NewTip * MenuDataTable.AnzColums] != 0U) {
@@ -246,13 +249,7 @@ void CSabotage::OnLButtonDown(UINT nFlags, CPoint point) {
         } else if (gMousePosition.IfIsWithin(298, 395, 337, 423)) {
             DynamitAnim.Remove();
         } else if (gMousePosition.IfIsWithin(384, 204, 426, 263)) {
-            if (Sim.ItemZange != 0) {
-                Sim.Players.Players[PlayerNum].BuyItem(ITEM_ZANGE);
-                if (Sim.Players.Players[PlayerNum].HasItem(ITEM_ZANGE) != 0) {
-                    Sim.ItemZange = 0;
-                    SIM::SendSimpleMessage(ATNET_TAKETHING, 0, ITEM_ZANGE);
-                }
-            }
+            GameMechanic::pickUpItem(Sim.Players.Players[PlayerNum], ITEM_ZANGE);
         } else {
             CStdRaum::OnLButtonDown(nFlags, point);
         }

@@ -17,13 +17,18 @@
 //
 //  Läßt man den CDFile-Parameter leer, so wird der CD-Speed Check ggf. übersprungen.
 //============================================================================================
-#include "StdAfx.h"
 
 #include "Checkup.h"
+#include "global.h"
 
 #include <jansson.h>
 
+#define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Reg", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("Reg", __VA_ARGS__)
+
 CString settingsPath;
+
+void PrepareSettingsPath();
 
 void PrepareSettingsPath() { settingsPath = AppPath + CString("AT.json"); }
 
@@ -55,7 +60,7 @@ bool CRegistryAccess::Open(const CString &RegistryPath) {
 
     settingsJSON = json_load_file(settingsPath, JSON_INDENT(3), &error);
     if (settingsJSON == nullptr) {
-        AT_Log_Generic("encountered error during settings load: %s", error.text);
+        AT_Error("Encountered error during settings load: %s", error.text);
         settingsJSON = json_object();
     }
     if (!IsOpen()) {
@@ -68,6 +73,8 @@ bool CRegistryAccess::Open(const CString &RegistryPath) {
     if (FAILED(RegCreateKeyEx(HKEY_CURRENT_USER, RegistryPath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hKey, &dwDisposition))) {
         return false; // Geht nicht
     }
+#else
+    (void)RegistryPath;
 #endif
 
     return true;

@@ -1,7 +1,9 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
+#include "helper.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #define AT_Log(...) AT_Log_I("TeakFile", __VA_ARGS__)
 #define GET_RAW_TEXT_PATH(path, buffer, max_size) snprintf(buffer, max_size, "%s.txt", path)
@@ -10,6 +12,8 @@ const char *ExcOpen = "Can't open %s!";
 const char *ExcRead = "Can't read %s!";
 const char *ExcWrite = "Can't write %s!";
 const char *ExcSeek = "Can't seek %s at %li!";
+
+BOOL isCRLE(char const *path);
 
 TEAKFILE::TEAKFILE()
     : Ctx(nullptr), Path(nullptr), MemPointer(0), MemBufferUsed(0)
@@ -230,28 +234,28 @@ bool CRLEReader::Read(BYTE *buffer, SLONG size, bool decode) {
 }
 
 BOOL DoesFileExist(char const *path) {
-    SDL_RWops *ctx = SDL_RWFromFile(path, "rb");
-    if (ctx != nullptr) {
-        SDL_RWclose(ctx);
-        return 1;
+    if (fs::exists(path)) {
+        return true;
     }
 #ifdef _DEBUG
     AT_Log("File not found: %s", path);
 #endif
-    return 0;
+    return false;
 }
 
 BOOL DoesDirectoryExist(char const *path) {
-    struct stat info{};
-
-    if (stat(path, &info) == 0 && (info.st_mode & S_IFMT) == S_IFDIR) {
-        return 1;
+    std::string str(path);
+    while (!str.empty() && str[str.length() - 1] == '\\') {
+        str.resize(str.length() - 1);
+    }
+    if (fs::is_directory(str)) {
+        return true;
     }
 
 #ifdef _DEBUG
     AT_Log("Directory not found: %s", path);
 #endif
-    return 0;
+    return false;
 }
 
 BOOL isCRLE(char const *path) {
@@ -273,7 +277,7 @@ BUFFER_V<BYTE> LoadCompleteFile(char const *path) {
         converter.SaveAsPlainText();
         converter.Close();
     }
-    
+
     // Read file and return
     CRLEReader reader(path);
     BUFFER_V<BYTE> buffer(reader.GetSize());
@@ -282,7 +286,6 @@ BUFFER_V<BYTE> LoadCompleteFile(char const *path) {
     }
     return buffer;
 }
-
 
 CRLEWriter::CRLEWriter(const char *path) : Ctx(nullptr), Version(0x102), Key(0xA5), Magic("xtRLE"), Path(path), Sequence() {}
 CRLEWriter::~CRLEWriter() { Close(); }

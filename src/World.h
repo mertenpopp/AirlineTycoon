@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // World.h : Das weltweite Telefonat
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CWorld : public CStdRaum {
     // Construction

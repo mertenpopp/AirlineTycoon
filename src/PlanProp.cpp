@@ -1,9 +1,13 @@
 //============================================================================================
 // PlaneProps.cpp : Der Schalter und das Hinterzimmer von PlaneProps!
 //============================================================================================
-#include "StdAfx.h"
 #include "PlanProp.h"
+
+#include "ColorFx.h"
+#include "global.h"
 #include "glplanpr.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -463,7 +467,7 @@ void CPlaneProps::OnPaint() {
             RoomBm.pBitmap->SetClipRect(CRect(0, 0, 640, 480));
         }
     } else {
-        SLONG ScrollOffsetX = -(ActivePage)*229 / 100;
+        SLONG ScrollOffsetX = -(ActivePage) * 229 / 100;
         XY ScrollOffset = XY(ScrollOffsetX, 0);
 
         RoomBm.BlitFrom(Back2, ScrollOffsetX, 0);
@@ -678,7 +682,7 @@ void CPlaneProps::OnPaint() {
         }
     }
 
-    //Überschrift:
+    // Überschrift:
     SLONG HeadlineOffset = 229 * (100 - ActivePage) / 100;
     RoomBm.BlitFromT(MenuMaskBm, HeadlineOffset, 2);
 
@@ -937,7 +941,7 @@ void CPlaneProps::OnLButtonDown(UINT nFlags, CPoint point) {
         } else if (MouseClickArea == ROOM_PLANEPROPS && MouseClickId == 115) {
             SLONG total = qPlane.ptPassagiere;
             FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<float>(total);
-            
+
             prozent -= 10;
             SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
             SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;

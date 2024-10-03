@@ -1,6 +1,12 @@
+#pragma once
 //============================================================================================
 // Editor.h : Der Flugzeugeditor
 //============================================================================================
+
+#include "class.h"
+#include "defines.h"
+#include "TeakLibW.h"
+#include "StdRaum.h"
 
 #define NUM_PLANE_BODY 5    // Anzahl der Rümpfe
 #define NUM_PLANE_COCKPIT 5 // Anzahl der Cockpits
@@ -17,17 +23,19 @@ class CPlanePartRelation {
     SLONG Id;             // [csv] Id der Relation
     SLONG FromBuildIndex; // [csv] An dieses Teil wird etwas geklebt
     SLONG ToBuildIndex;   // [csv] ..und zwar dieses Teil hier
-    XY Offset2d;         // Offset für die 2d-Ansicht am Flughafen
-    XY Offset3d;         // Offset für die 2d-Ansicht im Editor
+    XY Offset2d;          // Offset für die 2d-Ansicht am Flughafen
+    XY Offset3d;          // Offset für die 2d-Ansicht im Editor
     SLONG Note1;          // [CSV] Spezielle Anmerkung, z.B. zu auf/Aberwertung
     SLONG Note2;          // [CSV] dito
     SLONG Note3;          // [CSV] dito
     SLONG zAdd;
-    SLONG Noise;                // [CSV] Zusätzlicher Lärm
+    SLONG Noise;               // [CSV] Zusätzlicher Lärm
     const char *Slot;          // Dieser Slot wird benötigt (BCHLMR)
     const char *RulesOutSlots; // Und diese Slots werden blockiert
 
   public:
+    CPlanePartRelation() = default;
+
     CPlanePartRelation(SLONG _Id, ULONG _FromBuildIndex, ULONG _ToBuildIndex, XY _Offset2d, XY _Offset3d, SLONG _Note1, SLONG _Note2, SLONG _Note3, SLONG _zAdd,
                        SLONG _Noise, const char *_Slot, const char *_RulesOutSlots) {
         Id = _Id;
@@ -50,16 +58,16 @@ class CPlanePartRelation {
 // Das theoretische Teil aus dem Katalog:
 class CPlaneBuild {
   public:
-    SLONG Id{};               // [csv]
+    SLONG Id{};              // [csv]
     const char *Shortname{}; // [csv] z.B. B1
-    SLONG Cost{};             // [CSV] Soviel kostet das hier
-    SLONG Weight{};           // [CSV] Soviel wiegt dieses Teil (Beispiel 149pass=62t 170pass=68t 272pass=148t 440pass=135t 550pass=160t)
-    SLONG Power{};            // [CSV] Soviel Power hat es, falls es ein Triebwerk ist
-    SLONG Noise{};            // [CSV] Soviel Krach verursacht es
-    SLONG Wartung{};          // [CSV] So Wartungsintensiv ist dieses Teil
-    SLONG Passagiere{};       // [CSV] Soviele Leute passen in diesen Part
-    SLONG Verbrauch{};        // [CSV] Verbrauch in l/h
-    SLONG BitmapIndex{};      // Index in das Array mit Bitmaps
+    SLONG Cost{};            // [CSV] Soviel kostet das hier
+    SLONG Weight{};          // [CSV] Soviel wiegt dieses Teil (Beispiel 149pass=62t 170pass=68t 272pass=148t 440pass=135t 550pass=160t)
+    SLONG Power{};           // [CSV] Soviel Power hat es, falls es ein Triebwerk ist
+    SLONG Noise{};           // [CSV] Soviel Krach verursacht es
+    SLONG Wartung{};         // [CSV] So Wartungsintensiv ist dieses Teil
+    SLONG Passagiere{};      // [CSV] Soviele Leute passen in diesen Part
+    SLONG Verbrauch{};       // [CSV] Verbrauch in l/h
+    SLONG BitmapIndex{};     // Index in das Array mit Bitmaps
     SLONG zPos{};
 
   public:
@@ -115,6 +123,8 @@ class CPlaneBuilds : public ALBUM_V<CPlaneBuild> {
 class CEditor : public CStdRaum {
     // Construction
   public:
+    static void generateStaticData();
+
     CEditor(BOOL bHandy, ULONG PlayerNum);
 
     // Data
@@ -144,8 +154,8 @@ class CEditor : public CStdRaum {
     SBBMS MaskenBms;
 
     SLONG DragDropMode;
-    CString PartUnderCursor;      // Das Part was dranklebt oder Leerstring
-    CString PartUnderCursorB;     // Der andere Flügel, der ggf. mit dranklebt
+    CString PartUnderCursor;       // Das Part was dranklebt oder Leerstring
+    CString PartUnderCursorB;      // Der andere Flügel, der ggf. mit dranklebt
     SLONG RelationIdUnderCursor{}; // Für das Snap-In die passende Relation
 
     bool bBodyOutlined{};    // Ist Body markiert?
@@ -193,7 +203,7 @@ class CEditor : public CStdRaum {
     // DECLARE_MESSAGE_MAP()
 };
 
-CPlaneBuild &GetPlaneBuild(const CString &Shortname);
-SLONG GetPlaneBuildIndex(const CString &Shortname);
+CPlaneBuild &GetPlaneBuild(const std::string &Shortname);
+SLONG GetPlaneBuildIndex(const std::string &Shortname);
 
 /////////////////////////////////////////////////////////////////////////////

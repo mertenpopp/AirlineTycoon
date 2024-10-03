@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Res/resource.h"
 //============================================================================================
 // Defines.h - globale Konstanten:
@@ -9,13 +10,24 @@
 // * Exception, wenn der Boss für die höheren Missionen spricht
 // * Keine Voices
 // * Beschränkung auf 100 Tage
-//#define DEMO            //Beschränkung der Missionen und einiges mehr
-//#define NO_D_VOICES     //Keine deutschen Voices, Sprechblasen werden eingeschaltet
-//#define NO_E_VOICES     //Keine englischen Voices, Sprechblasen werden eingeschaltet
-//#define NO_N_VOICES     //Keine niernerländischen Voices, Sprechblasen werden eingeschaltet
-//#define NO_INTRO        //Kein Intro, d.h. er wird übersprungen
+// #define DEMO            //Beschränkung der Missionen und einiges mehr
+// #define NO_D_VOICES     //Keine deutschen Voices, Sprechblasen werden eingeschaltet
+// #define NO_E_VOICES     //Keine englischen Voices, Sprechblasen werden eingeschaltet
+// #define NO_N_VOICES     //Keine niernerländischen Voices, Sprechblasen werden eingeschaltet
+// #define NO_INTRO        //Kein Intro, d.h. er wird übersprungen
 
-//#define VOICES_OPTIONAL //Voices werden verwendet, wenn sie da sind; ansonsten auch nicht schlimm
+// #define VOICES_OPTIONAL //Voices werden verwendet, wenn sie da sind; ansonsten auch nicht schlimm
+
+#include "stdstring.h"
+typedef CStdStringA CString;
+
+#include <SDL_keycode.h>
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+
+#include <stdint.h>
 
 // Meine (konsequenten) Variablentypen
 typedef uint16_t UWORD;
@@ -110,10 +122,18 @@ inline bool operator==(const CPoint &lhs, const CPoint &rhs) { return lhs.x == r
 
 inline bool operator!=(const CPoint &lhs, const CPoint &rhs) { return !(lhs == rhs); }
 
-#define START_NAME_MAP(name) static constexpr const char* Translate_##name(unsigned long value, bool withDescription = false) { switch (value) {
-#define DEFINE_NAME_ENTRY(name, desc) case name: return withDescription ? #name " - " desc : #name;
-#define END_NAME_MAP  default: return "--";}return "unknown";}
-
+#define START_NAME_MAP(name)                                                                                                                                   \
+    static constexpr const char *Translate_##name(unsigned long value, bool withDescription = false) {                                                         \
+        switch (value) {
+#define DEFINE_NAME_ENTRY(name, desc)                                                                                                                          \
+    case name:                                                                                                                                                 \
+        return withDescription ? #name " - " desc : #name;
+#define END_NAME_MAP                                                                                                                                           \
+    default:                                                                                                                                                   \
+        return "--";                                                                                                                                           \
+        }                                                                                                                                                      \
+        return "unknown";                                                                                                                                      \
+        }
 
 // Was wohl:
 #define FEMALE 0
@@ -121,30 +141,30 @@ inline bool operator!=(const CPoint &lhs, const CPoint &rhs) { return !(lhs == r
 
 constexpr char VersionString[] = FILE_VERSION_STRING;
 
-//Generelles
-#define CUSTOMERS_PER_PERSON  5       //Eine Person (Bildschirm) repräsentiert 10 Kunden
-#define CUSTOMERS_PER_PERSONB 15       //Wenn schon 100 an Bord sind, geht es hiermit weiter
-#define DEBT_LIMIT           -1000000  //Max. Kontokorrentkredit
-#define DEBT_WARNLIMIT1       -500000  //Warnung: Limit ist 1 Mio
-#define DEBT_WARNLIMIT2      -1000000  //Warnung: Kein weiterer Kredit
-#define DEBT_WARNLIMIT3      -3000000  //Warnung: Konkurs
-#define DEBT_GAMEOVER        -5000000  //Konkurs
-#define MOODCOUNT_START       60
-#define BUILDHASHSIZE         320
-#define DAYS_WITHOUT_LAPTOP   7
+// Generelles
+#define CUSTOMERS_PER_PERSON 5   // Eine Person (Bildschirm) repräsentiert 10 Kunden
+#define CUSTOMERS_PER_PERSONB 15 // Wenn schon 100 an Bord sind, geht es hiermit weiter
+#define DEBT_LIMIT -1000000      // Max. Kontokorrentkredit
+#define DEBT_WARNLIMIT1 -500000  // Warnung: Limit ist 1 Mio
+#define DEBT_WARNLIMIT2 -1000000 // Warnung: Kein weiterer Kredit
+#define DEBT_WARNLIMIT3 -3000000 // Warnung: Konkurs
+#define DEBT_GAMEOVER -5000000   // Konkurs
+#define MOODCOUNT_START 60
+#define BUILDHASHSIZE 320
+#define DAYS_WITHOUT_LAPTOP 7
 
 // Der Einfachheit halber Maximalwerte für ein paar Tabellen:
-#define MAX_BODIES     30
-#define MAX_TYCOONS    30
+#define MAX_BODIES 30
+#define MAX_TYCOONS 30
 #define MAX_PLANETYPES 200
-#define MAX_BRICKS     340
-#define MAX_CITIES     300
-#define MAX_CLANS      90
-#define MAX_SPECIALS   128              //Zahl der Gates, Rooms, Check-Ins
-#define MAX_ROUTES     1500             //Zahl der vordefinierten Flugrouten
-#define MAX_PNAMES1    200
-#define MAX_PNAMES2    100
-#define MAX_WORKERS    350              //Maximale Zahl der Angestellten
+#define MAX_BRICKS 340
+#define MAX_CITIES 300
+#define MAX_CLANS 90
+#define MAX_SPECIALS 128 // Zahl der Gates, Rooms, Check-Ins
+#define MAX_ROUTES 1500  // Zahl der vordefinierten Flugrouten
+#define MAX_PNAMES1 200
+#define MAX_PNAMES2 100
+#define MAX_WORKERS 350 // Maximale Zahl der Angestellten
 
 // Sprache:
 #define LANGUAGE_D 0   // D-Deutsch
@@ -185,15 +205,15 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define DIFF_FREEGAMEMAP 7
 
 #define DIFF_ADDON 10   // Keine Mission, sondern nur ein Vergleichsmarker
-#define DIFF_ADDON01 11 // Fracht: x Tonnen
-#define DIFF_ADDON02 12 // Sanierung einer bankrotten Fluglinie
+#define DIFF_ADDON01 11 // Sanierung einer bankrotten Fluglinie
+#define DIFF_ADDON02 12 // Fracht: x Tonnen
 #define DIFF_ADDON03 13 // Fracht: Hilfsflüge x Tonnen
 #define DIFF_ADDON04 14 // Flugkilometer
-#define DIFF_ADDON05 15 // Kein Reisebüro
-#define DIFF_ADDON06 16 // Alles modernisieren
-#define DIFF_ADDON07 17 // Aktienkurs
-#define DIFF_ADDON08 18 // Viele Aufträge
-#define DIFF_ADDON09 19 // Service & Luxus
+#define DIFF_ADDON05 15 // Service & Luxus
+#define DIFF_ADDON06 16 // Kein Reisebüro
+#define DIFF_ADDON07 17 // Alles reparieren
+#define DIFF_ADDON08 18 // Aktienkurs
+#define DIFF_ADDON09 19 // Viele Aufträge von Uhrig
 #define DIFF_ADDON10 20 // Weltraumstation
 
 #define DIFF_ATFS 40   // Keine Mission, sondern nur ein Vergleichsmarker
@@ -223,7 +243,7 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define ITEM_MG 3          // Für ArabAir
 #define ITEM_BIER 4        // Für Mechaniker
 #define ITEM_ZIGARRE 5     //
-#define ITEM_OEL 6         //Öl für den Globus
+#define ITEM_OEL 6         // Öl für den Globus
 #define ITEM_POSTKARTE 7   //
 #define ITEM_TABLETTEN 8   //
 #define ITEM_SPINNE 9      //
@@ -388,10 +408,10 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define ROOM_MONITOR7 236      // Fluglisten-Monitor #7 (für Spieler)
 #define ROOM_MONITOR8 237      // Fluglisten-Monitor #8 (für Spieler)
 #define ROOM_MONITOR9 238      // Fluglisten-Monitor #9 (für Spieler)
-#define ROOM_PHONE1 240        //Öffentliches Telefon #1
-#define ROOM_PHONE2 241        //Öffentliches Telefon #2
-#define ROOM_PHONE3 242        //Öffentliches Telefon #3
-#define ROOM_PHONE4 243        //Öffentliches Telefon #4
+#define ROOM_PHONE1 240        // Öffentliches Telefon #1
+#define ROOM_PHONE2 241        // Öffentliches Telefon #2
+#define ROOM_PHONE3 242        // Öffentliches Telefon #3
+#define ROOM_PHONE4 243        // Öffentliches Telefon #4
 #define ROOM_ELECTRO 244       // Der Colaautomat
 #define ROOM_AIRPORT_EXIT 250  // Flughafenausgang
 #define ROOM_WALL 254          // Mauer, Spieler muß davor stehen
@@ -533,9 +553,8 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define ACTION_CHECKAGENT1 210 // Last-Minute
 #define ACTION_CHECKAGENT2 211 // Reisebüro
 #define ACTION_CHECKAGENT3 212 // Frachtraum
-#define ACTION_MEETING 220     // Geht zur morgentlichen Besprechung
 #define ACTION_STARTDAY 221    // Geht ins Büro
-#define ACTION_BUERO 221       // Geht ins Büro
+#define ACTION_BUERO 244       // Geht ins Büro (MP: Changed to unique number, was same as ACTION_STARTDAY)
 #define ACTION_PERSONAL 222    // Geht ins Personalbüro
 #define ACTION_VISITARAB 230
 #define ACTION_VISITKIOSK 231
@@ -552,71 +571,106 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define ACTION_VISITDESIGNER 242
 #define ACTION_VISITSECURITY2 243
 
-#define ACTION_SABOTAGE 500
 #define ACTION_BUYUSEDPLANE 300
 #define ACTION_BUYNEWPLANE 301
 #define ACTION_WERBUNG 400
+#define ACTION_SABOTAGE 500
 
+#define ACTION_UPGRADE_PLANES 600
+#define ACTION_BUY_KEROSIN 601
+#define ACTION_BUY_KEROSIN_TANKS 602
+#define ACTION_SET_DIVIDEND 603
+#define ACTION_BUYSHARES 604
+#define ACTION_SELLSHARES 605
+#define ACTION_WERBUNG_ROUTES 606
+#define ACTION_CALL_INTERNATIONAL 607
+#define ACTION_VISITROUTEBOX2 608
+#define ACTION_EXPANDAIRPORT 609
+#define ACTION_CALL_INTER_HANDY 610
+#define ACTION_STARTDAY_LAPTOP 611
+#define ACTION_VISITADS 612
+#define ACTION_OVERTAKE_AIRLINE 613
+#define ACTION_VISITSABOTEUR 614
 
 START_NAME_MAP(ACTION)
-	DEFINE_NAME_ENTRY(ACTION_NONE, )
-	DEFINE_NAME_ENTRY(ACTION_WAIT, )
-	DEFINE_NAME_ENTRY(ACTION_RAISEMONEY, )
-	DEFINE_NAME_ENTRY(ACTION_DROPMONEY, )
-	DEFINE_NAME_ENTRY(ACTION_VISITBANK, )
-	DEFINE_NAME_ENTRY(ACTION_EMITSHARES, )
-	DEFINE_NAME_ENTRY(ACTION_CHECKAGENT1, )
-	DEFINE_NAME_ENTRY(ACTION_CHECKAGENT2, )
-	DEFINE_NAME_ENTRY(ACTION_CHECKAGENT3, )
-	DEFINE_NAME_ENTRY(ACTION_MEETING, )
-	DEFINE_NAME_ENTRY(ACTION_STARTDAY, )
-	DEFINE_NAME_ENTRY(ACTION_PERSONAL, )
-	DEFINE_NAME_ENTRY(ACTION_VISITARAB, )
-	DEFINE_NAME_ENTRY(ACTION_VISITKIOSK, )
-	DEFINE_NAME_ENTRY(ACTION_VISITMECH, )
-	DEFINE_NAME_ENTRY(ACTION_VISITMUSEUM, )
-	DEFINE_NAME_ENTRY(ACTION_VISITDUTYFREE, )
-	DEFINE_NAME_ENTRY(ACTION_VISITAUFSICHT, )
-	DEFINE_NAME_ENTRY(ACTION_VISITNASA, )
-	DEFINE_NAME_ENTRY(ACTION_VISITTELESCOPE, )
-	DEFINE_NAME_ENTRY(ACTION_VISITMAKLER, )
-	DEFINE_NAME_ENTRY(ACTION_VISITRICK, )
-	DEFINE_NAME_ENTRY(ACTION_VISITROUTEBOX, )
-	DEFINE_NAME_ENTRY(ACTION_VISITSECURITY, )
-	DEFINE_NAME_ENTRY(ACTION_VISITDESIGNER, )
-	DEFINE_NAME_ENTRY(ACTION_VISITSECURITY2, )
+DEFINE_NAME_ENTRY(ACTION_NONE, )
+DEFINE_NAME_ENTRY(ACTION_WAIT, )
+DEFINE_NAME_ENTRY(ACTION_RAISEMONEY, )
+DEFINE_NAME_ENTRY(ACTION_DROPMONEY, )
+DEFINE_NAME_ENTRY(ACTION_VISITBANK, )
+DEFINE_NAME_ENTRY(ACTION_EMITSHARES, )
+DEFINE_NAME_ENTRY(ACTION_CHECKAGENT1, )
+DEFINE_NAME_ENTRY(ACTION_CHECKAGENT2, )
+DEFINE_NAME_ENTRY(ACTION_CHECKAGENT3, )
+DEFINE_NAME_ENTRY(ACTION_STARTDAY, )
+DEFINE_NAME_ENTRY(ACTION_BUERO, )
+DEFINE_NAME_ENTRY(ACTION_PERSONAL, )
+DEFINE_NAME_ENTRY(ACTION_VISITARAB, )
+DEFINE_NAME_ENTRY(ACTION_VISITKIOSK, )
+DEFINE_NAME_ENTRY(ACTION_VISITMECH, )
+DEFINE_NAME_ENTRY(ACTION_VISITMUSEUM, )
+DEFINE_NAME_ENTRY(ACTION_VISITDUTYFREE, )
+DEFINE_NAME_ENTRY(ACTION_VISITAUFSICHT, )
+DEFINE_NAME_ENTRY(ACTION_VISITNASA, )
+DEFINE_NAME_ENTRY(ACTION_VISITTELESCOPE, )
+DEFINE_NAME_ENTRY(ACTION_VISITMAKLER, )
+DEFINE_NAME_ENTRY(ACTION_VISITRICK, )
+DEFINE_NAME_ENTRY(ACTION_VISITROUTEBOX, )
+DEFINE_NAME_ENTRY(ACTION_VISITSECURITY, )
+DEFINE_NAME_ENTRY(ACTION_VISITDESIGNER, )
+DEFINE_NAME_ENTRY(ACTION_VISITSECURITY2, )
+
+DEFINE_NAME_ENTRY(ACTION_BUYUSEDPLANE, )
+DEFINE_NAME_ENTRY(ACTION_BUYNEWPLANE, )
+DEFINE_NAME_ENTRY(ACTION_WERBUNG, )
+DEFINE_NAME_ENTRY(ACTION_SABOTAGE, )
+
+DEFINE_NAME_ENTRY(ACTION_UPGRADE_PLANES, )
+DEFINE_NAME_ENTRY(ACTION_BUY_KEROSIN, )
+DEFINE_NAME_ENTRY(ACTION_BUY_KEROSIN_TANKS, )
+DEFINE_NAME_ENTRY(ACTION_SET_DIVIDEND, )
+DEFINE_NAME_ENTRY(ACTION_BUYSHARES, )
+DEFINE_NAME_ENTRY(ACTION_SELLSHARES, )
+DEFINE_NAME_ENTRY(ACTION_WERBUNG_ROUTES, )
+DEFINE_NAME_ENTRY(ACTION_CALL_INTERNATIONAL, )
+DEFINE_NAME_ENTRY(ACTION_VISITROUTEBOX2, )
+DEFINE_NAME_ENTRY(ACTION_EXPANDAIRPORT, )
+DEFINE_NAME_ENTRY(ACTION_CALL_INTER_HANDY, )
+DEFINE_NAME_ENTRY(ACTION_STARTDAY_LAPTOP, )
+DEFINE_NAME_ENTRY(ACTION_VISITADS, )
+DEFINE_NAME_ENTRY(ACTION_OVERTAKE_AIRLINE, )
+DEFINE_NAME_ENTRY(ACTION_VISITSABOTEUR, )
 END_NAME_MAP
 
-//Die Arten von Beratern:
-#define BERATERTYP_GIRL        0    //Die Sekretärin
-#define BERATERTYP_PERSONAL    1
-#define BERATERTYP_KEROSIN     2
-#define BERATERTYP_OEL         2
-#define BERATERTYP_ROUTE       3
-#define BERATERTYP_AUFTRAG     4
-#define BERATERTYP_GELD        5
-#define BERATERTYP_INFO        6
-#define BERATERTYP_FLUGZEUG    7
-#define BERATERTYP_FITNESS     8
-#define BERATERTYP_SICHERHEIT  9
-#define WORKER_PILOT          10
-#define WORKER_STEWARDESS     11
+// Die Arten von Beratern:
+#define BERATERTYP_GIRL 0 // Die Sekretärin
+#define BERATERTYP_PERSONAL 1
+#define BERATERTYP_KEROSIN 2
+#define BERATERTYP_OEL 2
+#define BERATERTYP_ROUTE 3
+#define BERATERTYP_AUFTRAG 4
+#define BERATERTYP_GELD 5
+#define BERATERTYP_INFO 6
+#define BERATERTYP_FLUGZEUG 7
+#define BERATERTYP_FITNESS 8
+#define BERATERTYP_SICHERHEIT 9
+#define WORKER_PILOT 10
+#define WORKER_STEWARDESS 11
 
 START_NAME_MAP(WORKER_TYPE)
-    DEFINE_NAME_ENTRY(BERATERTYP_GIRL, )
-    DEFINE_NAME_ENTRY(BERATERTYP_PERSONAL, )
-    DEFINE_NAME_ENTRY(BERATERTYP_KEROSIN, )
-    DEFINE_NAME_ENTRY(BERATERTYP_ROUTE, )
-    DEFINE_NAME_ENTRY(BERATERTYP_AUFTRAG, )
-    DEFINE_NAME_ENTRY(BERATERTYP_GELD, )
-    DEFINE_NAME_ENTRY(BERATERTYP_INFO, )
-    DEFINE_NAME_ENTRY(BERATERTYP_FLUGZEUG, )
-    DEFINE_NAME_ENTRY(BERATERTYP_FITNESS, )
-    DEFINE_NAME_ENTRY(BERATERTYP_SICHERHEIT, )
-    DEFINE_NAME_ENTRY(WORKER_PILOT, )
-    DEFINE_NAME_ENTRY(WORKER_STEWARDESS, )
+DEFINE_NAME_ENTRY(BERATERTYP_GIRL, )
+DEFINE_NAME_ENTRY(BERATERTYP_PERSONAL, )
+DEFINE_NAME_ENTRY(BERATERTYP_KEROSIN, )
+DEFINE_NAME_ENTRY(BERATERTYP_ROUTE, )
+DEFINE_NAME_ENTRY(BERATERTYP_AUFTRAG, )
+DEFINE_NAME_ENTRY(BERATERTYP_GELD, )
+DEFINE_NAME_ENTRY(BERATERTYP_INFO, )
+DEFINE_NAME_ENTRY(BERATERTYP_FLUGZEUG, )
+DEFINE_NAME_ENTRY(BERATERTYP_FITNESS, )
+DEFINE_NAME_ENTRY(BERATERTYP_SICHERHEIT, )
+DEFINE_NAME_ENTRY(WORKER_PILOT, )
+DEFINE_NAME_ENTRY(WORKER_STEWARDESS, )
 END_NAME_MAP
-
 
 // Wo befindet sich ein Worker?
 #define WORKER_RESERVE 100 // Ist in der stillen Reserve
@@ -814,7 +868,7 @@ END_NAME_MAP
 #define STATION_ALL 1023  // Die gesammte Rakete
 
 // Die Statistik-Daten:
-#define STAT_ANZ 51 // Die Anzahl der überwachten Eigenschaften
+#define STAT_ANZ 53 // Die Anzahl der überwachten Eigenschaften
 #define STAT_KONTO 0
 #define STAT_KREDIT 1
 #define STAT_FLUGZEUGE 2
@@ -871,9 +925,11 @@ END_NAME_MAP
 #define STAT_A_SONSTIGES 49 // Essen, Zinsen, Dividenden, Telefon ** +STRAFEN **
 
 #define STAT_FRACHTEN 50 // Gesammtanzahl der angenommen (nicht geflogenen!) Frachtaufträge
+#define STAT_TONS 51     // Gesammtanzahl der transportieren Tonnen
+#define STAT_E_FRACHT 52 // Einnahmen durch Frachtaufträge
 
-#define STAT_MAX_GROUPS 3      // Anzahl der Gruppen
-#define STAT_MAX_ITEMS 30     // Anzahl der Einträge je Gruppe
+#define STAT_MAX_GROUPS 3 // Anzahl der Gruppen
+#define STAT_MAX_ITEMS 31 // Anzahl der Einträge je Gruppe
 
 // Eröffnungen für die Dialoge:
 #define DIALOG_WERBUNG 1
@@ -916,83 +972,164 @@ END_NAME_MAP
 #define HINT_RICK 20
 #define HINT_FRACHT 21
 
-#define USE_TRAVELHOLDING 0    // Gibt es die Holdinggesellschaft für die Reisebüros
+#define USE_TRAVELHOLDING 0 // Gibt es die Holdinggesellschaft für die Reisebüros
 
 // Die Fahigkeiten des Computerspielers: Hiermit kann man abfragen, ob sie aktiviert sind:
-#define ROBOT_USE_SABOTAGE 1          // Sabotage betreiben
-#define ROBOT_USE_FRACHT 2            // Frachtaufträge annehmen
-#define ROBOT_USE_WERBUNG 3           // Werbung machen
-#define ROBOT_USE_AUFSICHT 4          // Die Korktafel in der Aufsicht regelmäßig nutzen (Niederlasstungen erwerben)
-#define ROBOT_USE_NASA 5              // Bei der Nasa vorbeischauen
-#define ROBOT_USE_NEVERGIVEROUTEUP 6  // Routen auch bei Verlust niemals aufgeben
-#define ROBOT_USE_ROUTES 7            // Routen verwenden
-#define ROBOT_USE_SUGGESTROUTES 8     // Routen bevorzugt verwenden (Routenmission)
-#define ROBOT_USE_FORCEROUTES 9       // Routen immer verwenden (Ohne-Aufträge Mission)
-#define ROBOT_USE_HARDWERBUNG 10      // Viel Geld für Werbung ausgeben?
-#define ROBOT_USE_SELLSHARES 11       // Computerspieler 2 kann schon frühzeitig Aktien verkaufen (nur wirksam bei PT)
-#define ROBOT_USE_BUYOWNSHARES 12     // Computerspieler kann eigene Aktien zurückkaufen
-#define ROBOT_USE_REBUYSHARES 13      // Teil der eigenen Aktien nach Emission zurückkaufen (SA, FL, PT sowieso immer)
-#define ROBOT_USE_TUTORIALLIMIT 14    // Zahl der Aufträge anhand des Tutoriallimits begrenzen
-#define ROBOT_USE_ROUTEMISSION 15     // Levelziel: bestimmte Routen
-#define ROBOT_USE_MUCHWERBUNG 16      // Der Werbung einen hohen Stellenwert einräumen? (z.B. für Image-Mission)
-#define ROBOT_USE_BONUS_X2 17         // Doppelter Bonus für Computergegner in diesem Level?
-#define ROBOT_USE_BONUS_X4 18         // Vierfacher Bonus für Computergegner in diesem Level?
-#define ROBOT_USE_BONUS_X8 19         // Achtfacher Bonus für Computergegner in diesem Level?
-#define ROBOT_USE_ROUTEBOX 20         // Ist da ein Routenkasten an der Wand
-#define ROBOT_USE_ABROAD 21           // Auch mal im Ausland anrufen
-#define ROBOT_USE_MUCH_SABOTAGE 22    // Etwas mehr Sabotage betreiben
-#define ROBOT_USE_PAYBACK_CREDIT 23   // Spielziel: Kredit zurückzahlen
-#define ROBOT_USE_MUCH_FRACHT 24      // Frachtaufträge sind wichtig
-#define ROBOT_USE_FREE_FRACHT 25      // Frachtaufträge ohne Gewinn sind sehr attraktiv
-#define ROBOT_USE_RUN_FRACHT 26       // Spieler rennt morgens zu Fracht-Aufträgen
-#define ROBOT_USE_LUXERY 27           // Robots setzen auf Luxus
-#define ROBOT_USE_IMAGEBONUS 29       // Robots erhälten täglich einen Imagebonus
-#define ROBOT_USE_GOODPLANES 30       // Robots reparieren immer alles und sofort
-#define ROBOT_USE_REPAIRPLANES 31     // Flugzeug ist kaputt und muß vorsichtig repariert werden
-#define ROBOT_USE_HIGHSHAREPRICE 32   // Robots verwenden hohen Aktienzielkurs (FL immer)
-#define ROBOT_USE_WORKQUICK 33        // Robots sind in den Räumen sehr schnell fertig
-#define ROBOT_USE_GROSSESKONTO 34     // Robots sparen viel auf dem Konto an
-#define ROBOT_USE_EMITMUCHSHARES 35   // Robots geben Aktien aus wann immer sie können
-#define ROBOT_USE_WORKVERYQUICK 36    // Robots sind in den Räumen sehr sehr schnell fertig
-#define ROBOT_USE_ALLRUN 37           // Alle Robots rennen immer
-#define ROBOT_USE_DONTBUYANYSHARES 38 // Robots kaufen nie Aktien
-#define ROBOT_USE_MAXKREDIT 39        // Immer maximal Kredit aufnehmen
-#define ROBOT_USE_MAX4PLANES 40       // Nicht mehr als 4 Flugzeuge kaufen
-#define ROBOT_USE_MAX5PLANES 41       // Nicht mehr als 5 Flugzeuge kaufen
-#define ROBOT_USE_MAX10PLANES 42      // Nicht mehr als 10 Flugzeuge kaufen
-#define ROBOT_USE_NOCHITCHAT 43       // Keine Plauderei am Kiosk, bei Rick und so
-#define ROBOT_USE_OFTENMECH 44        // Mechanikerbesuch statt Plauderei am Kiosk, bei Rick und so
-#define ROBOT_USE_SHORTFLIGHTS 45     // Kurze Flüge bevorzugen
-#define ROBOT_USE_EXTREME_SABOTAGE 46 // Sehr viel mehr Sabotage betreiben
-#define ROBOT_USE_SECURTY_OFFICE 47   // Das neue SecurityOffice nutzen
-#define ROBOT_USE_MAKLER 48           // In diesem Level den Flugzeugmakler nutzen
-#define ROBOT_USE_PETROLAIR 49        // Die Kerosin-Abteilung nutzen?
-#define ROBOT_USE_MAX20PERCENT 50     // Darf maximal 20% der eigenen Aktien besitzen
-#define ROBOT_USE_TANKS 51            // Spieler verwendet die Tanks um günstig Kerosin zu horten
-#define ROBOT_USE_DESIGNER 52         // Spieler verwendet Flugzeugeditor
-#define ROBOT_USE_DESIGNER_BUY 53     // Spieler verwendet Flugzeugeditor und kauft nur dort Flugzeuge
-#define ROBOT_USE_BONUS 54            // Spieler bekomment Bonus-Einkommen für Aufträge
-#define ROBOT_USE_ROUTE_BONUS 55      // Routen haben 25% mehr Passagiere
-#define ROBOT_USE_FAKE_PERSONAL 56    // Spieler emuliert nur Personal
-#define ROBOT_USE_NO_FINE 57          // Spieler erhält keine Strafen
-#define ROBOT_USE_NO_CHECK_FLIGHT 58  // Aufträge des Spielers werden nicht geprüft (korrekter Tag / genügend Sitzplätze)
-#define ROBOT_USE_NO_CHECK_FFLIGHT 59 // Frachtaufträge des Spielers werden nicht geprüft (korrekter Tag / Tonnen offen)
-#define ROBOT_USE_WORKQUICK_2 60      // Extra Geschwindigkeitsbonus für (PT)
-#define ROBOT_USE_EXTRA_SABOTAGE 61   // Öfters zum Saboteur (SA)
-#define ROBOT_USE_SABO_AFFORD_FINE 62 // Ignoriert mögliche Strafe beim Sabotieren, wenn genügend Geld (FL)
-#define ROBOT_USE_MILD_SABOTAGE 63    // Begrenzt stärke der Sabotage (PT)
-#define ROBOT_USE_MILDER_SABOTAGE 64  // Begrenzt stärke der Sabotage noch mehr (SA)
-#define ROBOT_USE_EXTRA_BANK 65       // Öfters zur Bank (FL)
-#define ROBOT_USE_MORE_PLANES 66      // Kauft aggressiver neue Flugzeuge (PT)
-#define ROBOT_USE_MORE_PLANES_2 67    // Kauft aggressiver neue Flugzeuge (SA)
-#define ROBOT_USE_MUCH_FRACHT_BONUS 68// Nimmt fast jeden Frachtauftrag (PT)
-#define ROBOT_USE_END_STRIKE_RAND 69  // Strike kann zufällig beendet werden (Cheat)
-#define ROBOT_USE_ALT_KREDIT 70       // Alternative Kredit-Strategie (FL)
-#define ROBOT_USE_EAGER_SELLSHARES 71 // Verkauft schon früher Aktien (FL)
-#define ROBOT_USE_BARELY_REPAIR 72    // Repariert Flugzeuge nur auf 70% (HA)
-#define ROBOT_USE_UPGRADE_KOMFORT 73  // Kauft Komfort-Upgrade bei gebrauchten Flugzeugen (SA)
-#define ROBOT_USE_UPGRADE_TECH 74     // Kauft Tech-Upgrade bei gebrauchten Flugzeugen (FL)
-#define ROBOT_USE_BUY_MORE_ABROAD 75  // Kauft mehr Niederlassungen (SA)
+#define ROBOT_USE_SABOTAGE 1           // Sabotage betreiben
+#define ROBOT_USE_FRACHT 2             // Frachtaufträge annehmen
+#define ROBOT_USE_WERBUNG 3            // Werbung machen
+#define ROBOT_USE_AUFSICHT 4           // Die Korktafel in der Aufsicht regelmäßig nutzen (Niederlasstungen erwerben)
+#define ROBOT_USE_NASA 5               // Bei der Nasa vorbeischauen
+#define ROBOT_USE_NEVERGIVEROUTEUP 6   // Routen auch bei Verlust niemals aufgeben
+#define ROBOT_USE_ROUTES 7             // Routen verwenden
+#define ROBOT_USE_SUGGESTROUTES 8      // Routen bevorzugt verwenden (Routenmission)
+#define ROBOT_USE_FORCEROUTES 9        // Routen immer verwenden (Ohne-Aufträge Mission)
+#define ROBOT_USE_HARDWERBUNG 10       // Viel Geld für Werbung ausgeben?
+#define ROBOT_USE_SELLSHARES 11        // Computerspieler 2 kann schon frühzeitig Aktien verkaufen (nur wirksam bei PT)
+#define ROBOT_USE_BUYOWNSHARES 12      // Computerspieler kann eigene Aktien zurückkaufen
+#define ROBOT_USE_REBUYSHARES 13       // Teil der eigenen Aktien nach Emission zurückkaufen (SA, FL, PT sowieso immer)
+#define ROBOT_USE_TUTORIALLIMIT 14     // Zahl der Aufträge anhand des Tutoriallimits begrenzen
+#define ROBOT_USE_ROUTEMISSION 15      // Levelziel: bestimmte Routen
+#define ROBOT_USE_MUCHWERBUNG 16       // Der Werbung einen hohen Stellenwert einräumen? (z.B. für Image-Mission)
+#define ROBOT_USE_BONUS_X2 17          // Doppelter Bonus für Computergegner in diesem Level?
+#define ROBOT_USE_BONUS_X4 18          // Vierfacher Bonus für Computergegner in diesem Level?
+#define ROBOT_USE_BONUS_X8 19          // Achtfacher Bonus für Computergegner in diesem Level?
+#define ROBOT_USE_ROUTEBOX 20          // Ist da ein Routenkasten an der Wand
+#define ROBOT_USE_ABROAD 21            // Auch mal im Ausland anrufen
+#define ROBOT_USE_MUCH_SABOTAGE 22     // Etwas mehr Sabotage betreiben
+#define ROBOT_USE_PAYBACK_CREDIT 23    // Spielziel: Kredit zurückzahlen
+#define ROBOT_USE_MUCH_FRACHT 24       // Frachtaufträge sind wichtig
+#define ROBOT_USE_FREE_FRACHT 25       // Frachtaufträge ohne Gewinn sind sehr attraktiv
+#define ROBOT_USE_RUN_FRACHT 26        // Spieler rennt morgens zu Fracht-Aufträgen
+#define ROBOT_USE_LUXERY 27            // Robots setzen auf Luxus
+#define ROBOT_USE_IMAGEBONUS 29        // Robots erhälten täglich einen Imagebonus
+#define ROBOT_USE_GOODPLANES 30        // Robots reparieren immer alles und sofort
+#define ROBOT_USE_REPAIRPLANES 31      // Flugzeug ist kaputt und muß vorsichtig repariert werden
+#define ROBOT_USE_HIGHSHAREPRICE 32    // Robots verwenden hohen Aktienzielkurs (FL immer)
+#define ROBOT_USE_WORKQUICK 33         // Robots sind in den Räumen sehr schnell fertig
+#define ROBOT_USE_GROSSESKONTO 34      // Robots sparen viel auf dem Konto an
+#define ROBOT_USE_EMITMUCHSHARES 35    // Robots geben Aktien aus wann immer sie können
+#define ROBOT_USE_WORKVERYQUICK 36     // Robots sind in den Räumen sehr sehr schnell fertig
+#define ROBOT_USE_ALLRUN 37            // Alle Robots rennen immer
+#define ROBOT_USE_DONTBUYANYSHARES 38  // Robots kaufen nie Aktien
+#define ROBOT_USE_MAXKREDIT 39         // Immer maximal Kredit aufnehmen
+#define ROBOT_USE_MAX4PLANES 40        // Nicht mehr als 4 Flugzeuge kaufen
+#define ROBOT_USE_MAX5PLANES 41        // Nicht mehr als 5 Flugzeuge kaufen
+#define ROBOT_USE_MAX10PLANES 42       // Nicht mehr als 10 Flugzeuge kaufen
+#define ROBOT_USE_NOCHITCHAT 43        // Keine Plauderei am Kiosk, bei Rick und so
+#define ROBOT_USE_OFTENMECH 44         // Mechanikerbesuch statt Plauderei am Kiosk, bei Rick und so
+#define ROBOT_USE_SHORTFLIGHTS 45      // Kurze Flüge bevorzugen
+#define ROBOT_USE_EXTREME_SABOTAGE 46  // Sehr viel mehr Sabotage betreiben
+#define ROBOT_USE_SECURTY_OFFICE 47    // Das neue SecurityOffice nutzen
+#define ROBOT_USE_MAKLER 48            // In diesem Level den Flugzeugmakler nutzen
+#define ROBOT_USE_PETROLAIR 49         // Die Kerosin-Abteilung nutzen?
+#define ROBOT_USE_MAX20PERCENT 50      // Darf maximal 20% der eigenen Aktien besitzen
+#define ROBOT_USE_TANKS 51             // Spieler verwendet die Tanks um günstig Kerosin zu horten
+#define ROBOT_USE_DESIGNER 52          // Spieler verwendet Flugzeugeditor
+#define ROBOT_USE_DESIGNER_BUY 53      // Spieler verwendet Flugzeugeditor und kauft nur dort Flugzeuge
+#define ROBOT_USE_BONUS 54             // Spieler bekomment Bonus-Einkommen für Aufträge
+#define ROBOT_USE_ROUTE_BONUS 55       // Routen haben 25% mehr Passagiere
+#define ROBOT_USE_FAKE_PERSONAL 56     // Spieler emuliert nur Personal
+#define ROBOT_USE_NO_FINE 57           // Spieler erhält keine Strafen
+#define ROBOT_USE_NO_CHECK_FLIGHT 58   // Aufträge des Spielers werden nicht geprüft (korrekter Tag / genügend Sitzplätze)
+#define ROBOT_USE_NO_CHECK_FFLIGHT 59  // Frachtaufträge des Spielers werden nicht geprüft (korrekter Tag / Tonnen offen)
+#define ROBOT_USE_WORKQUICK_2 60       // Extra Geschwindigkeitsbonus für (PT)
+#define ROBOT_USE_EXTRA_SABOTAGE 61    // Öfters zum Saboteur (SA)
+#define ROBOT_USE_SABO_AFFORD_FINE 62  // Ignoriert mögliche Strafe beim Sabotieren, wenn genügend Geld (FL)
+#define ROBOT_USE_MILD_SABOTAGE 63     // Begrenzt stärke der Sabotage (PT)
+#define ROBOT_USE_MILDER_SABOTAGE 64   // Begrenzt stärke der Sabotage noch mehr (SA)
+#define ROBOT_USE_EXTRA_BANK 65        // Öfters zur Bank (FL)
+#define ROBOT_USE_MORE_PLANES 66       // Kauft aggressiver neue Flugzeuge (PT)
+#define ROBOT_USE_MORE_PLANES_2 67     // Kauft aggressiver neue Flugzeuge (SA)
+#define ROBOT_USE_MUCH_FRACHT_BONUS 68 // Nimmt fast jeden Frachtauftrag (PT)
+#define ROBOT_USE_MISC_CHEATS 69       // Streik kann zufällig beendet werden / Virus entfernt / Kooperation mit anderen Robots
+#define ROBOT_USE_ALT_KREDIT 70        // Alternative Kredit-Strategie (FL)
+#define ROBOT_USE_EAGER_SELLSHARES 71  // Verkauft schon früher Aktien (FL)
+#define ROBOT_USE_BARELY_REPAIR 72     // Repariert Flugzeuge nur auf 70% (HA)
+#define ROBOT_USE_UPGRADE_KOMFORT 73   // Kauft Komfort-Upgrade bei gebrauchten Flugzeugen (SA)
+#define ROBOT_USE_UPGRADE_TECH 74      // Kauft Tech-Upgrade bei gebrauchten Flugzeugen (FL)
+#define ROBOT_USE_BUY_MORE_ABROAD 75   // Kauft mehr Niederlassungen (SA)
+#define ROBOT_ALWAYS_BUY_GATES 76      // Bietet immer auf Gates (SA)
+#define ROBOT_UHRIG_FLIGHTS_AUTO 77    // Aufträge von Uhrig (Mission DIFF_ADDON09) werden gefaked
+
+START_NAME_MAP(ROBOT_USE)
+DEFINE_NAME_ENTRY(ROBOT_USE_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_FRACHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_WERBUNG, )
+DEFINE_NAME_ENTRY(ROBOT_USE_AUFSICHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NASA, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NEVERGIVEROUTEUP, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ROUTES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_SUGGESTROUTES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_FORCEROUTES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_HARDWERBUNG, )
+DEFINE_NAME_ENTRY(ROBOT_USE_SELLSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BUYOWNSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_REBUYSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_TUTORIALLIMIT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ROUTEMISSION, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MUCHWERBUNG, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BONUS_X2, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BONUS_X4, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BONUS_X8, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ROUTEBOX, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ABROAD, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MUCH_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_PAYBACK_CREDIT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MUCH_FRACHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_FREE_FRACHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_RUN_FRACHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_LUXERY, )
+DEFINE_NAME_ENTRY(ROBOT_USE_IMAGEBONUS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_GOODPLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_REPAIRPLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_HIGHSHAREPRICE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_WORKQUICK, )
+DEFINE_NAME_ENTRY(ROBOT_USE_GROSSESKONTO, )
+DEFINE_NAME_ENTRY(ROBOT_USE_EMITMUCHSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_WORKVERYQUICK, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ALLRUN, )
+DEFINE_NAME_ENTRY(ROBOT_USE_DONTBUYANYSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAXKREDIT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAX4PLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAX5PLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAX10PLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NOCHITCHAT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_OFTENMECH, )
+DEFINE_NAME_ENTRY(ROBOT_USE_SHORTFLIGHTS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_EXTREME_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_SECURTY_OFFICE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAKLER, )
+DEFINE_NAME_ENTRY(ROBOT_USE_PETROLAIR, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MAX20PERCENT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_TANKS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_DESIGNER, )
+DEFINE_NAME_ENTRY(ROBOT_USE_DESIGNER_BUY, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BONUS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ROUTE_BONUS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_FAKE_PERSONAL, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NO_FINE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NO_CHECK_FLIGHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_NO_CHECK_FFLIGHT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_WORKQUICK_2, )
+DEFINE_NAME_ENTRY(ROBOT_USE_EXTRA_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_SABO_AFFORD_FINE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MILD_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MILDER_SABOTAGE, )
+DEFINE_NAME_ENTRY(ROBOT_USE_EXTRA_BANK, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MORE_PLANES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MORE_PLANES_2, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MUCH_FRACHT_BONUS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_MISC_CHEATS, )
+DEFINE_NAME_ENTRY(ROBOT_USE_ALT_KREDIT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_EAGER_SELLSHARES, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BARELY_REPAIR, )
+DEFINE_NAME_ENTRY(ROBOT_USE_UPGRADE_KOMFORT, )
+DEFINE_NAME_ENTRY(ROBOT_USE_UPGRADE_TECH, )
+DEFINE_NAME_ENTRY(ROBOT_USE_BUY_MORE_ABROAD, )
+DEFINE_NAME_ENTRY(ROBOT_ALWAYS_BUY_GATES, )
+DEFINE_NAME_ENTRY(ROBOT_UHRIG_FLIGHTS_AUTO, )
+END_NAME_MAP
 
 // Die Netzwerk-Medien
 #define NET_MEDIUM_UNKNOWN 0
@@ -1048,7 +1185,7 @@ END_NAME_MAP
 #define WM_MBUTTONDBLCLK 0x0209
 
 #define RGB(r, g, b) ((COLORREF)(((BYTE)(r) | ((WORD)((BYTE)(g)) << 8)) | (((DWORD)(BYTE)(b)) << 16)))
-#define GetRValue(rgb) ((unsigned char)((rgb)&0xFF))
+#define GetRValue(rgb) ((unsigned char)((rgb) & 0xFF))
 #define GetGValue(rgb) ((unsigned char)(((rgb) >> 8) & 0xFF))
 #define GetBValue(rgb) ((unsigned char)(((rgb) >> 16) & 0xFF))
 #define stricmp strcasecmp
