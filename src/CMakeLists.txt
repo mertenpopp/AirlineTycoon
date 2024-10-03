@@ -4,19 +4,17 @@ add_library(common INTERFACE)
 
 if(MSVC)
     add_compile_options("/MP")
-elseif(APPLE AND UNIX)
+elseif(UNIX)
     target_compile_options(common INTERFACE "-Wall")
     target_compile_options(common INTERFACE "-Wextra")
-    target_compile_options(common INTERFACE "-Wno-format-nonliteral")
-    target_compile_options(common INTERFACE "-Wno-sign-compare")
-    target_compile_options(common INTERFACE "-Wno-type-limits")
+    target_compile_options(common INTERFACE "-pedantic")
     target_compile_options(common INTERFACE "-Wcast-align")
     target_compile_options(common INTERFACE "-Wcast-qual")
     target_compile_options(common INTERFACE "-Wctor-dtor-privacy")
     target_compile_options(common INTERFACE "-Wfloat-equal")
     target_compile_options(common INTERFACE "-Wformat=2")
     target_compile_options(common INTERFACE "-Winit-self")
-    target_compile_options(common INTERFACE "-Winline")
+    #target_compile_options(common INTERFACE "-Winline")
     target_compile_options(common INTERFACE "-Wmissing-declarations")
     target_compile_options(common INTERFACE "-Wmissing-include-dirs")
     #target_compile_options(common INTERFACE "-Wold-style-cast")
@@ -25,17 +23,26 @@ elseif(APPLE AND UNIX)
     #target_compile_options(common INTERFACE "-Wshadow")
     #target_compile_options(common INTERFACE "-Wsign-conversion")
     target_compile_options(common INTERFACE "-Wsign-promo")
-    target_compile_options(common INTERFACE "-Wstrict-overflow=2")
+    #target_compile_options(common INTERFACE "-Wstrict-overflow=2")
     target_compile_options(common INTERFACE "-Wswitch-default")
     target_compile_options(common INTERFACE "-Wundef")
-elseif(UNIX AND NOT APPLE)
-    target_compile_options(common INTERFACE "-Wdisabled-optimization")
-    target_compile_options(common INTERFACE "-Wlogical-op")
-    target_compile_options(common INTERFACE "-Wnoexcept")
-    target_compile_options(common INTERFACE "-Wstrict-null-sentinel")
-    target_compile_options(common INTERFACE "-Wunsafe-loop-optimizations")
-elseif(APPLE AND NOT UNIX)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    target_compile_options(common INTERFACE "-Wno-deprecated-copy")
+    target_compile_options(common INTERFACE "-Wno-format-nonliteral")
+    target_compile_options(common INTERFACE "-Wno-sign-compare")
+    target_compile_options(common INTERFACE "-Wno-type-limits")
+    target_compile_options(common INTERFACE "-Wno-unused-result")
+    if(NOT APPLE)
+        target_compile_options(common INTERFACE "-Werror")
+
+        target_compile_options(common INTERFACE "-Wdisabled-optimization")
+        target_compile_options(common INTERFACE "-Wlogical-op")
+        target_compile_options(common INTERFACE "-Wnoexcept")
+        target_compile_options(common INTERFACE "-Wstrict-null-sentinel")
+        target_compile_options(common INTERFACE "-Wunsafe-loop-optimizations")
+
+        target_compile_options(common INTERFACE "-Wno-maybe-uninitialized")
+    endif()
 endif()
 
 add_subdirectory (TeakLibW)
@@ -60,6 +67,15 @@ add_executable (AT
     Auftrag.cpp
     Bank.cpp
     Block.cpp
+    Bot.cpp
+    BotActions.cpp
+    BotDesigner.cpp
+    BotConditions.cpp
+    BotFunctions.cpp
+    BotHelper.cpp
+    BotMisc.cpp
+    BotPlaner.cpp
+    BotPlanerAlgo.cpp
     Brick.cpp
     Checkup.cpp
     ColorFx.cpp
@@ -71,6 +87,7 @@ add_executable (AT
     Editor.cpp
     Fracht.cpp
     GameFrame.cpp
+    GameMechanic.cpp
     Global.cpp
     Globe.cpp
     HalldiskMenu.cpp
@@ -110,7 +127,6 @@ add_executable (AT
     SmackPrs.cpp
     Sound.cpp
     Statistk.cpp
-    StdAfx.cpp
     StdRaum.cpp
     Synthese.cpp
     Tafel.cpp
@@ -125,8 +141,7 @@ add_executable (AT
 )
 
 set_target_properties(AT PROPERTIES
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}"
-)
+                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
 
 set_target_properties(
     AT PROPERTIES
@@ -139,9 +154,9 @@ if(MSVC)
     target_compile_features(AT PUBLIC cxx_std_17)
     target_compile_options(AT PUBLIC "/Zc:__cplusplus")
     target_compile_options(AT PUBLIC "/std:c++17")
-    target_compile_options(AT PUBLIC "$<$<CONFIG:Release>:/O2 /Ob2 /Zi /Ot /GF /Oi /Oy>")
-
-    target_link_options(AT PUBLIC "/DEBUG:FULL")
+    
+    set_target_properties(AT PROPERTIES
+                            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
     # Release configurations
     target_compile_definitions(AT PRIVATE "$<$<CONFIG:Release>:SENTRY;WIN32;_WINDOWS>")
@@ -150,9 +165,16 @@ if(MSVC)
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
 endif()
 
-if(NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
-    target_precompile_headers(AT PUBLIC StdAfx.h)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_BUILD_TYPE Release)
+    add_compile_definitions(NDEBUG)
 endif()
+
+# always optimize bot heuristics (take very long otherwise)
+#set_source_files_properties(BotPlaner.cpp PROPERTIES COMPILE_FLAGS "-O3 -DNEDBUG")
+#set_source_files_properties(BotPlanerAlgo.cpp PROPERTIES COMPILE_FLAGS "-O3 -DNEDBUG")
 
 target_link_libraries(AT PRIVATE
     common
@@ -193,24 +215,21 @@ endif()
 
 # Copy patched assets into target
 add_custom_command(
-    TARGET AT PRE_LINK
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/copy_if_different.cmake" "${PATCH_FOLDER}" "$<TARGET_FILE_DIR:AT>/patch"
-    COMMENT "Copying patches to ${CMAKE_BUILD_TYPE} directory"
-)
-
-# Compile patched assets with the freshly build executable
-add_custom_command(
     TARGET AT POST_BUILD
-    COMMAND $<TARGET_FILE:AT> /update-patched-files-only
     COMMENT "Compiling patched assets"
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/copy_if_different.cmake" "${PATCH_FOLDER}" "$<TARGET_FILE_DIR:AT>/patch"
+    COMMAND $<TARGET_FILE:AT> /update-patched-files-only
+    COMMAND ${CMAKE_COMMAND} -E rm -f $<TARGET_FILE_DIR:AT>/debug.txt
+    COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_FILE_DIR:AT>/.sentry-native
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/cleanup_folder.cmake" "$<TARGET_FILE_DIR:AT>/patch" ".txt"
+    #BYPRODUCTS "$<TARGET_FILE_DIR:AT>/patch/dlg_ger.patched.res"
+    #DEPENDS "${PATCH_FOLDER}/dlg_ger.patched.res.txt"
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:AT>"
 )
 
-# Clean up patched assets from folder
-add_custom_command(
-    TARGET AT POST_BUILD
-    COMMENT "Cleaning up"
-    COMMAND ${CMAKE_COMMAND} -E remove $<TARGET_FILE_DIR:AT>/debug.txt
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:AT>/.sentry-native
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/cleanup_folder.cmake" "$<TARGET_FILE_DIR:AT>/patch" ".txt"
-)
+install(TARGETS AT DESTINATION "${PROJECT_INSTALL_DIR}")
+install(FILES "$<TARGET_FILE_DIR:AT>/patch/dlg_ger.patched.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
+install(FILES "$<TARGET_FILE_DIR:AT>/patch/ein_ger.patched.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
+install(FILES "$<TARGET_FILE_DIR:AT>/patch/modded_ger.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
+install(FILES "$<TARGET_FILE_DIR:AT>/patch/std_ger.patched.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
+

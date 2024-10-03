@@ -1,6 +1,10 @@
+#pragma once
 //============================================================================================
 // PlaneProps.h : Die Eigenschaften von einem Flugzeug
 //============================================================================================
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class CPlaneProps : public CStdRaum {
     // Construction

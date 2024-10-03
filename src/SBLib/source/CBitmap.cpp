@@ -1,11 +1,16 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "helper.h"
+#include "Proto.h"
+#include "sbl.h"
+
+#include <SDL_surface.h>
+#include <SDL_timer.h>
 
 #define AT_Log(...) AT_Log_I("Rendering", __VA_ARGS__)
 
 Uint16 get_pixel16(SDL_Surface *surface, SLONG x, SLONG y);
 
 void put_pixel16(SDL_Surface *surface, SLONG x, SLONG y, Uint16 pixel);
-
 SB_CBitmapMain::SB_CBitmapMain(SDL_Renderer *render) : Renderer(render) {}
 
 SB_CBitmapMain::~SB_CBitmapMain() {
@@ -143,7 +148,6 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
     int py = 0;
     int xe = 0;
     int ye = 0;
-    int i = 0;
     dx = x2 - x1;
     dy = y2 - y1;
     dx1 = fabs(dx);
@@ -161,7 +165,7 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
             xe = x1;
         }
         SetPixel(x, y, hwcolor);
-        for (i = 0; x < xe; i++) {
+        while (x < xe) {
             x = x + 1;
             if (px < 0) {
                 px = px + 2 * dy1;
@@ -186,7 +190,7 @@ ULONG SB_CBitmapCore::Line(SLONG x1, SLONG y1, SLONG x2, SLONG y2, SB_Hardwareco
             ye = y1;
         }
         SetPixel(x, y, hwcolor);
-        for (i = 0; y < ye; i++) {
+        while (y < ye) {
             y = y + 1;
             if (py <= 0) {
                 py = py + 2 * dx1;
@@ -237,9 +241,7 @@ SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(ULONG color) {
 #endif
 }
 
-SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(char r, char g, char b) {
-    return SB_Hardwarecolor(SDL_MapRGB(lpDDSurface->format, r, g, b));
-}
+SB_Hardwarecolor SB_CBitmapCore::GetHardwarecolor(char r, char g, char b) { return SB_Hardwarecolor(SDL_MapRGB(lpDDSurface->format, r, g, b)); }
 
 ULONG SB_CBitmapCore::Clear(SB_Hardwarecolor hwcolor, const RECT *pRect) {
     auto color = (dword)hwcolor;
@@ -372,19 +374,29 @@ SDL_Surface *SB_CBitmapCore::GetFlippedSurface() {
 }
 
 ULONG SB_CBitmapCore::Blit(class SB_CBitmapCore *core, SLONG x, SLONG y) {
+    if (!lpDDSurface || !core->lpDDSurface) {
+        return 0;
+    }
+
     SDL_Rect dst = {x, y, Size.x, Size.y};
     return SDL_BlitSurface(lpDDSurface, nullptr, core->lpDDSurface, &dst);
 }
 
 ULONG SB_CBitmapCore::Blit(class SB_CBitmapCore *core, SLONG x, SLONG y, const CRect &rect) {
+    if (!lpDDSurface || !core->lpDDSurface) {
+        return 0;
+    }
+
     SDL_Rect src = {rect.left, rect.top, rect.Width(), rect.Height()};
     SDL_Rect dst = {x, y, rect.Width(), rect.Height()};
     return SDL_BlitSurface(lpDDSurface, &src, core->lpDDSurface, &dst);
 }
 
-ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y) {
-    if (!lpDDSurface || !core->lpDDSurface)
+ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore *core, SLONG x, SLONG y) {
+    if (!lpDDSurface || !core->lpDDSurface) {
         return 0;
+    }
+
     // Ignore source color key
     Uint32 key = 0;
     int result = SDL_GetColorKey(lpDDSurface, &key);
@@ -402,8 +414,8 @@ ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y) {
     return 0;
 }
 
-ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore* core, SLONG x, SLONG y, const CRect& rect) {
-    if(!lpDDSurface) {
+ULONG SB_CBitmapCore::BlitFast(class SB_CBitmapCore *core, SLONG x, SLONG y, const CRect &rect) {
+    if (!lpDDSurface) {
         return 0;
     }
 

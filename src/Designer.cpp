@@ -1,10 +1,11 @@
 //============================================================================================
 // Designer.cpp : Der Designer-Raum
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 #include "Designer.h"
 #include "gldesigner.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

@@ -1,11 +1,15 @@
 //============================================================================================
 // Brick.Cpp - Funktionen für die Verwaltung der baulichen Elemente:
 //============================================================================================
-#include "StdAfx.h"
+
+#include "class.h"
+#include "ColorFx.h"
+#include "defines.h"
+#include "global.h"
+#include "Proto.h"
+#include "TeakLibW.h"
 
 extern SB_CColorFX ColorFX;
-
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 
 //--------------------------------------------------------------------------------------------
 // Die Ausmaße einer Brick-Bitmap zurückgeben:

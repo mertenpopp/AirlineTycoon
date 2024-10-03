@@ -3,7 +3,10 @@
 //============================================================================================
 // Link to "proto.h"
 //============================================================================================
-#include "StdAfx.h"
+
+#include "defines.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -1014,9 +1017,9 @@ void DrawMoneyTip(SBBM &TipBm, SLONG PlayerNum, SLONG Page) {
     SB_CFont FontBankBlack;
     SB_CFont FontBankRed;
 
-    Hdu.HercPrintf(0, "bank_bl.mcf");
+    hprintf("bank_bl.mcf");
     FontBankBlack.Load(lpDD, const_cast<char *>((LPCTSTR)FullFilename("bank_bl.mcf", MiscPath)));
-    Hdu.HercPrintf(0, "bank_ro.mcf");
+    hprintf("bank_ro.mcf");
     FontBankRed.Load(lpDD, const_cast<char *>((LPCTSTR)FullFilename("bank_ro.mcf", MiscPath)));
 
     // Fenster-Überschrift:
@@ -1077,7 +1080,7 @@ void DrawPlanesNotepad(SBBM &NotepadBm, CDataTable *Table, SLONG CountFrom, SBBM
     NotepadBm.ReSize((*pMenuBms)[0].Size); // gNotepadBm
     NotepadBm.BlitFrom((*pMenuBms)[0]);
 
-    //Überschriften:
+    // Überschriften:
     NotepadBm.PrintAt(Table->ColTitle[0], FontSmallBlack, TEC_FONT_LEFT, XY(216, 12), (*pMenuBms)[0].Size);
 
     if (DisplayWartungskosten != 0) {

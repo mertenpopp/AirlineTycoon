@@ -1,8 +1,12 @@
+#pragma once
 //============================================================================================
 // CColorFx - Klasse für Helligkeits- und Farbeffekte mit 16Bit Bitmaps
 //============================================================================================
 // Anleitung: "i:\projekt\sbl\doku\CColorFx.txt"
 //============================================================================================
+
+#include "defines.h"
+#include "sbl.h"
 
 class SB_CColorFXTypeHelper {};
 typedef SB_CColorFXTypeHelper *SB_CColorFXType;
@@ -10,8 +14,6 @@ typedef SB_CColorFXTypeHelper *SB_CColorFXType;
 // Effekte:
 #define SB_COLORFX_FADE ((SB_CColorFXType)0x0001)
 #define SB_COLORFX_GREY ((SB_CColorFXType)0x0002)
-
-typedef BUFFER_V<UWORD> BUFFER_UWORD;
 
 class SB_CColorFX {
   private:

@@ -5,6 +5,9 @@
 #ifndef hline_h
 #define hline_h
 
+#include "sbl.h"
+#include "TeakLibW.h"
+
 class CHLPool;
 
 #pragma pack(push, pragma_gene)
@@ -80,7 +83,7 @@ class CHLObj {
     friend class CHLPool;
     friend class CHLBm;
 };
-//static_assert(sizeof(CHLObj) == 52);
+// static_assert(sizeof(CHLObj) == 52);
 
 //--------------------------------------------------------------------------------------------
 // Ein Pool mit HLines:

@@ -3,29 +3,38 @@
 //============================================================================================
 // Link: "Takeoff.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "Abend.h"
+#include "AirportView.h"
 #include "ArabAir.h"
 #include "Aufsicht.h"
 #include "Bank.h"
+#include "Bot.h"
 #include "Buero.h"
 #include "Checkup.h"
 #include "Credits.h"
+#include "CVideo.h"
 #include "Designer.h"
 #include "DutyFree.h"
 #include "Editor.h"
 #include "Fracht.h"
+#include "global.h"
+#include "Globe.h"
+#include "helper.h"
 #include "HLine.h"
 #include "Insel.h"
+#include "Intro.h"
 #include "Kiosk.h"
+#include "LastMin.h"
+#include "Laptop.h"
 #include "Makler.h"
 #include "Museum.h"
 #include "Nasa.h"
 #include "NewGamePopup.h" //Fenster zum Wahl der Gegner und der Spielstärke
-#include "CVideo.h"
-#include "Intro.h"
+#include "Options.h"
 #include "Outro.h"
+#include "Personal.h"
 #include "PlanProp.h"
+#include "Proto.h"
 #include "Reise.h"
 #include "Ricks.h"
 #include "RouteBox.h"
@@ -37,23 +46,29 @@
 #include "TitlePopup.h"
 #include "WeltAll.h"
 #include "Werbung.h"
+#include "Werkstat.h"
 #include "World.h"
-#include <cstdio>
-#include <ctime>
 
 #include "gltitel.h"
 
 #include "AtNet.h"
 #include "SbLib.h"
-class TeakLibException;
-extern SBNetwork gNetwork;
 
+#include <SDL_ttf.h>
+
+#include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 
 #ifdef SENTRY
 #include "sentry.h"
 #endif
+
+#define AT_Log(...) AT_Log_I("Takeoff", __VA_ARGS__)
+
+class TeakLibException;
+extern SBNetwork gNetwork;
 
 CHLPool HLPool;
 
@@ -66,8 +81,6 @@ void Unvideo(const CString &Filename, const CString &TargetFilename);
 
 extern SLONG bCAbendOpen;
 extern SLONG SkipPlaneCalculation;
-extern SLONG TankSize[];
-extern SLONG TankPrice[];
 
 static CString PlaneSounds[] = {"prop.raw", "flyby.raw", "flyby2.raw", "flyby3.raw", "flyby4.raw", "flyby5.raw"};
 
@@ -99,12 +112,13 @@ unsigned char *ReadableAnsiToUChar(const char *pData, unsigned uLen);
 extern "C"
 #endif
 
-int main(int argc, char *argv[]) {
+    int
+    main(int argc, char *argv[]) {
 #ifdef SENTRY
     const bool disableSentry = DoesFileExist("no-sentry");
 
     if (!disableSentry) {
-        sentry_options_t* options = sentry_options_new();
+        sentry_options_t *options = sentry_options_new();
         sentry_options_set_dsn(options, "https://6c9b29cfe559442b98417942e221250d@o4503905572225024.ingest.sentry.io/4503905573797888");
         // This is also the default-path. For further information and recommendations:
         // https://docs.sentry.io/platforms/native/configuration/options/#database-path
@@ -119,21 +133,24 @@ int main(int argc, char *argv[]) {
         sentry_options_set_on_crash(
             options,
             [](const sentry_ucontext_t *uctx, sentry_value_t event, void *closure) -> sentry_value_t {
-            TeakLibException *e = GetLastException();
-            if (e != nullptr) {
-                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AT - Exception", e->what(), nullptr);
-            }
+                TeakLibException *e = GetLastException();
+                if (e != nullptr) {
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AT - Exception", e->what(), nullptr);
+                }
 
-            const std::string id = std::to_string(*static_cast<int *>(closure));
-            const std::string msg = std::string("Airline Tycoon experienced an unexpected exception\nPress OK to send crash information to sentry\nPress Abort to not send the crash to sentry\n\nCustom Crash ID is: ") + id;
-            AT_Log_I("CRASH", msg);
-            std::filesystem::copy_file("debug.txt", "crash-" + id + ".txt");
-            if (AbortMessageBox(MESSAGEBOX_ERROR, "Airline Tycoon Deluxe Crash Handler", msg.c_str(), nullptr)) {
-                return sentry_value_new_null(); // Skip
-            }
-            
-            return event;
-        }, &crashId);
+                const std::string id = std::to_string(*static_cast<int *>(closure));
+                const std::string msg = std::string("Airline Tycoon experienced an unexpected exception\nPress OK to send crash information to sentry\nPress "
+                                                    "Abort to not send the crash to sentry\n\nCustom Crash ID is: ") +
+                                        id;
+                AT_Log_I("CRASH", msg);
+                std::filesystem::copy_file("debug.txt", "crash-" + id + ".txt");
+                if (AbortMessageBox(MESSAGEBOX_ERROR, "Airline Tycoon Deluxe Crash Handler", msg.c_str(), nullptr)) {
+                    return sentry_value_new_null(); // Skip
+                }
+
+                return event;
+            },
+            &crashId);
         sentry_init(options);
 
         sentry_set_tag("Crash ID", std::to_string(crashId).c_str());
@@ -144,6 +161,14 @@ int main(int argc, char *argv[]) {
     if (!run_regression()) {
         hprintf("Regression test failed!");
         return 1;
+    }
+    {
+        TEAKRAND rnd;
+        hprintf("Rnd: %u %u %u %u %u", rnd.Rand(), rnd.Rand(), rnd.Rand(), rnd.Rand(), rnd.Rand());
+    }
+    for (int seed = 0; seed < 10; seed++) {
+        TEAKRAND rnd(seed);
+        hprintf("Rnd(%d): %u %u %u %u %u", seed, rnd.Rand(), rnd.Rand(), rnd.Rand(), rnd.Rand(), rnd.Rand());
     }
 #endif
 #ifndef SENTRY
@@ -157,14 +182,13 @@ int main(int argc, char *argv[]) {
     theApp.InitInstance(argc, argv);
 #endif
 
-
 #ifdef SENTRY
     if (!disableSentry) {
         sentry_close();
     }
 #endif
 
-        return 0;
+    return 0;
 }
 
 #define LOADING_TEXT(text)                                                                                                                                     \
@@ -210,7 +234,6 @@ CTakeOffApp::~CTakeOffApp() {
 // CTakeOffApp CLI
 //--------------------------------------------------------------------------------------------
 void CTakeOffApp::CLI(int argc, char *argv[]) {
-    // Schneller Mode zum Debuggen?
     for (int i = 0; i < argc; i++) {
         char *Argument = argv[i];
 
@@ -222,15 +245,15 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             return;
         }
 
-        if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
-        // if (stricmp (Argument, "/quick")==0) bQuick = TRUE;
-        // if (stricmp (Argument, "/fast")==0) bQuick = TRUE;
-        if (stricmp (Argument, "/d")==0) gLanguage = LANGUAGE_D;
+        // if (stricmp (Argument, "/e")==0) gLanguage = LANGUAGE_E;
+        // if (stricmp (Argument, "/d")==0) gLanguage = LANGUAGE_D;
         // if (stricmp (Argument, "/f")==0) gLanguage = LANGUAGE_F;
         // if (stricmp (Argument, "/test")==0) bTest = TRUE;
+
         if (stricmp(Argument, "/window") == 0) {
             bFullscreen = FALSE;
         }
+
         if (stricmp(Argument, "/savedata") == 0) {
             CRLEReader::TogglePlainTextSaving(true);
         }
@@ -238,8 +261,6 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
         if (stricmp(Argument, "/updatedata") == 0) {
             CRLEReader::ToggleUpdateDataBeforeOpening(true);
         }
-
-        // if (stricmp (Argument, "/windowed")==0) bFullscreen = FALSE;
 
         if (stricmp(Argument, "/novgaram") == 0) {
             bNoVgaRam = TRUE;
@@ -309,6 +330,30 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             exit(0);
             return;
         }
+
+        // Schneller Mode zum Debuggen?
+        if (stricmp(Argument, "/quick") == 0) {
+            CheatAutoSkip = 1;
+            gQuickTestRun = 1;
+            gAutoBotDiff = 3;
+
+            i++;
+            if (i < argc) {
+                gQuickTestRun = 2 + atoi(argv[i]);
+            }
+
+            if (gQuickTestRun == 1) {
+                gAutoQuitOnDay = 99; /* auto-quit in freegame */
+            }
+        }
+        if (stricmp(Argument, "/testbot") == 0) {
+            gAutoBotDiff = 3;
+
+            i++;
+            if (i < argc) {
+                gAutoBotDiff = atoi(argv[i]);
+            }
+        }
     }
 }
 
@@ -316,29 +361,31 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
 // CTakeOffApp Read Options from various places (file, registry, cli)
 //--------------------------------------------------------------------------------------------
 void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
-    // Die Standardsprachen:
-    //#define LANGUAGE_D       0             //D-Deutsch, inklusive
-    //#define LANGUAGE_E       1             //E-Englisch, bezahlt
-    //#define LANGUAGE_F       2             //F-Französisch, bezahlt
-    //#define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
-    //#define LANGUAGE_P       4             //P-Polnisch, inklusive
-    //#define LANGUAGE_N       5             //N-Niederländisch, bezahlt
-    //#define LANGUAGE_I       6             //I-Italienisch, bezahlt
-    //#define LANGUAGE_S       7             //S-Spanisch, bezahlt
-    //#define LANGUAGE_O       8             //O-Portugisisch, bezahlt
-    //#define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
-    //#define LANGUAGE_1      10             //J-Tschechisch
-    //#define LANGUAGE_2      11             //K-noch frei
-    //#define LANGUAGE_3      12             //L-noch frei
-    //#define LANGUAGE_4      13             //M-noch frei
-    //#define LANGUAGE_5      14             //N-noch frei
-    //#define LANGUAGE_6      15             //Q-noch frei
-    //#define LANGUAGE_7      16             //R-noch frei
-    //#define LANGUAGE_8      17             //T-noch frei
-    //#define LANGUAGE_9      18             //U-noch frei
-    //#define LANGUAGE_10     19             //V-noch frei
+    AT_Log("Reading video options");
 
-    gLanguage = LANGUAGE_D;
+    // Die Standardsprachen:
+    // #define LANGUAGE_D       0             //D-Deutsch, inklusive
+    // #define LANGUAGE_E       1             //E-Englisch, bezahlt
+    // #define LANGUAGE_F       2             //F-Französisch, bezahlt
+    // #define LANGUAGE_T       3             //T-Taiwanesisch, gilt als englische
+    // #define LANGUAGE_P       4             //P-Polnisch, inklusive
+    // #define LANGUAGE_N       5             //N-Niederländisch, bezahlt
+    // #define LANGUAGE_I       6             //I-Italienisch, bezahlt
+    // #define LANGUAGE_S       7             //S-Spanisch, bezahlt
+    // #define LANGUAGE_O       8             //O-Portugisisch, bezahlt
+    // #define LANGUAGE_B       9             //B-Brasiliasnisch, nicht von mir
+    // #define LANGUAGE_1      10             //J-Tschechisch
+    // #define LANGUAGE_2      11             //K-noch frei
+    // #define LANGUAGE_3      12             //L-noch frei
+    // #define LANGUAGE_4      13             //M-noch frei
+    // #define LANGUAGE_5      14             //N-noch frei
+    // #define LANGUAGE_6      15             //Q-noch frei
+    // #define LANGUAGE_7      16             //R-noch frei
+    // #define LANGUAGE_8      17             //T-noch frei
+    // #define LANGUAGE_9      18             //U-noch frei
+    // #define LANGUAGE_10     19             //V-noch frei
+
+    gLanguage = LANGUAGE_E;
     std::ifstream ifil = std::ifstream(AppPath + "misc/sabbel.dat");
     if (ifil.is_open()) {
         ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
@@ -346,40 +393,39 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     }
 
     // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
-    {
-        CRegistryAccess reg(chRegKey);
 
-        SLONG bConfigNoVgaRam = 0;
-        SLONG bConfigNoSpeedyMouse = 0;
-        SLONG bConfigWinMouse = 0;
-        SLONG bConfigNoDigiSound = 0;
+    CRegistryAccess reg(chRegKey);
 
-        reg.ReadRegistryKey_l(bConfigNoVgaRam);
-        reg.ReadRegistryKey_l(bConfigNoSpeedyMouse);
-        reg.ReadRegistryKey_l(bConfigWinMouse);
-        reg.ReadRegistryKey_l(bConfigNoDigiSound);
+    SLONG bConfigNoVgaRam = 0;
+    SLONG bConfigNoSpeedyMouse = 0;
+    SLONG bConfigWinMouse = 0;
+    SLONG bConfigNoDigiSound = 0;
 
-        if (bConfigNoVgaRam != 0) {
-            bNoVgaRam = TRUE;
-        }
-        if (bConfigNoSpeedyMouse != 0) {
-            bNoQuickMouse = TRUE;
-        }
-        if (bConfigWinMouse != 0) {
-            gUseWindowsMouse = TRUE;
-        }
-        if (bConfigNoDigiSound != 0) {
-            Sim.Options.OptionDigiSound = FALSE;
-        }
+    reg.ReadRegistryKey_l(bConfigNoVgaRam);
+    reg.ReadRegistryKey_l(bConfigNoSpeedyMouse);
+    reg.ReadRegistryKey_l(bConfigWinMouse);
+    reg.ReadRegistryKey_l(bConfigNoDigiSound);
 
-        // Options from CLI
-        CLI(argc, argv);
+    if (bConfigNoVgaRam != 0) {
+        bNoVgaRam = TRUE;
+    }
+    if (bConfigNoSpeedyMouse != 0) {
+        bNoQuickMouse = TRUE;
+    }
+    if (bConfigWinMouse != 0) {
+        gUseWindowsMouse = TRUE;
+    }
+    if (bConfigNoDigiSound != 0) {
+        Sim.Options.OptionDigiSound = FALSE;
+    }
 
-        // Write registry and move on
+    // Options from CLI
+    CLI(argc, argv);
+
+    // Write registry and move on
+
+    if (gQuickTestRun == 0) {
         reg.WriteFile();
-    
-        bFirstClass |=
-            static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
     }
 }
 
@@ -407,13 +453,13 @@ void CTakeOffApp::CreateVideo() {
 void CTakeOffApp::InitInstance(int argc, char *argv[]) {
     // Header
     time_t start_time = time(nullptr);
-    Hdu.HercPrintf(0, "Airline Tycoon Deluxe logfile");
-    Hdu.HercPrintf(0, VersionString);
-    Hdu.HercPrintf(0, "===============================================================================");
-    Hdu.HercPrintf(0, "Copyright (C) 2002 Spellbound Software");
-    Hdu.HercPrintf(0, "Application was compiled at %s at %s", __DATE__, __TIME__);
-    Hdu.HercPrintf(0, "===============================================================================");
-    Hdu.HercPrintf(0, "logging starts %s", asctime(localtime(&start_time)));
+    AT_Log("Airline Tycoon Deluxe logfile");
+    AT_Log(VersionString);
+    AT_Log("===============================================================================");
+    AT_Log("Copyright (C) 2002 Spellbound Software");
+    AT_Log("Application was compiled at %s at %s", __DATE__, __TIME__);
+    AT_Log("===============================================================================");
+    AT_Log("logging starts %s", asctime(localtime(&start_time)));
 
     pTakeOffApp = this;
 
@@ -423,11 +469,19 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
     bCursorCaptured = FALSE;
     gMouseStartup = TRUE;
 
-    InitPathVars();
-    ReadOptions(argc, argv);
+    DoAppPath();             /* get installation directory */
+    ReadOptions(argc, argv); /* read options and language settings in some versions (sabbel.dat). Needs installation directory! */
+    InitPathVars();          /* sets path for all game files needs both installation directory AND language settings */
+
+    bFirstClass |=
+        static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
+
+    Sim.LoadOptions();
+    if (gQuickTestRun == 0) {
+        Sim.SaveOptions();
+    }
+
     CreateVideo();
-    Sim.SaveOptions();
-    // UpdateSavegames();
 
     FrameWnd = new GameFrame;
 
@@ -455,53 +509,55 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
         try {
             pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel.gli", RoomPath)), &pRoomLib, L_LOCMEM);
+        } catch (TeakLibException &e) {
+            AT_Log_I("Takeoff", "Did not find titel.gli, trying to continue", e.what());
+            e.caught();
+        }
+
+        try {
             pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel2.gli", RoomPath)), &pRoomLib2, L_LOCMEM);
         } catch (TeakLibException &e) {
-            if (pRoomLib == nullptr && pRoomLib2 == nullptr) {
-                throw;
-            }
-
+            AT_Log_I("Takeoff", "Did not find titel2.gli, trying to continue", e.what());
             e.caught();
-            //title2.gli is not present in every installation of ATD
         }
 
         if (Sim.Options.OptionDigiSound == TRUE) {
             InitSoundSystem(FrameWnd->m_hWnd);
         }
 
-        if (Sim.Options.OptionViewedIntro == 0 && IntroPath.GetLength() != 0) {
-            Sim.Gamestate = GAMESTATE_INTRO | GAMESTATE_WORKING;
-            TopWin = new CIntro();
-            TitleBitmap.ReSize(pRoomLib, GFX_TITEL);
+        if (pRoomLib != nullptr) {
+            if (Sim.Options.OptionViewedIntro == 0 && IntroPath.GetLength() != 0) {
+                Sim.Gamestate = GAMESTATE_INTRO | GAMESTATE_WORKING;
+                TopWin = new CIntro();
+                TitleBitmap.ReSize(pRoomLib, GFX_TITEL);
 
-            while (Sim.Gamestate != GAMESTATE_BOOT) {
-                FrameWnd->Invalidate();
-                MessagePump();
-                SDL_Delay(10);
+                while (Sim.Gamestate != GAMESTATE_BOOT) {
+                    FrameWnd->Invalidate();
+                    MessagePump();
+                    SDL_Delay(10);
+                }
+
+                delete TopWin;
+                TopWin = nullptr;
+            } else {
+                TitleBitmap.ReSize(pRoomLib, GFX_SPELLOGO);
             }
 
-            delete TopWin;
-            TopWin = nullptr;
-        } else {
-            TitleBitmap.ReSize(pRoomLib, GFX_SPELLOGO);
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
         }
 
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
-        
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Lade Charaktere...")
-        else if(gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Karakters worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des personnages...")
@@ -512,9 +568,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glclan.gli", GliPath)), &pGLibClan, L_LOCMEM);
         }
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden der Berater...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Adviseurs worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargements des conseillers...")
@@ -522,9 +576,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Loading Advisors...");
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glberatr.gli", GliPath)), &pGLibBerater, L_LOCMEM);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von verschiedenen Grafix...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene afbeeldingen worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des graphismes...")
@@ -533,9 +585,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glstd.gli", GliPath)), &pGLibStd, L_LOCMEM);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von Flugzeugen...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Vliegtuigen worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Cargement des avions...")
@@ -543,41 +593,33 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Loading planes...");
         pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("glplanes.gli", GliPath)), &pGLibPlanes, L_LOCMEM);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von modifizierten Texten...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene teksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des textes (1/4)...")
         else
             LOADING_TEXT("Loading modded texts...");
-        ModdedTexte.Open(FullFilename("modded_ger.res", PatchPath), TEXTRES_CACHED);
+        ModdedTexte.Open(FullFilename("modded_ger.res", PatchPath));
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von Dialogtexten...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Dialoogteksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des textes (2/4)...")
         else
             LOADING_TEXT("Loading dialogue texts...");
-        DialogTexte.Open(FullFilename("dlg_ger.res", MiscPath), TEXTRES_CACHED);
+        DialogTexte.Open(FullFilename("dlg_ger.res", MiscPath));
         DialogTexte.SetOverrideFile(FullFilename("dlg_ger.patched.res", PatchPath));
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden diverser Texte...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Verscheidene teksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des textes (3/4)...")
         else
             LOADING_TEXT("Loading miscellanous texts...");
-        StandardTexte.Open(FullFilename("std_ger.res", MiscPath), TEXTRES_CACHED);
+        StandardTexte.Open(FullFilename("std_ger.res", MiscPath));
         StandardTexte.SetOverrideFile(FullFilename("std_ger.patched.res", PatchPath));
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Texte der Einheit laden...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Eenheidteksten worden opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des textes (4/4)...")
@@ -590,9 +632,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         // FrameWnd->SetIcon (m_hBigIcon = LoadIcon(IDR_MAINFRAME1), 1);
         // FrameWnd->SetIcon (m_hSmallIcon = LoadIcon(IDR_MAINFRAME), 0);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseren...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement...")
@@ -600,9 +640,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing...");
         InitItems();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung des Globus...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de globe...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement du globe...")
@@ -610,9 +648,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing globe...");
         InitGlobeMapper();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Statusleiste...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert statusbalk...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation de la barre de status...")
@@ -620,32 +656,30 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing status bar...");
         InitStatusLines();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung des Bildschirms...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert scherm...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation de l'ecran...")
         else
             LOADING_TEXT("Initializing screen...");
 
-        TitleBitmap.ReSize(pRoomLib, GFX_TITEL);
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
-        PrimaryBm.BlitFrom(TitleBitmap);
-        gMousePosition = XY(600, 440);
-        FrameWnd->Invalidate();
-        MessagePump();
+        if (pRoomLib != nullptr) {
+            TitleBitmap.ReSize(pRoomLib, GFX_TITEL);
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
+            PrimaryBm.BlitFrom(TitleBitmap);
+            gMousePosition = XY(600, 440);
+            FrameWnd->Invalidate();
+            MessagePump();
+        }
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Suche nach Midi-Gerät...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Zoekt midi-apparaat...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Recherche hauts-parleurs midi...")
@@ -657,9 +691,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         MessagePump(); // lpDD->FlipToGDISurface();
         bMidiAvailable = IsMidiAvailable();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung des Musik-Sound-Systems...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert geluidssysteem...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des systèmes de son...")
@@ -672,9 +704,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             gpSSE->CreateMidi(&gpMidi);
 
             if (gpMidi != nullptr) {
-                if (gLanguage == LANGUAGE_D)
-                    LOADING_TEXT("Midi-Lautstärke einstellen...")
-                else if (gLanguage == LANGUAGE_N)
+                if (gLanguage == LANGUAGE_N)
                     LOADING_TEXT("Stelt het midi-volume in...")
                 else if (gLanguage == LANGUAGE_F)
                     LOADING_TEXT("Ajustement du volume...")
@@ -687,9 +717,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
                 gpMidi->SetMode(Sim.Options.OptionMusicType);
 
                 if (Sim.Options.OptionViewedIntro != 0) {
-                    if (gLanguage == LANGUAGE_D)
-                        LOADING_TEXT("Start der ersten Midi...")
-                    else if (gLanguage == LANGUAGE_N)
+                    if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT("Start de eerste midi...")
                     else if (gLanguage == LANGUAGE_F)
                         LOADING_TEXT("Lancement MIDI...")
@@ -700,9 +728,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
                     MessagePump(); // lpDD->FlipToGDISurface();
                     NextMidi();
 
-                    if (gLanguage == LANGUAGE_D)
-                        LOADING_TEXT("Midi-Lautstärke zurücksetzen...")
-                    else if (gLanguage == LANGUAGE_N)
+                    if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT("Herstelt het midi-volume...")
                     else if (gLanguage == LANGUAGE_F)
                         LOADING_TEXT("Mise a zero du volume...")
@@ -720,9 +746,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
 
         // Registration.ReSize ("Misc\\Register.res", 0x54a8fe83);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Charakterdaten...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de karakterdata...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des personnages...")
@@ -748,9 +772,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         }
 
         if (gUpdatingPools == 0) {
-            if (gLanguage == LANGUAGE_D)
-                LOADING_TEXT("Initialisierung von R\xF6ntgenstrahlen...")
-            else if (gLanguage == LANGUAGE_N)
+            if (gLanguage == LANGUAGE_N)
                 LOADING_TEXT("Initialiseert de r\xF6ntgenfoto's...")
             else if (gLanguage == LANGUAGE_F)
                 LOADING_TEXT("Creation des rayonnements ionisants X...")
@@ -783,10 +805,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
                         Clans[c].ClanPool.PreLoad();
                     }
 
-                    if (gLanguage == LANGUAGE_D)
-                        LOADING_TEXT((LPCTSTR)(CString("Initialisierung der Charakterdaten...") +
-                                               CString("................................................................").Left(n / 4)))
-                    else if (gLanguage == LANGUAGE_N)
+                    if (gLanguage == LANGUAGE_N)
                         LOADING_TEXT((LPCTSTR)(CString("Karakterdata wordt opgestart...") +
                                                CString("................................................................").Left(n / 4)))
                     else if (gLanguage == LANGUAGE_F)
@@ -800,9 +819,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             }
         }
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Laden von Charakterdaten...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Karakterdata wordt opgestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Chargement des personnages...")
@@ -810,19 +827,19 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Loading people data...");
         Clans.LoadBitmaps();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Städte...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de steden...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des villes...")
         else
             LOADING_TEXT("Initializing cities...");
         Cities.ReInit("city.csv");
+        AuslandsAuftraege.resize(MAX_CITIES);
+        AuslandsRefill.resize(MAX_CITIES);
+        AuslandsFrachten.resize(MAX_CITIES);
+        AuslandsFRefill.resize(MAX_CITIES);
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Flugzeuge...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de vliegtuigen...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des avions...")
@@ -830,9 +847,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing planes...");
         PlaneTypes.ReInit("planetyp.csv");
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Namen")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de namen...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des noms d'avion...")
@@ -840,9 +855,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing names...");
         PlaneNames.ReInit("pnames.csv");
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Zeitungen...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de kranten...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des journaux...")
@@ -850,9 +863,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing newspapers...");
         Sim.Headlines.ReInit("stdpaper.csv");
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Initialisierung der Tooltips...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Initialiseert de tips...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Creation des info-bulles...")
@@ -860,9 +871,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
             LOADING_TEXT("Initializing tooltips...");
         InitTipBms();
 
-        if (gLanguage == LANGUAGE_D)
-            LOADING_TEXT("Das Spiel beginnt...")
-        else if (gLanguage == LANGUAGE_N)
+        if (gLanguage == LANGUAGE_N)
             LOADING_TEXT("Spel wordt gestart...")
         else if (gLanguage == LANGUAGE_F)
             LOADING_TEXT("Lancement du jeu...")
@@ -1023,11 +1032,11 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                     Sim.Gamestate = GAMESTATE_PLAYING | GAMESTATE_WORKING;
                     Sim.DayState = 1;
 
-                    if (1 == 0) {
-                        // Speedup zum testen; für Release beides auskommentieren:
+                    if (CheatAutoSkip == 1) {
                         Sim.IsTutorial = FALSE;
-                        Sim.bNoTime = FALSE;
-                        Sim.DayState = 2;
+                        // Sim.bNoTime = FALSE;
+                        // Sim.DayState = 2;
+                        Sim.Players.Players[Sim.localPlayer].GameSpeed = 5;
                     } else {
                         if (Sim.Difficulty == DIFF_TUTORIAL) {
                             for (c = 0; c < Sim.Players.AnzPlayers; c++) {
@@ -1261,6 +1270,9 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         break;
                     case 5:
                         Multiplier = 600;
+                        if (CheatAutoSkip != 0) {
+                            Multiplier *= 100;
+                        }
                         break;
                     default:
                         printf("Takeoff.cpp: Default case should not be reached.");
@@ -1714,6 +1726,10 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                     qPlayer.CalcRoom();
                                                     if (qPlayer.Locations[d] != ROOM_AIRPORT) {
                                                         qPlayer.RobotExecuteAction();
+                                                    } else if (qPlayer.RobotActions[0].ActionId == ACTION_CALL_INTER_HANDY) {
+                                                        qPlayer.RobotExecuteAction();
+                                                    } else if (qPlayer.RobotActions[0].ActionId == ACTION_STARTDAY_LAPTOP) {
+                                                        qPlayer.RobotExecuteAction();
                                                     }
 
                                                     SLONG Room = (qPlayer.Locations[d] & ~ROOM_LEAVING);
@@ -2166,7 +2182,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
           }
           }
           }*/
-        
+
         MessagePump();
     }
 
@@ -2194,35 +2210,6 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
     VoiceScheduler.Clear();
 }
-
-#ifdef DEBUG
-//void CTakeOffApp::CheckSystem(void) {
-//    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
-//        static SLONG Emergency = 0;
-//
-//        if (Emergency == 0) {
-//            for (SLONG d = 0; d < Sim.Players.Players[c].Letters.Letters.AnzEntries(); d++) {
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Subject) == NULL)
-//                    Emergency = TRUE;
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Letter) == NULL)
-//                    Emergency = TRUE;
-//                if ((*(ULONG *)&Sim.Players.Players[c].Letters.Letters[d].Absender) == NULL)
-//                    Emergency = TRUE;
-//            }
-//
-//            for (SLONG d = 0; d < Sim.Players.Players[c].Statistiken.AnzEntries(); d++) {
-//                if (Sim.Players.Players[c].Statistiken[d].Days.AnzEntries() == 0)
-//                    Emergency = TRUE;
-//                if (Sim.Players.Players[c].Statistiken[d].Months.AnzEntries() == 0)
-//                    Emergency = TRUE;
-//            }
-//
-//            if (Emergency)
-//                DebugBreak();
-//        }
-//    }
-//}
-#endif
 
 //--------------------------------------------------------------------------------------------
 // Ruft das Help-File auf:

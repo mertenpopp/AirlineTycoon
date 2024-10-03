@@ -1,6 +1,12 @@
+#pragma once
 //============================================================================================
 // Globe.h : header file
 //============================================================================================
+
+#include "class.h"
+#include "defines.h"
+#include "Planer.h"
+
 class CGlobe : public CPlaner {
     // Construction:
   public:

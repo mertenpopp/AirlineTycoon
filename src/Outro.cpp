@@ -1,9 +1,9 @@
 //============================================================================================
 // Outro.cpp : Der Render-Outro
 //============================================================================================
-#include "StdAfx.h"
-#include "CVideo.h"
 #include "Outro.h"
+
+#include "global.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -11,3 +11,5 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+void COutro::OnVideoDone() { Sim.Gamestate = GAMESTATE_BOOT; }
+void COutro::OnVideoCancel() { Sim.Gamestate = GAMESTATE_BOOT; }

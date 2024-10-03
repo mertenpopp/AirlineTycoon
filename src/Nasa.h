@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // Nasa.h : Der Nasa-Shop
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CNasa : public CStdRaum {
     // Construction

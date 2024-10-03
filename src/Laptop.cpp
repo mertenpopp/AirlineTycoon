@@ -3,11 +3,15 @@
 //============================================================================================
 // Link: "Laptop.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "Laptop.h"
+
 #include "glglobe.h"
 #include "glglobeb.h"
 #include "glglobec.h"
 #include "glglobed.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #define RDTSC __asm _emit 0x0F __asm _emit 0x31
 
@@ -135,9 +139,9 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
             }
         }
 
-        for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
-            qPlayer.DisplayRoutes[c] = FALSE;
-            qPlayer.DisplayPlanes[c] = FALSE;
+        for (SLONG c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
+            qPlayer.DisplayRoutes[c] = 0U;
+            qPlayer.DisplayPlanes[c] = 0U;
         }
     } else {
 #ifdef WIN32
@@ -241,19 +245,19 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
 
     // Wenn jemand keinen Berater (mehr) hat, dann alle fremden Routen/Flugzeuge unsichtbar machen:
     if (qPlayer.HasBerater(BERATERTYP_INFO) == 0) {
-        for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (SLONG c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
             if (c != SLONG(PlayerNum)) {
-                qPlayer.DisplayRoutes[c] = FALSE;
-                qPlayer.DisplayPlanes[c] = FALSE;
+                qPlayer.DisplayRoutes[c] = static_cast<UBYTE>(0);
+                qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(0);
             }
         }
     }
 
     // Und wenn jemand Pleite ist, dann den auch unsichtbar machen:
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < qPlayer.DisplayRoutes.size(); c++) {
         if (c != SLONG(PlayerNum) && (Sim.Players.Players[c].IsOut != 0)) {
-            qPlayer.DisplayRoutes[c] = FALSE;
-            qPlayer.DisplayPlanes[c] = FALSE;
+            qPlayer.DisplayRoutes[c] = static_cast<UBYTE>(0);
+            qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(0);
         }
     }
 
@@ -401,15 +405,10 @@ void CLaptop::OnPaint() {
 
     if (LastMinute != Sim.GetMinute()) {
         LastMinute = Sim.GetMinute();
-        qPlayer.LaptopBattery--;
 
-        if (qPlayer.LaptopBattery == 2) {
-            gUniversalFx.Stop();
-            gUniversalFx.ReInit("lapwarn.raw");
-            gUniversalFx.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
-        }
-
-        if (qPlayer.LaptopBattery == 0) {
+        if (qPlayer.LaptopBattery > 0) {
+            qPlayer.LaptopBattery--;
+        } else {
             PicBitmap.Destroy();
             HighlightBm.Destroy();
             IconsDefaultBms.Destroy();
@@ -447,6 +446,12 @@ void CLaptop::OnPaint() {
             ReSize("globe_c.gli", GFX_VR2);
             // PicBitmap.ReSize (pRoomLib, GFX_VR2);
         }
+
+        if (qPlayer.LaptopBattery == 2) {
+            gUniversalFx.Stop();
+            gUniversalFx.ReInit("lapwarn.raw");
+            gUniversalFx.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
+        }
     }
 
     if (Sim.GetHour() != LastHour) {
@@ -476,7 +481,7 @@ void CLaptop::OnPaint() {
     // CPlaner::DoPollingStuff ();
 
     // Laptop-Inhalt nur zeichnen, wenn die Batterie voll ist:
-    if (qPlayer.LaptopBattery == 0 || Copyprotection != 0) {
+    if (qPlayer.LaptopBattery <= 0 || Copyprotection != 0) {
         CPlaner::DoPollingStuff();
         CurrentBlock = -1;
 
@@ -1421,6 +1426,15 @@ void CLaptop::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
         return;
     case ATKEY_RIGHT:
         QuickJump(171);
+        return;
+    case SDLK_F8:
+        CPlaner::AutoPlan(0);
+        return;
+    case SDLK_F9:
+        CPlaner::AutoPlan(1);
+        return;
+    case SDLK_F10:
+        CPlaner::AutoPlan(2);
         return;
     default:
         CStdRaum::OnKeyDown(nChar, nRepCnt, nFlags);

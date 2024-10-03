@@ -1,5 +1,9 @@
+#pragma once
 // AirportView.h : header file
 //
+
+#include "defines.h"
+#include "StdRaum.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // AirportView window

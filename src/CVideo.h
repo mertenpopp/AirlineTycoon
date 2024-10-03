@@ -1,5 +1,8 @@
 #pragma once
 
+#include "defines.h"
+#include "StdRaum.h"
+
 class CVideo : public CStdRaum {
     // Construction
   public:
@@ -23,14 +26,14 @@ class CVideo : public CStdRaum {
   public:
     virtual ~CVideo();
 
-    virtual void OnVideoDone()   {}
+    virtual void OnVideoDone() {}
     virtual void OnVideoCancel() {}
 
     // Generated message map functions
   public:
     //{{AFX_MSG(COutro)
     void OnLButtonDown(UINT nFlags, CPoint point) override;
-    virtual void OnPaint();
+    void OnPaint() override;
     void OnRButtonDown(UINT nFlags, CPoint point) override;
     BOOL OnSetCursor(void *pWnd, UINT nHitTest, UINT message) override;
     void OnMouseMove(UINT nFlags, CPoint point) override;

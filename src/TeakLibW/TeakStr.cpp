@@ -1,4 +1,5 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 char *bprintf(char const *format, ...) {
     static char buffer[8192];
