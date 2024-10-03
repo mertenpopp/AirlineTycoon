@@ -367,7 +367,7 @@
 //      to provide maximum CString-compatability, this code needs them as well.
 //      In practice you will likely never need these functions...
 
-//#define SS_UNSIGNED
+// #define SS_UNSIGNED
 
 #ifdef SS_ALLOW_UNSIGNED_CHARS
 #define SS_UNSIGNED
@@ -425,7 +425,7 @@
 //      bakes your cake.  Just #define this macro to get rid of the the implicit
 //      cast.
 
-//#define SS_NO_IMPLICIT_CAST // gets rid of operator const CT*()
+// #define SS_NO_IMPLICIT_CAST // gets rid of operator const CT*()
 
 // MACRO: SS_NO_REFCOUNT
 // ---------------------
@@ -434,7 +434,7 @@
 //		6.0 or earlier, and only then in some heavily multithreaded scenarios.
 //		Uncomment it if you feel you need it.
 
-//#define SS_NO_REFCOUNT
+// #define SS_NO_REFCOUNT
 
 // MACRO: SS_WIN32
 // ---------------
@@ -795,7 +795,7 @@ inline PUSTR StdCodeCvt(PUSTR pDstA, int nDst, PCWSTR pSrcW, int nSrc, UINT acp 
 //				builds.  There are a number of overloads.
 //              First argument is the destination buffer.
 //              Second argument is the source buffer
-//#if defined (SS_ANSI) || !defined (SS_WIN32)
+// #if defined (SS_ANSI) || !defined (SS_WIN32)
 
 // 'SSCodeCvt' - shorthand name for the codecvt facet we use
 
@@ -815,6 +815,7 @@ inline PWSTR StdCodeCvt(PWSTR pDstW, int nDst, PCSTR pSrcA, int nSrc, const std:
         SSCodeCvt::state_type st = {};
         res = conv.in(st, pSrcA, pSrcA + nSrc, pNextSrcA, pDstW, pDstW + nDst, pNextDstW);
 
+        (void)res;
         ASSERT(SSCodeCvt::ok == res);
         ASSERT(SSCodeCvt::error != res);
         ASSERT(pNextDstW >= pDstW);
@@ -847,6 +848,7 @@ inline PSTR StdCodeCvt(PSTR pDstA, int nDst, PCWSTR pSrcW, int nSrc, const std::
         SSCodeCvt::state_type st = {};
         res = conv.out(st, pSrcW, pSrcW + nSrc, pNextSrcW, pDstA, pDstA + nDst, pNextDstA);
 
+        (void)res;
         ASSERT(SSCodeCvt::error != res);
         ASSERT(SSCodeCvt::ok == res); // strict, comment out for sanity
         ASSERT(pNextDstA >= pDstA);
@@ -1826,7 +1828,7 @@ template <typename CT> struct NotSpace {
 //		template argument (CT, the character type) is either char or wchar_t.
 // =============================================================================
 
-//#define CStdStr _SS	// avoid compiler warning 4786
+// #define CStdStr _SS	// avoid compiler warning 4786
 
 //    template<typename ARG> ARG& FmtArg(ARG& arg)  { return arg; }
 //    PCSTR  FmtArg(const std::string& arg)  { return arg.c_str(); }
@@ -1872,6 +1874,8 @@ template <typename CT> class CStdStr : public std::basic_string<CT> {
             }
             bLoaded = true;
         }
+#else
+        (void)pT;
 #endif
 
         return bLoaded;
@@ -3195,7 +3199,7 @@ template <typename CT> class CStdStr : public std::basic_string<CT> {
 // my word for it -- exporting this code is not worth the hassle.
 //
 // -----------------------------------------------------------------------------
-//#pragma warning(disable:4231) // non-standard extension ("extern template")
+// #pragma warning(disable:4231) // non-standard extension ("extern template")
 //	SSDLLEXP template class SSDLLSPEC CStdStr<char>;
 //	SSDLLEXP template class SSDLLSPEC CStdStr<wchar_t>;
 
@@ -3453,12 +3457,12 @@ inline CStdStringW WUSysMessageW(DWORD dwError, DWORD dwLangId = SS_DEFLANGID) {
 // Define TCHAR based friendly names for some of these functions
 
 #ifdef UNICODE
-//#define CStdString				CStdStringW
+// #define CStdString				CStdStringW
 typedef CStdStringW CStdString;
 #define WUSysMessage WUSysMessageW
 #define WUFormat WUFormatW
 #else
-//#define CStdString				CStdStringA
+// #define CStdString				CStdStringA
 typedef CStdStringA CStdString;
 #define WUSysMessage WUSysMessageA
 #define WUFormat WUFormatA

@@ -1,6 +1,9 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "TeakLibW.h"
 
 #include <iostream>
+
+#define AT_Log(...) AT_Log_I("Error", __VA_ARGS__)
 
 static SLONG errors = 0;
 
@@ -69,7 +72,7 @@ template <typename T> void expect_nonexist_func(ALBUM_V<T> &list, SLONG id, SLON
     bool exception = false;
     try {
         list[id] = T(99);
-    } catch (const std::runtime_error& e) {
+    } catch (const std::runtime_error &e) {
         exception = true;
     }
     if (!exception) {
@@ -180,7 +183,7 @@ template <typename T> bool run_test() {
     expect_val(list, id3, 12);
     expect_list(list, std::vector<T>({11, 4, 2, 1, 12, 3, 5, 22, 23, T(), 21, 20}), 12, 1);
 
-    hprintf("Errors: %d", errors);
+    AT_Log("Errors: %d", errors);
     return (errors == 0);
 }
 

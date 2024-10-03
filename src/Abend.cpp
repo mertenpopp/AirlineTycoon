@@ -3,9 +3,12 @@
 //============================================================================================
 // Link: "Abend.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "Abend.h"
+#include "ColorFx.h"
 #include "glabend.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -68,7 +71,7 @@ CAbend::CAbend(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum, CStri
     for (SLONG c = 0; c < 4; c++) {
         Sim.Players.Players[c].bReadyForBriefing = 0;
         Sim.Players.Players[c].IsStuck = 0;
-        if (CheatTestGame == 0) {
+        if (CheatTestGame == 0 && CheatAutoSkip == 0) {
             Sim.Players.Players[c].GameSpeed = 0;
         }
 

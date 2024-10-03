@@ -1,7 +1,12 @@
 //============================================================================================
 // SmackPrs.cpp : Wrapper-Klasse für den Smacker für 16Bit Farben bei 8-Bit Videos:
 //============================================================================================
-#include "StdAfx.h"
+#include "SmackPrs.h"
+
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
 #include <cmath>
 #include <smacker.h>
 
@@ -42,7 +47,7 @@ CSmack16::~CSmack16() {
 }
 
 //--------------------------------------------------------------------------------------------
-//Öffnet ein Smacker-Filmchen:
+// Öffnet ein Smacker-Filmchen:
 //--------------------------------------------------------------------------------------------
 void CSmack16::Open(const CString &Filename) {
     pSmack = smk_open_file(FullFilename(Filename, SmackerPath), SMK_MODE_MEMORY);
@@ -267,8 +272,8 @@ void CSmackerClip::NextSyllable() {
         }
 
         char buffer[200];
-
-        strncpy(buffer, p, 200);
+        strncpy(buffer, p, sizeof(buffer));
+        buffer[sizeof(buffer) - 1] = '\0';
         char *pp = strchr(buffer, '|');
 
         if (pp != nullptr) {

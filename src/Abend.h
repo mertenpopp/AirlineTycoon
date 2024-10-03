@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // Abend.cpp : Die Feierabendsequenz (Header File)
 //============================================================================================
+
+#include "class.h"
+#include "defines.h"
+#include "StdRaum.h"
 
 class CAbend : public CStdRaum {
     // Construction

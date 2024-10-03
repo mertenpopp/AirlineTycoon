@@ -3,11 +3,15 @@
 //============================================================================================
 // Link: "Options.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "Options.h"
+
 #include "AtNet.h"
-#include "SbLib.h"
+#include "global.h"
 #include "glstart.h"
+#include "helper.h"
 #include "network.h"
+#include "Proto.h"
+#include "SbLib.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -50,7 +54,7 @@ Options::Options(BOOL bHandy, SLONG PlayerNum) : CStdRaum(bHandy, PlayerNum, "st
     ClickFx.ReInit("change.raw");
 
     AT_Log_Generic("Loaded font: stat_1.mcf");
-    VersionFont.Load(lpDD, const_cast<char*>((LPCTSTR)FullFilename("stat_1.mcf", MiscPath)));
+    VersionFont.Load(lpDD, const_cast<char *>((LPCTSTR)FullFilename("stat_1.mcf", MiscPath)));
 
     Options::PageNum = 1;
     Options::PlayerNum = PlayerNum;
@@ -98,7 +102,6 @@ Options::~Options() {
             SIM::SendSimpleMessage(ATNET_SETGAMESPEED, 0, Sim.GameSpeed, Sim.localPlayer);
             Sim.ServerGameSpeed = Sim.GameSpeed;
             DisplayBroadcastMessage(bprintf("GameSpeed changed to %i / 7\n", static_cast<int>(std::floor(Sim.ServerGameSpeed / 5)) + 1), Sim.localPlayer);
-              
         }
 
         SIM::SendSimpleMessage(ATNET_OPTIONS, 0, -1, Sim.localPlayer);
@@ -219,7 +222,6 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_MISC, 4120));
 
         const bool usesMidi = Sim.Options.OptionMusicType == 1;
-        const bool usesOgg = Sim.Options.OptionMusicType == 2;
         SLONG musicShift = usesMidi ? -1 : 0;
 
         KlackerTafel.PrintAt(0, 2, ModdedTexte.GetS(TOKEN_MISC, 20 + Sim.Options.OptionMusicType));
@@ -261,7 +263,7 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 7, StandardTexte.GetS(TOKEN_MISC, 4044 + Sim.Options.OptionSpeechBubble));
         KlackerTafel.PrintAt(0, 8, StandardTexte.GetS(TOKEN_MISC, 4048 + Sim.Options.OptionBriefBriefing));
         KlackerTafel.PrintAt(0, 9, StandardTexte.GetS(TOKEN_MISC, 4050 + Sim.Options.OptionRandomStartday));
-        KlackerTafel.PrintAt(0, 10, bprintf("# %s" , StandardTexte.GetS(TOKEN_PLANE, 1002)));
+        KlackerTafel.PrintAt(0, 10, bprintf("# %s", StandardTexte.GetS(TOKEN_PLANE, 1002)));
         KlackerTafel.PrintVolumeAt(17, 10, 7, Sim.GameSpeed == 1 ? 0 : Sim.GameSpeed / 5);
         KlackerTafel.PrintAt(0, 12, StandardTexte.GetS(TOKEN_MISC, 4099));
     } else if (PageNum == 5) // Laden
@@ -374,9 +376,6 @@ void Options::OnPaint() {
         KlackerTafel.Klack(); // Tafel notfalls asynchron aktualisieren
     }
 
-    static SLONG cnt = 0;
-    cnt++;
-
     // Die Standard Paint-Sachen kann der Basisraum erledigen
     CStdRaum::OnPaint();
 
@@ -461,8 +460,7 @@ void Options::OnPaint() {
             if ((Line >= 2 && Line <= 9) || Line == 12) {
                 SetMouseLook(CURSOR_HOT, 0, -100, 0);
             }
-            if (Line == 10) 
-            {
+            if (Line == 10) {
                 SetMouseLook(Column >= 17 && Column < 23 ? CURSOR_HOT : CURSOR_NORMAL, 1003, -100, 0);
             }
             break;
@@ -630,13 +628,17 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
                 ChangedDisplay = 1;
 
                 Sim.Options.OptionFullscreen++;
+                if (Sim.Options.OptionFullscreen == 1) {
+                    Sim.Options.OptionScreenWindowedWidth = 640;
+                    Sim.Options.OptionScreenWindowedHeight = 480;
+                }
                 if (Sim.Options.OptionFullscreen > 2) {
                     Sim.Options.OptionFullscreen = 0;
                 }
             } // Fullscreen Option
 
             if (Line == 11) {
-                Sim.Options.OptionKeepAspectRatio = static_cast<BOOL>(static_cast<BOOL>(Sim.Options.OptionKeepAspectRatio) == 0);
+                Sim.Options.OptionKeepAspectRatio = !Sim.Options.OptionKeepAspectRatio;
                 FrameWnd->UpdateFrameSize();
             } // Aspect Ratio Option
 

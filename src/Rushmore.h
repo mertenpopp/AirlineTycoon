@@ -1,6 +1,10 @@
+#pragma once
 //============================================================================================
 // Rushmore.h : Der Nasa-Shop
 //============================================================================================
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class CRushmore : public CStdRaum {
     // Construction

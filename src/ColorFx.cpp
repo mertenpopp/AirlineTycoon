@@ -4,7 +4,11 @@
 // Anleitung: "i:\projekt\sbl\doku\CColorFx.txt"
 // Link:      "Colorfx.h"
 //============================================================================================
-#include "StdAfx.h"
+
+#include "ColorFx.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 #define RDTSC __asm _emit 0x0F __asm _emit 0x31
 
@@ -24,13 +28,10 @@ SB_CColorFX::SB_CColorFX(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bi
 void SB_CColorFX::ReInit(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bitmap) {
     SLONG c = 0;
     SLONG d = 0;
-    SLONG AnzRBits = 0;
     SLONG ShiftR = 0;
     SLONG MaskR = 0;
-    SLONG AnzGBits = 0;
     SLONG ShiftG = 0;
     SLONG MaskG = 0;
-    SLONG AnzBBits = 0;
     SLONG ShiftB = 0;
     SLONG MaskB = 0;
 
@@ -41,19 +42,16 @@ void SB_CColorFX::ReInit(SB_CColorFXType FXType, SLONG Steps, SB_CBitmapCore *Bi
 
     for (c = 0; c < 32; c++) {
         if ((MaskR & (1 << c)) != 0) {
-            AnzRBits++;
             if (c > ShiftR) {
                 ShiftR = c;
             }
         }
         if ((MaskG & (1 << c)) != 0) {
-            AnzGBits++;
             if (c > ShiftG) {
                 ShiftG = c;
             }
         }
         if ((MaskB & (1 << c)) != 0) {
-            AnzBBits++;
             if (c > ShiftB) {
                 ShiftB = c;
             }
@@ -530,8 +528,10 @@ void SB_CColorFX::BlitWhiteTrans(BOOL DoMessagePump, SB_CBitmapCore *SrcBitmap, 
 
     if (SrcRect != nullptr) {
         Rect = *SrcRect;
-    } else {
+    } else if (SrcBitmap != nullptr) {
         Rect = CRect(0, 0, SrcBitmap->GetXSize() - 1, SrcBitmap->GetYSize() - 1);
+    } else {
+        return;
     }
 
     if (t.x < 0) {

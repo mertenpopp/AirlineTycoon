@@ -1,10 +1,13 @@
 //============================================================================================
 // Security.cpp : Der Security-Raum
 //============================================================================================
-#include "StdAfx.h"
-#include "AtNet.h"
 #include "Security.h"
+
+#include "AtNet.h"
+#include "GameMechanic.h"
+#include "global.h"
 #include "glsecurity.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -362,12 +365,7 @@ void CSecurity::OnLButtonDown(UINT nFlags, CPoint point) {
         } else if (MouseClickArea == ROOM_SECURITY && MouseClickId == 10) {
             StartDialog(TALKER_SECURITY, MEDIUM_AIR, 1000);
         } else if (MouseClickArea == ROOM_SECURITY && MouseClickId == 12) {
-            Sim.Players.Players[PlayerNum].BuyItem(ITEM_GLOVE);
-
-            if (Sim.Players.Players[PlayerNum].HasItem(ITEM_GLOVE) != 0) {
-                Sim.ItemGlove = 0;
-                SIM::SendSimpleMessage(ATNET_TAKETHING, 0, ITEM_GLOVE);
-            }
+            GameMechanic::pickUpItem(Sim.Players.Players[PlayerNum], ITEM_GLOVE);
         } else {
             CStdRaum::OnLButtonDown(nFlags, point);
         }

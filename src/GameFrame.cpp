@@ -1,19 +1,30 @@
 //============================================================================================
 // GameFrame.cpp : implementation file
 //============================================================================================
-// Link: "Gameframe.h"
+// Link: "GameFrame.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
+#include "AirportView.h"
+#include "BotDesigner.h"
+#include "BotHelper.h"
+#include "ColorFx.h"
 #include "CVideo.h"
+#include "global.h"
+#include "glbasis.h"
+#include "glpause.h"
+#include "helper.h"
 #include "Intro.h"
+#include "network.h"
 #include "NewGamePopup.h" //Fenster zum Wahl der Gegner und der Spielstärke
 #include "Outro.h"
-#include "Synthese.h"
-#include "glpause.h"
-
+#include "Proto.h"
 #include "SbLib.h"
-#include "network.h"
+#include "StdRaum.h"
+#include "Synthese.h"
+
+#include <SDL.h>
+#include <SDL_hints.h>
+
 extern SBNetwork gNetwork;
 
 #ifdef _DEBUG
@@ -150,10 +161,6 @@ else Sleep(1000);
 }*/
 
 void GameFrame::UpdateWindow() const {
-    // windowed size:
-    SLONG width = 640;
-    SLONG height = 480;
-
     SDL_DisplayMode DM;
     SDL_GetDesktopDisplayMode(0, &DM);
     SLONG screenWidth = DM.w;
@@ -165,11 +172,22 @@ void GameFrame::UpdateWindow() const {
         SDL_SetWindowFullscreen(m_hWnd, SDL_TRUE);
         break;
     case (1): // Windowed
-        SDL_SetWindowFullscreen(m_hWnd, 0);
-        SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
-        SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
-        SDL_SetWindowSize(m_hWnd, width, height);
-        SDL_SetWindowPosition(m_hWnd, screenWidth / 2 - width / 2, screenHeight / 2 - height / 2);
+        // check if default window size, if so set to MaximizeWindow else set as from last session
+        if (Sim.Options.OptionScreenWindowedWidth == 640 && Sim.Options.OptionScreenWindowedHeight == 480) {
+            SDL_SetWindowFullscreen(m_hWnd, 0);
+            SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
+            SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
+            SDL_SetWindowSize(m_hWnd, screenWidth, screenHeight);
+            SDL_MaximizeWindow(m_hWnd);
+            SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        } else {
+            SDL_SetWindowFullscreen(m_hWnd, 0);
+            SDL_SetWindowResizable(m_hWnd, SDL_TRUE);
+            SDL_SetWindowBordered(m_hWnd, SDL_TRUE);
+            SDL_SetWindowSize(m_hWnd, Sim.Options.OptionScreenWindowedWidth, Sim.Options.OptionScreenWindowedHeight);
+            SDL_SetWindowPosition(m_hWnd, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        }
+
         break;
     case (2): // Borderless Fullscreen
         SDL_SetWindowFullscreen(m_hWnd, SDL_FALSE);
@@ -192,7 +210,9 @@ void GameFrame::UpdateFrameSize() const {
     SLONG screenW = 0, screenH = 0;
     SDL_GetWindowSize(m_hWnd, &screenW, &screenH);
     SDL_RenderSetLogicalSize(lpDD, screenW, screenH);
-
+    // update setting file
+    Sim.Options.OptionScreenWindowedWidth = screenW;
+    Sim.Options.OptionScreenWindowedHeight = screenH;
     if (Sim.Options.OptionKeepAspectRatio == 0) {
         PrimaryBm.PrimaryBm.SetTarget(XY{0, 0}, XY{screenW, screenH});
     } else {
@@ -245,7 +265,6 @@ void GameFrame::TranslatePointToScreenSpace(SLONG &x, SLONG &y) const {
     _y /= 480;
     _y *= static_cast<FLOAT>(screenH);
 
-    
     if (Sim.Options.OptionKeepAspectRatio == 1) {
         _x += static_cast<FLOAT>(origScreenW - aspectWidth) / 2.0f;
     }
@@ -267,8 +286,8 @@ GameFrame::GameFrame() {
     }
 
     // Base backup screen size - only used in windowed mode
-    SLONG width = 640;
-    SLONG height = 480;
+    SLONG width = Sim.Options.OptionScreenWindowedWidth;
+    SLONG height = Sim.Options.OptionScreenWindowedHeight;
 
     if (!static_cast<bool>(bFullscreen) || Sim.Options.OptionFullscreen == 0 || Sim.Options.OptionFullscreen == 2) {
         SDL_DisplayMode DM;
@@ -323,7 +342,7 @@ GameFrame::GameFrame() {
     gCursorMoveHBm.ReSize(pGLibBasis, GFX_CURSORV, CREATE_VIDMEM);
     gCursorMoveVBm.ReSize(pGLibBasis, GFX_CURSORW, CREATE_VIDMEM);
     gCursorSandBm.ReSize(pGLibBasis, GFX_CURSORS, CREATE_VIDMEM);
-    gCursorNoBm.ReSize(XY(10, 10),  0);
+    gCursorNoBm.ReSize(XY(10, 10), 0);
     gCursorNoBm.FillWith(0);
 
     CRect cliprect(2, 2, 638, 478);
@@ -434,7 +453,7 @@ GameFrame::~GameFrame() {
     }
 
     bLeaveGameLoop = TRUE;
-    Hdu.HercPrintf(0, "logging ends..");
+    hprintf("logging ends..");
 }
 
 void GameFrame::ProcessEvent(const SDL_Event &event) const {
@@ -470,38 +489,34 @@ void GameFrame::ProcessEvent(const SDL_Event &event) const {
 
         FrameWnd->OnKeyDown(event.text.text[0], 0, InputFlags::FromTextInput);
         break;
-    case SDL_KEYDOWN:
-    {
-		//UINT nFlags = event.key.keysym.scancode | ((SDL_GetModState() & KMOD_LALT) << 5);
-		FrameWnd->OnKeyDown(KeycodeToUpper(event.key.keysym.sym), event.key.repeat, InputFlags::None);
+    case SDL_KEYDOWN: {
+        // UINT nFlags = event.key.keysym.scancode | ((SDL_GetModState() & KMOD_LALT) << 5);
+        FrameWnd->OnKeyDown(KeycodeToUpper(event.key.keysym.sym), event.key.repeat, InputFlags::None);
     } break;
-    case SDL_MOUSEBUTTONDOWN:
-    {
-		CPoint pos = CPoint(event.button.x, event.button.y);
-		TranslatePointToGameSpace(&pos);
-		if (event.button.button == SDL_BUTTON_LEFT) {
-			if (event.button.clicks == 2){
-				FrameWnd->OnLButtonDblClk(WM_LBUTTONDBLCLK, pos);
+    case SDL_MOUSEBUTTONDOWN: {
+        CPoint pos = CPoint(event.button.x, event.button.y);
+        TranslatePointToGameSpace(&pos);
+        if (event.button.button == SDL_BUTTON_LEFT) {
+            if (event.button.clicks == 2) {
+                FrameWnd->OnLButtonDblClk(WM_LBUTTONDBLCLK, pos);
             } else {
-				FrameWnd->OnLButtonDown(WM_LBUTTONDOWN, pos);
+                FrameWnd->OnLButtonDown(WM_LBUTTONDOWN, pos);
             }
-		} else if (event.button.button == SDL_BUTTON_RIGHT){
-			FrameWnd->OnRButtonDown(WM_RBUTTONDOWN, pos);
+        } else if (event.button.button == SDL_BUTTON_RIGHT) {
+            FrameWnd->OnRButtonDown(WM_RBUTTONDOWN, pos);
         }
     } break;
-    case SDL_KEYUP:
-    {
-		FrameWnd->OnKeyUp(event.key.keysym.sym, event.key.repeat, 0);
+    case SDL_KEYUP: {
+        FrameWnd->OnKeyUp(event.key.keysym.sym, event.key.repeat, 0);
     } break;
-    case SDL_MOUSEBUTTONUP:
-    {
-		CPoint pos = CPoint(event.button.x, event.button.y);
-		TranslatePointToGameSpace(&pos);
-		if (event.button.button == SDL_BUTTON_LEFT) {
-			FrameWnd->OnLButtonUp(WM_LBUTTONUP, pos);
-		} else if (event.button.button == SDL_BUTTON_RIGHT) {
-			FrameWnd->OnRButtonUp(WM_RBUTTONUP, pos);
-		}
+    case SDL_MOUSEBUTTONUP: {
+        CPoint pos = CPoint(event.button.x, event.button.y);
+        TranslatePointToGameSpace(&pos);
+        if (event.button.button == SDL_BUTTON_LEFT) {
+            FrameWnd->OnLButtonUp(WM_LBUTTONUP, pos);
+        } else if (event.button.button == SDL_BUTTON_RIGHT) {
+            FrameWnd->OnRButtonUp(WM_RBUTTONUP, pos);
+        }
     } break;
     default:
         break;
@@ -1478,38 +1493,38 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
                                         }
 
                                         if (nFlags != InputFlags::FromTextInput) {
-                                    		switch (nChar) {
-	                                        case ATKEY_TAB:
-	                                            (qPlayer.LocationWin)->MenuStart(MENU_REQUEST, MENU_REQUEST_CALLITADAY, 0);
-	                                            (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
-	                                            nChar = 0;
-	                                            break;
+                                            switch (nChar) {
+                                            case ATKEY_TAB:
+                                                (qPlayer.LocationWin)->MenuStart(MENU_REQUEST, MENU_REQUEST_CALLITADAY, 0);
+                                                (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
+                                                nChar = 0;
+                                                break;
 
-	                                        case ATKEY_ESCAPE:
-	                                        case ATKEY_F2:
-	                                            if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
-	                                                qPlayer.EnterRoom(ROOM_OPTIONS);
-	                                            } else {
-	                                                qPlayer.LeaveRoom();
-	                                            }
-	                                            break;
+                                            case ATKEY_ESCAPE:
+                                            case ATKEY_F2:
+                                                if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
+                                                    qPlayer.EnterRoom(ROOM_OPTIONS);
+                                                } else {
+                                                    qPlayer.LeaveRoom();
+                                                }
+                                                break;
 
-	                                        case ATKEY_F3:
-	                                            if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
-	                                                OptionsShortcut = 5;
-	                                                qPlayer.EnterRoom(ROOM_OPTIONS);
-	                                            }
-	                                            break;
+                                            case ATKEY_F3:
+                                                if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
+                                                    OptionsShortcut = 5;
+                                                    qPlayer.EnterRoom(ROOM_OPTIONS);
+                                                }
+                                                break;
 
-	                                        case ATKEY_F4:
-	                                            if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
-	                                                OptionsShortcut = 6;
-	                                                qPlayer.EnterRoom(ROOM_OPTIONS);
-	                                            }
-	                                            break;
-	                                        default:
-	                                            break;
-	                                        }
+                                            case ATKEY_F4:
+                                                if (qPlayer.IsLocationInQueue(ROOM_OPTIONS) == 0) {
+                                                    OptionsShortcut = 6;
+                                                    qPlayer.EnterRoom(ROOM_OPTIONS);
+                                                }
+                                                break;
+                                            default:
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -1762,8 +1777,8 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
         }
 
         // NOTFAIR
-        if (TypeBuffer[19] == 'N' && TypeBuffer[20] == 'O' && TypeBuffer[21] == 'T' && TypeBuffer[22] == 'F' && TypeBuffer[23] == 'A' &&
-            TypeBuffer[24] == 'I' && TypeBuffer[25] == 'R') {
+        if (TypeBuffer[23] == 'N' && TypeBuffer[24] == 'O' && TypeBuffer[25] == 'T' && TypeBuffer[26] == 'F' && TypeBuffer[27] == 'A' &&
+            TypeBuffer[28] == 'I' && TypeBuffer[29] == 'R') {
             if ((Sim.bAllowCheating != 0) || (Sim.bNetwork == 0)) {
                 Sim.bCheatedSession = 1;
 
@@ -1862,6 +1877,19 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
                         Sim.Players.Players[c].Image = 1000;
                     }
                 }
+                CheatSound();
+
+                SIM::SendChatBroadcast(bprintf(StandardTexte.GetS(TOKEN_MISC, 7014), (LPCTSTR)Sim.Players.Players[Sim.localPlayer].NameX));
+                SIM::SendSimpleMessage(ATNET_CHEAT, 0, Sim.localPlayer, 2);
+            }
+        }
+
+        // AUTORUN
+        if (TypeBuffer[23] == 'A' && TypeBuffer[24] == 'U' && TypeBuffer[25] == 'T' && TypeBuffer[26] == 'O' && TypeBuffer[27] == 'R' &&
+            TypeBuffer[28] == 'U' && TypeBuffer[29] == 'N') {
+            if ((Sim.bAllowCheating != 0) || (Sim.bNetwork == 0)) {
+                Sim.bCheatedSession = 1;
+                CheatAutoSkip = (CheatAutoSkip == 0) ? 1 : 0;
                 CheatSound();
 
                 SIM::SendChatBroadcast(bprintf(StandardTexte.GetS(TOKEN_MISC, 7014), (LPCTSTR)Sim.Players.Players[Sim.localPlayer].NameX));
@@ -1982,8 +2010,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
         // COFFEECUP
         if (TypeBuffer[21] == 'C' && TypeBuffer[22] == 'O' && TypeBuffer[23] == 'F' && TypeBuffer[24] == 'F' && TypeBuffer[25] == 'E' &&
             TypeBuffer[26] == 'E' && TypeBuffer[27] == 'C' && TypeBuffer[28] == 'U' && TypeBuffer[29] == 'P') {
-            Sim.Players.Players[0].SecurityFlags = (1 << 7);
-            Sim.Players.Players[Sim.localPlayer].ArabTrust = 6; // Für Spieler 2
+            Sim.Players.Players[Sim.localPlayer].ArabTrust = 6;
 
             /*Sim.Players.Players[Sim.localPlayer].ArabMode2  = 1; //Bakterien im Kaffee
               Sim.Players.Players[Sim.localPlayer].ArabOpfer2 = 2; //Für Spieler 2
@@ -1991,13 +2018,6 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 
               Sim.Players.Players[Sim.localPlayer].NetSynchronizeSabotage (); */
             CheatSound();
-        }
-
-        if (nChar == ATKEY_F5) {
-            SLONG x = 0;
-            x++;
-
-            // SecurityFlags
         }
 
         // ATMISSALL
@@ -2064,112 +2084,16 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
     }
 
     if (Editor == EDITOR_NONE) {
-        if (nChar == ATKEY_F6) {
-            // Sim.Players.Players[(SLONG)0].ArabMode2   = 3;
-            // Sim.Players.Players[(SLONG)0].ArabOpfer2  = 1; //Sim.localPlayer;
-            // Sim.Players.Players[(SLONG)0].NetSynchronizeSabotage ();
-            // Sim.Players.Players[(SLONG)0].ArabActive  = FALSE;
-            // Sim.Players.Players[(SLONG)0].ArabPlane   = qPlayer.Planes.GetRandomUsedIndex();
-        }
-
-        /*if (nChar==ATKEY_F6)
-          {
-          qPlayer.Money+=30000000;
-          }*/
-
-        /*if (nChar==ATKEY_F6)
-          {
-          static n=0;  n++;
-
-          for (SLONG c=0; c<Sim.KerosinPast.AnzEntries()-1; c++)
-          Sim.KerosinPast[c]=Sim.KerosinPast[c+1];
-
-          Sim.Kerosin += (rand()%21)-10 + (rand()%20<2)*((rand()%41)-20) + SLONG(sin ((Sim.Date+n+rand()%6)/3.0)*20) + SLONG(sin ((Sim.Date+n)*1.7)*20);
-          Limit (300l, Sim.Kerosin, 700l);
-          Sim.KerosinPast[9]=Sim.Kerosin;
-          } */
-
-        // if (nChar==ATKEY_F12) DebugBreak();
-
-        /*if (nChar==ATKEY_TAB)
-          {
-          Sim.localPlayer=(Sim.localPlayer+1)&3;
-          hprintf ("Sim.localPlayer now is Player %li", Sim.localPlayer+1);
-          } */
-
         if (nChar == ATKEY_F5) {
-            for (SLONG d = 0; d < 4; d++) {
-                if (Sim.Players.Players[d].Owner == 1) {
-                    for (SLONG c = Sim.Players.Players[d].Planes.AnzEntries() - 1; c >= 0; c--) {
-                        if (Sim.Players.Players[d].Planes.IsInAlbum(c) != 0) {
-                            hprintf("Dumping Player %li, Plane %li", d, c);
-                            Sim.Players.Players[d].Planes[c].Flugplan.Dump(true);
-                        }
-                    }
-                }
-            }
+            Helper::printAllSchedules(false);
         }
 
         if (nChar == ATKEY_F6) {
-            /*if (Sim.Players.Players[0].Sympathie[1]<200)
-              Sim.Players.Players[0].Sympathie[1]=250;
-              else
-              Sim.Players.Players[0].Sympathie[1]=-250;
+            Helper::printAllSchedules(true);
+        }
 
-            Sim.Players.Players[(SLONG)2].DoRoutes   = 1;
-            Sim.Players.Players[(SLONG)3].DoRoutes   = 1;
-            Sim.Players.Players[(SLONG)2].Image      = 150;
-            Sim.Players.Players[(SLONG)3].Image      = 150;
-
-            qPlayer.ArabTrust = 5;
-
-            Sim.Players.Players[(SLONG)2].ArabMode2  = 2;
-            Sim.Players.Players[(SLONG)2].ArabOpfer2 = 0;
-
-            Sim.Players.Players[(SLONG)2].ArabHints = 110;
-            Sim.Players.Players[(SLONG)2].ArabMode  = 3;
-            Sim.Players.Players[(SLONG)2].ArabOpfer = 3;
-            Sim.Players.Players[(SLONG)2].ArabActive = FALSE;
-            Sim.Players.Players[(SLONG)2].ArabPlane  = qPlayer.Planes.GetRandomUsedIndex();
-
-            qPlayer.OwnsAktien[3] = 8000;
-            Sim.Players.Players[3].OwnsAktien[3] = 0; */
-
-            /*hprintf ("Statusbericht der Spieler:");
-              for (c=0; c<Sim.Players.AnzPlayers; c++)
-              if (!Sim.Players.Players[c].IsOut)
-              {
-              PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex (c)];
-
-              hprintf ("%s: %s (%li) - Sympathien: %li, %li, %li, %li", (LPCTSTR)Sim.Players.Players[c].NameX, (LPCTSTR)Sim.Players.Players[c].AirlineX,
-              (LPCTSTR)Sim.Players.Players[c].Owner, (LPCTSTR)Sim.Players.Players[c].Sympathie[0], (LPCTSTR)Sim.Players.Players[c].Sympathie[1],
-              (LPCTSTR)Sim.Players.Players[c].Sympathie[2], (LPCTSTR)Sim.Players.Players[c].Sympathie[3]); hprintf ("- Owner %li - TopLocation: %li",
-              (LPCTSTR)Sim.Players.Players[c].Owner, (LPCTSTR)Sim.Players.Players[c].GetRoom()); hprintf ("- (%li,%li)->(%li,%li)", qPerson.Position.x,
-              qPerson.Position.y, qPerson.Target.x, qPerson.Target.y);
-              }
-
-              if (qPlayer.Items[0]==0xff)
-              qPlayer.Items[0]=0;
-              else
-              qPlayer.Items[0]+=6;
-
-              if (qPlayer.Items[0]>20)
-              qPlayer.Items[0]=0;
-
-              for (c=1; c<6; c++)
-              {
-              qPlayer.Items[c]=UBYTE(qPlayer.Items[0]+c);
-              if (qPlayer.Items[c]>20)
-              qPlayer.Items[c]=0xff;
-              }
-
-              qPlayer.LaptopBattery = 60*24;
-              qPlayer.LaptopQuality = 4;
-
-              qPlayer.ReformIcons ();
-              qPlayer.Money+=10000000;
-
-              qPlayer.WasInRoom.FillWith (TRUE);*/
+        if (nChar == ATKEY_F7) {
+            BotDesigner().findBestDesignerPlane();
         }
     }
 

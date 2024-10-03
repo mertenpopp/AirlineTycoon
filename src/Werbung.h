@@ -1,6 +1,10 @@
+#pragma once
 //============================================================================================
 // Werbung.h : Die Werbeagentur!
 //============================================================================================
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class CWerbung : public CStdRaum {
     // Construction

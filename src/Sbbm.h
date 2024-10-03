@@ -5,8 +5,13 @@
 #ifndef sbbm_h
 #define sbbm_h
 
-#include "HLine.h"
+#include "defines.h"
+#include "sbl.h"
+
 #include <utility>
+
+class CHLPool;
+class CHLObj;
 
 //--------------------------------------------------------------------------------------------
 // Liest den aktuellen Taktzyklenzähler der CPU
@@ -104,8 +109,6 @@ class CBench {
 extern CBench Bench;
 extern SDL_Renderer *lpDD;
 extern SB_CBitmapMain *bitmapMain;
-
-XYZ DetectCurrentDisplayResolution(void);
 
 // Eine Teak Bitmap:
 class SBBM {

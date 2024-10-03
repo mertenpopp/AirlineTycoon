@@ -1,10 +1,11 @@
 //============================================================================================
 // Bank.cpp : Der Bankraum
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 #include "Bank.h"
 #include "glbank.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -24,9 +25,9 @@ Bank::Bank(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum, "bank.gli
 
     Sim.FocusPerson = -1;
 
-    Hdu.HercPrintf(0, "bank_bl.mcf");
+    hprintf("bank_bl.mcf");
     FontBankBlack.Load(lpDD, const_cast<char *>((LPCTSTR)FullFilename("bank_bl.mcf", MiscPath)));
-    Hdu.HercPrintf(0, "bank_ro.mcf");
+    hprintf("bank_ro.mcf");
     FontBankRed.Load(lpDD, const_cast<char *>((LPCTSTR)FullFilename("bank_ro.mcf", MiscPath)));
 
     SP_Modem.ReSize(1);
@@ -338,7 +339,7 @@ void Bank::OnRButtonDown(UINT nFlags, CPoint point) {
 // Löscht die Bilanz
 //--------------------------------------------------------------------------------------------
 void CBilanz::Clear() {
-    Tickets = Auftraege = KerosinVorrat = KerosinFlug = Essen = 0;
+    Tickets = Auftraege = FrachtAuftraege = KerosinVorrat = KerosinFlug = Essen = 0;
     Vertragsstrafen = Wartung = FlugzeugUmbau = Personal = Gatemiete = 0;
     Citymiete = Routenmiete = HabenZinsen = HabenRendite = KreditNeu = 0;
     SollZinsen = SollRendite = KreditTilgung = Steuer = Aktienverkauf = 0;
@@ -354,8 +355,8 @@ void CBilanz::Clear() {
 // Gibt den Saldo der Habens-Seite zurück:
 //--------------------------------------------------------------------------------------------
 __int64 CBilanz::GetHaben() const {
-    return Tickets + Auftraege + HabenZinsen + HabenRendite + KreditNeu + Aktienverkauf + AktienEmission + AktienEmissionKompErh + FlugzeugVerkauf + Takeovers +
-           SabotageGeklaut + SabotageKomp + BodyguardRabatt + GeldErhalten + SonstigeEinnahmen;
+    return Tickets + Auftraege + FrachtAuftraege + HabenZinsen + HabenRendite + KreditNeu + Aktienverkauf + AktienEmission + AktienEmissionKompErh +
+           FlugzeugVerkauf + Takeovers + SabotageGeklaut + SabotageKomp + BodyguardRabatt + GeldErhalten + SonstigeEinnahmen;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -371,7 +372,7 @@ __int64 CBilanz::GetSoll() const {
 //--------------------------------------------------------------------------------------------
 // Gibt den operativen Gewinn zurück
 //--------------------------------------------------------------------------------------------
-__int64 CBilanz::GetOpGewinn() const { return Tickets + Auftraege; }
+__int64 CBilanz::GetOpGewinn() const { return Tickets + Auftraege + FrachtAuftraege; }
 __int64 CBilanz::GetOpVerlust() const {
     auto summe = KerosinVorrat + KerosinFlug + Essen + Vertragsstrafen + Wartung;
     summe += FlugzeugUmbau + Personal + Gatemiete + Citymiete + Routenmiete;
@@ -391,6 +392,7 @@ __int64 CBilanz::GetSumme() const { return (GetHaben() + GetSoll()); }
 void CBilanz::operator+=(const CBilanz &Bilanz) {
     Tickets += Bilanz.Tickets;
     Auftraege += Bilanz.Auftraege;
+    FrachtAuftraege += Bilanz.FrachtAuftraege;
     KerosinVorrat += Bilanz.KerosinVorrat;
     KerosinFlug += Bilanz.KerosinFlug;
     Essen += Bilanz.Essen;
@@ -442,7 +444,7 @@ void CBilanz::operator+=(const CBilanz &Bilanz) {
 // Speichert einen Bilanz-Datensatz:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator<<(TEAKFILE &File, const CBilanz &Bilanz) {
-    File << Bilanz.Tickets << Bilanz.Auftraege << Bilanz.KerosinVorrat;
+    File << Bilanz.Tickets << Bilanz.Auftraege << Bilanz.FrachtAuftraege << Bilanz.KerosinVorrat;
     File << Bilanz.KerosinFlug << Bilanz.Essen << Bilanz.Vertragsstrafen;
     File << Bilanz.Wartung << Bilanz.FlugzeugUmbau << Bilanz.Personal;
     File << Bilanz.Gatemiete << Bilanz.Citymiete << Bilanz.Routenmiete;
@@ -470,20 +472,32 @@ TEAKFILE &operator<<(TEAKFILE &File, const CBilanz &Bilanz) {
 TEAKFILE &operator>>(TEAKFILE &File, CBilanz &Bilanz) {
     if (SaveVersionSub < 200) {
         // old save version used SLONG and not long long
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wundefined-reinterpret-cast"
-#define COMP(x) (reinterpret_cast<SLONG &>(x))
-        File >> COMP(Bilanz.HabenZinsen) >> COMP(Bilanz.Tickets) >> COMP(Bilanz.Auftraege);
-        File >> COMP(Bilanz.HabenRendite) >> COMP(Bilanz.SollRendite);
-        File >> COMP(Bilanz.SollZinsen) >> COMP(Bilanz.KerosinGespart) >> COMP(Bilanz.Personal);
-        File >> COMP(Bilanz.Vertragsstrafen) >> COMP(Bilanz.Wartung) >> COMP(Bilanz.Gatemiete);
-        File >> COMP(Bilanz.Citymiete) >> COMP(Bilanz.Routenmiete);
-#pragma GCC diagnostic pop
+        SLONG HabenZinsen, Tickets, Auftraege, HabenRendite, SollRendite, SollZinsen, KerosinGespart;
+        SLONG Personal, Vertragsstrafen, Wartung, Gatemiete, Citymiete, Routenmiete;
+        File >> HabenZinsen >> Tickets >> Auftraege;
+        File >> HabenRendite >> SollRendite;
+        File >> SollZinsen >> KerosinGespart >> Personal;
+        File >> Vertragsstrafen >> Wartung >> Gatemiete;
+        File >> Citymiete >> Routenmiete;
+
+        Bilanz.HabenZinsen = HabenZinsen;
+        Bilanz.Tickets = Tickets;
+        Bilanz.Auftraege = Auftraege;
+        Bilanz.HabenRendite = HabenRendite;
+        Bilanz.SollRendite = SollRendite;
+        Bilanz.SollZinsen = SollZinsen;
+        Bilanz.KerosinGespart = KerosinGespart;
+        Bilanz.Personal = Personal;
+        Bilanz.Vertragsstrafen = Vertragsstrafen;
+        Bilanz.Wartung = Wartung;
+        Bilanz.Gatemiete = Gatemiete;
+        Bilanz.Citymiete = Citymiete;
+        Bilanz.Routenmiete = Routenmiete;
 
         return (File);
-    } 
+    }
 
-    File >> Bilanz.Tickets >> Bilanz.Auftraege >> Bilanz.KerosinVorrat;
+    File >> Bilanz.Tickets >> Bilanz.Auftraege >> Bilanz.FrachtAuftraege >> Bilanz.KerosinVorrat;
     File >> Bilanz.KerosinFlug >> Bilanz.Essen >> Bilanz.Vertragsstrafen;
     File >> Bilanz.Wartung >> Bilanz.FlugzeugUmbau >> Bilanz.Personal;
     File >> Bilanz.Gatemiete >> Bilanz.Citymiete >> Bilanz.Routenmiete;

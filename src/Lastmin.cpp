@@ -3,9 +3,13 @@
 //============================================================================================
 // Link: "LastMin.h"
 //============================================================================================
-#include "StdAfx.h"
+#include "LastMin.h"
+
 #include "AtNet.h"
+#include "GameMechanic.h"
 #include "gllast.h"
+#include "global.h"
+#include "Proto.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -278,20 +282,17 @@ void CLastMinute::OnPaint() {
 // void CLastMinute::OnPaint()
 //--------------------------------------------------------------------------------------------
 void CLastMinute::RepaintZettel(SLONG n) {
-    if (LastMinuteAuftraege[n].Praemie > 0) {
-        ZettelBms[n].ReSize(gZettelBms[n % 3].Size);
-        ZettelBms[n].BlitFrom(gZettelBms[n % 3]);
+    ZettelBms[n].ReSize(gZettelBms[n % 3].Size);
+    ZettelBms[n].BlitFrom(gZettelBms[n % 3]);
 
-        ZettelBms[n].PrintAt(
-            bprintf("%s-%s", (LPCTSTR)Cities[LastMinuteAuftraege[n].VonCity].Kuerzel, (LPCTSTR)Cities[LastMinuteAuftraege[n].NachCity].Kuerzel), FontSmallBlack,
-            TEC_FONT_CENTERED, XY(3, 10), XY(ZettelBms[n].Size.x - 3, 29));
+    ZettelBms[n].PrintAt(bprintf("%s-%s", (LPCTSTR)Cities[LastMinuteAuftraege[n].VonCity].Kuerzel, (LPCTSTR)Cities[LastMinuteAuftraege[n].NachCity].Kuerzel),
+                         FontSmallBlack, TEC_FONT_CENTERED, XY(3, 10), XY(ZettelBms[n].Size.x - 3, 29));
 
-        ZettelBms[n].PrintAt(ShortenLongCities(Cities[LastMinuteAuftraege[n].VonCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 31),
-                             XY(ZettelBms[n].Size.x - 3, 102));
-        ZettelBms[n].PrintAt("-", FontSmallBlack, TEC_FONT_CENTERED, XY(3, 41), XY(ZettelBms[n].Size.x - 3, 102));
-        ZettelBms[n].PrintAt(ShortenLongCities(Cities[LastMinuteAuftraege[n].NachCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 52),
-                             XY(ZettelBms[n].Size.x - 3, 102));
-    }
+    ZettelBms[n].PrintAt(ShortenLongCities(Cities[LastMinuteAuftraege[n].VonCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 31),
+                         XY(ZettelBms[n].Size.x - 3, 102));
+    ZettelBms[n].PrintAt("-", FontSmallBlack, TEC_FONT_CENTERED, XY(3, 41), XY(ZettelBms[n].Size.x - 3, 102));
+    ZettelBms[n].PrintAt(ShortenLongCities(Cities[LastMinuteAuftraege[n].NachCity].Name), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 52),
+                         XY(ZettelBms[n].Size.x - 3, 102));
 }
 
 //--------------------------------------------------------------------------------------------
@@ -320,26 +321,14 @@ void CLastMinute::OnLButtonDown(UINT nFlags, CPoint point) {
             if (LastMinuteAuftraege[c].Praemie > 0) {
                 if (RoomPos.IfIsWithin(ZettelPos[c * 2], ZettelPos[c * 2 + 1], ZettelPos[c * 2] + gZettelBms[c % 3].Size.x,
                                        ZettelPos[c * 2 + 1] + gZettelBms[c % 3].Size.y)) {
-                    if (qPlayer.Auftraege.GetNumFree() < 3) {
-                        qPlayer.Auftraege.ReSize(qPlayer.Auftraege.AnzEntries() + 10);
-                    }
+
+                    SLONG outId = -1;
+                    GameMechanic::takeLastMinuteJob(qPlayer, c, outId);
 
                     gUniversalFx.Stop();
                     gUniversalFx.ReInit("paptake.raw");
                     gUniversalFx.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
 
-                    qPlayer.Auftraege += LastMinuteAuftraege[c];
-                    qPlayer.NetUpdateOrder(LastMinuteAuftraege[c]);
-
-                    // Für den Statistikscreen:
-                    qPlayer.Statistiken[STAT_AUFTRAEGE].AddAtPastDay(1);
-                    qPlayer.Statistiken[STAT_LMAUFTRAEGE].AddAtPastDay(1);
-
-                    SIM::SendSimpleMessage(ATNET_SYNCNUMFLUEGE, 0, Sim.localPlayer, static_cast<SLONG>(qPlayer.Statistiken[STAT_AUFTRAEGE].GetAtPastDay(0)),
-                                           static_cast<SLONG>(qPlayer.Statistiken[STAT_LMAUFTRAEGE].GetAtPastDay(0)));
-
-                    LastMinuteAuftraege[c].Praemie = -1000;
-                    qPlayer.NetUpdateTook(1, c);
                     break;
                 }
             }

@@ -1,3 +1,4 @@
+#pragma once
 // Schedule.h : header file
 //
 

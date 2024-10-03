@@ -1,6 +1,9 @@
+#pragma once
 //============================================================================================
 // Synthese.h : Die Sprachsynthese!
 //============================================================================================
+
+#include "class.h"
 
 void SynthesizeNumber(SBFX *TargetFx, const CString &Talker, SLONG Number, BOOL Waehrung);
 void FlushTalkers(void);

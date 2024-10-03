@@ -1,6 +1,10 @@
+#pragma once
 //============================================================================================
 // Planer.h : Die Basisklasse für Globe und Laptop
 //============================================================================================
+
+#include "defines.h"
+#include "StdRaum.h"
 
 class CPlaner : public CStdRaum {
     // Construction
@@ -31,7 +35,7 @@ class CPlaner : public CStdRaum {
     XY DragStart;              // Hier hat der Dreck angefangen.... Hohoho
     SLONG CurrentPostItType{}; // Identifiziert PostIt-Bitmap des Auftrags
     SLONG CurrentPostItId{};   // Identifiziert PostIt-Bitmap des Auftrags
-    SLONG CurrentBlock{};      //Über diesem Block ist der Cursor...
+    SLONG CurrentBlock{};      // Über diesem Block ist der Cursor...
     BLOCK *pBlock{};           // Pointer auf den Block oder NULL
 
     BOOL IsInClientArea{};  // Ist der Cursor in der Client-Area des Blockes
@@ -74,6 +78,7 @@ class CPlaner : public CStdRaum {
     void ButtonPrevB(void);
     void ButtonIndexB(void);
     void TurnGlobe(SLONG Angle);
+    void AutoPlan(SLONG mode);
 
     // Implementation
   public:

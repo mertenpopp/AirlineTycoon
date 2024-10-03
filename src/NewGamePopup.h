@@ -1,7 +1,14 @@
+#pragma once
 // NewGamePopup.h : header file
 //
-#include "SbLib.h"
+#include "defines.h"
 #include "network.h"
+#include "SbLib.h"
+#include "StdRaum.h"
+
+#include <SDL_timer.h>
+
+#include <memory>
 
 /////////////////////////////////////////////////////////////////////////////
 // NewGamePopup window
@@ -11,7 +18,7 @@ class NewGamePopup : public CStdRaum {
   public:
     NewGamePopup(BOOL bHandy, SLONG PlayerNum);
 
-  // Attributes
+    // Attributes
   private:
     enum class PAGE_TYPE : UBYTE {
         MAIN_MENU = 0,
@@ -25,6 +32,9 @@ class NewGamePopup : public CStdRaum {
         SELECT_PLAYER_MULTIPLAYER = 18,
         SELECT_PLAYER_CAMPAIGN = 14,
 
+        SELECT_BOT_SINGLEPLAYER = 22,
+        SELECT_BOT_CAMPAIGN = 23,
+
         MULTIPLAYER_SELECT_NETWORK = 13,
         MULTIPLAYER_SELECT_SESSION = 15,
         MULTIPLAYER_CREATE_SESSION = 17,
@@ -35,6 +45,10 @@ class NewGamePopup : public CStdRaum {
         OTHERS_LOADING = 5,
         MP_LOADING = 99,
     };
+    constexpr BOOL isPlayerSelect(PAGE_TYPE PageNum) {
+        return PageNum == PAGE_TYPE::SELECT_PLAYER_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_PLAYER_CAMPAIGN ||
+               PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_SINGLEPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_CAMPAIGN;
+    }
 
     BOOL TimerFailure{};
     PAGE_TYPE PageNum; // Seite 1 oder 2
@@ -57,9 +71,9 @@ class NewGamePopup : public CStdRaum {
 
     SBFX ClickFx;
 
-       SBList<std::shared_ptr<SBStr>>* pNetworkSessions{};
-       SBList<SBStr>           *pNetworkConnections{};
-       SBList<SBNetworkPlayer*> *pNetworkPlayers{};
+    SBList<std::shared_ptr<SBStr>> *pNetworkSessions{};
+    SBList<SBStr> *pNetworkConnections{};
+    SBList<SBNetworkPlayer *> *pNetworkPlayers{};
 
     SLONG SessionMissionID{};
 

@@ -1,44 +1,50 @@
 //============================================================================================
 // Sim.cpp : Routinen zur allgemeinen Simulationsverwaltung:
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
+#include "BotHelper.h"
 #include "Checkup.h"
-#include "Sabotage.h"
+#include "GameMechanic.h"
+#include "global.h"
+#include "helper.h"
+#include "Personal.h"
+#include "Proto.h"
+
 #include <filesystem>
 #include <numeric>
 
-#define AT_Log(a,...) AT_Log_I("Sim", a, __VA_ARGS__)
-                        // Für Menschen       Für Computer
-                        // Money    Credit    Money    Credit
-static long InitMoney[] = {1500000, 0,        2000000, 0,                                                        // DIFF_FREEGAME
-                           5000000, 0,        200000,  0,                                                        // DIFF_TUTORIAL
-                           5000000, 0,        500000,  0,                                                        // FIRST
-                           3000000, 0,        1000000, 0,                                                        // DIFF_EASY
-                           2000000, 0,        3000000, 0,                                                        // DIFF_NORMAL
-                           1800000, 0,        4000000, 0,                                                        // DIFF_HARD
-                           1500000, 0,        6000000, 0,                                                        // DIFF_FINAL
-                           0,       0,        0,       0,        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Nada
-                           3000000, 10000000, 1000000, 10000000,                                                 // DIFF_ADDON01
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON02
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON03
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON04
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON05
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON06
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON07
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON08
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON09
-                           3000000, 0,        1000000, 0,                                                        // DIFF_ADDON10
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS01
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS02
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS03
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS04
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS05
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS06
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS07
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS08
-                           3000000, 0,        3000000, 0,                                                        // DIFF_ATFS09
-                           3000000, 0,        3000000, 0};                                                       // DIFF_ATFS10
+#define AT_Log(...) AT_Log_I("Sim", __VA_ARGS__)
+
+// Für Menschen     Für Computer
+// Money   Credit   Money    Credit
+static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                                                        // DIFF_FREEGAME
+                            5000000, 0,        200000,  0,                                                        // DIFF_TUTORIAL
+                            5000000, 0,        500000,  0,                                                        // FIRST
+                            3000000, 0,        1000000, 0,                                                        // DIFF_EASY
+                            2000000, 0,        3000000, 0,                                                        // DIFF_NORMAL
+                            1800000, 0,        4000000, 0,                                                        // DIFF_HARD
+                            1500000, 0,        6000000, 0,                                                        // DIFF_FINAL
+                            0,       0,        0,       0,        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Nada
+                            3000000, 10000000, 1000000, 10000000,                                                 // DIFF_ADDON01
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON02
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON03
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON04
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON05
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON06
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON07
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON08
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON09
+                            3000000, 0,        1000000, 0,                                                        // DIFF_ADDON10
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS01
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS02
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS03
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS04
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS05
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS06
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS07
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS08
+                            3000000, 0,        3000000, 0,                                                        // DIFF_ATFS09
+                            3000000, 0,        3000000, 0};                                                       // DIFF_ATFS10
 
 static SLONG MonthLength[] = {31, 28, 31, 30, 31, 30, 30, 31, 30, 31, 30, 31};
 
@@ -49,15 +55,13 @@ char chRegKey[] = R"(Software\Spellbound Software\Airline Tycoon Deluxe\1.0)";
 extern SLONG NewgameWantsToLoad;
 extern SLONG gTimerCorrection;
 
-const char TOKEN_NEWGAME[] = "NewG";
-
 void CalcPlayerMaximums(bool bForce);
 
 // Daten des aktuellen Savegames beim laden:
 SLONG SaveVersion = 1;
 SLONG SaveVersionSub = 202;
 
-//Öffnungszeiten:
+// Öffnungszeiten:
 extern SLONG timeDutyOpen;
 extern SLONG timeDutyClose;
 extern SLONG timeArabOpen;
@@ -132,9 +136,7 @@ SIM::SIM() {
 
     gDisablePauseKey = FALSE;
 
-    DoAppPath();
     Options.OptionDigiSound = TRUE;
-    LoadOptions();
 
     TafelData.Clear();
 }
@@ -334,7 +336,7 @@ bool SIM::AddGlueSabotage(XY Position, SLONG Dir, SLONG NewDir, SLONG Phase) {
 //------------------------------------------------------------------------------
 // Läßt den Benutzer Schwierigkeit, Anfangsjahr und Spieler wählen:
 //------------------------------------------------------------------------------
-void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
+void SIM::ChooseStartup() {
     SLONG c = 0;
     SLONG d = 0;
     SLONG e = 0;
@@ -449,6 +451,9 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
     SabotageActs.ReSize(0);
 
     IsTutorial = static_cast<BOOL>(Difficulty == DIFF_TUTORIAL);
+    if (gQuickTestRun > 0) {
+        IsTutorial = FALSE;
+    }
     DialogOvertureFlags = 0;
 
     // Wochentag für die Öffnungszeiten:
@@ -683,11 +688,11 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
         qPlayer.RentRouten.RentRouten.ReSize(0);
         qPlayer.RentRouten.RentRouten.ReSize(Routen.AnzEntries());
 
-        for (d = 0; d < Players.AnzPlayers; d++) {
-            qPlayer.DisplayRoutes[d] = FALSE;
-            qPlayer.DisplayPlanes[d] = FALSE;
+        for (d = 0; d < qPlayer.DisplayRoutes.size(); d++) {
+            qPlayer.DisplayRoutes[d] = static_cast<UBYTE>(0);
+            qPlayer.DisplayPlanes[d] = static_cast<UBYTE>(0);
         }
-        qPlayer.DisplayPlanes[c] = TRUE;
+        qPlayer.DisplayPlanes[c] = static_cast<UBYTE>(1);
 
         qPlayer.Gates.Gates.ReSize(30);
         qPlayer.Gates.NumRented = 0;
@@ -728,7 +733,7 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
             qPlayer.Image = 300;
         }
 
-        if ((Difficulty == DIFF_ATFS09 || Difficulty == DIFF_ATFS10) && qPlayer.Owner == 1) {
+        if ((Difficulty == DIFF_ATFS09 || Difficulty == DIFF_ATFS10) && qPlayer.Owner == 1 && qPlayer.RobotUse(ROBOT_USE_MISC_CHEATS)) {
             qPlayer.Tank = 5000;
             qPlayer.TankOpen = 1;
         }
@@ -737,7 +742,7 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
         qPlayer.NumPassengers = 0;
         qPlayer.NumAuftraege = 0;
         qPlayer.Gewinn = 0;
-        qPlayer.ConnectFlags = 0;
+        qPlayer.NumMissionRoutes = 0;
         qPlayer.RocketFlags = 0;
         qPlayer.LastRocketFlags = 0;
         qPlayer.SpeedCount = 0;
@@ -813,8 +818,8 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
 
         if (Difficulty >= DIFF_ATFS01 && Difficulty <= DIFF_ATFS10) {
             qPlayer.Money = InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4 + 0];
-            qPlayer.Bonus =
-                InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4 + 0 + static_cast<SLONG>(qPlayer.Owner == 1) * 2] - InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4];
+            qPlayer.Bonus = InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4 + 0 + static_cast<SLONG>(qPlayer.Owner == 1) * 2] -
+                            InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4];
             qPlayer.Credit = InitMoney[(Difficulty - DIFF_ATFS01 + 22) * 4 + 1];
         } else {
             qPlayer.Money = InitMoney[(Difficulty + 1) * 4 + 0];
@@ -823,6 +828,9 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
             if (qPlayer.Bonus < 0) {
                 qPlayer.Bonus = -qPlayer.Bonus;
             }
+        }
+        if (qPlayer.Owner == 1 && !qPlayer.RobotUse(ROBOT_USE_BONUS)) {
+            qPlayer.Bonus = 0;
         }
 
         qPlayer.MoneyPast.ReSize(20);
@@ -961,7 +969,7 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
         qPlayer.bDialogStartSent = FALSE;
         qPlayer.PlayerDialogState = -1;
 
-        if (qPlayer.Owner == 1) {
+        if (qPlayer.Owner == 1 && qPlayer.RobotUse(ROBOT_USE_MISC_CHEATS)) {
             qPlayer.Kooperation.FillWith(1);
             for (SLONG c = 0; c < 4; c++) {
                 if (Players.Players[c].Owner != 1) {
@@ -1108,6 +1116,10 @@ void SIM::ChooseStartup(BOOL /*GameModeQuick*/) {
                 Players.Players[c].Planes[d].UpdatePersonalQuality(c);
             }
         }
+    }
+
+    for (c = 0; c < Players.AnzPlayers; c++) {
+        Players.Players[c].ReInitBot();
     }
 
     Players.RobotInit();
@@ -1312,7 +1324,7 @@ void SIM::DoTimeStep() {
 
     OldMinute = GetMinute();
 
-    Time += bNetwork ?  ServerGameSpeed : GameSpeed;
+    Time += bNetwork ? ServerGameSpeed : GameSpeed;
     PlayerDidntMove++; // Wird ggf. bei WalkPersons resettet
 
     if (Time >= 24 * 60000) {
@@ -1395,6 +1407,11 @@ void SIM::DoTimeStep() {
                     Players.Players[c].bReadyForMorning = 1;
                 }
             }
+
+            // Bei ATFS-Megasabotage-Mission ggf. künstlich Sabotage einfügen:
+            if (Difficulty == DIFF_ATFS06) {
+                GameMechanic::injectFakeSabotage();
+            }
         }
 
         // Verschiedene Sync's für's Netzwerk:
@@ -1453,7 +1470,7 @@ void SIM::DoTimeStep() {
                         }
 
                         bgWarp = FALSE;
-                        if (CheatTestGame == 0) {
+                        if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                             qPlayer.GameSpeed = 0;
                         }
                     }
@@ -1479,7 +1496,7 @@ void SIM::DoTimeStep() {
                             bgWarp = FALSE;
                             qPlayer.StrikeNotified = TRUE;
                             qPlayer.StrikeEndType = 0;
-                            if (CheatTestGame == 0) {
+                            if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                                 qPlayer.GameSpeed = 0;
                             }
                         }
@@ -1498,7 +1515,7 @@ void SIM::DoTimeStep() {
                          qPlayer.DaysWithoutStrike > 7) ||
                         (Workers.GetAverageHappyness(localPlayer) - static_cast<SLONG>(Workers.GetMinHappyness(localPlayer) < 0) * 10 < 0 &&
                          qPlayer.DaysWithoutStrike > 3)) {
-                        qPlayer.StrikePlanned = TRUE;
+                        GameMechanic::planStrike(qPlayer);
                     }
                 }
             }
@@ -1508,7 +1525,7 @@ void SIM::DoTimeStep() {
                 if (Players.Players[c].IsOut == 0) {
                     PLAYER &qPlayer = Players.Players[c];
 
-                    if ((qPlayer.StrikePlanned != 0) && GetHour() > 6 && GetHour() < 18 && CallItADay == FALSE) {
+                    if ((qPlayer.StrikePlanned != 0) && GetHour() > 9 && GetHour() < 18 && CallItADay == FALSE) {
                         SLONG c = 0;
                         SLONG AnyPlanes = FALSE;
 
@@ -1556,15 +1573,14 @@ void SIM::DoTimeStep() {
 
                             Headlines.AddOverride(1, bprintf(StandardTexte.GetS(TOKEN_MISC, 2090), qPlayer.AirlineX.c_str()), GetIdFromString("STREIK"),
                                                   25 + static_cast<SLONG>(c == localPlayer) * 10);
+                            hprintf("Sim.cpp: %s: Strike started @%02ld:%02ld (for %ld hours)", (LPCTSTR)qPlayer.AirlineX, Sim.GetHour(), Sim.GetMinute(),
+                                    qPlayer.StrikeHours);
                         }
                     } else if (qPlayer.StrikeHours != 0) {
                         qPlayer.StrikeHours--;
 
                         if (qPlayer.StrikeHours == 0 && (qPlayer.Owner == 0 || (qPlayer.Owner == 1 && !qPlayer.RobotUse(ROBOT_USE_FAKE_PERSONAL)))) {
-                            qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
-                            qPlayer.StrikeEndType = 3;      // Streik beendet durch abwarten
-
-                            Workers.AddHappiness(c, -10);
+                            GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Waiting);
                         }
                     }
                 }
@@ -1632,7 +1648,7 @@ void SIM::DoTimeStep() {
                                                 qPlayer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
 
                                                 bgWarp = FALSE;
-                                                if (CheatTestGame == 0) {
+                                                if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                                                     qLocalPlayer.GameSpeed = 0;
                                                 }
                                             } else if (CallItADay == 0) {
@@ -1671,238 +1687,8 @@ void SIM::DoTimeStep() {
         }
 
         if (Minute < OldMinute) {
-            SLONG c = 0;
-
             // Sabotage:
-            for (c = 0; c < Players.Players.AnzEntries(); c++) {
-                if (Players.Players[c].ArabMode != 0) {
-                    PLAYER &qOpfer = Players.Players[Players.Players[c].ArabOpfer];
-
-                    if (qOpfer.Planes.IsInAlbum(Players.Players[c].ArabPlane) == 0) {
-                        Players.Players[c].ArabMode = 0; // Flugzeug gibt es nicht mehr
-                    } else {
-                        if (Players.Players[c].ArabActive == FALSE && qOpfer.Planes[Players.Players[c].ArabPlane].Ort >= 0) {
-                            Players.Players[c].ArabActive = TRUE;
-                        }
-
-                        if (Players.Players[c].ArabActive == TRUE) {
-                            BOOL ActNow = FALSE;
-
-                            if (Players.Players[c].ArabMode != 3 && qOpfer.Planes[Players.Players[c].ArabPlane].Ort < 0) {
-                                ActNow = TRUE;
-                            }
-                            if (Players.Players[c].ArabMode == 3 && qOpfer.Planes[Players.Players[c].ArabPlane].Ort >= 0) {
-                                CPlane &qPlane = qOpfer.Planes[Players.Players[c].ArabPlane];
-                                SLONG e = qPlane.Flugplan.NextStart;
-
-                                if (e != -1 && qPlane.Flugplan.Flug[e].Startdate * 24 + qPlane.Flugplan.Flug[e].Startzeit == Date * 24 + GetHour()) {
-                                    ActNow = TRUE;
-                                }
-                            }
-
-                            if (ActNow != 0) {
-                                // Die Anschläge ausführen:
-                                __int64 PictureId = 0;
-                                CPlane &qPlane = qOpfer.Planes[Players.Players[c].ArabPlane];
-
-                                qOpfer.Statistiken[STAT_UNFAELLE].AddAtPastDay(1);
-                                Players.Players[c].Statistiken[STAT_SABOTIERT].AddAtPastDay(1);
-
-                                if (qPlane.Flugplan.NextFlight != -1) {
-                                    CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[qPlane.Flugplan.NextFlight];
-
-                                    bool bFremdsabotage = false;
-                                    if (Players.Players[c].ArabMode < 0) {
-                                        Players.Players[c].ArabMode = -Players.Players[c].ArabMode;
-                                        bFremdsabotage = true;
-                                    }
-
-                                    switch (Players.Players[c].ArabMode) {
-                                    case 1:
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].ArabHints += 2;
-                                        }
-                                        qOpfer.Kurse[0] *= 0.95;
-                                        qOpfer.TrustedDividende -= 1;
-                                        qOpfer.Sympathie[c] -= 5;
-                                        if (qFPE.ObjectType == 1) {
-                                            qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image =
-                                                qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image * 99 / 100;
-                                        }
-                                        if (qOpfer.TrustedDividende < 0) {
-                                            qOpfer.TrustedDividende = 0;
-                                        }
-                                        PictureId = GetIdFromString("SALZ");
-                                        break;
-
-                                    case 2:
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].ArabHints += 4;
-                                        }
-                                        qOpfer.ChangeMoney(-2000, 3500, "");
-                                        qOpfer.Kurse[0] *= 0.9;
-                                        qOpfer.TrustedDividende -= 2;
-                                        qOpfer.Sympathie[c] -= 15;
-                                        if (qOpfer.TrustedDividende < 0) {
-                                            qOpfer.TrustedDividende = 0;
-                                        }
-                                        qOpfer.Image -= 2;
-                                        if (qFPE.ObjectType == 1) {
-                                            qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image =
-                                                qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image * 95 / 100;
-                                        }
-                                        PictureId = GetIdFromString("SKELETT");
-                                        break;
-
-                                    case 3: // Platter Reifen:
-                                    {
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].ArabHints += 10;
-                                        }
-                                        qOpfer.ChangeMoney(-8000, 3500, "");
-                                        qOpfer.Kurse[0] *= 0.85;
-                                        qOpfer.TrustedDividende -= 3;
-                                        qOpfer.Sympathie[c] -= 35;
-                                        if (qOpfer.TrustedDividende < 0) {
-                                            qOpfer.TrustedDividende = 0;
-                                        }
-                                        qOpfer.Image -= 3;
-                                        if (qFPE.ObjectType == 1) {
-                                            qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image =
-                                                qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image * 90 / 100;
-                                        }
-
-                                        SLONG e = qPlane.Flugplan.NextStart;
-
-                                        qPlane.Flugplan.Flug[e].Startzeit++;
-                                        qPlane.Flugplan.UpdateNextFlight();
-                                        qPlane.Flugplan.UpdateNextStart();
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].Statistiken[STAT_VERSPAETUNG].AddAtPastDay(1);
-                                        }
-
-                                        if (qPlane.Flugplan.Flug[e].Startzeit == 24) {
-                                            qPlane.Flugplan.Flug[e].Startzeit = 0;
-                                            qPlane.Flugplan.Flug[e].Startdate++;
-                                        }
-                                        qPlane.CheckFlugplaene(Players.Players[c].ArabOpfer);
-                                        qOpfer.UpdateAuftragsUsage();
-                                        qOpfer.Messages.AddMessage(BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2304), (LPCTSTR)qPlane.Name));
-                                        PictureId = GetIdFromString("REIFEN");
-                                    } break;
-
-                                    case 4:
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].ArabHints += 20;
-                                        }
-                                        qOpfer.ChangeMoney(-40000, 3500, "");
-                                        qOpfer.Kurse[0] *= 0.75;
-                                        qOpfer.TrustedDividende -= 4;
-                                        qOpfer.Sympathie[c] -= 80;
-                                        if (qOpfer.TrustedDividende < 0) {
-                                            qOpfer.TrustedDividende = 0;
-                                        }
-                                        qOpfer.Image -= 8;
-                                        if (qFPE.ObjectType == 1) {
-                                            qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image =
-                                                qOpfer.RentRouten.RentRouten[Routen(qFPE.ObjectId)].Image * 50 / 100;
-                                        }
-                                        PictureId = GetIdFromString("FEUER");
-                                        break;
-
-                                    case 5:
-                                        if (!bFremdsabotage) {
-                                            Players.Players[c].ArabHints += 100;
-                                        }
-                                        qOpfer.ChangeMoney(-70000, 3500, "");
-                                        qOpfer.Kurse[0] *= 0.70;
-                                        qOpfer.TrustedDividende -= 5;
-                                        qOpfer.Sympathie[c] -= 200;
-                                        if (qOpfer.TrustedDividende < 0) {
-                                            qOpfer.TrustedDividende = 0;
-                                        }
-                                        PictureId = GetIdFromString("SUPERMAN");
-                                        break;
-                                    default:
-                                        hprintf("Sim.cpp: Default case should not be reached.");
-                                        DebugBreak();
-                                    }
-                                    if (qOpfer.Kurse[0] < 0) {
-                                        qOpfer.Kurse[0] = 0;
-                                    }
-                                    // log: hprintf ("Player[%li].Image now (sabo) = %li", (LPCTSTR)Players.Players[c].ArabOpfer, (LPCTSTR)qOpfer.Image);
-
-                                    // Für's Briefing vermerken:
-                                    SabotageActs.ReSize(SabotageActs.AnzEntries() + 1);
-                                    SabotageActs[SabotageActs.AnzEntries() - 1].Player = bFremdsabotage ? -2 : c;
-                                    SabotageActs[SabotageActs.AnzEntries() - 1].ArabMode = Players.Players[c].ArabMode;
-                                    SabotageActs[SabotageActs.AnzEntries() - 1].Opfer = Players.Players[c].ArabOpfer;
-
-                                    Headlines.AddOverride(
-                                        0, bprintf(StandardTexte.GetS(TOKEN_MISC, 2000 + Players.Players[c].ArabMode), (LPCTSTR)qOpfer.AirlineX), PictureId,
-                                        static_cast<SLONG>(Players.Players[c].ArabOpfer == localPlayer) * 50 + Players.Players[c].ArabMode);
-                                    Limit(SLONG(-1000), qOpfer.Image, SLONG(1000));
-
-                                    // Araber meldet sich, oder Fax oder Brief sind da.
-                                    if (c == localPlayer && (qLocalPlayer.IsOkayToCallThisPlayer() != 0)) {
-                                        if (qLocalPlayer.GetRoom() == ROOM_SABOTAGE) {
-                                            (qLocalPlayer.LocationWin)->StartDialog(TALKER_SABOTAGE, MEDIUM_AIR, 2000);
-                                            bgWarp = FALSE;
-                                            if (CheatTestGame == 0) {
-                                                qLocalPlayer.GameSpeed = 0;
-                                            }
-                                        } else {
-                                            gUniversalFx.Stop();
-                                            gUniversalFx.ReInit("phone.raw");
-                                            gUniversalFx.Play(DSBPLAY_NOSTOP, Options.OptionEffekte * 100 / 7);
-
-                                            bgWarp = FALSE;
-                                            if (CheatTestGame == 0) {
-                                                qLocalPlayer.GameSpeed = 0;
-                                            }
-
-                                            delete qLocalPlayer.DialogWin;
-                                            qLocalPlayer.DialogWin = new CSabotage(TRUE, localPlayer);
-                                            (qLocalPlayer.LocationWin)->StartDialog(TALKER_SABOTAGE, MEDIUM_HANDY, 2000);
-                                            (qLocalPlayer.LocationWin)->PayingForCall = FALSE;
-                                        }
-                                    } else if (Players.Players[c].ArabOpfer == localPlayer) {
-                                        if (qOpfer.Owner == 0 && (qOpfer.IsOut == 0)) {
-                                            qOpfer.Letters.AddLetter(FALSE,
-                                                                     bprintf(StandardTexte.GetS(TOKEN_LETTER, 500 + Players.Players[c].ArabMode),
-                                                                             (LPCTSTR)qOpfer.Planes[Players.Players[c].ArabPlane].Name),
-                                                                     "", "", Players.Players[c].ArabMode);
-                                        }
-
-                                        if (qLocalPlayer.LocationWin != nullptr) {
-                                            if (((qLocalPlayer.LocationWin)->IsDialogOpen() == 0) && ((qLocalPlayer.LocationWin)->MenuIsOpen() == 0) &&
-                                                (Options.OptionFax != 0) && (CallItADay == 0)) {
-                                                (qOpfer.LocationWin)
-                                                    ->MenuStart(MENU_SABOTAGEFAX, Players.Players[c].ArabMode, Players.Players[c].ArabOpfer,
-                                                                Players.Players[c].ArabPlane);
-                                                (qOpfer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
-
-                                                qOpfer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
-
-                                                bgWarp = FALSE;
-                                                if (CheatTestGame == 0) {
-                                                    qLocalPlayer.GameSpeed = 0;
-                                                }
-                                            } else if (CallItADay == 0) {
-                                                qOpfer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                           bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2301 + Players.Players[c].ArabMode),
-                                                                                   (LPCTSTR)qOpfer.Planes[Players.Players[c].ArabPlane].Name));
-                                            }
-                                        }
-                                    }
-
-                                    Players.Players[c].ArabMode = 0;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            GameMechanic::executeSabotageMode1();
         }
     }
 
@@ -2163,6 +1949,7 @@ void SIM::DoTimeStep() {
                                 qPlane.Flugplan.UpdateNextStart();
                                 qPlane.CheckFlugplaene(c);
                                 Players.Players[c].UpdateAuftragsUsage();
+                                Players.Players[c].UpdateFrachtauftragsUsage();
                             }
                         }
                     }
@@ -2360,7 +2147,7 @@ SLONG SIM::GetSeason() const {
 }
 
 //--------------------------------------------------------------------------------------------
-//Überprüft, ob wir die richtigen Bricks geladen haben:
+// Überprüft, ob wir die richtigen Bricks geladen haben:
 //--------------------------------------------------------------------------------------------
 void SIM::UpdateSeason() {
     if (GetSeason() != Jahreszeit) {
@@ -2435,9 +2222,22 @@ void SIM::NewDay() {
 
     KeyHints[1] = 0;
 
-    if ((CheatTestGame != 0) && Players.Players[localPlayer].Money < 0) {
-        Players.Players[localPlayer].Money = 1000000;
-        // log: hprintf ("Event: localPlayer gets Money-Boost for testing reasons");
+    auto &qPlayer = Players.Players[localPlayer];
+    if (CheatAutoSkip == 1) {
+        CheatAutoSkip = 2;
+        if (!qPlayer.HasItem(ITEM_LAPTOP)) {
+            qPlayer.BuyItem(ITEM_LAPTOP);
+            qPlayer.LaptopBattery = 60 * 24;
+            qPlayer.LaptopQuality = 4;
+        }
+        if (!qPlayer.HasItem(ITEM_TABLETTEN)) {
+            qPlayer.BuyItem(ITEM_TABLETTEN);
+        }
+        if (!qPlayer.HasItem(ITEM_DISKETTE)) {
+            qPlayer.BuyItem(ITEM_DISKETTE);
+        }
+        Sim.Players.Players[Sim.localPlayer].ArabTrust = 6;
+        CheatBerater += 100;
     }
 
     IsTutorial = FALSE;
@@ -2488,6 +2288,7 @@ void SIM::NewDay() {
     Date++;
     Time = 0;
     UpdateSeason();
+    AT_Log("Start of new day: %ld (%s)", Date, (LPCTSTR)Helper::getWeekday(Sim.Date));
 
     // In den Reisebüros die Zettel nachfüllen:
     gFrachten.Random.SRand(Date);
@@ -2727,90 +2528,6 @@ void SIM::NewDay() {
         }
     }
 
-    // Bei ATFS-Megasabotage-Mission ggf. künstlich Sabotage einfügen:
-    if (Difficulty == DIFF_ATFS06) {
-        TEAKRAND SaboRand(Date + SLONG(Players.Players[localPlayer].Money));
-
-        for (c = 0; c < Players.AnzPlayers; c++) {
-            if (c != localPlayer) {
-                PLAYER &qPlayer = Players.Players[c];
-
-                if ((qPlayer.IsOut == 0) && qPlayer.ArabHints < 90 && qPlayer.ArabMode == 0 && qPlayer.ArabMode2 == 0 && qPlayer.ArabMode3 == 0) {
-                    PLAYER &qOpfer = Players.Players[static_cast<SLONG>(SaboRand.Rand(4))];
-
-                    if ((qOpfer.IsOut == 0) && qPlayer.PlayerNum != qOpfer.PlayerNum && qOpfer.Planes.GetNumUsed() > 0) {
-                        switch (SaboRand.Rand(3)) {
-                        case 0:
-                            qPlayer.ArabMode = -(SaboRand.Rand(4) + 1);
-                            break;
-                        case 1:
-                            qPlayer.ArabMode2 = -(SaboRand.Rand(4) + 1);
-                            break;
-                        case 2:
-                            qPlayer.ArabMode3 = -(SaboRand.Rand(5) + 1);
-                            break;
-                        default:
-                            hprintf("Sim.cpp: Default case should not be reached.");
-                            DebugBreak();
-                        }
-
-                        qPlayer.ArabActive = FALSE;
-                        qPlayer.ArabPlane = qOpfer.Planes.GetRandomUsedIndex(&SaboRand);
-
-                        qPlayer.ArabOpfer = qPlayer.ArabOpfer2 = qPlayer.ArabOpfer3 = qOpfer.PlayerNum;
-
-                        if (qPlayer.ArabMode2 == -2 && (qOpfer.HasItem(ITEM_LAPTOP) == 0)) {
-                            qPlayer.ArabMode2 = 0;
-                        }
-
-                        // Wegen Security-Office:
-                        if (qPlayer.ArabMode == -1 && ((qOpfer.SecurityFlags & (1 << 6)) != 0U)) {
-                            qPlayer.ArabMode = 0;
-                        }
-                        if (qPlayer.ArabMode == -2 && ((qOpfer.SecurityFlags & (1 << 6)) != 0U)) {
-                            qPlayer.ArabMode = 0;
-                        }
-                        if (qPlayer.ArabMode == -3 && ((qOpfer.SecurityFlags & (1 << 7)) != 0U)) {
-                            qPlayer.ArabMode = 0;
-                        }
-                        if (qPlayer.ArabMode == -4 && ((qOpfer.SecurityFlags & (1 << 7)) != 0U)) {
-                            qPlayer.ArabMode = 0;
-                        }
-
-                        if (qPlayer.ArabMode2 == -1 && ((qOpfer.SecurityFlags & (1 << 0)) != 0U)) {
-                            qPlayer.ArabMode2 = 0;
-                        }
-                        if (qPlayer.ArabMode2 == -2 && ((qOpfer.SecurityFlags & (1 << 1)) != 0U)) {
-                            qPlayer.ArabMode2 = 0;
-                        }
-                        if (qPlayer.ArabMode2 == -3 && ((qOpfer.SecurityFlags & (1 << 0)) != 0U)) {
-                            qPlayer.ArabMode2 = 0;
-                        }
-                        if (qPlayer.ArabMode2 == -4 && ((qOpfer.SecurityFlags & (1 << 2)) != 0U)) {
-                            qPlayer.ArabMode2 = 0;
-                        }
-
-                        if (qPlayer.ArabMode3 == -1 && ((qOpfer.SecurityFlags & (1 << 8)) != 0U)) {
-                            qPlayer.ArabMode3 = 0;
-                        }
-                        if (qPlayer.ArabMode3 == -2 && ((qOpfer.SecurityFlags & (1 << 5)) != 0U)) {
-                            qPlayer.ArabMode3 = 0;
-                        }
-                        if (qPlayer.ArabMode3 == -3 && ((qOpfer.SecurityFlags & (1 << 5)) != 0U)) {
-                            qPlayer.ArabMode3 = 0;
-                        }
-                        if (qPlayer.ArabMode3 == -4 && ((qOpfer.SecurityFlags & (1 << 3)) != 0U)) {
-                            qPlayer.ArabMode3 = 0;
-                        }
-                        if (qPlayer.ArabMode3 == -5 && ((qOpfer.SecurityFlags & (1 << 8)) != 0U)) {
-                            qPlayer.ArabMode3 = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // Leerzeilen in Moneytips & "Call it a day" Flag
     for (c = 0; c < Players.AnzPlayers; c++) {
         Players.Players[c].History.AddEntry(0, "-------------------------------------");
@@ -2833,26 +2550,29 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
 
     rnd.SRand((Date + seed) * 0x504020 + static_cast<ULONG>(StartTime));
 
-    // Get Random Time: Now > Desired Time > Release Year
+    auto plane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd, CPlaneType::Available::MUSEUM), UBYTE(rnd.Rand(80) + 11), 1900);
 
-    const SLONG thisYear = GetCurrentYear();
-
-    CPlane usedPlane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd, CPlaneType::Available::MUSEUM), 100, 0);
-
-    if (thisYear < usedPlane.ptErstbaujahr) {
-        TeakLibW_Exception(FNL, "Tried to add used plane that was built before this year (%d < %d)", thisYear, usedPlane.ptErstbaujahr);
-    }
-
-    if (thisYear == usedPlane.ptErstbaujahr) {
-        usedPlane.Baujahr = thisYear; //fallback for when the plane is brand new
+    // if (PlaneTypes[plane.TypeId].Erstbaujahr<1990)
+    if (plane.ptErstbaujahr < 1990) {
+        // plane.Baujahr = 1990-rnd.Rand (1990-PlaneTypes[plane.TypeId].Erstbaujahr);
+        plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1990);
+    } else if (plane.ptErstbaujahr < 1996) {
+        plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1996);
     } else {
-        usedPlane.Baujahr = thisYear - rnd.Rand(thisYear - usedPlane.ptErstbaujahr);
+        plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1999);
     }
-    usedPlane.Zustand = static_cast<UBYTE>(usedPlane.Baujahr - usedPlane.ptErstbaujahr + 25 + rnd.Rand(40) - 20);
-    usedPlane.Zustand = static_cast<UBYTE>(max(20, min(usedPlane.Zustand, 100)));
-    usedPlane.TargetZustand = usedPlane.Zustand;
 
-    return usedPlane;
+    plane.Zustand = UBYTE((plane.Baujahr - 1950) + 25 + rnd.Rand(40) - 20);
+    if (plane.Zustand < 20 || plane.Zustand > 200) {
+        plane.Zustand = 20;
+    }
+    if (plane.Zustand > 100) {
+        plane.Zustand = 100;
+    }
+
+    plane.TargetZustand = plane.Zustand;
+
+    return plane;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3128,7 +2848,7 @@ TEAKFILE &operator>>(TEAKFILE &File, SIM &Sim) {
     if (SaveVersionSub >= 200) {
         File >> Sim.StatiArray;
     } else {
-        File.Skip(3 * 16 * sizeof(bool));  
+        File.Skip(3 * 16 * sizeof(bool));
     }
 
     // Der maximale Schwierigkeitsgrad;
@@ -3224,7 +2944,7 @@ BOOL SIM::LoadGame(SLONG Number) {
         for (c = 0; c < 4; c++) {
             bReadyForMornings[c] = Players.Players[c].bReadyForMorning;
         }
-        ChooseStartup(1);
+        ChooseStartup();
         for (c = 0; c < 4; c++) {
             Players.Players[c].bReadyForMorning = bReadyForMornings[c];
         }
@@ -3508,17 +3228,13 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     {
         CString DateString = getCurrentDayString();
         if (Difficulty >= DIFF_ATFS) {
-            DateString =
-                bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1152)), Difficulty + 1 - DIFF_ATFS + 20,
-                        (LPCTSTR)DateString, (LPCTSTR)Players.Players[localPlayer].AirlineX);
+            DateString = bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1152)), Difficulty + 1 - DIFF_ATFS + 20, (LPCTSTR)DateString,
+                                 (LPCTSTR)Players.Players[localPlayer].AirlineX);
         } else if (Difficulty != DIFF_FREEGAME) {
-            DateString =
-                bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1152)), Difficulty + 1,
-                        (LPCTSTR)DateString, (LPCTSTR)Players.Players[localPlayer].AirlineX);
+            DateString = bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1152)), Difficulty + 1, (LPCTSTR)DateString,
+                                 (LPCTSTR)Players.Players[localPlayer].AirlineX);
         } else {
-            DateString =
-                bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1153)),
-                        (LPCTSTR)DateString, (LPCTSTR)Players.Players[localPlayer].AirlineX);
+            DateString = bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 1153)), (LPCTSTR)DateString, (LPCTSTR)Players.Players[localPlayer].AirlineX);
         }
 
         OutputFile << DateString;
@@ -4124,6 +3840,8 @@ SLONG SIM::HoleKerosinPreis(SLONG typ) const {
 // Liest die Optionen aus der Registry:
 //--------------------------------------------------------------------------------------------
 void COptions::ReadOptions() {
+    AT_Log("Reading game options");
+
     SLONG tmp = Sim.MaxDifficulty;
     SLONG tmp2 = Sim.MaxDifficulty2;
     SLONG tmp3 = Sim.MaxDifficulty3;
@@ -4144,7 +3862,7 @@ void COptions::ReadOptions() {
             OptionTicketPriceIncrement = 10;
         }
         if (!reg.ReadRegistryKey_u(OptionRentOfficeTriggerPercent)) {
-            OptionRentOfficeTriggerPercent = 20;
+            OptionRentOfficeTriggerPercent = 30;
         }
         if (!reg.ReadRegistryKey_u(OptionRentOfficeMinAvailable)) {
             OptionRentOfficeMinAvailable = 0;
@@ -4152,7 +3870,12 @@ void COptions::ReadOptions() {
         if (!reg.ReadRegistryKey_u(OptionRentOfficeMaxAvailable)) {
             OptionRentOfficeMaxAvailable = 3;
         }
-
+        if (!reg.ReadRegistryKey_l(OptionScreenWindowedWidth)) {
+            OptionScreenWindowedWidth = 640; // default window width
+        }
+        if (!reg.ReadRegistryKey_l(OptionScreenWindowedHeight)) {
+            OptionScreenWindowedHeight = 480; // default window height
+        }
         // Falls Setup nicht geladen wurde dann Standard-Parameter initialisieren
         if (!reg.ReadRegistryKey_b(OptionPlanes)) {
             OptionPlanes = TRUE;
@@ -4322,13 +4045,13 @@ void COptions::ReadOptions() {
         // Namen der Spieler
         for (c = 0; c < 4; c++) {
             if (!reg.ReadRegistryKeyEx(Buffer, bprintf("Player%li", c))) {
-                OptionPlayerNames[c] = "";
+                OptionPlayerNames[c].clear();
             } else {
                 OptionPlayerNames[c] = Buffer;
             }
 
-            OptionAirlineNames[c] = "";
-            OptionAirlineAbk[c] = "";
+            OptionAirlineNames[c].clear();
+            OptionAirlineAbk[c].clear();
         }
 
         // Schwierigkeitsgrad decodieren:
@@ -4380,12 +4103,18 @@ void COptions::ReadOptions() {
             Sim.GameSpeed = 30;
         }
     }
+
+    if (gQuickTestRun > 0) {
+        Sim.Options.OptionFullscreen = 1;
+    }
 }
 
 //--------------------------------------------------------------------------------------------
 // Schreibt die Optionen in die Registry:
 //--------------------------------------------------------------------------------------------
 void COptions::WriteOptions() {
+    AT_Log("Writing game options");
+
     SLONG tmp = Sim.MaxDifficulty;
     SLONG tmp2 = Sim.MaxDifficulty2;
     SLONG tmp3 = Sim.MaxDifficulty3;
@@ -4405,8 +4134,9 @@ void COptions::WriteOptions() {
     reg.WriteRegistryKey_u(OptionRentOfficeMinAvailable);
     reg.WriteRegistryKey_u(OptionRentOfficeMaxAvailable);
 
-
     // Regular
+    reg.WriteRegistryKey_l(OptionScreenWindowedWidth);
+    reg.WriteRegistryKey_l(OptionScreenWindowedHeight);
     reg.WriteRegistryKey_b(OptionPlanes);
     reg.WriteRegistryKey_b(OptionPassengers);
     reg.WriteRegistryKey_l(OptionMusicType);
@@ -4527,13 +4257,12 @@ void SValue::NewDay() {
 //--------------------------------------------------------------------------------------------
 __int64 SValue::GetSum() { return std::accumulate(Days.begin(), Days.end(), 0); }
 
-
 TEAKFILE &operator<<(TEAKFILE &File, const SValue &Value) {
     File << Value.Days;
     return (File);
 }
 
-TEAKFILE & operator>>(TEAKFILE &File, SValue &Value) {
+TEAKFILE &operator>>(TEAKFILE &File, SValue &Value) {
     File >> Value.Days;
 
     if (SaveVersionSub < 200) {

@@ -1,14 +1,22 @@
 //============================================================================================
 // Misc.cpp : Diverse Sachen
 //============================================================================================
-#include "StdAfx.h"
-#include <cmath>
+
+#include "ColorFx.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
+
+#include <SDL_filesystem.h>
+#include <SDL_timer.h>
 
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <locale>
+#include <sstream>
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -30,7 +38,6 @@ const char TOKEN_STAT[] = "STAT";
 //--------------------------------------------------------------------------------------------
 // Liest eine Zeile aus einem Buffer aus:
 //--------------------------------------------------------------------------------------------
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 
 SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength) {
     SLONG c = 0;
@@ -48,7 +55,6 @@ SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG Lin
 
     return (c);
 }
-
 
 //--------------------------------------------------------------------------------------------
 // Zählt wie oft das Zeichen vorkommt:
@@ -150,7 +156,7 @@ void CheckCString(CString *String) {
     CString tmp;
 
     tmp = *String;
-    *String = "";
+    String->clear();
     *String = tmp;
 }
 
@@ -190,14 +196,14 @@ CString KorrigiereUmlaute(CString &OriginalText) {
 }
 
 //--------------------------------------------------------------------------------------------
-//Überprüft, ob der Cursor in einem Bereich ist und erledigt das Highlighting:
+// Überprüft, ob der Cursor in einem Bereich ist und erledigt das Highlighting:
 //--------------------------------------------------------------------------------------------
 BOOL CheckCursorHighlight(const CRect &rect, UWORD FontColor, SLONG Look, SLONG TipId, SLONG ClickArea, SLONG ClickId, SLONG ClickPar1, SLONG ClickPar2) {
     return (CheckCursorHighlight(gMousePosition, rect, FontColor, Look, TipId, ClickArea, ClickId, ClickPar1, ClickPar2));
 }
 
 //--------------------------------------------------------------------------------------------
-//Überprüft, ob der Cursor in einem Bereich ist und erledigt das Highlighting:
+// Überprüft, ob der Cursor in einem Bereich ist und erledigt das Highlighting:
 //--------------------------------------------------------------------------------------------
 BOOL CheckCursorHighlight(const XY &CursorPos, const CRect &rect, UWORD FontColor, SLONG Look, SLONG TipId, SLONG ClickArea, SLONG ClickId, SLONG ClickPar1,
                           SLONG ClickPar2) {
@@ -450,7 +456,6 @@ int CustomMessageBox(ULONG Type, LPCTSTR Title, char Buffer[256], const SDL_Mess
     return buttonId;
 }
 
-
 //--------------------------------------------------------------------------------------------
 // Berechnet das interne Datum aus "3-12-1994", "1/11/1992", "1.1.1900", ..
 //--------------------------------------------------------------------------------------------
@@ -585,11 +590,10 @@ SLONG CalculateFlightCostRechnerisch(SLONG VonCity, SLONG NachCity, SLONG Verbra
 }
 
 //--------------------------------------------------------------------------------------------
-// Berechnet, wieviel ein Flug kostet (min. 1000)
+// Berechnet, wieviel ein Flug kostet (Kerosin aus Tank ohne Kosten)
 //--------------------------------------------------------------------------------------------
 SLONG CalculateFlightCost(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit, SLONG PlayerNum) {
     SLONG Kerosin = CalculateFlightKerosin(VonCity, NachCity, Verbrauch, Geschwindigkeit);
-    SLONG Kosten = 0;
 
     // Kerosin aus dem Vorrat:
     if (PlayerNum != -1 && (Sim.Players.Players[PlayerNum].TankOpen != 0)) {
@@ -599,7 +603,21 @@ SLONG CalculateFlightCost(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG 
     }
 
     // Restliches Kerosin kaufen:
-    Kosten += Kerosin * Sim.Kerosin;
+    SLONG Kosten = Kerosin * Sim.Kerosin;
+
+    if (Kosten < 1000) {
+        Kosten = 1000;
+    }
+
+    return (Kosten);
+}
+
+//--------------------------------------------------------------------------------------------
+// Berechnet, wieviel ein Flug kostet (ignoriere Kerosin-Tanks)
+//--------------------------------------------------------------------------------------------
+SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit) {
+    SLONG Kerosin = CalculateFlightKerosin(VonCity, NachCity, Verbrauch, Geschwindigkeit);
+    SLONG Kosten = Kerosin * Sim.Kerosin;
 
     if (Kosten < 1000) {
         Kosten = 1000;
@@ -614,7 +632,7 @@ SLONG CalculateFlightCost(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG 
 void InitEinheiten(const CString &Filename) {
     SLONG c = 0;
 
-    ETexte.Open(Filename, TEXTRES_CACHED);
+    ETexte.Open(Filename);
 
     Einheiten.ReSize(14);
 
@@ -678,15 +696,15 @@ void HEADLINES::Init() {
 
     for (c = 0; c < 3; c++) {
         CurrentChain[c] = 0;
-        FlexiCity[c] = "";
+        FlexiCity[c].clear();
         FlexiNumber[c] = 0;
     }
 
     for (c = 0; c < 30; c++) {
-        Headline[c].Headline = "";
+        Headline[c].Headline.clear();
         Headline[c].PictureId = 0;
         Headline[c].PicturePriority = 0;
-        Override[c].Headline = "";
+        Override[c].Headline.clear();
         Override[c].PictureId = 0;
         Override[c].PicturePriority = 0;
     }
@@ -1717,7 +1735,7 @@ CString Insert1000erDots(SLONG Value) {
         }
     }
 
-    sprintf(Tmp, "%i", Value);
+    snprintf(Tmp, sizeof(Tmp), "%i", Value);
 
     l = short(strlen(Tmp));
 
@@ -1766,7 +1784,7 @@ CString Insert1000erDots64(__int64 Value) {
         }
     }
 
-    sprintf(Tmp, "%lli", Value);
+    snprintf(Tmp, sizeof(Tmp), "%lli", Value);
 
     l = short(strlen(Tmp));
 
@@ -1889,100 +1907,20 @@ void CheckEventSync(SLONG EventId) {
 }
 
 //--------------------------------------------------------------------------------------------
-// Konstruktor mit Seed=0
-//--------------------------------------------------------------------------------------------
-TEAKRAND::TEAKRAND() { Seed = Value = 0; }
-
-//--------------------------------------------------------------------------------------------
-// Kondtruktor mit Seed Angabe
-//--------------------------------------------------------------------------------------------
-TEAKRAND::TEAKRAND(ULONG Seed) { this->Seed = Value = Seed; }
-
-//--------------------------------------------------------------------------------------------
-// nachträglicher Kondtruktor
-//--------------------------------------------------------------------------------------------
-void TEAKRAND::SRand(ULONG Seed) { this->Seed = Value = Seed; }
-
-//--------------------------------------------------------------------------------------------
 // nachträglicher Kondtruktor mit Seed aus Uhrzeit
 //--------------------------------------------------------------------------------------------
-void TEAKRAND::SRandTime() { Seed = Value = AtGetTime(); }
-
-//--------------------------------------------------------------------------------------------
-// Setzt den Zufallsgenerator auf dem exakten Zustand nach dem Konstruktor zurück:
-//--------------------------------------------------------------------------------------------
-void TEAKRAND::Reset() { Value = Seed; }
-
-//--------------------------------------------------------------------------------------------
-// eigentlicher Zufallszahlengenerator: (Xn+1 = Xn * 7381 + 269EC3h)
-//--------------------------------------------------------------------------------------------
-UWORD TEAKRAND::Rand() {
-#ifdef ENABLE_ASM
-    ULONG localValue = Value;
-
-    _asm
-        {
-        pusha
-
-             // Thanx to Machosoft!
-            mov       eax, [localValue]
-            mov       ecx, eax
-            lea       eax, dword ptr [eax+eax*4]
-            lea       eax, dword ptr [eax+eax*4]
-            add       eax, ecx
-            lea       eax, dword ptr [ecx+eax*8]
-            shl       eax, 8
-            sub       eax, ecx
-            lea       eax, dword ptr [ecx+eax*4]
-            add       eax, 00269ec3h
-            mov       [localValue], eax
-
-            popa
-        }
-
-    Value = localValue;
-
-    return (UWORD(localValue >> 16));
-#else
-    Value = Value * 7381 + 0x269EC3;
-
-    return (UWORD(Value >> 16));
-#endif
+void TEAKRAND::SRandTime() {
+    Seed = AtGetTime();
+    mMT.seed(Seed);
 }
-
-//--------------------------------------------------------------------------------------------
-// Zufallszahl aus dem Intervall [0..Max]
-//--------------------------------------------------------------------------------------------
-UWORD TEAKRAND::Rand(SLONG Max) {
-    if (Max == 0) {
-        AT_Log_I("RAND", "0 used as Rand(m) argument");
-        return 0;
-    }
-        
-    if (this == pSurvisedRandom1 || this == pSurvisedRandom2) {
-        CheckEventSync(-Sim.TimeSlice);
-        CheckEventSync(Max);
-        CheckEventSync(SLONG(Value >> 16));
-    }
-
-    return (UWORD(Rand() % Max));
-}
-
-//--------------------------------------------------------------------------------------------
-// Zufallszahl aus dem Intervall [Min..Max]
-//--------------------------------------------------------------------------------------------
-UWORD TEAKRAND::Rand(SLONG Min, SLONG Max) { return (UWORD(Rand() % (Max - Min + 1) + Min)); }
-
-//--------------------------------------------------------------------------------------------
-// Gibt den aktuellen "Seed" zus Generators zurück:
-//--------------------------------------------------------------------------------------------
-ULONG TEAKRAND::GetSeed() { return (Value); }
 
 //--------------------------------------------------------------------------------------------
 // Speichert den Zustand des Generators:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator<<(TEAKFILE &File, const TEAKRAND &r) {
-    File << r.Seed << r.Value;
+    std::stringstream ss{};
+    ss << r.mMT;
+    File << r.Seed << ss.str();
 
     return (File);
 }
@@ -1991,7 +1929,11 @@ TEAKFILE &operator<<(TEAKFILE &File, const TEAKRAND &r) {
 // Lädt den Zustand des Generators:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator>>(TEAKFILE &File, TEAKRAND &r) {
-    File >> r.Seed >> r.Value;
+    std::string str;
+    File >> r.Seed >> str;
+
+    std::stringstream ss(str);
+    ss >> r.mMT;
 
     return (File);
 }
@@ -2168,12 +2110,6 @@ DWORD AtGetTime() {
 DWORD AtGetTickCount() { return SDL_GetTicks(); }
 
 SLONG AtGetAsyncKeyState(SLONG vKey) { return (SDL_GetModState() & vKey) != 0 ? 0x8000 : 0; }
-
-SLONG GetCurrentYear() {
-    const time_t t = time(nullptr);
-    const tm *currentTime = localtime(&t);
-    return currentTime->tm_year + 1900;
-}
 
 CString getCurrentDayString() {
     CString output;

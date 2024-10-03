@@ -3,14 +3,17 @@
 //============================================================================================
 // Link: "AtNet.h"
 //============================================================================================
-#include "StdAfx.h"
 #include "AtNet.h"
 
 #include "Buero.h"
+#include "global.h"
+#include "helper.h"
+#include "network.h"
+#include "Proto.h"
+#include "SbLib.h"
+
 #include <cmath>
 
-#include "SbLib.h"
-#include "network.h"
 extern SBNetwork gNetwork;
 
 #define GFX_MENU (0x00000000554e454d)
@@ -97,8 +100,8 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
     SLONG oldy = 0;
     SLONG offy = 0;
 
-   //if (!Sim.bNetwork)
-   //   return;
+    // if (!Sim.bNetwork)
+    //    return;
 
     if (FromPlayer != Sim.localPlayer) {
         static SLONG LastTime = 0;
@@ -149,7 +152,7 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
         gBroadcastBm.BlitFrom(TempBm, 0, -(TempBm.Size.y - 220));
     }
 
-   gBroadcastTimeout = 600;
+    gBroadcastTimeout = 600;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -157,9 +160,9 @@ void DisplayBroadcastMessage(CString str, SLONG FromPlayer) {
 //  bJustForEmergency : if true, then this call will only be used it this function hasn't been
 //                      called normally for half a second
 //--------------------------------------------------------------------------------------------
-void PumpBroadcastBitmap (bool bJustForEmergency) {
+void PumpBroadcastBitmap(bool bJustForEmergency) {
     if (gBroadcastBm.Size.y == 0) {
-      return;
+        return;
     }
 
     static SLONG LastTimeCalled = 0;
@@ -224,8 +227,8 @@ void PumpNetwork() {
             ULONG Par1 = 0;
             ULONG Par2 = 0;
 
-         Message >> MessageType;
-         AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
+            Message >> MessageType;
+            // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
 
             switch (MessageType) {
             case ATNET_SETSPEED:
@@ -830,7 +833,7 @@ void PumpNetwork() {
 
                     Message >> qPlayer.ArabTrust >> qPlayer.ArabMode >> qPlayer.ArabMode2 >> qPlayer.ArabMode3 >> qPlayer.ArabActive;
                     Message >> qPlayer.ArabOpfer >> qPlayer.ArabOpfer2 >> qPlayer.ArabOpfer3 >> qPlayer.ArabPlane >> qPlayer.ArabHints;
-                    Message >> qPlayer.NumPassengers >> qPlayer.NumFracht;
+                    Message >> qPlayer.ArabTimeout >> qPlayer.NumPassengers >> qPlayer.NumFracht;
 
                     Anz--;
                 }
@@ -1147,7 +1150,6 @@ void PumpNetwork() {
 
                 if (qFromPlayer.Planes.GetNumFree() < 2) {
                     qFromPlayer.Planes.ReSize(qFromPlayer.Planes.AnzEntries() + 10);
-                    qFromPlayer.Planes.RepairReferences();
                 }
 
                 qFromPlayer.Planes += Sim.UsedPlanes[0x1000000 + PlaneIndex];
@@ -1619,7 +1621,7 @@ void PumpNetwork() {
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                 Message >> qPlayer.ArabOpfer >> qPlayer.ArabMode >> qPlayer.ArabActive >> qPlayer.ArabPlane >> qPlayer.ArabOpfer2 >> qPlayer.ArabMode2 >>
-                    qPlayer.ArabOpfer3 >> qPlayer.ArabMode3;
+                    qPlayer.ArabOpfer3 >> qPlayer.ArabMode3 >> qPlayer.ArabTimeout;
             } break;
 
             case ATNET_WAITFORPLAYER:
@@ -1846,8 +1848,8 @@ void PumpNetwork() {
 
                 for (c = 0; c < 20; c++)
                     if (rActionId[c] != rChkActionId[c]) {
-                        DisplayBroadcastMessage(bprintf("Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]),
-                                                        Translate_ACTION(rChkActionId[c])));
+                        DisplayBroadcastMessage(
+                            bprintf("Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c])));
                         AT_Log_I("AtNet", "Desync AI Action[%li]: %s vs %s\n", c, Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c]));
                     }
 #endif
@@ -1947,11 +1949,13 @@ void PumpNetwork() {
                 SLONG localPlayer = 0;
                 SLONG auftrag = 0;
                 SLONG lm = 0;
+                SLONG fracht = 0;
 
-                Message >> localPlayer >> auftrag >> lm;
+                Message >> localPlayer >> auftrag >> lm >> fracht;
 
                 Sim.Players.Players[localPlayer].Statistiken[STAT_AUFTRAEGE].SetAtPastDay(auftrag);
                 Sim.Players.Players[localPlayer].Statistiken[STAT_LMAUFTRAEGE].SetAtPastDay(lm);
+                Sim.Players.Players[localPlayer].Statistiken[STAT_FRACHTEN].SetAtPastDay(fracht);
             } break;
 
                 //--------------------------------------------------------------------------------------------

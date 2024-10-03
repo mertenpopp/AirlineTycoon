@@ -1,8 +1,13 @@
+#pragma once
 // CBuero.h : header file
 //
 
 /////////////////////////////////////////////////////////////////////////////
 // Buero window
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CBuero : public CStdRaum {
     // Construction

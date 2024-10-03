@@ -1,6 +1,11 @@
+#pragma once
 //============================================================================================
 // Designer.h : Der Designer-Raum!
 //============================================================================================
+
+#include "defines.h"
+#include "SmackPrs.h"
+#include "StdRaum.h"
 
 class CDesigner : public CStdRaum {
     // Construction

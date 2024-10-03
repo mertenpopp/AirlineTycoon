@@ -1,4 +1,8 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "sbl.h"
+
+#include <SDL.h>
+#include <SDL_mouse.h>
 
 SB_CCursor::SB_CCursor(class SB_CPrimaryBitmap *primary, class SB_CBitmapCore *cursor) : Primary(primary), Cursor(cursor), Background(nullptr) {
     CreateBackground();
@@ -40,7 +44,7 @@ SLONG SB_CCursor::Show(bool show) {
 }
 
 SLONG SB_CCursor::Render(SDL_Renderer *renderer) {
-    SDL_Rect dst = { Position.x, Position.y, Cursor->GetXSize(), Cursor->GetYSize() };
+    SDL_Rect dst = {Position.x, Position.y, Cursor->GetXSize(), Cursor->GetYSize()};
     if (renderer != nullptr && Cursor->GetTexture() != nullptr) {
         return SDL_RenderCopy(renderer, Cursor->GetTexture(), nullptr, &dst);
     }

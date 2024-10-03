@@ -1,4 +1,5 @@
-#include "StdAfx.h"
+#include "defines.h"
+#include "sbl.h"
 
 SB_CFont::SB_CFont()
     : Surface(nullptr), Texture(nullptr), VarWidth(nullptr), VarHeight(nullptr), Hidden(false), Tabulator(nullptr), LineSpace(1.5F), Bitmap(nullptr) {}

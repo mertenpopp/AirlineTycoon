@@ -1,5 +1,34 @@
 ---
-Checks:          'clang-*,bugprone-*,cppcoreguidelines-*,modernize-*,-modernize-use-trailing-return-type,readability-*,performance-*,misc-*,llvm-*,google-*,-cppcoreguidelines-pro-type-vararg,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-cppcoreguidelines-avoid-non-const-global-variables'
+Checks: 'clang-*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  google-*,
+  hicpp-*,
+  llvm-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-constant-array-index
+  -google-readability-todo
+  -hicpp-multiway-paths-covered
+  -hicpp-signed-bitwise,
+  -hicpp-vararg,
+  -llvm-header-guard,
+  -misc-no-recursion,
+  -misc-use-anonymous-namespace
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-magic-numbers'
 
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
@@ -45,5 +74,13 @@ CheckOptions:
     value:           '800'
   - key:             misc-unused-parameters.StrictMode
     value:           'true'
+  - key:             misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           'true'
+  - key:             misc-const-correctness.AnalyzeValues
+    value:           'false'
+  - key:             readability-function-cognitive-complexity.Threshold
+    value:           50
+  - key:             readability-function-cognitive-complexity.DescribeBasicIncrements
+    value:           'false'
 ...
 

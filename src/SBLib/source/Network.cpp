@@ -1,10 +1,13 @@
-#include "StdAfx.h"
-#include "SbLib.h"
-#include "network.h"
+
 #include "BitStream.h"
+#include "defines.h"
+#include "global.h"
+#include "network.h"
+#include "SbLib.h"
+
 #include "BaseNetworkType.hpp"
-#include "RAKNetNetwork.hpp"
 #include "ENetNetwork.hpp"
+#include "RAKNetNetwork.hpp"
 
 #ifdef ENET_NETWORK
 SBNetwork::SBNetwork(bool) : mState(SBNETWORK_SESSION_FINISHED), mHost(NULL), mMaster(NULL), mSearchTime(0), mServer(), mSocket() {
@@ -382,6 +385,9 @@ void SBNetwork::SetProvider(SBProviderEnum type) {
     }
     case SBProviderEnum::SBNETWORK_ENET:
         mNetwork = new ENetNetwork();
+        break;
+    case SBProviderEnum::SBNETWORK_NONE:
+        TeakLibW_Exception(FNL, ExcNever);
         break;
     }
 

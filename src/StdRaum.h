@@ -1,8 +1,20 @@
+#pragma once
 // StdRaum.h : header file
 //
 
 /////////////////////////////////////////////////////////////////////////////
 // Das Standard Raum Template
+
+#include "class.h"
+#include "defines.h"
+#include "Sbbm.h"
+#include "sbl.h"
+#include "SmackPrs.h"
+#include "TeakLibW.h"
+
+#include <SDL_events.h>
+
+class CSmackerPerson;
 
 class CStdRaum {
     // Construction
@@ -250,8 +262,11 @@ class CStdRaum {
     friend class PERSON;
     friend class PLAYER;
     friend class SIM;
+    friend class Bot;
+    friend class GameMechanic;
 
   private:
     void MenuPrevPage();
     void MenuNextPage();
+    void PersonalPageFlipped();
 };

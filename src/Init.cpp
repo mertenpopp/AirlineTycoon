@@ -1,9 +1,12 @@
 //============================================================================================
 // Init.cpp : Routinen zur initialisierung:
 //============================================================================================
-#include "StdAfx.h"
 #include "Checkup.h"
 #include "Editor.h"
+#include "global.h"
+#include "glstd.h"
+#include "Proto.h"
+
 #include <algorithm>
 #include <sstream>
 
@@ -11,8 +14,8 @@ extern SLONG IconsPos[]; // Referenziert globe.cpp
 
 extern BOOL gSpawnOnly;
 
-extern CPlaneBuild gPlaneBuilds[37];
-extern CPlanePartRelation gPlanePartRelations[307];
+extern std::vector<CPlaneBuild> gPlaneBuilds;
+extern std::vector<CPlanePartRelation> gPlanePartRelations;
 
 SB_CFont FontVerySmall;
 
@@ -35,13 +38,13 @@ void InitPathVars() {
 
     // fallback check
     if (!DoesDirectoryExist(prefix)) {
-        prefix = "";
+        prefix.clear();
     }
 
     ExcelPath = prefix + "data\\%s";
     GliPath = prefix + "gli\\%s";
     MiscPath = prefix + "misc\\%s";
-    PatchPath = prefix + "patch\\%s";
+    PatchPath = "patch\\%s";
     VoicePath = prefix + "voice\\%s";
     SoundPath = "sound\\%s";
     RoomPath = "room\\%s";
@@ -199,45 +202,7 @@ void InitItems() {
 
     // Tabellen importieren:
     if (bFirstClass == 0) {
-        CString str;
-
-        // Relations:
-        {
-            BUFFER_V<BYTE> tempBuf = LoadCompleteFile(FullFilename("relation.csv", ExcelPath));
-            std::string tempStr((const char*)(tempBuf.getData()), tempBuf.AnzEntries());
-            std::istringstream file(tempStr, std::ios_base::in);
-
-            file >> str;
-
-            for (auto &gPlanePartRelation : gPlanePartRelations) {
-                file >> str;
-                SLONG id = atol(str);
-
-                if (gPlanePartRelation.Id != id) {
-                    hprintf(0, "Id mismatch: %li vs %li!", gPlanePartRelation.Id, id);
-                }
-                gPlanePartRelation.FromString(str);
-            }
-        }
-
-        // Planebuilds:
-        {
-            BUFFER_V<BYTE> tempBuf = LoadCompleteFile(FullFilename("builds.csv", ExcelPath));
-            std::string tempStr((const char*)(tempBuf.getData()), tempBuf.AnzEntries());
-            std::istringstream file(tempStr, std::ios_base::in);
-
-            file >> str;
-
-            for (auto &gPlaneBuild : gPlaneBuilds) {
-                file >> str;
-                SLONG id = atol(str);
-
-                if (gPlaneBuild.Id != id) {
-                    hprintf(0, "Id mismatch: %li vs %li!", gPlaneBuild.Id, id);
-                }
-                gPlaneBuild.FromString(str);
-            }
-        }
+        CEditor::generateStaticData();
     }
 }
 

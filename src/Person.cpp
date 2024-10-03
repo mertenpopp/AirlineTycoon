@@ -1,8 +1,14 @@
 //============================================================================================
 // Person.Cpp - Verwaltung von Clans und Personen (Clan-Ausprägungen)
 //============================================================================================
-#include "StdAfx.h"
+#include "AirportView.h"
 #include "AtNet.h"
+#include "class.h"
+#include "ColorFx.h"
+#include "GameMechanic.h"
+#include "global.h"
+#include "helper.h"
+#include "Proto.h"
 
 extern SB_CColorFX ColorFX;
 
@@ -11,8 +17,6 @@ extern SB_CColorFX ColorFX;
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
-
-SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 
 // Daten des aktuellen Savegames beim laden:
 extern SLONG SaveVersion;
@@ -502,7 +506,6 @@ UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
         }
     }
 
-    
     SLONG Num = 0;
 
     std::vector<ULONG> possibleClanIds{};
@@ -515,9 +518,8 @@ UBYTE CLANS::GetCustomerId(SLONG Browned, SLONG Koffer, TEAKRAND *pRand) {
         const bool isClanBrowned = clan.Type == CLAN_BROWNFEMALE || clan.Type == CLAN_BROWNMALE;
         const bool isNotClanBrowned = clan.Type == CLAN_FEMALE || clan.Type == CLAN_MALE;
 
-        if (clan.TodayInGame != 0 &&
-            (Koffer == sign(clan.HasSuitcase) || (Koffer == 99 && clan.HasSuitcase <= 0)) &&
-            (isNotClanBrowned && Browned != 2) || (isClanBrowned && Browned != 0)) {
+        if ((clan.TodayInGame != 0 && (Koffer == sign(clan.HasSuitcase) || (Koffer == 99 && clan.HasSuitcase <= 0)) && (isNotClanBrowned && Browned != 2)) ||
+            (isClanBrowned && Browned != 0)) {
             Num += clan.Wkeit;
 
             possibleClanIds.push_back(c);
@@ -2237,12 +2239,7 @@ void PERSON::DoOnePlayerStep() {
                             }
 
                             if (State == Sim.localPlayer) {
-                                for (SLONG c = 0; c < 6; c++) {
-                                    if (qPlayer.Items[c] == ITEM_GLOVE) {
-                                        qPlayer.Items[c] = ITEM_REDBULL;
-                                        break;
-                                    }
-                                }
+                                GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
                             }
                         } else {
                             BUILD *pBuild = Airport.GetBuildNear(ScreenPos, XY(180, 160), Bricks(static_cast<SLONG>(0x10000000) + BRICK_ELECTRO));
@@ -3222,7 +3219,10 @@ void PERSON::PersonReachedTarget() {
 //--------------------------------------------------------------------------------------------
 const CFlugplanEintrag *PERSON::GetFlugplanEintrag() const {
     if (FlightAirline >= 0 && FlightAirline <= 3) {
-        return (&Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].Flugplan.Flug[static_cast<SLONG>(FlightPlaneIndex)]);
+        const auto &qPlayer = Sim.Players.Players[static_cast<SLONG>(FlightAirline)];
+        if (qPlayer.IsOut == 0) {
+            return (&qPlayer.Planes[FlightPlaneId].Flugplan.Flug[static_cast<SLONG>(FlightPlaneIndex)]);
+        }
     }
 
     return (nullptr);
@@ -3839,7 +3839,7 @@ void CPersonQueue::SetSpotTime(XY Position, SLONG TimeSlice) {
 }
 
 //--------------------------------------------------------------------------------------------
-//Überwacht die Queue:
+// Überwacht die Queue:
 //--------------------------------------------------------------------------------------------
 void CPersonQueue::Pump() {
     SLONG c = 0;

@@ -1,6 +1,15 @@
 //============================================================================================
 // Proto.h - Funktionsprototypen:
 //============================================================================================
+#pragma once
+
+#include "class.h"
+#include "defines.h"
+#include "Sbbm.h"
+#include "sbl.h"
+#include "TeakLibW.h"
+
+#include <SDL_messagebox.h>
 
 //--------------------------------------------------------------------------------------------
 // AtNet.Cpp:
@@ -49,12 +58,13 @@ void InitStatusLines(void);
 void InitItems(void);
 void InitTipBms(void);
 void InitGlobeMapper(void);
-void UpdateSavegames(void);
 
 //--------------------------------------------------------------------------------------------
 // Misc.Cpp:
 //--------------------------------------------------------------------------------------------
+SLONG ReadLine(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart, char *Line, SLONG LineLength);
 CString RemoveAccents(CString str);
+SLONG CountLines(BUFFER_V<UBYTE> &Buffer, SLONG BufferStart);
 SLONG GetAnzBits(ULONG Flags);
 DOUBLE GetAlphaFromXY(XY Delta);
 void DrawChart(SBBM &TipBm, ULONG Color, const BUFFER_V<SLONG> &Values, SLONG MinValue, SLONG MaxValue, const XY &TopLeft, const XY &TopRight,
@@ -72,8 +82,6 @@ SLONG AddToNthDigit(SLONG Value, SLONG Digit, SLONG Add);
 void SimpleMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 int AbortMessageBox(ULONG Type, LPCTSTR Title, LPCTSTR String, ...);
 
-
-DOUBLE GetFrameRate(void);
 CString ConvertDate2String(UWORD Date);
 UWORD ConvertString2Date(char *String);
 void DoAppPath(void);
@@ -82,6 +90,7 @@ CString FullFilename(const CString &Filename, const CString &PathString, SLONG N
 SLONG CalculateFlightKerosin(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit);
 SLONG CalculateFlightCost(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit, SLONG Player);
 SLONG CalculateFlightCostRechnerisch(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit, SLONG PlayerNum);
+SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit);
 void InitEinheiten(const CString &Filename);
 CString Insert1000erDots(SLONG Value);
 CString Insert1000erDots64(__int64 Value);
@@ -99,12 +108,10 @@ CString CreateNumeratedFreeFilename(const CString &DirAndFilename);
 CString GetFilenameFromFullFilename(CString FullFilename);
 #ifndef WIN32
 BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy);
-void DebugBreak(void);
 #endif
 DWORD AtGetTime(void);
 SLONG AtGetAsyncKeyState(SLONG vKey);
 DWORD AtGetTickCount(void);
-SLONG GetCurrentYear();
 CString getCurrentDayString();
 SLONG strchrcount(CString Text, char chr);
 SLONG strchrcount(char *str, const char delimiters[]);
