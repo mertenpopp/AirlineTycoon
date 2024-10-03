@@ -199,6 +199,10 @@ jobs:
         pattern: ${{ needs.env.outputs.artifact-name }}*
         path: ${{ needs.env.outputs.artifact-dir }}
         merge-multiple: true
+    - name: Debug ref_type
+      run: echo "ref_type ${{ github.ref_type }}"
+        echo "ref ${{ github.ref }}"
+        echo "ref_name ${{ github.ref_name }}"
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
