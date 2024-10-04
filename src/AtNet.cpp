@@ -68,14 +68,19 @@ void SetNetworkBitmap(SLONG Number, SLONG WaitingType) {
             }
         }
 
-        if (Number == 1) {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network1.gli", GliPath)), &pGLib, L_LOCMEM);
-        }
-        if (Number == 2) {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network2.gli", GliPath)), &pGLib, L_LOCMEM);
-        }
-        if (Number == 3) {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network3.gli", GliPath)), &pGLib, L_LOCMEM);
+        try {
+            if (Number == 1) {
+                pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network1.gli", GliPath)), &pGLib, L_LOCMEM);
+            }
+            if (Number == 2) {
+                pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network2.gli", GliPath)), &pGLib, L_LOCMEM);
+            }
+            if (Number == 3) {
+                pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("network3.gli", GliPath)), &pGLib, L_LOCMEM);
+            }
+        } catch (TeakLibException &e) {
+            AT_Log_I("NET", "Did not find gli file, trying to continue", e.what());
+            e.caught();
         }
 
         if (pGLib != nullptr) {
