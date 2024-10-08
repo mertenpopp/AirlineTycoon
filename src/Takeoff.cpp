@@ -490,17 +490,15 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         SBBM TitleBitmap;
 
         try {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel.gli", RoomPath)), &pRoomLib, L_LOCMEM);
+            pGfxMain->LoadLib((LPCTSTR)FullFilename("titel.gli", RoomPath), &pRoomLib, L_LOCMEM);
         } catch (TeakLibException &e) {
             AT_Log_I("Takeoff", "Did not find titel.gli, trying to continue", e.what());
             e.caught();
         }
 
-        try {
-            pGfxMain->LoadLib(const_cast<char *>((LPCTSTR)FullFilename("titel2.gli", RoomPath)), &pRoomLib2, L_LOCMEM);
-        } catch (TeakLibException &e) {
-            AT_Log_I("Takeoff", "Did not find titel2.gli, trying to continue", e.what());
-            e.caught();
+        CString path{FullFilename("titel2.gli", RoomPath)};
+        if (DoesFileExist((LPCTSTR)path)) {
+            pGfxMain->LoadLib((LPCTSTR)path, &pRoomLib2, L_LOCMEM);
         }
 
         if (Sim.Options.OptionDigiSound == TRUE) {

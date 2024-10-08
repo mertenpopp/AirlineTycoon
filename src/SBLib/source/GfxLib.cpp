@@ -66,7 +66,7 @@ GfxMain::~GfxMain() {
     }
 }
 
-SLONG GfxMain::LoadLib(char *path, class GfxLib **out, SLONG /*unused*/) {
+SLONG GfxMain::LoadLib(const char *path, class GfxLib **out, SLONG /*unused*/) {
     if (!DoesFileExist(path)) {
         TeakLibW_Exception(FNL, "Can't open %s!", path);
     }
@@ -90,7 +90,7 @@ SLONG GfxMain::ReleaseLib(class GfxLib *lib) {
     return 0;
 }
 
-GfxLib::GfxLib(void * /*unused*/, SDL_Renderer * /*unused*/, char *path, SLONG /*unused*/, SLONG /*unused*/, SLONG * /*unused*/) : Path(path) {
+GfxLib::GfxLib(void * /*unused*/, SDL_Renderer * /*unused*/, const char *path, SLONG /*unused*/, SLONG /*unused*/, SLONG * /*unused*/) : Path(path) {
     SDL_RWops *file = SDL_RWFromFile(path, "rb");
     if (file != nullptr) {
         GfxLibHeader *header = LoadHeader(file);
