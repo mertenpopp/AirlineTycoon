@@ -322,7 +322,7 @@ void CWorkers::ReInit(const CString &TabFilename, const CString &TabFilename2) {
     BUFFER_V<char> Line(300);
     SLONG Num = 0;
     CString TmpStr;
-    ULONG line = 0;
+    [[maybe_unused]] ULONG line = 0;
 
     // Load Table header:
     auto FileData = LoadCompleteFile(FullFilename(TabFilename, ExcelPath));
@@ -352,7 +352,6 @@ void CWorkers::ReInit(const CString &TabFilename, const CString &TabFilename2) {
         try {
             CString name = strtok(Line.getData(), TabSeparator);
             if (name.length() == 0) {
-                (void)line;
                 AT_Log("Loading", "Empty worker found in file \"%s\" at line: %d - skipping...", FullFilename(TabFilename, ExcelPath).c_str(), line);
                 continue;
             }
