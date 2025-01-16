@@ -1399,6 +1399,22 @@
   O::Devido a uma falha de energia, o Escritório de Segurança está atualmente fechado.
   S::Debido a un corte de energía, la Oficina de Seguridad está actualmente cerrada.
   D::Wegen Stromausfall ist das Security Office derzeit geschlossen.
+>>0004160   // D-Deutsch
+  D::# Sprache          : DE
+>>0004161   // E-Englisch
+  E::# Language         : EN
+>>0004162   // F-Französisch
+  F::# Langue           : FR
+>>0004165   // N-Niederländisch
+  N::# Taal             : NL
+>>0004166   // I-Italienisch
+  I::# Lingua           : IT
+>>0004167   // S-Spanisch
+  S::# Idioma            : ES
+>>0004168   // O-Portugiesisch
+  O::# Língua           : PO
+>>0004169   // B-Brasilianisch (Fremdproduktion)
+  B::# Língua           : BR
 
 //
 // Tank

@@ -359,7 +359,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
 // CTakeOffApp Read Options from various places (file, registry, cli)
 //--------------------------------------------------------------------------------------------
 void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
-    AT_Log("Reading video options");
+    AT_Log("Reading options");
 
     // Die Standardsprachen:
     // #define LANGUAGE_D       0             //D-Deutsch, inklusive
@@ -383,20 +383,29 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     // #define LANGUAGE_9      18             //U-noch frei
     // #define LANGUAGE_10     19             //V-noch frei
 
-    gLanguage = LANGUAGE_E;
-    CString sabbelPath{FullFilename("sabbel.dat", "misc")};
-    std::ifstream ifil = std::ifstream(sabbelPath);
-    if (ifil.is_open()) {
-        AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
-        ifil.read(reinterpret_cast<char *>(&gLanguage), 1);
-        ifil.close();
-    } else {
-        AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
-    }
-
     // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
-
     CRegistryAccess reg(chRegKey);
+
+    gLanguage = LANGUAGE_E;
+
+    CString sabbelPath{FullFilename("sabbel.dat", "misc")};
+    const bool foundLanguageSetting = reg.ReadRegistryKeyEx_l(gLanguage, "OptionLanguage");
+    if (!foundLanguageSetting) {
+        // Old method of fetching language...
+        std::ifstream ifil = std::ifstream(sabbelPath);
+        if (ifil.is_open()) {
+            AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
+            ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
+            ifil.close();
+
+            AT_Log("Language was not set in options file, reading from sabbel: %li", gLanguage);
+        } else {
+            AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
+        }
+
+        // Write to settings file:
+        reg.WriteRegistryKeyEx_l(gLanguage, "OptionLanguage");
+    }
 
     SLONG bConfigNoVgaRam = 0;
     SLONG bConfigNoSpeedyMouse = 0;
