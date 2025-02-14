@@ -994,65 +994,83 @@ void SIM::ChooseStartup() {
         SLONG NearCities[4];
         SLONG c = 0;
         SLONG d = 0;
-        SLONG e = 0;
         SLONG f = 0;
         SLONG Dist = 0;
         SLONG DistD = 0;
-        SLONG LoopCount = 0;
 
         // Eine Route anmieten:
         for (c = 0; c < 4; c++) {
-            e = c + 1;
-
+            auto &qPlayer = Players.Players[c];
+            SLONG e = c + 1;
             while (true) {
-                LoopCount++;
                 for (d = Routen.AnzEntries() - 1; d >= 0; d--) {
-                    if (Routen.IsInAlbum(d) != 0) {
-                        if ((Routen[d].Ebene == 1 || LoopCount > 0) &&
-                            (Routen[d].VonCity == static_cast<ULONG>(HomeAirportId) || Routen[d].NachCity == static_cast<ULONG>(HomeAirportId))) {
-                            e--;
-                            if (e <= 0) {
-                                Players.Players[c].RentRoute(Routen[d].VonCity, Routen[d].NachCity, Routen[d].Miete);
+                    if (Routen.IsInAlbum(d) == 0) {
+                        continue;
+                    }
+                    if (Routen[d].Ebene != 1) {
+                        continue;
+                    }
+                    if (Routen[d].VonCity != static_cast<ULONG>(HomeAirportId) && Routen[d].NachCity != static_cast<ULONG>(HomeAirportId)) {
+                        continue;
+                    }
 
-                                // hprintf ("Player %li rents %s-%s", c, (LPCTSTR)Cities[Routen[d].VonCity].Name, (LPCTSTR)Cities[Routen[d].NachCity].Name);
+                    e--;
+                    if (e > 0) {
+                        continue;
+                    }
 
-                                if (GlobalUse(USE_TRAVELHOLDING)) {
-                                    CRentCity *pRentCity = nullptr;
-
-                                    if (Routen[d].VonCity != ULONG(HomeAirportId)) {
-                                        pRentCity = &Players.Players[c].RentCities.RentCities[Cities(Routen[d].VonCity)];
-
-                                        SLONG Anz = 1;
-                                        for (f = 0; f < 4; f++) {
-                                            if (f != c && (Players.Players[f].RentCities.RentCities[Cities(Routen[d].VonCity)].Rang != 0U)) {
-                                                Anz++;
-                                            }
-                                        }
-
-                                        pRentCity->Rang = UBYTE(Anz);
-                                        pRentCity->Miete = Cities[Routen[d].VonCity].BuroRent;
-                                        // hprintf ("Player %li rents %s", c, (LPCTSTR)Cities[Routen[d].VonCity].Name);
-                                    }
-                                    if (Routen[d].NachCity != ULONG(HomeAirportId)) {
-                                        pRentCity = &Players.Players[c].RentCities.RentCities[Cities(Routen[d].NachCity)];
-
-                                        SLONG Anz = 1;
-                                        for (f = 0; f < 4; f++) {
-                                            if (f != c && (Players.Players[f].RentCities.RentCities[Cities(Routen[d].NachCity)].Rang != 0U)) {
-                                                Anz++;
-                                            }
-                                        }
-
-                                        pRentCity->Rang = UBYTE(Anz);
-                                        pRentCity->Miete = Cities[Routen[d].NachCity].BuroRent;
-                                        // hprintf ("Player %li rents %s", c, (LPCTSTR)Cities[Routen[d].NachCity].Name);
-                                    }
-                                }
-
-                                goto leave_loop;
-                            }
+                    SLONG minLength = INT_MAX;
+                    for (SLONG d = 0; d < qPlayer.Planes.AnzEntries(); d++) {
+                        if (qPlayer.Planes.IsInAlbum(d) == 0) {
+                            continue;
+                        }
+                        if (qPlayer.Planes[d].ptReichweite < minLength) {
+                            minLength = qPlayer.Planes[d].ptReichweite;
                         }
                     }
+                    hprintf("player %d: %d", c, minLength);
+                    if (Cities.CalcDistance(Routen[d].VonCity, Routen[d].NachCity) > minLength * 1000) {
+                        continue;
+                    }
+
+                    qPlayer.RentRoute(Routen[d].VonCity, Routen[d].NachCity, Routen[d].Miete);
+
+                    // hprintf ("Player %li rents %s-%s", c, (LPCTSTR)Cities[Routen[d].VonCity].Name, (LPCTSTR)Cities[Routen[d].NachCity].Name);
+
+                    if (GlobalUse(USE_TRAVELHOLDING)) {
+                        CRentCity *pRentCity = nullptr;
+
+                        if (Routen[d].VonCity != ULONG(HomeAirportId)) {
+                            pRentCity = &qPlayer.RentCities.RentCities[Cities(Routen[d].VonCity)];
+
+                            SLONG Anz = 1;
+                            for (f = 0; f < 4; f++) {
+                                if (f != c && (Players.Players[f].RentCities.RentCities[Cities(Routen[d].VonCity)].Rang != 0U)) {
+                                    Anz++;
+                                }
+                            }
+
+                            pRentCity->Rang = UBYTE(Anz);
+                            pRentCity->Miete = Cities[Routen[d].VonCity].BuroRent;
+                            // hprintf ("Player %li rents %s", c, (LPCTSTR)Cities[Routen[d].VonCity].Name);
+                        }
+                        if (Routen[d].NachCity != ULONG(HomeAirportId)) {
+                            pRentCity = &qPlayer.RentCities.RentCities[Cities(Routen[d].NachCity)];
+
+                            SLONG Anz = 1;
+                            for (f = 0; f < 4; f++) {
+                                if (f != c && (Players.Players[f].RentCities.RentCities[Cities(Routen[d].NachCity)].Rang != 0U)) {
+                                    Anz++;
+                                }
+                            }
+
+                            pRentCity->Rang = UBYTE(Anz);
+                            pRentCity->Miete = Cities[Routen[d].NachCity].BuroRent;
+                            // hprintf ("Player %li rents %s", c, (LPCTSTR)Cities[Routen[d].NachCity].Name);
+                        }
+                    }
+
+                    goto leave_loop;
                 }
             }
 
@@ -1067,7 +1085,7 @@ void SIM::ChooseStartup() {
                 if ((Cities.IsInAlbum(d) != 0) && Cities.GetIdFromIndex(d) != ULONG(HomeAirportId)) {
                     SLONG delta = Cities.CalcDistance(d, HomeAirportId);
 
-                    for (e = 0; e < c; e++) {
+                    for (SLONG e = 0; e < c; e++) {
                         if (NearCities[e] == d) {
                             delta = 2147483647;
                         }
@@ -1085,9 +1103,10 @@ void SIM::ChooseStartup() {
 
         if (GlobalUse(USE_TRAVELHOLDING)) {
             for (c = 0; c < 4; c++) {
+                auto &qPlayer = Players.Players[c];
                 for (d = 0; d < 4; d++) {
-                    if (Players.Players[c].RentCities.RentCities[NearCities[(c + d) % 4]].Rang == 0) {
-                        CRentCity &qRentCity = Players.Players[c].RentCities.RentCities[NearCities[(c + d) % 4]];
+                    if (qPlayer.RentCities.RentCities[NearCities[(c + d) % 4]].Rang == 0) {
+                        CRentCity &qRentCity = qPlayer.RentCities.RentCities[NearCities[(c + d) % 4]];
 
                         // hprintf ("Player %li rents %s", c, (LPCTSTR)Cities[NearCities[(c+d)%4]].Name);
 
