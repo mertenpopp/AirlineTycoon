@@ -2842,6 +2842,8 @@ void PERSON::LookAt(SLONG Dir) {
 // Eine Person hat einen Checkpunkt (Sekundärziel) erreicht und braucht neue Anweisungen:
 //--------------------------------------------------------------------------------------------
 void PERSON::PersonReachedTarget() {
+    auto &qPlayer = Sim.Players.Players[static_cast<SLONG>(FlightAirline)];
+
     // Das hängt davon ab, warum sie am Flughafen ist:
     switch (Reason) {
     // Die Person geht nur einkaufen:
@@ -3078,9 +3080,8 @@ void PERSON::PersonReachedTarget() {
                 Sim.Players.Players[Sim.localPlayer].Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_TUTORIUM, 1604));
             }
 
-            if (Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].Ort == -3 &&
-                Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].AirportPos.x ==
-                    Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
+            if ((qPlayer.Planes.IsInAlbum(FlightPlaneId) != 0) && qPlayer.Planes[FlightPlaneId].Ort == -3 &&
+                qPlayer.Planes[FlightPlaneId].AirportPos.x == qPlayer.Planes[FlightPlaneId].TargetX) {
                 // Sofort boarden:
                 State = bFirstClass != 0 ? PERSON_BOARDING : PERSON_2DURCHLEUCHTER;
                 if (!fpe || fpe->Gate == -1) {
@@ -3106,12 +3107,12 @@ void PERSON::PersonReachedTarget() {
             State = PERSON_BOARDING;
             Target = Airport.GetRandomTypedRune(RUNE_WAIT, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
 
-            if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 8)) != 0U) {
-                if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 11)) != 0U) {
+            if ((qPlayer.SecurityFlags & (1 << 8)) != 0U) {
+                if ((qPlayer.SecurityFlags & (1 << 11)) != 0U) {
                     State |= PERSON_WAITFLAG;
                     WaitCount = 240;
                     Sim.AddSmacker("gate-shw.smk", 768 + fpe->Gate, XY(2, 0));
-                } else if ((Sim.Players.Players[static_cast<SLONG>(FlightAirline)].SecurityFlags & (1 << 10)) != 0U) {
+                } else if ((qPlayer.SecurityFlags & (1 << 10)) != 0U) {
                     State |= PERSON_WAITFLAG;
                     WaitCount = 240;
                     Sim.AddSmacker("gate-hb.smk", 760 + fpe->Gate, XY(1, 0));
@@ -3131,9 +3132,8 @@ void PERSON::PersonReachedTarget() {
 
             // Am Schlauch angekommen, ist das Flugzeug noch da?
         case PERSON_BOARDING:
-            if (Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].Ort == -3 &&
-                Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].AirportPos.x ==
-                    Sim.Players.Players[static_cast<SLONG>(FlightAirline)].Planes[FlightPlaneId].TargetX) {
+            if ((qPlayer.Planes.IsInAlbum(FlightPlaneId) != 0) && qPlayer.Planes[FlightPlaneId].Ort == -3 &&
+                qPlayer.Planes[FlightPlaneId].AirportPos.x == qPlayer.Planes[FlightPlaneId].TargetX) {
                 State = PERSON_ENTERINGPL;
                 if (!fpe || fpe->Gate == -1) {
                     State = PERSON_LEAVING;
