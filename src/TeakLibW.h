@@ -315,105 +315,128 @@ class TEAKFILE {
     }
 #endif
     friend TEAKFILE &operator<<(TEAKFILE &File, const bool &b) {
+        hprintf("Saving bool");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, bool &b) {
+        hprintf("Loading bool");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const UBYTE &b) {
+        hprintf("Saving UBYTE");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, UBYTE &b) {
+        hprintf("Loading UBYTE");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const SBYTE &b) {
+        hprintf("Saving SBYTE");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, SBYTE &b) {
+        hprintf("Loading SBYTE");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const UWORD &b) {
+        hprintf("Saving UWORD");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, UWORD &b) {
+        hprintf("Loading UWORD");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const SWORD &b) {
+        hprintf("Saving SWORD");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, SWORD &b) {
+        hprintf("Loading SWORD");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const ULONG &b) {
+        hprintf("Saving ULONG");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, ULONG &b) {
+        hprintf("Loading ULONG");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const SLONG &b) {
+        hprintf("Saving SLONG");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, SLONG &b) {
+        hprintf("Loading SLONG");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const __int64 &b) {
+        hprintf("Saving __int64");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, __int64 &b) {
+        hprintf("Loading __int64");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const DOUBLE &b) {
+        hprintf("Saving DOUBLE");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, DOUBLE &b) {
+        hprintf("Loading DOUBLE");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const FLOAT &b) {
+        hprintf("Saving FLOAT");
         File.Write((const UBYTE *)&b, sizeof(b));
         return File;
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, FLOAT &b) {
+        hprintf("Loading FLOAT");
         File.Read((UBYTE *)&b, sizeof(b));
         return File;
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CPoint &b) {
+        hprintf("Saving CPoint");
         File.Write((const UBYTE *)&b, sizeof(CPoint));
         return (File);
     }
     friend TEAKFILE &operator>>(TEAKFILE &File, CPoint &b) {
+        hprintf("Loading CPoint");
         File.Read((UBYTE *)&b, sizeof(CPoint));
         return (File);
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CString &b) {
+        hprintf("Saving CString of length %d", b.GetLength());
         File << b.GetLength() + 1;
         File.Write((const UBYTE *)(PCSTR)b, b.GetLength() + 1);
         return File;
@@ -421,6 +444,7 @@ class TEAKFILE {
     friend TEAKFILE &operator>>(TEAKFILE &File, CString &b) {
         ULONG size;
         File >> size;
+        hprintf("Loading CString of length %d", size);
         BUFFER_V<BYTE> str(size);
         File.Read(str.getData(), size);
         b = (PCSTR)(BYTE *)str.getData();
@@ -428,6 +452,7 @@ class TEAKFILE {
     }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const std::string &b) {
+        hprintf("Saving std::string of length %d", b.length());
         File << (ULONG)b.length();
         File.Write((const UBYTE *)b.c_str(), b.length());
         return File;
@@ -435,6 +460,7 @@ class TEAKFILE {
     friend TEAKFILE &operator>>(TEAKFILE &File, std::string &b) {
         ULONG size;
         File >> size;
+        hprintf("Loading std::string of length %d", size);
         BUFFER_V<BYTE> str(size);
         File.Read(str.getData(), size);
         b = (PCSTR)(BYTE *)str.getData();
@@ -442,6 +468,7 @@ class TEAKFILE {
     }
 
     template <typename T, std::size_t N> friend TEAKFILE &operator<<(TEAKFILE &File, const std::array<T, N> &buffer) {
+        hprintf("Saving std::array with typesize %d of length %d", sizeof(T), N);
         for (SLONG i = 0; i < buffer.size(); i++) {
             File << buffer[i];
         }
@@ -449,6 +476,7 @@ class TEAKFILE {
     }
 
     template <typename T, std::size_t N> friend TEAKFILE &operator>>(TEAKFILE &File, std::array<T, N> &buffer) {
+        hprintf("Loading std::array with typesize %d of length %d", sizeof(T), N);
         for (SLONG i = 0; i < buffer.size(); i++) {
             File >> buffer[i];
         }
@@ -456,6 +484,7 @@ class TEAKFILE {
     }
 
     template <typename T> friend TEAKFILE &operator<<(TEAKFILE &File, const BUFFER_V<T> &buffer) {
+        hprintf("Saving BUFFER_V with typesize %d of length %d", sizeof(T), buffer.AnzEntries());
         File << buffer.AnzEntries();
         File << buffer.getIter();
         for (SLONG i = 0; i < buffer.AnzEntries(); i++) {
@@ -467,6 +496,7 @@ class TEAKFILE {
     template <typename T> friend TEAKFILE &operator>>(TEAKFILE &File, BUFFER_V<T> &buffer) {
         SLONG size, offset;
         File >> size >> offset;
+        hprintf("Loading BUFFER_V with typesize %d of length %d", sizeof(T), size);
         buffer.ReSize(size);
         buffer.incIter(offset);
         for (SLONG i = 0; i < buffer.AnzEntries(); i++) {
@@ -476,6 +506,7 @@ class TEAKFILE {
     }
 
     template <typename T> friend TEAKFILE &operator<<(TEAKFILE &File, const BUFFER<T> &buffer) {
+        hprintf("Saving BUFFER with typesize %d of length %d", sizeof(T), buffer.Size);
         File << buffer.Size;
         File << SLONG(buffer.DelPointer - buffer.MemPointer);
         for (SLONG i = 0; i < buffer.Size; i++) {
@@ -487,6 +518,7 @@ class TEAKFILE {
     template <typename T> friend TEAKFILE &operator>>(TEAKFILE &File, BUFFER<T> &buffer) {
         SLONG size, offset;
         File >> size;
+        hprintf("Loading BUFFER with typesize %d of length %d", sizeof(T), size);
         buffer.ReSize(0);
         buffer.ReSize(size);
         File >> offset;
