@@ -28,26 +28,18 @@ template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LO
 template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...); }
 
 const bool kAlwaysReplan = true;
-float kSchedulingMinScoreRatio = 140 * 1000.0F;
-float kSchedulingMinScoreRatioLastMinute = 10 * 1000.0F;
-SLONG kSwitchToRoutesNumPlanesMin = 2;
-SLONG kSwitchToRoutesNumPlanesMax = 4;
 const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -4;
 const SLONG kRouteAvgDays = 3;
 const SLONG kMinimumOwnRouteUtilization = 0;
-SLONG kMaximumRouteUtilization = 90;
 const SLONG kMaximumPlaneUtilization = 70;
-DOUBLE kMaxTicketPriceFactor = 3.0;
 const DOUBLE kDefaultTicketPriceFactor = 3.5;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 70;
-SLONG kPlaneMinimumZustand = 90;
+const SLONG kPlaneMinimumZustand = 90;
 const SLONG kPlaneTargetZustand = 100;
 const SLONG kUsedPlaneMinimumScore = 40;
-DOUBLE kMaxKerosinQualiZiel = 1.2;
-SLONG kNumRoutesStartBuyingTanks = 3;
-SLONG kOwnStockPosessionRatio = 51;
+const SLONG kNumRoutesStartBuyingTanks = 3;
 const SLONG kStockEmissionMode = 2;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
@@ -229,7 +221,7 @@ void Bot::RobotInit() {
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
-            kMaximumRouteUtilization = 20;
+            mOptions.kMaximumRouteUtilization = 20;
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
@@ -247,13 +239,13 @@ void Bot::RobotInit() {
             fs::create_directory(path.c_str());
 
             if (Sim.Difficulty == DIFF_ATFS05) {
-                kSwitchToRoutesNumPlanesMin = std::max(3, kSwitchToRoutesNumPlanesMin);
-                kSwitchToRoutesNumPlanesMax = std::max(3, kSwitchToRoutesNumPlanesMax);
+                mOptions.kSwitchToRoutesNumPlanesMin = std::max(3, mOptions.kSwitchToRoutesNumPlanesMin);
+                mOptions.kSwitchToRoutesNumPlanesMax = std::max(3, mOptions.kSwitchToRoutesNumPlanesMax);
                 setHardcodedDesignerPlaneLarge();
                 mDesignerPlaneFile = FullFilename("botplane_atfs05_1.plane", MyPlanePath);
             } else if (Sim.Difficulty == DIFF_ATFS08) {
-                kSwitchToRoutesNumPlanesMin = std::max(5, kSwitchToRoutesNumPlanesMin);
-                kSwitchToRoutesNumPlanesMax = std::max(5, kSwitchToRoutesNumPlanesMax);
+                mOptions.kSwitchToRoutesNumPlanesMin = std::max(5, mOptions.kSwitchToRoutesNumPlanesMin);
+                mOptions.kSwitchToRoutesNumPlanesMax = std::max(5, mOptions.kSwitchToRoutesNumPlanesMax);
                 setHardcodedDesignerPlaneEco();
                 mDesignerPlaneFile = FullFilename("botplane_atfs08_1.plane", MyPlanePath);
             }
@@ -267,16 +259,16 @@ void Bot::RobotInit() {
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_MAX20PERCENT)) {
-            kOwnStockPosessionRatio = 20;
+            mOptions.kOwnStockPosessionRatio = 20;
         }
 
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
         if (qPlayer.BotLevel <= 2) {
-            kMaxTicketPriceFactor = std::min(2.0, kMaxTicketPriceFactor);
-            kSchedulingMinScoreRatio = std::min(5.0F, kSchedulingMinScoreRatio);
-            kSchedulingMinScoreRatioLastMinute = std::min(5.0F, kSchedulingMinScoreRatioLastMinute);
-            kMaxKerosinQualiZiel = std::min(1.0, kMaxKerosinQualiZiel);
+            mOptions.kMaxTicketPriceFactor = std::min(2.0, mOptions.kMaxTicketPriceFactor);
+            mOptions.kSchedulingMinScoreRatio = std::min(5.0F, mOptions.kSchedulingMinScoreRatio);
+            mOptions.kSchedulingMinScoreRatioLastMinute = std::min(5.0F, mOptions.kSchedulingMinScoreRatioLastMinute);
+            mOptions.kMaxKerosinQualiZiel = std::min(1.0, mOptions.kMaxKerosinQualiZiel);
         }
 
         printRobotFlags();
@@ -732,6 +724,9 @@ void Bot::RobotExecuteAction() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
+    SLONG savegameVersion = 100;
+    File << savegameVersion;
+
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
     for (const auto &i : bot.mLastTimeInRoom) {
         File << i.first << i.second;
@@ -845,6 +840,11 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mDesignerPlane;
     File << bot.mDesignerPlaneFile;
 
+    File << bot.mOptions.kSchedulingMinScoreRatio << bot.mOptions.kSchedulingMinScoreRatioLastMinute;
+    File << bot.mOptions.kSwitchToRoutesNumPlanesMin << bot.mOptions.kSwitchToRoutesNumPlanesMax;
+    File << bot.mOptions.kMaximumRouteUtilization << bot.mOptions.kMaxTicketPriceFactor;
+    File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
+
     SLONG magicnumber = 0x42;
     File << magicnumber;
 
@@ -852,8 +852,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 }
 
 TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
-    SLONG size{};
+    SLONG savegameVersion;
+    File >> savegameVersion;
 
+    SLONG size{};
     File >> size;
     bot.mLastTimeInRoom.clear();
     for (SLONG i = 0; i < size; i++) {
@@ -992,6 +994,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mDesignerPlane;
     File >> bot.mDesignerPlaneFile;
+
+    File >> bot.mOptions.kSchedulingMinScoreRatio >> bot.mOptions.kSchedulingMinScoreRatioLastMinute;
+    File >> bot.mOptions.kSwitchToRoutesNumPlanesMin >> bot.mOptions.kSwitchToRoutesNumPlanesMax;
+    File >> bot.mOptions.kMaximumRouteUtilization >> bot.mOptions.kMaxTicketPriceFactor;
+    File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
 
     SLONG magicnumber = 0;
     File >> magicnumber;

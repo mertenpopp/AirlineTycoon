@@ -385,8 +385,8 @@ void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
         return;
     }
 
-    planer.setMinScoreRatio(kSchedulingMinScoreRatio);
-    planer.setMinScoreRatioLastMinute(kSchedulingMinScoreRatioLastMinute);
+    planer.setMinScoreRatio(mOptions.kSchedulingMinScoreRatio);
+    planer.setMinScoreRatioLastMinute(mOptions.kSchedulingMinScoreRatioLastMinute);
 
     /* configure weighting for special missions */
     switch (Sim.Difficulty) {
@@ -575,7 +575,7 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
     DOUBLE tankContent = qPlayer.TankInhalt;
     DOUBLE tankMax = qPlayer.Tank * targetFillRatio;
 
-    DOUBLE qualiZiel = kMaxKerosinQualiZiel;
+    DOUBLE qualiZiel = mOptions.kMaxKerosinQualiZiel;
     DOUBLE qualiStart = qPlayer.KerosinQuali;
     DOUBLE amountGood = 0;
     DOUBLE amountBad = 0;
@@ -874,7 +874,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     /* find route with lowest utilization that can be improved */
     SLONG routeToImprove = -1;
     for (auto i : mRoutesSortedByOwnUtilization) {
-        if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < kMaximumRouteUtilization) {
+        if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
             routeToImprove = i;
             break;
         }
@@ -1037,7 +1037,7 @@ void Bot::findBestRoute() {
         SLONG numTripsPerWeek = 24 * 7 / roundTripDuration;
         SLONG passengersPerWeek = 7 * Routen[c].AnzPassagiere();
         SLONG minTarget = ceil_div(passengersPerWeek * 10, 100); /* to not loose the route */
-        SLONG finalTarget = ceil_div(passengersPerWeek * kMaximumRouteUtilization, 100);
+        SLONG finalTarget = ceil_div(passengersPerWeek * mOptions.kMaximumRouteUtilization, 100);
         SLONG numPlanesTarget = ceil_div(minTarget, numTripsPerWeek * PlaneTypes[planeTypeId].Passagiere);
         SLONG numPlanesTotal = ceil_div(finalTarget, numTripsPerWeek * PlaneTypes[planeTypeId].Passagiere);
 
@@ -1214,13 +1214,13 @@ void Bot::planRoutes() {
         } else {
             /* planes are not fully utilized */
             assert(qRoute.routeUtilization >= 0);
-            if (qRoute.routeUtilization < kMaximumRouteUtilization) {
+            if (qRoute.routeUtilization < mOptions.kMaximumRouteUtilization) {
                 /* decrease one time per each 25% missing */
                 SLONG numDecreases = ceil_div(kMaximumPlaneUtilization - qRoute.planeUtilization, 25);
                 qRoute.ticketCostFactor -= (0.1 * numDecreases);
             }
         }
-        Limit(0.5, qRoute.ticketCostFactor, kMaxTicketPriceFactor);
+        Limit(0.5, qRoute.ticketCostFactor, mOptions.kMaxTicketPriceFactor);
 
         SLONG priceNew = costs * qRoute.ticketCostFactor;
         priceNew = priceNew / 10 * 10;
@@ -1240,7 +1240,7 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
     /* assign planes to routes */
     SLONG numUnassigned = mPlanesForRoutesUnassigned.size();
     for (SLONG i = 0; i < numUnassigned; i++) {
-        if (mRoutes[mRoutesSortedByOwnUtilization[0]].routeUtilization >= kMaximumRouteUtilization) {
+        if (mRoutes[mRoutesSortedByOwnUtilization[0]].routeUtilization >= mOptions.kMaximumRouteUtilization) {
             break; /* No more underutilized routes */
         }
 
@@ -1256,7 +1256,7 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
         SLONG targetRouteIdx = -1;
         for (SLONG routeIdx : mRoutesSortedByOwnUtilization) {
             auto &qRoute = mRoutes[routeIdx];
-            if (qRoute.routeUtilization >= kMaximumRouteUtilization) {
+            if (qRoute.routeUtilization >= mOptions.kMaximumRouteUtilization) {
                 break; /* No more underutilized routes */
             }
             if (qRoute.planeTypeId != qPlane.TypeId) {

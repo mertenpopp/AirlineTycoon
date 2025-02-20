@@ -14,26 +14,18 @@ class CRoute;
 class PLAYER;
 
 extern const bool kAlwaysReplan;
-extern float kSchedulingMinScoreRatio;
-extern float kSchedulingMinScoreRatioLastMinute;
-extern SLONG kSwitchToRoutesNumPlanesMin;
-extern SLONG kSwitchToRoutesNumPlanesMax;
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
-extern SLONG kMaximumRouteUtilization;
 extern const SLONG kMaximumPlaneUtilization;
-extern DOUBLE kMaxTicketPriceFactor;
 extern const DOUBLE kDefaultTicketPriceFactor;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;
-extern SLONG kPlaneMinimumZustand;
+extern const SLONG kPlaneMinimumZustand;
 extern const SLONG kPlaneTargetZustand;
 extern const SLONG kUsedPlaneMinimumScore;
-extern DOUBLE kMaxKerosinQualiZiel;
-extern SLONG kNumRoutesStartBuyingTanks;
-extern SLONG kOwnStockPosessionRatio;
+extern const SLONG kNumRoutesStartBuyingTanks;
 extern const SLONG kStockEmissionMode;
 extern const bool kReduceDividend;
 extern const SLONG kMaxSabotageHints;
@@ -124,6 +116,16 @@ class Bot {
         DOUBLE ticketCostFactor{2}; /* 0.5: discount / 1: flight cost / 2: normal price / 4: deluxe price */
         std::vector<SLONG> planeIds{};
         bool canUpgrade{false};
+    };
+    struct ConfigurableOptions {
+        float kSchedulingMinScoreRatio{140 * 1000.0F};
+        float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
+        SLONG kSwitchToRoutesNumPlanesMin{2};
+        SLONG kSwitchToRoutesNumPlanesMax{4};
+        SLONG kMaximumRouteUtilization{90};
+        DOUBLE kMaxTicketPriceFactor{3.0};
+        DOUBLE kMaxKerosinQualiZiel{1.2};
+        SLONG kOwnStockPosessionRatio{51};
     };
 
     const char *getPrioName(Prio prio);
@@ -270,6 +272,9 @@ class Bot {
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
+
+    /* options */
+    ConfigurableOptions mOptions{};
 
     /* action economy */
     std::unordered_map<SLONG, SLONG> mLastTimeInRoom{};

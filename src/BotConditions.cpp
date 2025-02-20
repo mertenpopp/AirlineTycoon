@@ -682,7 +682,7 @@ Bot::Prio Bot::condBuyOwnShares(__int64 &moneyAvailable) {
     if (qPlayer.RobotUse(ROBOT_USE_DONTBUYANYSHARES)) {
         return Prio::None;
     }
-    if (qPlayer.OwnsAktien[qPlayer.PlayerNum] >= (qPlayer.AnzAktien * kOwnStockPosessionRatio / 100)) {
+    if (qPlayer.OwnsAktien[qPlayer.PlayerNum] >= (qPlayer.AnzAktien * mOptions.kOwnStockPosessionRatio / 100)) {
         return Prio::None;
     }
     if (qPlayer.HasBerater(BERATERTYP_GELD) >= 50) { /* do we know how much stock the enemy holds? */
@@ -733,7 +733,7 @@ Bot::Prio Bot::condSellShares(__int64 &moneyAvailable) {
     if (hoursPassed(ACTION_SELLSHARES, 24)) {
         if (qPlayer.RobotUse(ROBOT_USE_MAX20PERCENT)) {
             SLONG c = qPlayer.PlayerNum;
-            SLONG sells = (qPlayer.OwnsAktien[c] - qPlayer.AnzAktien * kOwnStockPosessionRatio / 100);
+            SLONG sells = (qPlayer.OwnsAktien[c] - qPlayer.AnzAktien * mOptions.kOwnStockPosessionRatio / 100);
             if (sells > 0) {
                 prio = std::max(prio, Prio::Medium);
             }

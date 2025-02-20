@@ -88,7 +88,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
             SLONG costRouteAd = gWerbePrice[1 * 6 + 5];
             __int64 moneyNeeded = 2 * costRouteAd + bestPlaneType.Preis;
             SLONG numPlanes = mPlanesForJobs.size() + mPlanesForJobsUnassigned.size();
-            if ((numPlanes >= kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || numPlanes >= kSwitchToRoutesNumPlanesMax) {
+            if ((numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMax)) {
                 mDoRoutes = true;
                 AT_Log("Bot::actionStartDay(): Switching to routes. Reserving 2*%d + %d for ads and plane.", costRouteAd, bestPlaneType.Preis);
             }
@@ -819,7 +819,7 @@ void Bot::actionEmitShares() {
     /* rebuy some to reach target ratio of own stock */
     if (mRunToFinalObjective < FinalPhase::TargetRun) {
         auto moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyOwnShares;
-        auto amount = calcAmountToBuy(qPlayer.PlayerNum, kOwnStockPosessionRatio, moneyAvailable);
+        auto amount = calcAmountToBuy(qPlayer.PlayerNum, mOptions.kOwnStockPosessionRatio, moneyAvailable);
         if (amount > 0) {
             AT_Log("Bot::actionEmitShares(): Buying own stock: %lld", amount);
             GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount);
@@ -843,7 +843,7 @@ void Bot::actionBuyNemesisShares(__int64 moneyAvailable) {
 }
 
 void Bot::actionBuyOwnShares(__int64 moneyAvailable) {
-    auto amount = calcAmountToBuy(qPlayer.PlayerNum, kOwnStockPosessionRatio, moneyAvailable);
+    auto amount = calcAmountToBuy(qPlayer.PlayerNum, mOptions.kOwnStockPosessionRatio, moneyAvailable);
     if (amount > 0) {
         AT_Log("Bot::actionBuyOwnShares(): Buying own stock: %lld", amount);
         GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount);
@@ -876,9 +876,9 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
     if (qPlayer.RobotUse(ROBOT_USE_MAX20PERCENT)) {
         /* do never own more than 20 % of own stock */
         SLONG c = qPlayer.PlayerNum;
-        __int64 sells = (qPlayer.OwnsAktien[c] - qPlayer.AnzAktien * kOwnStockPosessionRatio / 100);
+        __int64 sells = (qPlayer.OwnsAktien[c] - qPlayer.AnzAktien * mOptions.kOwnStockPosessionRatio / 100);
         if (sells > 0) {
-            AT_Log("Bot::actionSellShares(): Selling own stock to have no more than %d %%: %lld", kOwnStockPosessionRatio, sells);
+            AT_Log("Bot::actionSellShares(): Selling own stock to have no more than %d %%: %lld", mOptions.kOwnStockPosessionRatio, sells);
             GameMechanic::sellStock(qPlayer, c, sells);
             return;
         }
