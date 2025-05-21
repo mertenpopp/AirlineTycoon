@@ -3840,6 +3840,9 @@ void PLAYER::RobotExecuteAction() {
     TEAKRAND rnd;
 
     if ((Owner != 1) || (IsOut != 0)) {
+        if (Sim.CallItADay == 1) {
+            SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
+        }
         return; // War Irtum, kein Computerspieler
     }
 
