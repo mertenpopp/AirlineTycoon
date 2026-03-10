@@ -10,7 +10,7 @@
 #include "helper.h"
 #include "Proto.h"
 
-#define AT_Log(...) // AT_Log_I("Personal", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("Personal", __VA_ARGS__)
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -527,9 +527,9 @@ void CWorkers::NewDay() {
         }
     }
 
-    SLONG AnzahlBerater = 5 + LocalRand.Rand(2);
+    SLONG AnzahlBerater = 10 + LocalRand.Rand(2);
     SLONG AnzahlPiloten = 10 + LocalRand.Rand(3);
-    SLONG AnzahlStewardessen = 25 + LocalRand.Rand(5);
+    SLONG AnzahlStewardessen = 50 + LocalRand.Rand(5);
 
     while (AnzahlBerater > 0 || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
         m = LocalRand.Rand(Workers.AnzEntries());
@@ -745,7 +745,7 @@ void CWorkers::CheckShortageAndSort() {
         nExpired += AddToPool(i, LocalRand, 5);
     }
     nExpired += AddToPool(WORKER_PILOT, LocalRand, 80);
-    nExpired += AddToPool(WORKER_STEWARDESS, LocalRand, 80);
+    nExpired += AddToPool(WORKER_STEWARDESS, LocalRand, 160);
 
     std::sort(Workers.begin(), Workers.end());
 
