@@ -7847,7 +7847,12 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_MUCH_SABOTAGE:
-        /* SuperBot: Ignores this flag */
+        /* SuperBot: Respects this flag */
+        if (IsSuperBot()) {
+            if (BotLevel < 3) {
+                return false;
+            }
+        }
         pFeatureDesc = "---XXX"
                        "!"
                        "XXXXXXXXXX"

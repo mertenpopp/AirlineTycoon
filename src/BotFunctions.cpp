@@ -681,26 +681,59 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
 bool Bot::determineSabotageMode(__int64 moneyAvailable, SLONG &jobType, SLONG &jobNumber, SLONG &jobHints) {
     std::array<SLONG, 5> hintArray1{2, 4, 10, 20, 100};
     std::array<SLONG, 4> hintArray2{8, 0, 25, 40};
-    /* std::array<SLONG, 6> hintArray3{8, 15, 25, 30, 50, 70}; */
+    std::array<SLONG, 6> hintArray3{8, 15, 25, 30, 50, 70};
 
     /* decide which sabotage to use. Default: Spiked coffee */
-    jobType = 1;
-    jobNumber = 1;
-    jobHints = hintArray2[jobNumber - 1];
-    SLONG jobCost = SabotagePrice2[jobNumber - 1];
+    jobType = -1;
+    jobNumber = -1;
+    jobHints = 0;
+    SLONG jobCost = INT_MAX;
 
-    /* sabotage planes to damage enemy stock price in stock price competitions */
-    bool stockPriceSabotage = (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07);
-    /* sabotage plane tire to delay next start in miles&more mission */
-    bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
-    if (stockPriceSabotage || delaySabotage) {
-        jobType = 0;
-        jobNumber = std::min((stockPriceSabotage ? 4 : 3), qPlayer.ArabTrust);
-        jobHints = hintArray1[jobNumber - 1];
-        jobCost = SabotagePrice[jobNumber - 1];
+    if (qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
+        /* special mode for specific missions */
+        /* sabotage planes to damage enemy stock price in stock price competitions */
+        bool stockPriceSabotage = (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07);
+        /* sabotage plane tire to delay next start in miles&more mission */
+        bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
+        if (stockPriceSabotage || delaySabotage) {
+            jobType = 0;
+            jobNumber = std::min((stockPriceSabotage ? 4 : 3), qPlayer.ArabTrust);
+            jobHints = hintArray1[jobNumber - 1];
+            jobCost = SabotagePrice[jobNumber - 1];
+        } else {
+            jobType = 1;
+            jobNumber = 1;
+            jobHints = hintArray2[jobNumber - 1];
+            jobCost = SabotagePrice2[jobNumber - 1];
+        }
+    } else {
+        /* regular mode */
+        auto rand = LocalRandom.Rand(100);
+        if ((Sim.Date < 15) || (rand < 20)) {
+            /* focus on office sabotage in early game (players less likely to circumvent) */
+            jobType = 1;
+            jobNumber = std::min(4, qPlayer.ArabTrust);
+            jobHints = hintArray2[jobNumber - 1];
+            jobCost = SabotagePrice2[jobNumber - 1];
+        } else if (rand < 50) {
+            /* plane sabotage */
+            jobType = 0;
+            jobNumber = std::min(5, qPlayer.ArabTrust);
+            jobHints = hintArray1[jobNumber - 1];
+            jobCost = SabotagePrice[jobNumber - 1];
+        } else {
+            /* special sabotage */
+            jobType = 2;
+            jobNumber = std::min(6, qPlayer.ArabTrust);
+            jobHints = hintArray3[jobNumber - 1];
+            jobCost = SabotagePrice3[jobNumber - 1];
+        }
     }
 
     /* check preconditions */
+    if (jobType == -1 || jobNumber == -1) {
+        return false; /* no job selected */
+    }
     if (mArabHintsTracker + jobHints > kMaxSabotageHints) {
         return false; /* wait until we won't be caught */
     }
@@ -822,6 +855,8 @@ void Bot::updateRouteInfoOffice() {
 void Bot::updateRouteInfoBoard() {
     /* copy most import information from routes
      * copy information that is available when visiting the route board */
+    mRouteToSteal = -1;
+    SLONG routeToStealUtil = 0;
     for (auto &route : mRoutes) {
         route.image = getRentRoute(route).Image;
         route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
@@ -837,11 +872,39 @@ void Bot::updateRouteInfoBoard() {
             if (qRentRoute.RoutenAuslastungBot > 0 && i != qPlayer.PlayerNum) {
                 AT_Log("Bot::updateRouteInfoBoard(): Route %s: We (%d utilization) are competing with %s (%d utilization)",
                        Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, qqPlayer.AirlineX.c_str(), qRentRoute.RoutenAuslastungBot);
+
+                if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
+                    mRouteToSteal = route.routeId;
+                    routeToStealUtil = qRentRoute.RoutenAuslastungBot;
+                }
             }
         }
         AT_Log("Bot::updateRouteInfoBoard(): Route %s has utilization=%d/%d (%d planes with average utilization=%d/%d)",
                Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(), route.planeUtilization,
                route.planeUtilizationFC);
+    }
+
+    /* find a route to steal even if we have none yet */
+    if (mRouteToSteal == -1) {
+        for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
+            for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+                const auto &qqPlayer = Sim.Players.Players[i];
+                if ((i == qPlayer.PlayerNum) || (qqPlayer.IsOut != 0)) {
+                    continue;
+                }
+                const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[c];
+
+                if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
+                    mRouteToSteal = c;
+                    routeToStealUtil = qRentRoute.RoutenAuslastungBot;
+                }
+            }
+        }
+    }
+
+    if (mRouteToSteal != -1) {
+        AT_Log("Bot::updateRouteInfoBoard(): Best route to steal is %s: %d max. utilization", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
+               routeToStealUtil);
     }
 
     /* generate strategy for routes */

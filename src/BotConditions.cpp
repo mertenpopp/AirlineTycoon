@@ -513,7 +513,7 @@ Bot::Prio Bot::condSabotage(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_SABOTAGE, 24)) {
         return Prio::None;
     }
-    if (!qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
+    if (!qPlayer.RobotUse(ROBOT_USE_MUCH_SABOTAGE) && !qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
         return Prio::None;
     }
     if (qPlayer.ArabTrust == 0) {
