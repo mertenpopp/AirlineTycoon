@@ -336,6 +336,8 @@ class Bot {
     bool mRoutesUtilizationUpdated{false};
     RoutesNextStep mRoutesNextStep{RoutesNextStep::None};
     SLONG mImproveRouteId{-1};
+    SLONG mRouteToSteal{-1};
+    SLONG mRouteToStealFrom{-1};
 
     /* crew */
     SLONG mNumEmployees{0};

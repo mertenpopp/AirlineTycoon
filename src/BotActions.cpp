@@ -65,6 +65,8 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     /*  invalidate cached info */
     mRoutesUpdated = false;
     mRoutesUtilizationUpdated = false;
+    mRouteToSteal = -1;
+    mRouteToStealFrom = -1;
     mRoutesNextStep = RoutesNextStep::None;
     mExtraPilots = -1;
     mExtraBegleiter = -1;
@@ -712,17 +714,37 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
         return;
     }
 
-    /* exceute sabotage */
-    if (jobType == 0) {
+    SLONG target = mNemesis;
+
+    /* select plane if required */
+    if (jobType == 0 || (jobType == 2 && jobNumber == 5)) {
         const auto &qNemesisPlanes = Sim.Players.Players[mNemesis].Planes;
-        qPlayer.ArabPlaneSelection = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
+        if (qNemesisPlanes.GetNumUsed() == 0) {
+            AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Has no planes", Sim.Players.Players[mNemesis].AirlineX.c_str());
+            return;
+        }
+        /* pick the larger out of two random */
+        SLONG planeA = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
+        SLONG planeB = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
+        qPlayer.ArabPlaneSelection = (qNemesisPlanes[planeA].MaxPassagiere > qNemesisPlanes[planeB].MaxPassagiere) ? planeA : planeB;
         AT_Log("Bot::actionSabotage(): Selecting plane %s", Helper::getPlaneName(qNemesisPlanes[qPlayer.ArabPlaneSelection]).c_str());
     }
 
-    const auto &nemesisName = Sim.Players.Players[mNemesis].AirlineX;
-    auto ret = GameMechanic::setSaboteurTarget(qPlayer, mNemesis);
-    if (ret != mNemesis) {
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Cannot set as target", nemesisName.c_str());
+    /* select route if necessary */
+    if (jobType == 2 && jobNumber == 6) {
+        /* pick the larger out of two random */
+        qPlayer.ArabPlaneSelection = mRouteToSteal;
+        target = mRouteToStealFrom;
+        AT_Log("Bot::actionSabotage(): Stealing route %s from %s", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
+               Sim.Players.Players[target].AirlineX.c_str());
+    }
+
+    /* exceute sabotage */
+    const auto &targetName = Sim.Players.Players[target].AirlineX;
+
+    auto ret = GameMechanic::setSaboteurTarget(qPlayer, target);
+    if (ret != target) {
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Cannot set as target", targetName.c_str());
         return;
     }
 
@@ -730,31 +752,31 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
     switch (res) {
     case GameMechanic::CheckSabotageResult::Ok:
         GameMechanic::activateSaboteurJob(qPlayer, FALSE);
-        AT_Log("Bot::actionSabotage(): Sabotaging nemesis %s (jobType = %d, jobNumber = %d)", nemesisName.c_str(), jobType, jobNumber);
-        mNemesisSabotaged = mNemesis; /* ensures that we do not sabotage him again tomorrow */
+        AT_Log("Bot::actionSabotage(): Sabotaging nemesis %s (jobType = %d, jobNumber = %d)", targetName.c_str(), jobType, jobNumber);
+        mNemesisSabotaged = target; /* ensures that we do not sabotage him again tomorrow */
         mArabHintsTracker += jobHints;
         break;
     case GameMechanic::CheckSabotageResult::DeniedInvalidParam:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Invalid param", nemesisName.c_str());
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Invalid param", targetName.c_str());
         break;
     case GameMechanic::CheckSabotageResult::DeniedSaboteurBusy:
-        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Saboteur busy", nemesisName.c_str());
+        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Saboteur busy", targetName.c_str());
         break;
     case GameMechanic::CheckSabotageResult::DeniedSecurity:
         mNeedToShutdownSecurity = true;
-        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Blocked by security", nemesisName.c_str());
+        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Blocked by security", targetName.c_str());
         break;
     case GameMechanic::CheckSabotageResult::DeniedNotEnoughMoney:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough money", nemesisName.c_str());
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough money", targetName.c_str());
         break;
     case GameMechanic::CheckSabotageResult::DeniedNoLaptop:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Enemy has no laptop", nemesisName.c_str());
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Enemy has no laptop", targetName.c_str());
         break;
     case GameMechanic::CheckSabotageResult::DeniedTrust:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough trust", nemesisName.c_str());
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough trust", targetName.c_str());
         break;
     default:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Unknown error", nemesisName.c_str());
+        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Unknown error", targetName.c_str());
     }
 }
 

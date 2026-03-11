@@ -727,6 +727,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated;
     File << static_cast<SLONG>(bot.mRoutesNextStep) << bot.mImproveRouteId;
+    File << bot.mRouteToSteal << bot.mRouteToStealFrom;
 
     File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter;
 
@@ -875,7 +876,7 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mRoutesUpdated >> bot.mRoutesUtilizationUpdated;
     SLONG routesNextStep = 0;
-    File >> routesNextStep >> bot.mImproveRouteId;
+    File >> routesNextStep >> bot.mImproveRouteId >> bot.mRouteToSteal >> bot.mRouteToStealFrom;
     bot.mRoutesNextStep = static_cast<Bot::RoutesNextStep>(routesNextStep);
 
     File >> bot.mNumEmployees >> bot.mExtraPilots >> bot.mExtraBegleiter;
