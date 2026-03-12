@@ -359,7 +359,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode = -qPlayer.ArabMode;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice[qPlayer.ArabMode - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice[qPlayer.ArabMode - 1], 2080);
@@ -400,7 +400,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode2 = -qPlayer.ArabMode2;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode2 + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode2 + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice2[qPlayer.ArabMode2 - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice2[qPlayer.ArabMode2 - 1], 2080);
@@ -445,7 +445,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode3 = -qPlayer.ArabMode3;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode3 + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode3 + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice3[qPlayer.ArabMode3 - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice3[qPlayer.ArabMode3 - 1], 2080);
