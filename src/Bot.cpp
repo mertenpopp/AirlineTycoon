@@ -176,7 +176,7 @@ void Bot::RobotInit() {
 
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
-        if (qPlayer.BotLevel <= 2) {
+        if (qPlayer.BotLevel <= 1) {
             mOptions.kMaxTicketPriceFactor = std::min(2.0, mOptions.kMaxTicketPriceFactor);
             mOptions.kSchedulingMinScoreRatio = std::min(5.0F, mOptions.kSchedulingMinScoreRatio);
             mOptions.kSchedulingMinScoreRatioLastMinute = std::min(5.0F, mOptions.kSchedulingMinScoreRatioLastMinute);
