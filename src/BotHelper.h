@@ -3,6 +3,7 @@
 
 #include "class.h"
 #include "defines.h"
+#include "GameMechanic.h"
 
 #include <array>
 #include <cassert>
@@ -88,6 +89,102 @@ class PlaneTime {
 
 TEAKFILE &operator<<(TEAKFILE &File, const PlaneTime &planeTime);
 TEAKFILE &operator>>(TEAKFILE &File, PlaneTime &planeTime);
+
+class SabotageMode {
+  public:
+    enum class SabotageCategory { None = -1, Plane = 0, Personal = 1, Special = 2 };
+
+    enum class Plane {
+        SaltedFood = 1,        // Heavily salted food onboard ($1,000)
+        MovieTheatreBreak = 2, // Breakdown of the on-board movie theatre ($5,000)
+        FlatTire = 3,          // Delay due to flat tire ($10,000)
+        EngineBreakdown = 4,   // Engine breakdown ($50,000)
+        PlaneCrash = 5         // A plane crash ($100,000)
+    };
+
+    enum class Personal {
+        CoffeeBacteria = 1, // Bacteria in the coffee ($10,000) - sends rival to restroom between Rick’s cafe and Newspaper Stand
+        NotebookVirus = 2,  // Virus on the notebook ($25,000) - ruins notebook via computer virus
+        OfficeBomb = 3,     // Bomb in the office ($50,000) - blows up opponent office
+        ProvokeStrike = 4   // Provoke a strike ($250,000) - suspends flights by disconnecting employees
+    };
+
+    enum class Special {
+        AircraftBrochures = 1, // Place brochures in competitor's aircraft ($100,000)
+        CutTelephones = 2,     // Cut off telephones ($500,000)
+        FalsePressRelease = 3, // Publish a false press-release ($1,000,000) - cancels all flights for a full day
+        BankHack = 4,          // Hack bank account ($2,000,000) - opponent steals $1M
+        GroundAircraft = 5,    // Ground a competitor's aircraft ($5,000,000)
+        RouteTheft = 6         // Steal one route from opponent (existing behavior)
+    };
+
+    SabotageMode() = default;
+    SabotageMode(Plane t, SLONG maxTrust = INT_MAX) {
+        mCategory = SabotageCategory::Plane;
+        mJobNumber = std::min(static_cast<SLONG>(t), maxTrust);
+        mJobHints = hintArray1[mJobNumber - 1];
+        mJobCost = SabotagePrice[mJobNumber - 1];
+    }
+    SabotageMode(Personal t, SLONG maxTrust = INT_MAX) {
+        mCategory = SabotageCategory::Personal;
+        mJobNumber = std::min(static_cast<SLONG>(t), maxTrust);
+        mJobHints = hintArray2[mJobNumber - 1];
+        mJobCost = SabotagePrice2[mJobNumber - 1];
+    }
+    SabotageMode(Special t, SLONG maxTrust = INT_MAX) {
+        mCategory = SabotageCategory::Special;
+        mJobNumber = std::min(static_cast<SLONG>(t), maxTrust);
+        mJobHints = hintArray3[mJobNumber - 1];
+        mJobCost = SabotagePrice3[mJobNumber - 1];
+    }
+    SabotageMode(SLONG category, SLONG jobNumber) {
+        if (category == static_cast<SLONG>(SabotageCategory::Plane)) {
+            *this = SabotageMode(static_cast<Plane>(jobNumber));
+        } else if (category == static_cast<SLONG>(SabotageCategory::Personal)) {
+            *this = SabotageMode(static_cast<Personal>(jobNumber));
+        } else if (category == static_cast<SLONG>(SabotageCategory::Special)) {
+            *this = SabotageMode(static_cast<Special>(jobNumber));
+        } else {
+            mCategory = SabotageCategory::None;
+            mJobNumber = 0;
+            mJobHints = 0;
+            mJobCost = 0;
+        }
+    }
+
+    SLONG getCategory() const { return static_cast<SLONG>(mCategory); }
+    bool isValid() const { return mCategory != SabotageCategory::None; }
+    SLONG getJobNumber() const { return mJobNumber; }
+    SLONG getJobHints() const { return mJobHints; }
+    SLONG getJobCost() const { return mJobCost; }
+
+    bool needPlane() const {
+        if (mCategory == SabotageCategory::Plane) {
+            return true;
+        }
+        if (mCategory == SabotageCategory::Special && mJobNumber == static_cast<SLONG>(Special::GroundAircraft)) {
+            return true;
+        }
+        return false;
+    }
+    bool needRoute() const {
+        if (mCategory == SabotageCategory::Special && mJobNumber == static_cast<SLONG>(Special::RouteTheft)) {
+            return true;
+        }
+        return false;
+    }
+
+    std::string getName() const;
+
+  private:
+    static constexpr std::array<SLONG, 5> hintArray1{2, 4, 10, 20, 100};
+    static constexpr std::array<SLONG, 4> hintArray2{8, 0, 25, 40};
+    static constexpr std::array<SLONG, 6> hintArray3{8, 15, 25, 30, 50, 70};
+    SabotageCategory mCategory{SabotageCategory::None};
+    SLONG mJobNumber{0};
+    SLONG mJobHints{0};
+    SLONG mJobCost{0};
+};
 
 namespace Helper {
 

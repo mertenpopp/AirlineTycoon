@@ -534,10 +534,7 @@ Bot::Prio Bot::condSabotage(__int64 &moneyAvailable) {
     }
 
     /* pre-conditions for sabotage */
-    SLONG jobType{-1};
-    SLONG jobNumber{-1};
-    SLONG jobHints{-1};
-    if (determineSabotageMode(moneyAvailable, jobType, jobNumber, jobHints)) {
+    if (determineSabotageMode(moneyAvailable, false).isValid()) {
         return Prio::Medium;
     }
 

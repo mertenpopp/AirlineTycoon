@@ -106,6 +106,7 @@ void Bot::RobotInit() {
 
         /* random source */
         LocalRandom.SRand(qPlayer.WaitWorkTill);
+        mSabotageSeed = LocalRandom.getRandInt(0, INT32_MAX); /* unsigned, overflow safe */
 
         /* starting planes */
         for (SLONG i = 0; i < qPlayer.Planes.AnzEntries(); i++) {
@@ -727,7 +728,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated;
     File << static_cast<SLONG>(bot.mRoutesNextStep) << bot.mImproveRouteId;
-    File << bot.mRouteToSteal << bot.mRouteToStealFrom;
+    File << bot.mRouteToSteal << bot.mRouteToStealFrom << bot.mSabotageSeed;
 
     File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter;
 
@@ -876,8 +877,9 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mRoutesUpdated >> bot.mRoutesUtilizationUpdated;
     SLONG routesNextStep = 0;
-    File >> routesNextStep >> bot.mImproveRouteId >> bot.mRouteToSteal >> bot.mRouteToStealFrom;
+    File >> routesNextStep >> bot.mImproveRouteId;
     bot.mRoutesNextStep = static_cast<Bot::RoutesNextStep>(routesNextStep);
+    File >> bot.mRouteToSteal >> bot.mRouteToStealFrom >> bot.mSabotageSeed;
 
     File >> bot.mNumEmployees >> bot.mExtraPilots >> bot.mExtraBegleiter;
 

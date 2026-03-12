@@ -16,6 +16,7 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
+#include <random>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -100,8 +101,10 @@ void Bot::determineNemesis() {
         return;
     }
 
+    /* check scores */
     SLONG enemiesBetterThanMe = 0;
     __int64 myScore = getNemesisScore(qPlayer.PlayerNum);
+    std::vector<std::pair<SLONG, __int64>> scores;
     for (SLONG p = 0; p < 4; p++) {
         auto &qTarget = Sim.Players.Players[p];
         if (p == qPlayer.PlayerNum || qTarget.IsOut != 0) {
@@ -109,26 +112,47 @@ void Bot::determineNemesis() {
         }
 
         __int64 score = getNemesisScore(p);
-        if (score > mNemesisScore && p != nemesisSabotaged) {
-            mNemesis = p;
-            mNemesisScore = score;
-        }
+        scores.push_back({p, score});
         if (score > myScore) {
             enemiesBetterThanMe++;
         }
     }
-    if (-1 != mNemesis) {
-        if (nemesisOld != mNemesis) {
-            AT_Log("Bot::determineNemesis(): Our nemesis now is %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
-                   Insert1000erDots64(mNemesisScore).c_str());
+    mMood = enemiesBetterThanMe;
+    AT_Log("Bot::determineNemesis(): Our score is %s, this puts us on place %d", Insert1000erDots64(myScore).c_str(), enemiesBetterThanMe + 1);
+    if (scores.empty()) {
+        AT_Log("Bot::determineNemesis(): No enemies found.");
+        return;
+    }
+
+    /* find best enemy */
+    std::sort(scores.begin(), scores.end(), [](const auto &a, const auto &b) { return std::get<1>(a) > std::get<1>(b); });
+    mNemesis = scores.front().first;
+    mNemesisScore = scores.front().second;
+    if (mNemesis == nemesisSabotaged && scores.size() > 1) {
+        mNemesis = scores[1].first;
+        mNemesisScore = scores[1].second;
+    }
+
+    for (const auto &[p, score] : scores) {
+        if (p == mNemesis && p == nemesisOld) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [remains our nemesis]", Sim.Players.Players[p].AirlineX.c_str(),
+                   Insert1000erDots64(score).c_str());
+        } else if (p == mNemesis) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [new nemesis]", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
+        } else if (p == nemesisOld) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [old nemesis]", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
         } else {
-            AT_Log("Bot::determineNemesis(): Our nemesis is still %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
-                   Insert1000erDots64(mNemesisScore).c_str());
+            AT_Log("Bot::determineNemesis(): %s has score %s", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
         }
     }
 
-    mMood = enemiesBetterThanMe;
-    AT_Log("Bot::determineNemesis(): Our score is %s, this puts us on place %d", Insert1000erDots64(myScore).c_str(), enemiesBetterThanMe + 1);
+    if (nemesisOld != mNemesis) {
+        AT_Log("Bot::determineNemesis(): Our nemesis now is %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
+               Insert1000erDots64(mNemesisScore).c_str());
+    } else {
+        AT_Log("Bot::determineNemesis(): Our nemesis is still %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
+               Insert1000erDots64(mNemesisScore).c_str());
+    }
 }
 
 void Bot::switchToFinalTarget() {
@@ -678,69 +702,109 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
     return res;
 }
 
-bool Bot::determineSabotageMode(__int64 moneyAvailable, SLONG &jobType, SLONG &jobNumber, SLONG &jobHints) {
-    std::array<SLONG, 5> hintArray1{2, 4, 10, 20, 100};
-    std::array<SLONG, 4> hintArray2{8, 0, 25, 40};
-    std::array<SLONG, 6> hintArray3{8, 15, 25, 30, 50, 70};
-
-    /* decide which sabotage to use. Default: Spiked coffee */
-    jobType = -1;
-    jobNumber = -1;
-    jobHints = 0;
-    SLONG jobCost = INT_MAX;
-
+SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
+    SabotageMode sabotageMode;
     if (qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
         /* special mode for specific missions */
-        /* sabotage planes to damage enemy stock price in stock price competitions */
         bool stockPriceSabotage = (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07);
-        /* sabotage plane tire to delay next start in miles&more mission */
         bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
-        if (stockPriceSabotage || delaySabotage) {
-            jobType = 0;
-            jobNumber = std::min((stockPriceSabotage ? 4 : 3), qPlayer.ArabTrust);
-            jobHints = hintArray1[jobNumber - 1];
-            jobCost = SabotagePrice[jobNumber - 1];
+        if (stockPriceSabotage) {
+            /* sabotage planes to damage enemy stock price in stock price competitions */
+            sabotageMode = {SabotageMode::Plane::EngineBreakdown, qPlayer.ArabTrust};
+        } else if (delaySabotage) {
+            /* sabotage plane tire to delay next start in miles&more mission */
+            sabotageMode = {SabotageMode::Plane::FlatTire, qPlayer.ArabTrust};
         } else {
-            jobType = 1;
-            jobNumber = 1;
-            jobHints = hintArray2[jobNumber - 1];
-            jobCost = SabotagePrice2[jobNumber - 1];
+            sabotageMode = SabotageMode::Personal::CoffeeBacteria;
         }
-    } else {
-        /* regular mode */
-        auto rand = LocalRandom.Rand(100);
-        if ((Sim.Date < 15) || (rand < 20)) {
-            /* focus on office sabotage in early game (players less likely to circumvent) */
-            jobType = 1;
-            jobNumber = std::min(4, qPlayer.ArabTrust);
-            jobHints = hintArray2[jobNumber - 1];
-            jobCost = SabotagePrice2[jobNumber - 1];
-        } else if (rand < 50) {
-            /* plane sabotage */
-            jobType = 0;
-            jobNumber = std::min(5, qPlayer.ArabTrust);
-            jobHints = hintArray1[jobNumber - 1];
-            jobCost = SabotagePrice[jobNumber - 1];
-        } else {
-            /* special sabotage */
-            jobType = 2;
-            jobNumber = std::min(6, qPlayer.ArabTrust);
-            jobHints = hintArray3[jobNumber - 1];
-            jobCost = SabotagePrice3[jobNumber - 1];
+    } else { /* regular mode */
+        /* check some conditions for what could be a good sabotage */
+        bool earlyGame = (Sim.Date < 15);
+        bool nemesisBroke = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
+            nemesisBroke = (Sim.Players.Players[mNemesis].Money < 1e6);
+        }
+        bool nemesisManyOffices = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) >= 50)) {
+            SLONG numOffices = Sim.Players.Players[mNemesis].Statistiken[STAT_NIEDERLASSUNGEN].GetAtPastDay(0);
+            nemesisManyOffices = (numOffices >= 5);
+        }
+        bool nemesisHasRoutes = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) >= 40)) {
+            SLONG numRoutes = Sim.Players.Players[mNemesis].Statistiken[STAT_ROUTEN].GetAtPastDay(0);
+            nemesisHasRoutes = (numRoutes >= 4);
+        }
+        bool routeTheft = (earlyGame || (mRouteToSteal == -1));
+
+        struct Candidate {
+            SabotageMode mode;
+            int weight;
+        };
+        std::vector<Candidate> candidates;
+        // Plane sabotage candidates
+        candidates.push_back({SabotageMode::Plane::SaltedFood, 1});
+        candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 1});
+        candidates.push_back({SabotageMode::Plane::FlatTire, 5});
+        candidates.push_back({SabotageMode::Plane::EngineBreakdown, 10});
+        candidates.push_back({SabotageMode::Plane::PlaneCrash, 0});
+        // Personal sabotage candidates
+        candidates.push_back({SabotageMode::Personal::CoffeeBacteria, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::NotebookVirus, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::OfficeBomb, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::ProvokeStrike, 5});
+        // Special candidates
+        candidates.push_back({SabotageMode::Special::AircraftBrochures, 1});
+        candidates.push_back({SabotageMode::Special::CutTelephones, (nemesisManyOffices ? 10 : 0)});
+        candidates.push_back({SabotageMode::Special::FalsePressRelease, (nemesisHasRoutes ? 10 : 0)});
+        candidates.push_back({SabotageMode::Special::BankHack, (nemesisBroke ? 50 : 5)});
+        candidates.push_back({SabotageMode::Special::GroundAircraft, 10});
+        candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheft ? 0 : 10)});
+
+        // SLONG hintRemaining = std::max(0, kMaxSabotageHints - mArabHintsTracker);
+        for (auto &candidate : candidates) {
+            // if (candidate.mode.getJobHints() > hintRemaining) {
+            //     candidate.weight = 0; /* cannot take this candidate because we would get caught */
+            // }
+            // if (candidate.mode.getJobCost() > moneyAvailable) {
+            //     candidate.weight = 0; /* cannot take this candidate because we do not have enough money */
+            // }
+            if (candidate.mode.getJobNumber() > qPlayer.ArabTrust) {
+                candidate.weight = 0; /* cannot take this candidate because we do not have enough trust */
+            }
+            if (qPlayer.ArabTrust < 6 && candidate.mode.getJobNumber() == qPlayer.ArabTrust) {
+                if (candidate.weight > 0) {
+                    candidate.weight = std::max(10, candidate.weight); /* if we are just at the edge of being able to do this sabotage, increase its weight to
+                                                                          have a better chance to get more trust */
+                }
+            }
+        }
+
+        /* select a candidate based on weights */
+        std::vector<double> weights;
+        for (const auto &c : candidates) {
+            weights.push_back(c.weight);
+        }
+        std::discrete_distribution dist(weights.begin(), weights.end());
+        /* selected sabotage shall not change unless mSabotageSeed changes. It is increased after each executed sabotage */
+        std::mt19937_64 gen(mSabotageSeed);
+        int idx = dist(gen);
+        sabotageMode = candidates[idx].mode;
+        if (print) {
+            AT_Log(
+                "Bot::determineSabotageMode(): Selected sabotage mode '%s' with weight %d (chance: %.2f%%, trust needed: %d/%d, job hints: %d, job cost: %lld)",
+                sabotageMode.getName().c_str(), candidates[idx].weight, 100 * dist.probabilities()[idx], sabotageMode.getJobNumber(), qPlayer.ArabTrust,
+                sabotageMode.getJobHints(), sabotageMode.getJobCost());
         }
     }
 
     /* check preconditions */
-    if (jobType == -1 || jobNumber == -1) {
-        return false; /* no job selected */
+    if (mArabHintsTracker + sabotageMode.getJobHints() > kMaxSabotageHints) {
+        return {}; /* wait until we won't be caught */
     }
-    if (mArabHintsTracker + jobHints > kMaxSabotageHints) {
-        return false; /* wait until we won't be caught */
+    if (sabotageMode.getJobCost() > moneyAvailable) {
+        return {}; /* wait until we have enough money */
     }
-    if (jobCost > moneyAvailable) {
-        return false; /* wait until we have enough money */
-    }
-    return true;
+    return sabotageMode;
 }
 
 SLONG Bot::getNumRentedRoutes() const {
