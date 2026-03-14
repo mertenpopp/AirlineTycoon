@@ -277,7 +277,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
         if (stricmp(Argument, "/quick") == 0) {
             CheatAutoSkip = 1;
             gQuickTestRun = 1;
-            gAutoBotDiff = 3;
+            gAutoBotDiff = 2;
 
             i++;
             if (i < argc) {

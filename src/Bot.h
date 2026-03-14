@@ -231,13 +231,15 @@ class Bot {
 
     /* routes */
     SLONG getNumRentedRoutes() const;
-    void checkLostRoutes();
+    void checkRentedRoutes();
     void updateRouteInfoOffice();
     void updateRouteInfoBoard();
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
     void findBestRoute();
+    bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
+    bool removeRoute(SLONG routeIdx);
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
 
@@ -334,6 +336,7 @@ class Bot {
     std::vector<SLONG> mRoutesSortedByOwnUtilization{};
     bool mRoutesUpdated{false};
     bool mRoutesUtilizationUpdated{false};
+    bool mRoutesToRemove{false};
     RoutesNextStep mRoutesNextStep{RoutesNextStep::None};
     SLONG mImproveRouteId{-1};
 

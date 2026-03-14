@@ -79,8 +79,8 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     }
 
     /* check routes */
+    checkRentedRoutes();
     if (mDoRoutes) {
-        checkLostRoutes();
         updateRouteInfoOffice();
         requestPlanRoutes(true);
     } else if (qPlayer.RobotUse(ROBOT_USE_ROUTES) && (getNumRentedRoutes() == 0)) {
@@ -741,6 +741,14 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
 
         /* select route if necessary */
         if (sabotageMode.needRoute()) {
+            if (mRouteToSteal < 0 || mRouteToSteal >= Routen.AnzEntries()) {
+                AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid route selected");
+                return;
+            }
+            if (mRouteToStealFrom < 0 || mRouteToStealFrom >= Sim.Players.Players.AnzEntries()) {
+                AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid player selected");
+                return;
+            }
             qPlayer.ArabPlaneSelection = mRouteToSteal;
             target = mRouteToStealFrom;
             AT_Log("Bot::actionSabotage(): Stealing route %s from %s", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
@@ -1150,16 +1158,22 @@ void Bot::actionVisitRouteBox() {
 }
 
 void Bot::actionRentRoute() {
-    if (!mDoRoutes) {
-        /* kill routes rented at beginning of game */
-        const auto &qRRouten = qPlayer.RentRouten.RentRouten;
-        for (SLONG routeID = 0; routeID < qRRouten.AnzEntries(); routeID++) {
-            if (qRRouten[routeID].Rang != 0) {
+    if (mRoutesToRemove) {
+        /* kill routes marked for deletion (no plane type id assigned) */
+        /* this includes routes that were rented at the beginning of the game */
+        for (SLONG i = 0; i < mRoutes.size(); i++) {
+            const auto &route = mRoutes[i];
+            SLONG routeID = route.routeId;
+            if (route.planeTypeId == -1) {
                 GameMechanic::killRoute(qPlayer, routeID);
-                AT_Log("Bot::RobotInit(): Removing initial route %s", Helper::getRouteName(Routen[routeID]).c_str());
+                removeRoute(i);
+                AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
             }
         }
+        mRoutesToRemove = false;
+    }
 
+    if (!mDoRoutes) {
         /* in route mission, do not loose any time! */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
@@ -1168,41 +1182,23 @@ void Bot::actionRentRoute() {
         return;
     }
 
+    if (mWantToRentRouteId == -1) {
+        AT_Log("Bot::actionRentRoute(): No route marked for renting.");
+        return;
+    }
+
     auto routeA = mWantToRentRouteId;
     mWantToRentRouteId = -1;
     assert(routeA != -1);
 
-    /* find route in reverse direction */
-    SLONG routeB = -1;
-    for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
-        if ((Routen.IsInAlbum(c) != 0) && Routen[c].VonCity == Routen[routeA].NachCity && Routen[c].NachCity == Routen[routeA].VonCity) {
-            routeB = c;
-            break;
-        }
-    }
-    if (-1 == routeB) {
-        AT_Error("Bot::actionRentRoute: Unable to find route in reverse direction.");
-        return;
-    }
-
     /* rent route */
     if (!GameMechanic::rentRoute(qPlayer, routeA)) {
-        AT_Error("Bot::actionRentRoute: Failed to rent route.");
+        AT_Error("Bot::actionRentRoute(): Failed to rent route.");
         return;
     }
-    mRoutes.emplace_back(routeA, routeB, mPlaneTypeForNewRoute);
-    mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
-    AT_Log("Bot::actionRentRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
-           PlaneTypes[mPlaneTypeForNewRoute].Name.c_str());
-    mPlaneTypeForNewRoute = -1;
 
-    /* update sorted list */
-    assert(mRoutes.size() > 0);
-    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
-    for (SLONG i = mRoutesSortedByOwnUtilization.size() - 1; i >= 1; i--) {
-        mRoutesSortedByOwnUtilization[i] = mRoutesSortedByOwnUtilization[i - 1];
-    }
-    mRoutesSortedByOwnUtilization[0] = mRoutes.size() - 1;
+    addNewRoute(routeA, mPlaneTypeForNewRoute);
+    mPlaneTypeForNewRoute = -1;
 
     /* use existing planes */
     for (auto id : mPlanesForNewRoute) {
