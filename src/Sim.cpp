@@ -59,7 +59,7 @@ void CalcPlayerMaximums(bool bForce);
 
 // Daten des aktuellen Savegames beim laden:
 SLONG SaveVersion = 1;
-SLONG SaveVersionSub = 202;
+SLONG SaveVersionSub = 203;
 
 // Öffnungszeiten:
 extern SLONG timeDutyOpen;
@@ -2544,14 +2544,23 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
 
     auto plane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd, CPlaneType::Available::MUSEUM), UBYTE(rnd.Rand(80) + 11), 1900);
 
-    // if (PlaneTypes[plane.TypeId].Erstbaujahr<1990)
+    bool isOldPlaneFromReleaseVersion = true;
     if (plane.ptErstbaujahr < 1990) {
-        // plane.Baujahr = 1990-rnd.Rand (1990-PlaneTypes[plane.TypeId].Erstbaujahr);
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1990);
     } else if (plane.ptErstbaujahr < 1996) {
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1996);
-    } else {
+    } else if (plane.ptErstbaujahr < 1999) {
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1999);
+    } else {
+        SLONG planeAge = rnd.getRandInt(1, 6);
+        plane.Baujahr = std::min(plane.ptErstbaujahr + planeAge, kCurrentYear);
+        isOldPlaneFromReleaseVersion = false;
+    }
+
+    if (isOldPlaneFromReleaseVersion) {
+        /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+        /* Since we are now playing in kCurrentYear, we have to add kYearsSinceRelease to give the old planes the correct age. */
+        plane.Baujahr += kYearsSinceRelease;
     }
 
     plane.Zustand = UBYTE((plane.Baujahr - 1950) + 25 + rnd.Rand(40) - 20);
@@ -3199,7 +3208,7 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     SLONG NumSaveGameCities = Cities.AnzEntries();
 
     SaveVersion = 1;
-    SaveVersionSub = 202; // Version 1.6.1
+    SaveVersionSub = 203; // Version 1.9.1
 
     fs::path path{Filename.c_str()};
     fs::create_directory(path.parent_path());

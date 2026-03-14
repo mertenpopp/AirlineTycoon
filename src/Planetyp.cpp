@@ -273,7 +273,9 @@ CPlane::CPlane(const CString &Name, ULONG TypeId, UBYTE Zustand, SLONG Baujahr) 
 //--------------------------------------------------------------------------------------------
 SLONG CPlane::CalculatePrice() const {
     // SLONG rc = SLONG(__int64(PlaneTypes[TypeId].Preis) * Zustand/10000 * Zustand * (Baujahr-1900) / 120);
-    auto rc = SLONG(__int64(ptPreis) * Zustand / 10000 * Zustand * (Baujahr - 1900) / 120);
+    auto rc = SLONG(__int64(ptPreis) * Zustand / 10000 * Zustand * (Baujahr - kYearsSinceRelease - 1900) / 120);
+    /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+    /* We have added kYearsSinceRelease to all build years and have to subtract it here to get the same value as before. */
 
     if (Sponsored != 0) {
         rc /= 10;
@@ -1451,6 +1453,10 @@ TEAKFILE &operator>>(TEAKFILE &File, CPlane &Plane) {
     File >> Plane.WorstZustand;
     File >> Plane.Baujahr >> Plane.AnzPiloten >> Plane.AnzBegleiter;
     File >> Plane.MaxBegleiter;
+
+    if (SaveVersionSub < 203) {
+        Plane.Baujahr += kYearsSinceRelease;
+    }
 
     File >> Plane.Sitze >> Plane.SitzeTarget;
     File >> Plane.Essen >> Plane.EssenTarget;

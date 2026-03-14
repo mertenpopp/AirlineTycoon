@@ -1010,7 +1010,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
 
     // Flugzeugabnutzung verbuchen:
     double faktorDistanz = (1 + 10.0 * Cities.CalcDistance(VonCity, NachCity) / 40040174);
-    double faktorBaujahr = (2015 - Plane->Baujahr);
+    double faktorBaujahr = (2015 + kYearsSinceRelease -
+                            Plane->Baujahr); /* original formular was (2015 - Plane->Baujahr). Also, all buyable planes were built no later than 2002. To ensure
+                                                code works the same when planes are built in kCurrentYear, we have to add kYearsSinceRelease.*/
     double faktorKerosin = 1.0;
     if (KerosinGesamtQuali > 1.0) {
         faktorKerosin += 10 * (KerosinGesamtQuali - 1.0) * (KerosinGesamtQuali - 1.0);

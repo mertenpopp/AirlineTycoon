@@ -421,7 +421,7 @@ void Bot::actionMuseumCheckPlanes() {
         DOUBLE score = 1.0 * 1e9; /* multiplication (geometric mean) because values have wildly different ranges */
         score *= qPlane.ptPassagiere * qPlane.ptPassagiere;
         score /= qPlane.ptVerbrauch;
-        score /= (2015 - qPlane.Baujahr);
+        score /= (2015 + kYearsSinceRelease - qPlane.Baujahr);
 
         auto worstZustand = qPlane.Zustand - 20;
         SLONG improvementNeeded = std::max(0, 80 - worstZustand);

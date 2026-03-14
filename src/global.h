@@ -489,3 +489,6 @@ extern const SLONG BTARGET_DAYS7;      // Spielziel ATFS-Level 7
 extern const SLONG BTARGET_VERBRAUCH;  // Spielziel ATFS-Level 8
 extern const SLONG BTARGET_NDAYS9;     // Spielziel ATFS-Level 9
 extern const SLONG BTARGET_NDAYS10;    // Spielziel ATFS-Level 10
+
+inline constexpr SLONG kCurrentYear{2026};
+inline constexpr SLONG kYearsSinceRelease{kCurrentYear - 2002};
