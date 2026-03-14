@@ -646,7 +646,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 100;
+    SLONG savegameVersion = 101;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -726,7 +726,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
         File << i;
     }
 
-    File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated;
+    File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated << bot.mRoutesToRemove;
     File << static_cast<SLONG>(bot.mRoutesNextStep) << bot.mImproveRouteId;
     File << bot.mRouteToSteal << bot.mRouteToStealFrom << bot.mSabotageSeed;
 
@@ -876,10 +876,22 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
 
     File >> bot.mRoutesUpdated >> bot.mRoutesUtilizationUpdated;
+    if (savegameVersion < 101) {
+        bot.mRoutesToRemove = -1;
+    } else {
+        File >> bot.mRoutesToRemove;
+    }
     SLONG routesNextStep = 0;
     File >> routesNextStep >> bot.mImproveRouteId;
     bot.mRoutesNextStep = static_cast<Bot::RoutesNextStep>(routesNextStep);
-    File >> bot.mRouteToSteal >> bot.mRouteToStealFrom >> bot.mSabotageSeed;
+    if (savegameVersion < 101) {
+        /* sabotage was not yet implemented, so we read old values into the new variables with default values */
+        bot.mRouteToSteal = -1;
+        bot.mRouteToStealFrom = -1;
+        bot.mSabotageSeed = bot.LocalRandom.getRandInt(0, INT32_MAX);
+    } else {
+        File >> bot.mRouteToSteal >> bot.mRouteToStealFrom >> bot.mSabotageSeed;
+    }
 
     File >> bot.mNumEmployees >> bot.mExtraPilots >> bot.mExtraBegleiter;
 

@@ -944,11 +944,10 @@ Bot::Prio Bot::condVisitRouteBoxRenting() {
     /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
 
     Prio prio = Prio::None;
-    if (!mDoRoutes) {
-        if (getNumRentedRoutes() > 0) {
-            prio = std::max(prio, Prio::Low);
-        }
-    } else {
+    if (mRoutesToRemove) {
+        prio = std::max(prio, Prio::Low);
+    }
+    if (mDoRoutes) {
         bool shallRentNewRoute = true;
         if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
             shallRentNewRoute = false;

@@ -734,7 +734,7 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
             SLONG numRoutes = Sim.Players.Players[mNemesis].Statistiken[STAT_ROUTEN].GetAtPastDay(0);
             nemesisHasRoutes = (numRoutes >= 4);
         }
-        bool routeTheft = (earlyGame || (mRouteToSteal == -1));
+        bool routeTheftPossible = (!earlyGame && (mRouteToSteal != -1));
 
         struct Candidate {
             SabotageMode mode;
@@ -758,7 +758,7 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
         candidates.push_back({SabotageMode::Special::FalsePressRelease, (nemesisHasRoutes ? 10 : 0)});
         candidates.push_back({SabotageMode::Special::BankHack, (nemesisBroke ? 50 : 5)});
         candidates.push_back({SabotageMode::Special::GroundAircraft, 10});
-        candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheft ? 0 : 10)});
+        candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheftPossible ? 10 : 0)});
 
         // SLONG hintRemaining = std::max(0, kMaxSabotageHints - mArabHintsTracker);
         for (auto &candidate : candidates) {
@@ -815,26 +815,48 @@ SLONG Bot::getNumRentedRoutes() const {
             numRented++;
         }
     }
-    return numRented;
+    assert(numRented % 2 == 0);
+    return (numRented / 2);
 }
 
-void Bot::checkLostRoutes() {
-    if (mRoutes.empty()) {
-        return;
+void Bot::checkRentedRoutes() {
+    /* check for additional routes */
+    const auto &qRRouten = qPlayer.RentRouten.RentRouten;
+    for (SLONG routeId = 0; routeId < qRRouten.AnzEntries(); routeId++) {
+        const auto &rentRoute = qRRouten[routeId];
+        if (rentRoute.Rang == 0) {
+            continue;
+        }
+        bool found = false;
+        for (const auto &route : mRoutes) {
+            if (route.routeId == routeId || route.routeReverseId == routeId) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            AT_Log("Bot::checkRentedRoutes(): We found a new rented route: %s", Helper::getRouteName(Routen[routeId]).c_str());
+            addNewRoute(routeId, -1);
+            mRoutesToRemove = true;
+        } else {
+            AT_Log("Bot::checkRentedRoutes(): Route %s is still there.", Helper::getRouteName(Routen[routeId]).c_str());
+        }
+    }
+
+    if (!mDoRoutes) {
+        return; /* we do not care about routes, so we do not need to check whether some got lost */
     }
 
     auto numRented = getNumRentedRoutes();
-    assert(numRented % 2 == 0);
-    assert(numRented / 2 <= mRoutes.size());
-    if (numRented / 2 >= mRoutes.size()) {
+    assert(numRented <= mRoutes.size());
+    if (numRented >= mRoutes.size()) {
         return; /* alles ok */
     }
 
-    AT_Error("We lost %d routes!", mRoutes.size() - numRented / 2);
+    AT_Error("We lost %d routes!", mRoutes.size() - numRented);
 
     std::vector<RouteInfo> routesNew;
     std::vector<SLONG> planesForRoutesNew;
-    const auto &qRRouten = qPlayer.RentRouten.RentRouten;
     for (const auto &route : mRoutes) {
         if (qRRouten[route.routeId].Rang != 0) {
             /* route still exists */
@@ -847,7 +869,7 @@ void Bot::checkLostRoutes() {
             for (auto planeId : route.planeIds) {
                 mPlanesForRoutesUnassigned.push_back(planeId);
                 GameMechanic::clearFlightPlan(qPlayer, planeId);
-                AT_Log("Bot::checkLostRoutes(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
+                AT_Log("Bot::checkRentedRoutes(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
             }
         }
     }
@@ -939,6 +961,7 @@ void Bot::updateRouteInfoBoard() {
 
                 if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
                     mRouteToSteal = route.routeId;
+                    mRouteToStealFrom = i;
                     routeToStealUtil = qRentRoute.RoutenAuslastungBot;
                 }
             }
@@ -960,6 +983,7 @@ void Bot::updateRouteInfoBoard() {
 
                 if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
                     mRouteToSteal = c;
+                    mRouteToStealFrom = i;
                     routeToStealUtil = qRentRoute.RoutenAuslastungBot;
                 }
             }
@@ -967,8 +991,8 @@ void Bot::updateRouteInfoBoard() {
     }
 
     if (mRouteToSteal != -1) {
-        AT_Log("Bot::updateRouteInfoBoard(): Best route to steal is %s: %d max. utilization", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
-               routeToStealUtil);
+        AT_Log("Bot::updateRouteInfoBoard(): Best route to steal is %s from %s: %d max. utilization", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
+               Sim.Players.Players[mRouteToStealFrom].AirlineX.c_str(), routeToStealUtil);
     }
 
     /* generate strategy for routes */
@@ -1212,6 +1236,7 @@ void Bot::findBestRoute() {
 
     /* sort routes by score */
     std::sort(bestRoutes.begin(), bestRoutes.end());
+    SLONG counter = 0;
     for (const auto &candidate : bestRoutes) {
         if (!candidate.planeId.empty()) {
             AT_Log("Bot::actionFindBestRoute(): Score of route %s (using %d existing planes, need %d) is: %.2f",
@@ -1220,6 +1245,9 @@ void Bot::findBestRoute() {
             AT_Log("Bot::actionFindBestRoute(): Score of route %s (using plane type %s, need %d) is: %.2f",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), PlaneTypes[candidate.planeTypeId].Name.c_str(), candidate.numPlanesToBuy,
                    candidate.score);
+        }
+        if (++counter >= 5) {
+            break; /* only print top 5 candidates */
         }
     }
 
@@ -1242,6 +1270,65 @@ void Bot::findBestRoute() {
     }
 
     AT_Log("Bot::actionFindBestRoute(): No routes match criteria.");
+}
+
+bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
+    /* find route in reverse direction */
+    SLONG routeB = -1;
+    for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
+        if ((Routen.IsInAlbum(c) != 0) && Routen[c].VonCity == Routen[routeA].NachCity && Routen[c].NachCity == Routen[routeA].VonCity) {
+            routeB = c;
+            break;
+        }
+    }
+    if (-1 == routeB) {
+        AT_Error("Bot::addNewRoute(): Unable to find route in reverse direction.");
+        return false;
+    }
+
+    mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute);
+    mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
+    if (planeTypeForNewRoute != -1) {
+        AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
+               PlaneTypes[planeTypeForNewRoute].Name.c_str());
+    }
+
+    /* update sorted list */
+    assert(mRoutes.size() > 0);
+    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
+    for (SLONG i = mRoutesSortedByOwnUtilization.size() - 1; i >= 1; i--) {
+        mRoutesSortedByOwnUtilization[i] = mRoutesSortedByOwnUtilization[i - 1];
+    }
+    mRoutesSortedByOwnUtilization[0] = mRoutes.size() - 1;
+
+    return true;
+}
+
+bool Bot::removeRoute(SLONG routeIdx) {
+    if (routeIdx < 0 || routeIdx >= mRoutes.size()) {
+        AT_Error("Bot::removeRoute(): Invalid route index %d", routeIdx);
+        return false;
+    }
+
+    auto &qRoute = mRoutes[routeIdx];
+    for (auto planeId : qRoute.planeIds) {
+        mPlanesForRoutesUnassigned.push_back(planeId);
+        GameMechanic::clearFlightPlan(qPlayer, planeId);
+        AT_Log("Bot::removeRoute(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
+    }
+
+    mRoutes.erase(mRoutes.begin() + routeIdx);
+
+    /* update sorted list */
+    mRoutesSortedByOwnUtilization.erase(std::remove(mRoutesSortedByOwnUtilization.begin(), mRoutesSortedByOwnUtilization.end(), routeIdx),
+                                        mRoutesSortedByOwnUtilization.end());
+    for (auto &idx : mRoutesSortedByOwnUtilization) {
+        if (idx > routeIdx) {
+            idx--;
+        }
+    }
+
+    return true;
 }
 
 void Bot::planRoutes() {
