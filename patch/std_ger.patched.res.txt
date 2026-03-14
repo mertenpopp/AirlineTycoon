@@ -1299,6 +1299,15 @@
 // Jobs
 //
 >Jobs
+>>0002001
+  B::Consultor de funcionários
+  E::Staff advisor
+  F::Conseillère ressources humaines
+  I::Consulente del personale
+  N::Personeelsadviseur
+  O::Conselheira de pessoal
+  S::Asesora de personal
+  D::Personalberaterin
 >>0002003
   B::Consultor de rotas
   E::Route advisor
