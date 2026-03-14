@@ -527,11 +527,28 @@ void CWorkers::NewDay() {
         }
     }
 
-    SLONG AnzahlBerater = 10 + LocalRand.Rand(2);
+    std::array<std::pair<SLONG, SLONG>, 9> AnzahlBerater{{{BERATERTYP_PERSONAL, 0},
+                                                          {BERATERTYP_KEROSIN, 0},
+                                                          {BERATERTYP_ROUTE, 0},
+                                                          {BERATERTYP_AUFTRAG, 0},
+                                                          {BERATERTYP_GELD, 0},
+                                                          {BERATERTYP_INFO, 0},
+                                                          {BERATERTYP_FLUGZEUG, 0},
+                                                          {BERATERTYP_FITNESS, 0},
+                                                          {BERATERTYP_SICHERHEIT, 0}}};
+    for (auto &berater : AnzahlBerater) {
+        if (berater.first == BERATERTYP_PERSONAL || berater.first == BERATERTYP_ROUTE || berater.first == BERATERTYP_FLUGZEUG) {
+            berater.second = LocalRand.Rand(0, 2) / 2; /* not terribly useful: Make them rarer (25% chance) */
+        } else {
+            berater.second = LocalRand.Rand(0, 1); /* 50% chance */
+        }
+    }
+
     SLONG AnzahlPiloten = 10 + LocalRand.Rand(3);
     SLONG AnzahlStewardessen = 50 + LocalRand.Rand(5);
+    bool GibtNochBerater = true;
 
-    while (AnzahlBerater > 0 || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
+    while (GibtNochBerater || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
         m = LocalRand.Rand(Workers.AnzEntries());
 
         SLONG d = 0;
@@ -553,11 +570,17 @@ void CWorkers::NewDay() {
                 Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
                 break;
             }
-            if (AnzahlBerater > 0) {
-                AnzahlBerater--;
-                Workers[idx].Employer = WORKER_JOBLESS;
-                Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
-                break;
+
+            GibtNochBerater = false;
+            for (auto &berater : AnzahlBerater) {
+                if (berater.second > 0) {
+                    GibtNochBerater = true;
+                }
+                if (Workers[idx].Typ == berater.first && berater.second > 0) {
+                    berater.second--;
+                    Workers[idx].Employer = WORKER_JOBLESS;
+                    Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
+                }
             }
         }
 
