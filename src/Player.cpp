@@ -144,7 +144,7 @@ ULONG PLAYER::BuyPlane(ULONG PlaneTypeId, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, kCurrentYear + (Sim.Date / 365)));
 
     Planes[Id].GlobeAngle = 0;
     Planes[Id].MaxBegleiter = SLONG(PlaneTypes[PlaneTypeId + 0x10000000].AnzBegleiter * Planes.GetAvgBegleiter());
@@ -175,7 +175,7 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, kCurrentYear + (Sim.Date / 365)));
 
     CPlane &p = Planes[Id];
 
