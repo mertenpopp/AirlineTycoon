@@ -239,7 +239,7 @@ class Bot {
     void requestPlanRoutes(bool areWeInOffice);
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
-    bool removeRoute(SLONG routeIdx);
+    std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
 
