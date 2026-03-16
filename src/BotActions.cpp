@@ -1161,13 +1161,15 @@ void Bot::actionRentRoute() {
     if (mRoutesToRemove) {
         /* kill routes marked for deletion (no plane type id assigned) */
         /* this includes routes that were rented at the beginning of the game */
-        for (SLONG i = 0; i < mRoutes.size(); i++) {
-            const auto &route = mRoutes[i];
-            SLONG routeID = route.routeId;
-            if (route.planeTypeId == -1) {
+        auto it = mRoutes.begin();
+        while (it != mRoutes.end()) {
+            if (it->planeTypeId == -1) {
+                SLONG routeID = it->routeId;
                 GameMechanic::killRoute(qPlayer, routeID);
-                removeRoute(i);
+                it = removeRoute(it);
                 AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+            } else {
+                ++it; /* only increase if not erased */
             }
         }
         mRoutesToRemove = false;

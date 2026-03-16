@@ -1304,20 +1304,20 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
     return true;
 }
 
-bool Bot::removeRoute(SLONG routeIdx) {
+std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::iterator it) {
+    SLONG routeIdx = std::distance(mRoutes.begin(), it);
     if (routeIdx < 0 || routeIdx >= mRoutes.size()) {
         AT_Error("Bot::removeRoute(): Invalid route index %d", routeIdx);
-        return false;
+        return it;
     }
 
-    auto &qRoute = mRoutes[routeIdx];
-    for (auto planeId : qRoute.planeIds) {
+    for (auto planeId : it->planeIds) {
         mPlanesForRoutesUnassigned.push_back(planeId);
         GameMechanic::clearFlightPlan(qPlayer, planeId);
         AT_Log("Bot::removeRoute(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
     }
 
-    mRoutes.erase(mRoutes.begin() + routeIdx);
+    it = mRoutes.erase(it);
 
     /* update sorted list */
     mRoutesSortedByOwnUtilization.erase(std::remove(mRoutesSortedByOwnUtilization.begin(), mRoutesSortedByOwnUtilization.end(), routeIdx),
@@ -1328,7 +1328,7 @@ bool Bot::removeRoute(SLONG routeIdx) {
         }
     }
 
-    return true;
+    return it;
 }
 
 void Bot::planRoutes() {
