@@ -4932,17 +4932,15 @@ void CStdRaum::MenuRepaint() {
                                    240, 86, 325, 139);
 
             // Neuer Kontostand:
-            auto aktienWert = __int64(Sim.Players.Players[MenuPar1].Kurse[0] * MenuInfo);
-            __int64 gesamtPreis = 0;
+            __int64 kontoNeu = 0;
             if (MenuPar2 == 0) {
-                gesamtPreis = aktienWert + aktienWert / 10 + 100;
+                kontoNeu = GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, false).second;
             } else {
-                gesamtPreis = aktienWert - aktienWert / 10 - 100;
-                gesamtPreis = -gesamtPreis;
+                kontoNeu = GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo, false).second;
             }
 
             OnscreenBitmap.PrintAt(StandardTexte.GetS(TOKEN_AKTIE, 3030), qFontBankBlack, TEC_FONT_LEFT, 30, 111, 325, 139);
-            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString64(__int64(qPlayer.Money - gesamtPreis)), qFontBankBlack, TEC_FONT_LEFT, 220, 111, 325, 139);
+            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString64(kontoNeu), qFontBankBlack, TEC_FONT_LEFT, 220, 111, 325, 139);
         }
         break;
 
@@ -6794,13 +6792,13 @@ void CStdRaum::MenuLeftClick(XY Pos) {
 
                 MenuStop();
 
-                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo)) {
+                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, true).second) {
                     MakeSayWindow(0, TOKEN_BANK, 6000, pFontPartner);
                 }
             } else if (MenuPar2 == 1) // verkaufen
             {
                 MenuStop();
-                GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo);
+                GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo, true);
             }
         }
 
