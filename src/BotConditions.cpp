@@ -928,14 +928,16 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     }
 
     Prio prio = Prio::None;
-    if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
-        prio = std::max(prio, Prio::Medium); /* execute route strategy */
-    }
     if (!mRoutesUtilizationUpdated) {
         prio = std::max(prio, Prio::Medium); /* update cached route info */
     }
     if (mRoutesUpdated && mRoutesNextStep == RoutesNextStep::None) {
         prio = std::max(prio, Prio::Medium); /* generate route strategy if other info is already updated */
+    }
+    if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
+        if (hoursPassed(ACTION_VISITROUTEBOX, 24)) {
+            prio = std::max(prio, Prio::Medium); /* try to find new route once per day */
+        }
     }
     return prio;
 }
