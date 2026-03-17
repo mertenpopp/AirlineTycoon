@@ -72,6 +72,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     mExtraBegleiter = -1;
 
     mArabHintsTracker -= std::min(3, mArabHintsTracker);
+    AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
 
     /* check lists of planes, check which planes are available for service and which are not */
     if (checkPlaneLists()) {
@@ -87,7 +88,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
-            AT_Log("Bot::RobotInit(): Switching to routes (forced).");
+            AT_Log("Bot::actionStartDay(): Switching to routes (forced).");
         } else if (mBestPlaneTypeId != -1) {
             const auto &bestPlaneType = PlaneTypes[mBestPlaneTypeId];
             SLONG costRouteAd = gWerbePrice[1 * 6 + 5];
@@ -126,7 +127,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         }
     }
     if (numToPlan > 0) {
-        AT_Log("Bot::RobotInit(): Have %d jobs to plan", numToPlan);
+        AT_Log("Bot::actionStartDay(): Have %d jobs to plan", numToPlan);
         BotPlaner planer(qPlayer, qPlayer.Planes);
         grabFlights(planer, true);
     }
