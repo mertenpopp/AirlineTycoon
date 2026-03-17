@@ -16,6 +16,7 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
+#include <random>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -100,8 +101,10 @@ void Bot::determineNemesis() {
         return;
     }
 
+    /* check scores */
     SLONG enemiesBetterThanMe = 0;
     __int64 myScore = getNemesisScore(qPlayer.PlayerNum);
+    std::vector<std::pair<SLONG, __int64>> scores;
     for (SLONG p = 0; p < 4; p++) {
         auto &qTarget = Sim.Players.Players[p];
         if (p == qPlayer.PlayerNum || qTarget.IsOut != 0) {
@@ -109,26 +112,47 @@ void Bot::determineNemesis() {
         }
 
         __int64 score = getNemesisScore(p);
-        if (score > mNemesisScore && p != nemesisSabotaged) {
-            mNemesis = p;
-            mNemesisScore = score;
-        }
+        scores.push_back({p, score});
         if (score > myScore) {
             enemiesBetterThanMe++;
         }
     }
-    if (-1 != mNemesis) {
-        if (nemesisOld != mNemesis) {
-            AT_Log("Bot::determineNemesis(): Our nemesis now is %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
-                   Insert1000erDots64(mNemesisScore).c_str());
+    mMood = enemiesBetterThanMe;
+    AT_Log("Bot::determineNemesis(): Our score is %s, this puts us on place %d", Insert1000erDots64(myScore).c_str(), enemiesBetterThanMe + 1);
+    if (scores.empty()) {
+        AT_Log("Bot::determineNemesis(): No enemies found.");
+        return;
+    }
+
+    /* find best enemy */
+    std::sort(scores.begin(), scores.end(), [](const auto &a, const auto &b) { return std::get<1>(a) > std::get<1>(b); });
+    mNemesis = scores.front().first;
+    mNemesisScore = scores.front().second;
+    if (mNemesis == nemesisSabotaged && scores.size() > 1) {
+        mNemesis = scores[1].first;
+        mNemesisScore = scores[1].second;
+    }
+
+    for (const auto &[p, score] : scores) {
+        if (p == mNemesis && p == nemesisOld) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [remains our nemesis]", Sim.Players.Players[p].AirlineX.c_str(),
+                   Insert1000erDots64(score).c_str());
+        } else if (p == mNemesis) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [new nemesis]", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
+        } else if (p == nemesisOld) {
+            AT_Log("Bot::determineNemesis(): %s has score %s [old nemesis]", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
         } else {
-            AT_Log("Bot::determineNemesis(): Our nemesis is still %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
-                   Insert1000erDots64(mNemesisScore).c_str());
+            AT_Log("Bot::determineNemesis(): %s has score %s", Sim.Players.Players[p].AirlineX.c_str(), Insert1000erDots64(score).c_str());
         }
     }
 
-    mMood = enemiesBetterThanMe;
-    AT_Log("Bot::determineNemesis(): Our score is %s, this puts us on place %d", Insert1000erDots64(myScore).c_str(), enemiesBetterThanMe + 1);
+    if (nemesisOld != mNemesis) {
+        AT_Log("Bot::determineNemesis(): Our nemesis now is %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
+               Insert1000erDots64(mNemesisScore).c_str());
+    } else {
+        AT_Log("Bot::determineNemesis(): Our nemesis is still %s with a score of %s", Sim.Players.Players[mNemesis].AirlineX.c_str(),
+               Insert1000erDots64(mNemesisScore).c_str());
+    }
 }
 
 void Bot::switchToFinalTarget() {
@@ -678,36 +702,109 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
     return res;
 }
 
-bool Bot::determineSabotageMode(__int64 moneyAvailable, SLONG &jobType, SLONG &jobNumber, SLONG &jobHints) {
-    std::array<SLONG, 5> hintArray1{2, 4, 10, 20, 100};
-    std::array<SLONG, 4> hintArray2{8, 0, 25, 40};
-    /* std::array<SLONG, 6> hintArray3{8, 15, 25, 30, 50, 70}; */
+SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
+    SabotageMode sabotageMode;
+    if (qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
+        /* special mode for specific missions */
+        bool stockPriceSabotage = (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07);
+        bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
+        if (stockPriceSabotage) {
+            /* sabotage planes to damage enemy stock price in stock price competitions */
+            sabotageMode = {SabotageMode::Plane::EngineBreakdown, qPlayer.ArabTrust};
+        } else if (delaySabotage) {
+            /* sabotage plane tire to delay next start in miles&more mission */
+            sabotageMode = {SabotageMode::Plane::FlatTire, qPlayer.ArabTrust};
+        } else {
+            sabotageMode = SabotageMode::Personal::CoffeeBacteria;
+        }
+    } else { /* regular mode */
+        /* check some conditions for what could be a good sabotage */
+        bool earlyGame = (Sim.Date < 15);
+        bool nemesisBroke = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
+            nemesisBroke = (Sim.Players.Players[mNemesis].Money < 1e6);
+        }
+        bool nemesisManyOffices = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) >= 50)) {
+            SLONG numOffices = Sim.Players.Players[mNemesis].Statistiken[STAT_NIEDERLASSUNGEN].GetAtPastDay(0);
+            nemesisManyOffices = (numOffices >= 5);
+        }
+        bool nemesisHasRoutes = false;
+        if ((mNemesis != -1) && (qPlayer.HasBerater(BERATERTYP_INFO) >= 40)) {
+            SLONG numRoutes = Sim.Players.Players[mNemesis].Statistiken[STAT_ROUTEN].GetAtPastDay(0);
+            nemesisHasRoutes = (numRoutes >= 4);
+        }
+        bool routeTheftPossible = (!earlyGame && (mRouteToSteal != -1));
 
-    /* decide which sabotage to use. Default: Spiked coffee */
-    jobType = 1;
-    jobNumber = 1;
-    jobHints = hintArray2[jobNumber - 1];
-    SLONG jobCost = SabotagePrice2[jobNumber - 1];
+        struct Candidate {
+            SabotageMode mode;
+            int weight;
+        };
+        std::vector<Candidate> candidates;
+        // Plane sabotage candidates
+        candidates.push_back({SabotageMode::Plane::SaltedFood, 1});
+        candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 1});
+        candidates.push_back({SabotageMode::Plane::FlatTire, 5});
+        candidates.push_back({SabotageMode::Plane::EngineBreakdown, 10});
+        candidates.push_back({SabotageMode::Plane::PlaneCrash, 0});
+        // Personal sabotage candidates
+        candidates.push_back({SabotageMode::Personal::CoffeeBacteria, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::NotebookVirus, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::OfficeBomb, (earlyGame ? 10 : 1)});
+        candidates.push_back({SabotageMode::Personal::ProvokeStrike, 5});
+        // Special candidates
+        candidates.push_back({SabotageMode::Special::AircraftBrochures, 1});
+        candidates.push_back({SabotageMode::Special::CutTelephones, (nemesisManyOffices ? 10 : 0)});
+        candidates.push_back({SabotageMode::Special::FalsePressRelease, (nemesisHasRoutes ? 10 : 0)});
+        candidates.push_back({SabotageMode::Special::BankHack, (nemesisBroke ? 50 : 5)});
+        candidates.push_back({SabotageMode::Special::GroundAircraft, 10});
+        candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheftPossible ? 10 : 0)});
 
-    /* sabotage planes to damage enemy stock price in stock price competitions */
-    bool stockPriceSabotage = (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07);
-    /* sabotage plane tire to delay next start in miles&more mission */
-    bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
-    if (stockPriceSabotage || delaySabotage) {
-        jobType = 0;
-        jobNumber = std::min((stockPriceSabotage ? 4 : 3), qPlayer.ArabTrust);
-        jobHints = hintArray1[jobNumber - 1];
-        jobCost = SabotagePrice[jobNumber - 1];
+        // SLONG hintRemaining = std::max(0, kMaxSabotageHints - mArabHintsTracker);
+        for (auto &candidate : candidates) {
+            // if (candidate.mode.getJobHints() > hintRemaining) {
+            //     candidate.weight = 0; /* cannot take this candidate because we would get caught */
+            // }
+            // if (candidate.mode.getJobCost() > moneyAvailable) {
+            //     candidate.weight = 0; /* cannot take this candidate because we do not have enough money */
+            // }
+            if (candidate.mode.getJobNumber() > qPlayer.ArabTrust) {
+                candidate.weight = 0; /* cannot take this candidate because we do not have enough trust */
+            }
+            if (qPlayer.ArabTrust < 6 && candidate.mode.getJobNumber() == qPlayer.ArabTrust) {
+                if (candidate.weight > 0) {
+                    candidate.weight = std::max(10, candidate.weight); /* if we are just at the edge of being able to do this sabotage, increase its weight to
+                                                                          have a better chance to get more trust */
+                }
+            }
+        }
+
+        /* select a candidate based on weights */
+        std::vector<double> weights;
+        for (const auto &c : candidates) {
+            weights.push_back(c.weight);
+        }
+        std::discrete_distribution dist(weights.begin(), weights.end());
+        /* selected sabotage shall not change unless mSabotageSeed changes. It is increased after each executed sabotage */
+        std::mt19937_64 gen(mSabotageSeed);
+        int idx = dist(gen);
+        sabotageMode = candidates[idx].mode;
+        if (print) {
+            AT_Log(
+                "Bot::determineSabotageMode(): Selected sabotage mode '%s' with weight %d (chance: %.2f%%, trust needed: %d/%d, job hints: %d, job cost: %lld)",
+                sabotageMode.getName().c_str(), candidates[idx].weight, 100 * dist.probabilities()[idx], sabotageMode.getJobNumber(), qPlayer.ArabTrust,
+                sabotageMode.getJobHints(), sabotageMode.getJobCost());
+        }
     }
 
     /* check preconditions */
-    if (mArabHintsTracker + jobHints > kMaxSabotageHints) {
-        return false; /* wait until we won't be caught */
+    if (mArabHintsTracker + sabotageMode.getJobHints() > kMaxSabotageHints) {
+        return {}; /* wait until we won't be caught */
     }
-    if (jobCost > moneyAvailable) {
-        return false; /* wait until we have enough money */
+    if (sabotageMode.getJobCost() > moneyAvailable) {
+        return {}; /* wait until we have enough money */
     }
-    return true;
+    return sabotageMode;
 }
 
 SLONG Bot::getNumRentedRoutes() const {
@@ -718,26 +815,48 @@ SLONG Bot::getNumRentedRoutes() const {
             numRented++;
         }
     }
-    return numRented;
+    assert(numRented % 2 == 0);
+    return (numRented / 2);
 }
 
-void Bot::checkLostRoutes() {
-    if (mRoutes.empty()) {
-        return;
+void Bot::checkRentedRoutes() {
+    /* check for additional routes */
+    const auto &qRRouten = qPlayer.RentRouten.RentRouten;
+    for (SLONG routeId = 0; routeId < qRRouten.AnzEntries(); routeId++) {
+        const auto &rentRoute = qRRouten[routeId];
+        if (rentRoute.Rang == 0) {
+            continue;
+        }
+        bool found = false;
+        for (const auto &route : mRoutes) {
+            if (route.routeId == routeId || route.routeReverseId == routeId) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            AT_Log("Bot::checkRentedRoutes(): We found a new rented route: %s", Helper::getRouteName(Routen[routeId]).c_str());
+            addNewRoute(routeId, -1);
+            mRoutesToRemove = true;
+        } else {
+            AT_Log("Bot::checkRentedRoutes(): Route %s is still there.", Helper::getRouteName(Routen[routeId]).c_str());
+        }
+    }
+
+    if (!mDoRoutes) {
+        return; /* we do not care about routes, so we do not need to check whether some got lost */
     }
 
     auto numRented = getNumRentedRoutes();
-    assert(numRented % 2 == 0);
-    assert(numRented / 2 <= mRoutes.size());
-    if (numRented / 2 >= mRoutes.size()) {
+    assert(numRented <= mRoutes.size());
+    if (numRented >= mRoutes.size()) {
         return; /* alles ok */
     }
 
-    AT_Error("We lost %d routes!", mRoutes.size() - numRented / 2);
+    AT_Error("We lost %d routes!", mRoutes.size() - numRented);
 
     std::vector<RouteInfo> routesNew;
     std::vector<SLONG> planesForRoutesNew;
-    const auto &qRRouten = qPlayer.RentRouten.RentRouten;
     for (const auto &route : mRoutes) {
         if (qRRouten[route.routeId].Rang != 0) {
             /* route still exists */
@@ -750,7 +869,7 @@ void Bot::checkLostRoutes() {
             for (auto planeId : route.planeIds) {
                 mPlanesForRoutesUnassigned.push_back(planeId);
                 GameMechanic::clearFlightPlan(qPlayer, planeId);
-                AT_Log("Bot::checkLostRoutes(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
+                AT_Log("Bot::checkRentedRoutes(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
             }
         }
     }
@@ -822,6 +941,8 @@ void Bot::updateRouteInfoOffice() {
 void Bot::updateRouteInfoBoard() {
     /* copy most import information from routes
      * copy information that is available when visiting the route board */
+    mRouteToSteal = -1;
+    SLONG routeToStealUtil = 0;
     for (auto &route : mRoutes) {
         route.image = getRentRoute(route).Image;
         route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
@@ -837,11 +958,41 @@ void Bot::updateRouteInfoBoard() {
             if (qRentRoute.RoutenAuslastungBot > 0 && i != qPlayer.PlayerNum) {
                 AT_Log("Bot::updateRouteInfoBoard(): Route %s: We (%d utilization) are competing with %s (%d utilization)",
                        Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, qqPlayer.AirlineX.c_str(), qRentRoute.RoutenAuslastungBot);
+
+                if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
+                    mRouteToSteal = route.routeId;
+                    mRouteToStealFrom = i;
+                    routeToStealUtil = qRentRoute.RoutenAuslastungBot;
+                }
             }
         }
         AT_Log("Bot::updateRouteInfoBoard(): Route %s has utilization=%d/%d (%d planes with average utilization=%d/%d)",
                Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(), route.planeUtilization,
                route.planeUtilizationFC);
+    }
+
+    /* find a route to steal even if we have none yet */
+    if (mRouteToSteal == -1) {
+        for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
+            for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+                const auto &qqPlayer = Sim.Players.Players[i];
+                if ((i == qPlayer.PlayerNum) || (qqPlayer.IsOut != 0)) {
+                    continue;
+                }
+                const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[c];
+
+                if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
+                    mRouteToSteal = c;
+                    mRouteToStealFrom = i;
+                    routeToStealUtil = qRentRoute.RoutenAuslastungBot;
+                }
+            }
+        }
+    }
+
+    if (mRouteToSteal != -1) {
+        AT_Log("Bot::updateRouteInfoBoard(): Best route to steal is %s from %s: %d max. utilization", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
+               Sim.Players.Players[mRouteToStealFrom].AirlineX.c_str(), routeToStealUtil);
     }
 
     /* generate strategy for routes */
@@ -1085,6 +1236,7 @@ void Bot::findBestRoute() {
 
     /* sort routes by score */
     std::sort(bestRoutes.begin(), bestRoutes.end());
+    SLONG counter = 0;
     for (const auto &candidate : bestRoutes) {
         if (!candidate.planeId.empty()) {
             AT_Log("Bot::actionFindBestRoute(): Score of route %s (using %d existing planes, need %d) is: %.2f",
@@ -1093,6 +1245,9 @@ void Bot::findBestRoute() {
             AT_Log("Bot::actionFindBestRoute(): Score of route %s (using plane type %s, need %d) is: %.2f",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), PlaneTypes[candidate.planeTypeId].Name.c_str(), candidate.numPlanesToBuy,
                    candidate.score);
+        }
+        if (++counter >= 5) {
+            break; /* only print top 5 candidates */
         }
     }
 
@@ -1115,6 +1270,65 @@ void Bot::findBestRoute() {
     }
 
     AT_Log("Bot::actionFindBestRoute(): No routes match criteria.");
+}
+
+bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
+    /* find route in reverse direction */
+    SLONG routeB = -1;
+    for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
+        if ((Routen.IsInAlbum(c) != 0) && Routen[c].VonCity == Routen[routeA].NachCity && Routen[c].NachCity == Routen[routeA].VonCity) {
+            routeB = c;
+            break;
+        }
+    }
+    if (-1 == routeB) {
+        AT_Error("Bot::addNewRoute(): Unable to find route in reverse direction.");
+        return false;
+    }
+
+    mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute);
+    mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
+    if (planeTypeForNewRoute != -1) {
+        AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
+               PlaneTypes[planeTypeForNewRoute].Name.c_str());
+    }
+
+    /* update sorted list */
+    assert(mRoutes.size() > 0);
+    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
+    for (SLONG i = mRoutesSortedByOwnUtilization.size() - 1; i >= 1; i--) {
+        mRoutesSortedByOwnUtilization[i] = mRoutesSortedByOwnUtilization[i - 1];
+    }
+    mRoutesSortedByOwnUtilization[0] = mRoutes.size() - 1;
+
+    return true;
+}
+
+std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::iterator it) {
+    SLONG routeIdx = std::distance(mRoutes.begin(), it);
+    if (routeIdx < 0 || routeIdx >= mRoutes.size()) {
+        AT_Error("Bot::removeRoute(): Invalid route index %d", routeIdx);
+        return it;
+    }
+
+    for (auto planeId : it->planeIds) {
+        mPlanesForRoutesUnassigned.push_back(planeId);
+        GameMechanic::clearFlightPlan(qPlayer, planeId);
+        AT_Log("Bot::removeRoute(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
+    }
+
+    it = mRoutes.erase(it);
+
+    /* update sorted list */
+    mRoutesSortedByOwnUtilization.erase(std::remove(mRoutesSortedByOwnUtilization.begin(), mRoutesSortedByOwnUtilization.end(), routeIdx),
+                                        mRoutesSortedByOwnUtilization.end());
+    for (auto &idx : mRoutesSortedByOwnUtilization) {
+        if (idx > routeIdx) {
+            idx--;
+        }
+    }
+
+    return it;
 }
 
 void Bot::planRoutes() {

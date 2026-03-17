@@ -71,8 +71,8 @@ class GameMechanic {
     static std::vector<SLONG> buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount);
 
     /* Bank */
-    static bool buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount);
-    static bool sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount);
+    static std::pair<bool, __int64> buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit);
+    static std::pair<bool, __int64> sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit);
 
     enum class OvertakeAirlineResult { Ok, DeniedInvalidParam, DeniedYourAirline, DeniedAlreadyGone, DeniedNoStock, DeniedNotEnoughStock, DeniedEnemyStock };
     static OvertakeAirlineResult canOvertakeAirline(PLAYER &qPlayer, SLONG targetAirline);

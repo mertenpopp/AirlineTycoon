@@ -65,11 +65,14 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     /*  invalidate cached info */
     mRoutesUpdated = false;
     mRoutesUtilizationUpdated = false;
+    mRouteToSteal = -1;
+    mRouteToStealFrom = -1;
     mRoutesNextStep = RoutesNextStep::None;
     mExtraPilots = -1;
     mExtraBegleiter = -1;
 
     mArabHintsTracker -= std::min(3, mArabHintsTracker);
+    AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
 
     /* check lists of planes, check which planes are available for service and which are not */
     if (checkPlaneLists()) {
@@ -77,15 +80,15 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     }
 
     /* check routes */
+    checkRentedRoutes();
     if (mDoRoutes) {
-        checkLostRoutes();
         updateRouteInfoOffice();
         requestPlanRoutes(true);
     } else if (qPlayer.RobotUse(ROBOT_USE_ROUTES) && (getNumRentedRoutes() == 0)) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
-            AT_Log("Bot::RobotInit(): Switching to routes (forced).");
+            AT_Log("Bot::actionStartDay(): Switching to routes (forced).");
         } else if (mBestPlaneTypeId != -1) {
             const auto &bestPlaneType = PlaneTypes[mBestPlaneTypeId];
             SLONG costRouteAd = gWerbePrice[1 * 6 + 5];
@@ -124,7 +127,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         }
     }
     if (numToPlan > 0) {
-        AT_Log("Bot::RobotInit(): Have %d jobs to plan", numToPlan);
+        AT_Log("Bot::actionStartDay(): Have %d jobs to plan", numToPlan);
         BotPlaner planer(qPlayer, qPlayer.Planes);
         grabFlights(planer, true);
     }
@@ -419,7 +422,7 @@ void Bot::actionMuseumCheckPlanes() {
         DOUBLE score = 1.0 * 1e9; /* multiplication (geometric mean) because values have wildly different ranges */
         score *= qPlane.ptPassagiere * qPlane.ptPassagiere;
         score /= qPlane.ptVerbrauch;
-        score /= (2015 - qPlane.Baujahr);
+        score /= (2015 + kYearsSinceRelease - qPlane.Baujahr);
 
         auto worstZustand = qPlane.Zustand - 20;
         SLONG improvementNeeded = std::max(0, 80 - worstZustand);
@@ -701,60 +704,103 @@ void Bot::actionBuyKerosineTank(__int64 moneyAvailable) {
 void Bot::actionSabotage(__int64 moneyAvailable) {
     actionVisitSaboteur();
 
-    if (!qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE) || mNemesis == -1) {
+    if (!qPlayer.RobotUse(ROBOT_USE_MUCH_SABOTAGE) && !qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
         AT_Error("Bot::actionSabotage(): Conditions not met.");
+        return;
     }
-
-    SLONG jobType{-1};
-    SLONG jobNumber{-1};
-    SLONG jobHints{-1};
-    if (!determineSabotageMode(moneyAvailable, jobType, jobNumber, jobHints)) {
+    if (mNemesis == -1) {
+        AT_Error("Bot::actionSabotage(): Have no nemesis yet.");
         return;
     }
 
-    /* exceute sabotage */
-    if (jobType == 0) {
-        const auto &qNemesisPlanes = Sim.Players.Players[mNemesis].Planes;
-        qPlayer.ArabPlaneSelection = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
-        AT_Log("Bot::actionSabotage(): Selecting plane %s", Helper::getPlaneName(qNemesisPlanes[qPlayer.ArabPlaneSelection]).c_str());
-    }
+    for (SLONG saboTry = 0; saboTry < 3; saboTry++) {
+        auto sabotageMode = determineSabotageMode(moneyAvailable, true);
+        if (!sabotageMode.isValid()) {
+            AT_Error("Bot::actionSabotage(): Cannot determine sabotage mode.");
+            return;
+        }
 
-    const auto &nemesisName = Sim.Players.Players[mNemesis].AirlineX;
-    auto ret = GameMechanic::setSaboteurTarget(qPlayer, mNemesis);
-    if (ret != mNemesis) {
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Cannot set as target", nemesisName.c_str());
-        return;
-    }
+        SLONG hintRemaining = std::max(0, kMaxSabotageHints - mArabHintsTracker);
+        AT_Log("Bot::actionSabotage(): Try %d: Selected sabotage mode '%s', hint remaining: %d, money available: %lld", saboTry + 1,
+               sabotageMode.getName().c_str(), hintRemaining, moneyAvailable);
 
-    auto res = GameMechanic::checkPrerequisitesForSaboteurJob(qPlayer, jobType, jobNumber, FALSE).result;
-    switch (res) {
-    case GameMechanic::CheckSabotageResult::Ok:
-        GameMechanic::activateSaboteurJob(qPlayer, FALSE);
-        AT_Log("Bot::actionSabotage(): Sabotaging nemesis %s (jobType = %d, jobNumber = %d)", nemesisName.c_str(), jobType, jobNumber);
-        mNemesisSabotaged = mNemesis; /* ensures that we do not sabotage him again tomorrow */
-        mArabHintsTracker += jobHints;
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedInvalidParam:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Invalid param", nemesisName.c_str());
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedSaboteurBusy:
-        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Saboteur busy", nemesisName.c_str());
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedSecurity:
-        mNeedToShutdownSecurity = true;
-        AT_Log("Bot::actionSabotage(): Cannot sabotage nemesis %s: Blocked by security", nemesisName.c_str());
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedNotEnoughMoney:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough money", nemesisName.c_str());
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedNoLaptop:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Enemy has no laptop", nemesisName.c_str());
-        break;
-    case GameMechanic::CheckSabotageResult::DeniedTrust:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Not enough trust", nemesisName.c_str());
-        break;
-    default:
-        AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Unknown error", nemesisName.c_str());
+        SLONG target = mNemesis;
+
+        /* select plane if required */
+        if (sabotageMode.needPlane()) {
+            const auto &qNemesisPlanes = Sim.Players.Players[mNemesis].Planes;
+            if (qNemesisPlanes.GetNumUsed() == 0) {
+                AT_Error("Bot::actionSabotage(): Cannot sabotage nemesis %s: Has no planes", Sim.Players.Players[mNemesis].AirlineX.c_str());
+                return;
+            }
+            /* pick the larger out of two random planes */
+            SLONG planeA = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
+            SLONG planeB = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
+            qPlayer.ArabPlaneSelection = (qNemesisPlanes[planeA].MaxPassagiere > qNemesisPlanes[planeB].MaxPassagiere) ? planeA : planeB;
+            AT_Log("Bot::actionSabotage(): Selecting plane %s", Helper::getPlaneName(qNemesisPlanes[qPlayer.ArabPlaneSelection]).c_str());
+        }
+
+        /* select route if necessary */
+        if (sabotageMode.needRoute()) {
+            if (mRouteToSteal < 0 || mRouteToSteal >= Routen.AnzEntries()) {
+                AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid route selected");
+                return;
+            }
+            if (mRouteToStealFrom < 0 || mRouteToStealFrom >= Sim.Players.Players.AnzEntries()) {
+                AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid player selected");
+                return;
+            }
+            qPlayer.ArabPlaneSelection = mRouteToSteal;
+            target = mRouteToStealFrom;
+            AT_Log("Bot::actionSabotage(): Stealing route %s from %s", Helper::getRouteName(Routen[mRouteToSteal]).c_str(),
+                   Sim.Players.Players[target].AirlineX.c_str());
+        }
+
+        /* exceute sabotage */
+        const auto &targetName = Sim.Players.Players[target].AirlineX;
+
+        auto ret = GameMechanic::setSaboteurTarget(qPlayer, target);
+        if (ret != target) {
+            AT_Error("Bot::actionSabotage(): Cannot sabotage %s %s: Cannot set as target", (target == mNemesis) ? "nemesis" : "enemy", targetName.c_str());
+            return;
+        }
+
+        auto res = GameMechanic::checkPrerequisitesForSaboteurJob(qPlayer, sabotageMode.getCategory(), sabotageMode.getJobNumber(), FALSE).result;
+        switch (res) {
+        case GameMechanic::CheckSabotageResult::Ok:
+            GameMechanic::activateSaboteurJob(qPlayer, FALSE);
+            AT_Log("Bot::actionSabotage(): Sabotaging %s %s with '%s' (hint cost: %d, job cost: %lld)", (target == mNemesis) ? "nemesis" : "enemy",
+                   targetName.c_str(), sabotageMode.getName().c_str(), sabotageMode.getJobHints(), sabotageMode.getJobCost());
+
+            mArabHintsTracker += sabotageMode.getJobHints();
+            mSabotageSeed += 1;
+            if (qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
+                mNemesisSabotaged = target; /* ensures that we do not sabotage him again tomorrow (missions) */
+            }
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedNoLaptop:
+            AT_Log("Bot::actionSabotage(): Cannot sabotage %s: Enemy has no laptop", targetName.c_str());
+            mSabotageSeed += 1; /* increase counter to change random seed */
+            break;              /* try again */
+        case GameMechanic::CheckSabotageResult::DeniedSaboteurBusy:
+            AT_Log("Bot::actionSabotage(): Cannot sabotage %s: Saboteur busy", targetName.c_str());
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedSecurity:
+            mNeedToShutdownSecurity = true;
+            AT_Log("Bot::actionSabotage(): Cannot sabotage %s: Blocked by security", targetName.c_str());
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedInvalidParam:
+            AT_Error("Bot::actionSabotage(): Cannot sabotage %s: Invalid param", targetName.c_str());
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedNotEnoughMoney:
+            AT_Error("Bot::actionSabotage(): Cannot sabotage %s: Not enough money", targetName.c_str());
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedTrust:
+            AT_Error("Bot::actionSabotage(): Cannot sabotage %s: Not enough trust", targetName.c_str());
+            return;
+        default:
+            AT_Error("Bot::actionSabotage(): Cannot sabotage %s: Unknown error", targetName.c_str());
+        }
     }
 }
 
@@ -814,7 +860,7 @@ void Bot::actionEmitShares() {
         auto amount = calcAmountToBuy(qPlayer.PlayerNum, mOptions.kOwnStockPosessionRatio, moneyAvailable);
         if (amount > 0) {
             AT_Log("Bot::actionEmitShares(): Buying own stock: %lld", amount);
-            GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount);
+            GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount, true);
         }
     }
 }
@@ -828,7 +874,7 @@ void Bot::actionBuyNemesisShares(__int64 moneyAvailable) {
         auto amount = calcAmountToBuy(dislike, 50, moneyAvailable);
         if (amount > 0) {
             AT_Log("Bot::actionBuyNemesisShares(): Buying enemy stock from %s: %lld", qTarget.AirlineX.c_str(), amount);
-            GameMechanic::buyStock(qPlayer, dislike, amount);
+            GameMechanic::buyStock(qPlayer, dislike, amount, true);
             moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyOwnShares;
         }
     }
@@ -838,7 +884,7 @@ void Bot::actionBuyOwnShares(__int64 moneyAvailable) {
     auto amount = calcAmountToBuy(qPlayer.PlayerNum, mOptions.kOwnStockPosessionRatio, moneyAvailable);
     if (amount > 0) {
         AT_Log("Bot::actionBuyOwnShares(): Buying own stock: %lld", amount);
-        GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount);
+        GameMechanic::buyStock(qPlayer, qPlayer.PlayerNum, amount, true);
     }
 }
 
@@ -871,7 +917,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
         __int64 sells = (qPlayer.OwnsAktien[c] - qPlayer.AnzAktien * mOptions.kOwnStockPosessionRatio / 100);
         if (sells > 0) {
             AT_Log("Bot::actionSellShares(): Selling own stock to have no more than %d %%: %lld", mOptions.kOwnStockPosessionRatio, sells);
-            GameMechanic::sellStock(qPlayer, c, sells);
+            GameMechanic::sellStock(qPlayer, c, sells, true);
             return;
         }
     }
@@ -894,7 +940,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
             auto sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
                 AT_Log("Bot::actionSellShares(): Selling own stock: %lld", sells);
-                GameMechanic::sellStock(qPlayer, c, sells);
+                GameMechanic::sellStock(qPlayer, c, sells, true);
             }
         } else if (res == HowToGetMoney::SellAllOwnShares) {
             SLONG c = qPlayer.PlayerNum;
@@ -903,7 +949,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
             auto sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
                 AT_Log("Bot::actionSellShares(): Selling all own stock: %lld", sells);
-                GameMechanic::sellStock(qPlayer, c, sells);
+                GameMechanic::sellStock(qPlayer, c, sells, true);
             }
         } else if (res == HowToGetMoney::SellShares) {
             for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
@@ -915,7 +961,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
                 __int64 sellsMax = qPlayer.OwnsAktien[c];
                 __int64 sells = std::min(sellsMax, sellsNeeded);
                 AT_Log("Bot::actionSellShares(): Selling stock from player %d: %lld", c, sells);
-                GameMechanic::sellStock(qPlayer, c, sells);
+                GameMechanic::sellStock(qPlayer, c, sells, true);
                 break;
             }
         } else {
@@ -1113,16 +1159,24 @@ void Bot::actionVisitRouteBox() {
 }
 
 void Bot::actionRentRoute() {
-    if (!mDoRoutes) {
-        /* kill routes rented at beginning of game */
-        const auto &qRRouten = qPlayer.RentRouten.RentRouten;
-        for (SLONG routeID = 0; routeID < qRRouten.AnzEntries(); routeID++) {
-            if (qRRouten[routeID].Rang != 0) {
+    if (mRoutesToRemove) {
+        /* kill routes marked for deletion (no plane type id assigned) */
+        /* this includes routes that were rented at the beginning of the game */
+        auto it = mRoutes.begin();
+        while (it != mRoutes.end()) {
+            if (it->planeTypeId == -1) {
+                SLONG routeID = it->routeId;
                 GameMechanic::killRoute(qPlayer, routeID);
-                AT_Log("Bot::RobotInit(): Removing initial route %s", Helper::getRouteName(Routen[routeID]).c_str());
+                it = removeRoute(it);
+                AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+            } else {
+                ++it; /* only increase if not erased */
             }
         }
+        mRoutesToRemove = false;
+    }
 
+    if (!mDoRoutes) {
         /* in route mission, do not loose any time! */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
@@ -1131,41 +1185,23 @@ void Bot::actionRentRoute() {
         return;
     }
 
+    if (mWantToRentRouteId == -1) {
+        AT_Log("Bot::actionRentRoute(): No route marked for renting.");
+        return;
+    }
+
     auto routeA = mWantToRentRouteId;
     mWantToRentRouteId = -1;
     assert(routeA != -1);
 
-    /* find route in reverse direction */
-    SLONG routeB = -1;
-    for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
-        if ((Routen.IsInAlbum(c) != 0) && Routen[c].VonCity == Routen[routeA].NachCity && Routen[c].NachCity == Routen[routeA].VonCity) {
-            routeB = c;
-            break;
-        }
-    }
-    if (-1 == routeB) {
-        AT_Error("Bot::actionRentRoute: Unable to find route in reverse direction.");
-        return;
-    }
-
     /* rent route */
     if (!GameMechanic::rentRoute(qPlayer, routeA)) {
-        AT_Error("Bot::actionRentRoute: Failed to rent route.");
+        AT_Error("Bot::actionRentRoute(): Failed to rent route.");
         return;
     }
-    mRoutes.emplace_back(routeA, routeB, mPlaneTypeForNewRoute);
-    mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
-    AT_Log("Bot::actionRentRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
-           PlaneTypes[mPlaneTypeForNewRoute].Name.c_str());
-    mPlaneTypeForNewRoute = -1;
 
-    /* update sorted list */
-    assert(mRoutes.size() > 0);
-    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
-    for (SLONG i = mRoutesSortedByOwnUtilization.size() - 1; i >= 1; i--) {
-        mRoutesSortedByOwnUtilization[i] = mRoutesSortedByOwnUtilization[i - 1];
-    }
-    mRoutesSortedByOwnUtilization[0] = mRoutes.size() - 1;
+    addNewRoute(routeA, mPlaneTypeForNewRoute);
+    mPlaneTypeForNewRoute = -1;
 
     /* use existing planes */
     for (auto id : mPlanesForNewRoute) {

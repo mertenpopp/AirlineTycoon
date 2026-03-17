@@ -263,9 +263,10 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 7, StandardTexte.GetS(TOKEN_MISC, 4044 + Sim.Options.OptionSpeechBubble));
         KlackerTafel.PrintAt(0, 8, StandardTexte.GetS(TOKEN_MISC, 4048 + Sim.Options.OptionBriefBriefing));
         KlackerTafel.PrintAt(0, 9, StandardTexte.GetS(TOKEN_MISC, 4050 + Sim.Options.OptionRandomStartday));
-        KlackerTafel.PrintAt(0, 10, bprintf("# %s", StandardTexte.GetS(TOKEN_PLANE, 1002)));
-        KlackerTafel.PrintVolumeAt(17, 10, 7, Sim.GameSpeed == 1 ? 0 : Sim.GameSpeed / 5);
-        KlackerTafel.PrintAt(0, 12, StandardTexte.GetS(TOKEN_MISC, 4099));
+        KlackerTafel.PrintAt(0, 10, StandardTexte.GetS(TOKEN_MISC, 4160 + gLanguage));
+        KlackerTafel.PrintAt(0, 11, bprintf("# %s", StandardTexte.GetS(TOKEN_PLANE, 1002)));
+        KlackerTafel.PrintVolumeAt(17, 11, 7, Sim.GameSpeed == 1 ? 0 : Sim.GameSpeed / 5);
+        KlackerTafel.PrintAt(0, 13, StandardTexte.GetS(TOKEN_MISC, 4099));
     } else if (PageNum == 5) // Laden
     {
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_MISC, 4070));
@@ -457,10 +458,10 @@ void Options::OnPaint() {
             break;
         }
         case 4: // Sonstiges:
-            if ((Line >= 2 && Line <= 9) || Line == 12) {
+            if ((Line >= 2 && Line <= 10) || Line == 13) {
                 SetMouseLook(CURSOR_HOT, 0, -100, 0);
             }
-            if (Line == 10) {
+            if (Line == 11) {
                 SetMouseLook(Column >= 17 && Column < 23 ? CURSOR_HOT : CURSOR_NORMAL, 1003, -100, 0);
             }
             break;
@@ -770,15 +771,31 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
             if (Line == 9) {
                 Sim.Options.OptionRandomStartday ^= 1;
             }
+            if (Line == 10) {
+                gLanguage++;
 
-            if (Line == 10 && Column >= 17 && Column < 24) {
+                // skip not applicable languages:
+                // (those languages are not fully available font-wise)
+                // NOTE(WizzardMaker): maybe add support for those in the future?
+                if (gLanguage == LANGUAGE_T || gLanguage == LANGUAGE_P) {
+                    gLanguage = LANGUAGE_N;
+                }
+
+                if (gLanguage >= 10) {
+                    gLanguage = 0;
+                }
+
+                RefreshKlackerField();
+            }
+
+            if (Line == 11 && Column >= 17 && Column < 24) {
                 auto speed = (Column - 17) * 5;
                 if (speed <= 0) {
                     speed = 1;
                 }
                 Sim.GameSpeed = speed;
             }
-            if (Line == 12) {
+            if (Line == 13) {
                 PageNum = 1;
             }
             RefreshKlackerField();

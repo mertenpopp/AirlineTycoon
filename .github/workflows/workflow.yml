@@ -66,7 +66,7 @@ jobs:
       # 1. <Windows, Release or Debug, latest MSVC compiler toolchain on the default runner image, default generator>
       # 2. <Linux, Release or Debug, latest GCC compiler toolchain on the default runner image, default generator>
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         name: ['linux', 'windows', 'macos']
         build_type:
           - ${{ needs.env.outputs.build-type }}
@@ -74,7 +74,7 @@ jobs:
         exclude: # exclude all by default
           - os: windows-latest
           - os: ubuntu-latest
-          - os: macos-13
+          - os: macos-latest
         include: # only include the configurations we want
           - os: windows-latest
             c_compiler: cl
@@ -86,7 +86,7 @@ jobs:
             cpp_compiler: g++
             name: 'linux'
             build_type: ${{ needs.env.outputs.build-type }}
-          - os: macos-13
+          - os: macos-latest
             c_compiler: gcc
             cpp_compiler: g++
             name: 'macos'

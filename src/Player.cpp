@@ -144,7 +144,7 @@ ULONG PLAYER::BuyPlane(ULONG PlaneTypeId, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, kCurrentYear + (Sim.Date / 365)));
 
     Planes[Id].GlobeAngle = 0;
     Planes[Id].MaxBegleiter = SLONG(PlaneTypes[PlaneTypeId + 0x10000000].AnzBegleiter * Planes.GetAvgBegleiter());
@@ -175,7 +175,7 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, kCurrentYear + (Sim.Date / 365)));
 
     CPlane &p = Planes[Id];
 
@@ -3840,6 +3840,9 @@ void PLAYER::RobotExecuteAction() {
     TEAKRAND rnd;
 
     if ((Owner != 1) || (IsOut != 0)) {
+        if (Sim.CallItADay == 1) {
+            SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
+        }
         return; // War Irtum, kein Computerspieler
     }
 
@@ -4730,7 +4733,7 @@ void PLAYER::RobotExecuteAction() {
             SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
             if (Sells > 0) {
-                GameMechanic::sellStock(*this, PlayerNum, Sells);
+                GameMechanic::sellStock(*this, PlayerNum, Sells, true);
             }
         }
         if ((Credit > 1000000 && RobotUse(ROBOT_USE_SELLSHARES)) || Credit > 3000000) {
@@ -4741,7 +4744,7 @@ void PLAYER::RobotExecuteAction() {
                             SLONG Sells = min(OwnsAktien[c], 20000);
 
                             if (c != PlayerNum || Sim.Date > 20 || OwnsAktien[c] - Sells > AnzAktien / 2) {
-                                GameMechanic::sellStock(*this, c, Sells);
+                                GameMechanic::sellStock(*this, c, Sells, true);
                             }
                         }
                     }
@@ -4766,7 +4769,7 @@ void PLAYER::RobotExecuteAction() {
                 }
 
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, dislike, Anz);
+                    GameMechanic::buyStock(*this, dislike, Anz, true);
                 }
             }
         }
@@ -4786,7 +4789,7 @@ void PLAYER::RobotExecuteAction() {
                 }
 
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, PlayerNum, Anz);
+                    GameMechanic::buyStock(*this, PlayerNum, Anz, true);
                 }
             }
         }
@@ -4924,14 +4927,14 @@ void PLAYER::RobotExecuteAction() {
                 for (SLONG c = 0; c < 4; c++) {
                     freeAmount -= Sim.Players.Players[c].OwnsAktien[PlayerNum];
                 }
-                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2));
+                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2), true);
             }
 
             if (RobotUse(ROBOT_USE_MAX20PERCENT) && OwnsAktien[PlayerNum] * 100 / AnzAktien > BTARGET_MEINANTEIL && Kurse[0] >= BTARGET_KURS) {
                 SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
                 if (Sells > 0) {
-                    GameMechanic::sellStock(*this, PlayerNum, Sells);
+                    GameMechanic::sellStock(*this, PlayerNum, Sells, true);
                 }
             }
         }
@@ -7844,7 +7847,12 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_MUCH_SABOTAGE:
-        /* SuperBot: Ignores this flag */
+        /* SuperBot: Respects this flag */
+        if (IsSuperBot()) {
+            if (BotLevel < 3) {
+                return false;
+            }
+        }
         pFeatureDesc = "---XXX"
                        "!"
                        "XXXXXXXXXX"

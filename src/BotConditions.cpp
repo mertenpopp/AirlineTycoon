@@ -513,7 +513,7 @@ Bot::Prio Bot::condSabotage(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_SABOTAGE, 24)) {
         return Prio::None;
     }
-    if (!qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
+    if (!qPlayer.RobotUse(ROBOT_USE_MUCH_SABOTAGE) && !qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
         return Prio::None;
     }
     if (qPlayer.ArabTrust == 0) {
@@ -534,10 +534,7 @@ Bot::Prio Bot::condSabotage(__int64 &moneyAvailable) {
     }
 
     /* pre-conditions for sabotage */
-    SLONG jobType{-1};
-    SLONG jobNumber{-1};
-    SLONG jobHints{-1};
-    if (determineSabotageMode(moneyAvailable, jobType, jobNumber, jobHints)) {
+    if (determineSabotageMode(moneyAvailable, false).isValid()) {
         return Prio::Medium;
     }
 
@@ -931,14 +928,16 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     }
 
     Prio prio = Prio::None;
-    if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
-        prio = std::max(prio, Prio::Medium); /* execute route strategy */
-    }
     if (!mRoutesUtilizationUpdated) {
         prio = std::max(prio, Prio::Medium); /* update cached route info */
     }
     if (mRoutesUpdated && mRoutesNextStep == RoutesNextStep::None) {
         prio = std::max(prio, Prio::Medium); /* generate route strategy if other info is already updated */
+    }
+    if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
+        if (hoursPassed(ACTION_VISITROUTEBOX, 24)) {
+            prio = std::max(prio, Prio::Medium); /* try to find new route once per day */
+        }
     }
     return prio;
 }
@@ -947,11 +946,10 @@ Bot::Prio Bot::condVisitRouteBoxRenting() {
     /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
 
     Prio prio = Prio::None;
-    if (!mDoRoutes) {
-        if (getNumRentedRoutes() > 0) {
-            prio = std::max(prio, Prio::Low);
-        }
-    } else {
+    if (mRoutesToRemove) {
+        prio = std::max(prio, Prio::Low);
+    }
+    if (mDoRoutes) {
         bool shallRentNewRoute = true;
         if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
             shallRentNewRoute = false;

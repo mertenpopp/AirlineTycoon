@@ -129,7 +129,6 @@ class Bot {
         DOUBLE kMaxKerosinQualiZiel{1.2};
         SLONG kOwnStockPosessionRatio{51};
     };
-
     const char *getPrioName(Prio prio);
     const char *getPrioName(SLONG prio);
 
@@ -228,16 +227,19 @@ class Bot {
     void planFlights();
     SLONG replaceAutomaticFlights(SLONG planeId);
     std::pair<SLONG, SLONG> kerosineQualiOptimization(__int64 moneyAvailable, DOUBLE targetFillRatio) const;
-    bool determineSabotageMode(__int64 moneyAvailable, SLONG &jobType, SLONG &jobNumber, SLONG &jobHints);
+    SabotageMode determineSabotageMode(__int64 moneyAvailable, bool print);
+
     /* routes */
     SLONG getNumRentedRoutes() const;
-    void checkLostRoutes();
+    void checkRentedRoutes();
     void updateRouteInfoOffice();
     void updateRouteInfoBoard();
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
     void findBestRoute();
+    bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
+    std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
 
@@ -334,8 +336,14 @@ class Bot {
     std::vector<SLONG> mRoutesSortedByOwnUtilization{};
     bool mRoutesUpdated{false};
     bool mRoutesUtilizationUpdated{false};
+    bool mRoutesToRemove{false};
     RoutesNextStep mRoutesNextStep{RoutesNextStep::None};
     SLONG mImproveRouteId{-1};
+
+    /* sabotage */
+    SLONG mRouteToSteal{-1};
+    SLONG mRouteToStealFrom{-1};
+    ULONG mSabotageSeed{0};
 
     /* crew */
     SLONG mNumEmployees{0};

@@ -56,6 +56,64 @@ TEAKFILE &operator>>(TEAKFILE &File, PlaneTime &planeTime) {
     return (File);
 }
 
+std::string SabotageMode::getName() const {
+    switch (mCategory) {
+    case SabotageCategory::Plane:
+        switch (static_cast<Plane>(mJobNumber)) {
+        case Plane::SaltedFood:
+            return "Salted Food";
+        case Plane::MovieTheatreBreak:
+            return "Movie Theatre Break";
+        case Plane::FlatTire:
+            return "Flat Tire";
+        case Plane::EngineBreakdown:
+            return "Engine Breakdown";
+        case Plane::PlaneCrash:
+            return "Plane Crash";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Personal:
+        switch (static_cast<Personal>(mJobNumber)) {
+        case Personal::CoffeeBacteria:
+            return "Coffee Bacteria";
+        case Personal::NotebookVirus:
+            return "Notebook Virus";
+        case Personal::OfficeBomb:
+            return "Office Bomb";
+        case Personal::ProvokeStrike:
+            return "Provoke Strike";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Special:
+        switch (static_cast<Special>(mJobNumber)) {
+        case Special::AircraftBrochures:
+            return "Aircraft Brochures";
+        case Special::CutTelephones:
+            return "Cut Telephones";
+        case Special::FalsePressRelease:
+            return "False Press Release";
+        case Special::BankHack:
+            return "Bank Hack";
+        case Special::GroundAircraft:
+            return "Ground Aircraft";
+        case Special::RouteTheft:
+            return "Route Theft";
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    AT_Error("SabotageMode::getName(): Invalid sabotage mode with category %d and job number %d", static_cast<int>(mCategory), mJobNumber);
+    DebugBreak();
+    return "INVALID";
+}
+
 inline void setColorForFlightJob(const PLAYER &qPlayer, const CFlugplanEintrag &qFPE) {
     std::cout << "\033[1;";
     if (qFPE.ObjectType == 1) {
