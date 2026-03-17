@@ -4733,7 +4733,7 @@ void PLAYER::RobotExecuteAction() {
             SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
             if (Sells > 0) {
-                GameMechanic::sellStock(*this, PlayerNum, Sells);
+                GameMechanic::sellStock(*this, PlayerNum, Sells, true);
             }
         }
         if ((Credit > 1000000 && RobotUse(ROBOT_USE_SELLSHARES)) || Credit > 3000000) {
@@ -4744,7 +4744,7 @@ void PLAYER::RobotExecuteAction() {
                             SLONG Sells = min(OwnsAktien[c], 20000);
 
                             if (c != PlayerNum || Sim.Date > 20 || OwnsAktien[c] - Sells > AnzAktien / 2) {
-                                GameMechanic::sellStock(*this, c, Sells);
+                                GameMechanic::sellStock(*this, c, Sells, true);
                             }
                         }
                     }
@@ -4769,7 +4769,7 @@ void PLAYER::RobotExecuteAction() {
                 }
 
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, dislike, Anz);
+                    GameMechanic::buyStock(*this, dislike, Anz, true);
                 }
             }
         }
@@ -4789,7 +4789,7 @@ void PLAYER::RobotExecuteAction() {
                 }
 
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, PlayerNum, Anz);
+                    GameMechanic::buyStock(*this, PlayerNum, Anz, true);
                 }
             }
         }
@@ -4927,14 +4927,14 @@ void PLAYER::RobotExecuteAction() {
                 for (SLONG c = 0; c < 4; c++) {
                     freeAmount -= Sim.Players.Players[c].OwnsAktien[PlayerNum];
                 }
-                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2));
+                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2), true);
             }
 
             if (RobotUse(ROBOT_USE_MAX20PERCENT) && OwnsAktien[PlayerNum] * 100 / AnzAktien > BTARGET_MEINANTEIL && Kurse[0] >= BTARGET_KURS) {
                 SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
                 if (Sells > 0) {
-                    GameMechanic::sellStock(*this, PlayerNum, Sells);
+                    GameMechanic::sellStock(*this, PlayerNum, Sells, true);
                 }
             }
         }

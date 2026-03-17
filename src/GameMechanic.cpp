@@ -785,23 +785,23 @@ std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filen
     return planeIds;
 }
 
-bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
+std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit) {
     if (airlineNum < 0 || airlineNum >= 4) {
         AT_Error("GameMechanic::buyStock(%s): Invalid airline (%ld).", qPlayer.AirlineX.c_str(), airlineNum);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount < 0) {
         AT_Error("GameMechanic::buyStock(%s): Negative amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount == 0) {
-        return false;
+        return {false, qPlayer.Money};
     }
 
     auto &qPlayerBuyFrom = Sim.Players.Players[airlineNum];
     if (qPlayerBuyFrom.IsOut != 0) {
         AT_Error("GameMechanic::buyStock(%s): Airline already gone.", qPlayer.AirlineX.c_str());
-        return false;
+        return {false, qPlayer.Money};
     }
 
     /* Anzahl freier Aktien */
@@ -809,41 +809,55 @@ bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
     for (SLONG c = 0; c < 4; c++) {
         freeAmount -= Sim.Players.Players[c].OwnsAktien[qPlayerBuyFrom.PlayerNum];
     }
-
     if (amount > freeAmount) {
         AT_Error("GameMechanic::buyStock(%s): Limiting amount bought to %ld (was %ld).", qPlayer.AirlineX.c_str(), freeAmount, amount);
         amount = freeAmount;
     }
 
-    /* Handel durchführen */
-    auto aktienWert = static_cast<__int64>(qPlayerBuyFrom.Kurse[0]) * amount;
-    auto gesamtPreis = aktienWert + aktienWert / 10 + 100;
-    if (qPlayer.Money - gesamtPreis < DEBT_LIMIT) {
-        AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+    /* Gesamtpreis berechnen */
+    __int64 stockValue = 0;
+    DOUBLE sharePrice = qPlayerBuyFrom.Kurse[0];
+    SLONG remainingAmount = amount;
+    while (remainingAmount > 0) {
+        SLONG buyAmount = min(remainingAmount, 2000);
+        stockValue += static_cast<__int64>(std::round(sharePrice * buyAmount));
+        remainingAmount -= buyAmount;
+
+        /* aktualisiere Aktienkurs */
+        auto anzAktien = static_cast<DOUBLE>(qPlayerBuyFrom.AnzAktien);
+        sharePrice *= anzAktien / (anzAktien - buyAmount / 2.0);
+        if (sharePrice < 1.0) {
+            sharePrice = 1.0;
+        }
     }
 
-    qPlayer.ChangeMoney(-gesamtPreis, 3150, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -gesamtPreis, 3150);
+    __int64 totalPrice = stockValue + stockValue / 10 + 100;
+    if (qPlayer.Money - totalPrice < DEBT_LIMIT) {
+        AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
+        return {false, qPlayer.Money};
+    }
+
+    if (!commit) {
+        return {true, qPlayer.Money - totalPrice};
+    }
+
+    /* Handel durchführen */
+    qPlayer.ChangeMoney(-totalPrice, 3150, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -totalPrice, 3150);
 
     qPlayer.OwnsAktien[airlineNum] += amount;
 
-    /* aktualisiere Aktienwert */
-    qPlayer.AktienWert[airlineNum] += aktienWert;
-
     /* aktualisiere Aktienkurs */
-    auto anzAktien = static_cast<DOUBLE>(qPlayerBuyFrom.AnzAktien);
-    qPlayerBuyFrom.Kurse[0] *= anzAktien / (anzAktien - amount / 2.0);
-    if (qPlayerBuyFrom.Kurse[0] < 0) {
-        qPlayerBuyFrom.Kurse[0] = 0;
-    }
+    qPlayerBuyFrom.Kurse[0] = sharePrice;
 
-    if (gesamtPreis != 0) {
+    /* aktualisiere Aktienwert */
+    qPlayer.AktienWert[airlineNum] = static_cast<__int64>(std::round(qPlayer.OwnsAktien[airlineNum] * qPlayerBuyFrom.Kurse[0]));
+
+    if (totalPrice != 0) {
         if ((Sim.bNetwork != 0) && qPlayerBuyFrom.Owner == 2) {
             SIM::SendSimpleMessage(ATNET_ADVISOR, qPlayerBuyFrom.NetworkID, 4, qPlayer.PlayerNum, airlineNum);
         }
     }
-
     PLAYER::NetSynchronizeMoney();
 
     if (qPlayer.Owner == 1) {
@@ -853,21 +867,20 @@ bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
                 BERATERTYP_INFO, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9005), qPlayer.NameX.c_str(), qPlayer.AirlineX.c_str(), amount));
         }
     }
-
-    return true;
+    return {true, qPlayer.Money};
 }
 
-bool GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
+std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit) {
     if (airlineNum < 0 || airlineNum >= 4) {
         AT_Error("GameMechanic::sellStock(%s): Invalid airline (%ld).", qPlayer.AirlineX.c_str(), airlineNum);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount < 0) {
         AT_Error("GameMechanic::sellStock(%s): Negative amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount == 0) {
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount > qPlayer.OwnsAktien[airlineNum]) {
         AT_Error("GameMechanic::sellStock(%s): Limiting amount sold to %ld (was %ld).", qPlayer.AirlineX.c_str(), qPlayer.OwnsAktien[airlineNum], amount);
@@ -877,31 +890,46 @@ bool GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
     auto &qPlayerSellFrom = Sim.Players.Players[airlineNum];
     if (qPlayerSellFrom.IsOut != 0) {
         AT_Error("GameMechanic::sellStock(%s): Airline already gone.", qPlayer.AirlineX.c_str());
-        return false;
+        return {false, qPlayer.Money};
     }
 
-    /* aktualisiere Aktienwert */
-    {
-        auto num = static_cast<DOUBLE>(qPlayer.OwnsAktien[airlineNum]);
-        qPlayer.AktienWert[airlineNum] *= (num - amount) / num;
+    /* Gesamtpreis berechnen */
+    __int64 stockValue = 0;
+    DOUBLE sharePrice = qPlayerSellFrom.Kurse[0];
+    SLONG remainingAmount = amount;
+    while (remainingAmount > 0) {
+        SLONG sellAmount = min(remainingAmount, 2000);
+        stockValue += static_cast<__int64>(std::round(sharePrice * sellAmount));
+        remainingAmount -= sellAmount;
+
+        /* aktualisiere Aktienkurs */
+        auto anzAktien = static_cast<DOUBLE>(qPlayerSellFrom.AnzAktien);
+        sharePrice *= (anzAktien - sellAmount / 2.0) / anzAktien;
+        if (sharePrice < 1.0) {
+            sharePrice = 1.0;
+        }
+    }
+
+    __int64 totalPrice = stockValue - stockValue / 10 - 100;
+    if (!commit) {
+        return {true, qPlayer.Money + totalPrice};
     }
 
     /* Handel durchführen */
-    auto aktienWert = static_cast<__int64>(qPlayerSellFrom.Kurse[0]) * amount;
-    auto gesamtPreis = aktienWert - aktienWert / 10 - 100;
-    qPlayer.ChangeMoney(gesamtPreis, 3151, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, gesamtPreis, 3151);
+    qPlayer.ChangeMoney(totalPrice, 3151, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, totalPrice, 3151);
+
     qPlayer.OwnsAktien[airlineNum] -= amount;
 
     /* aktualisiere Aktienkurs */
-    auto anzAktien = static_cast<DOUBLE>(qPlayerSellFrom.AnzAktien);
-    qPlayerSellFrom.Kurse[0] *= (anzAktien - amount / 2.0) / anzAktien;
-    if (qPlayerSellFrom.Kurse[0] < 0) {
-        qPlayerSellFrom.Kurse[0] = 0;
-    }
+    qPlayerSellFrom.Kurse[0] = sharePrice;
+
+    /* aktualisiere Aktienwert */
+    qPlayer.AktienWert[airlineNum] = static_cast<__int64>(std::round(qPlayer.OwnsAktien[airlineNum] * qPlayerSellFrom.Kurse[0]));
 
     PLAYER::NetSynchronizeMoney();
-    return true;
+
+    return {true, qPlayer.Money};
 }
 
 GameMechanic::OvertakeAirlineResult GameMechanic::canOvertakeAirline(PLAYER &qPlayer, SLONG targetAirline) {
@@ -3007,7 +3035,7 @@ void GameMechanic::executeAirlineOvertake() {
         // Aktien verkaufen:
         for (c = 0; c < 4; c++) {
             if (Overtaken.OwnsAktien[c] != 0) {
-                GameMechanic::sellStock(Overtaken, c, Overtaken.OwnsAktien[c]);
+                GameMechanic::sellStock(Overtaken, c, Overtaken.OwnsAktien[c], true);
             }
         }
 
