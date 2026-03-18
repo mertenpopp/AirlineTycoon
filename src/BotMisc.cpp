@@ -34,17 +34,17 @@ __int64 Bot::getMoneyAvailable() const {
 }
 
 void Bot::printRobotFlags() const {
-    const std::array<std::pair<SLONG, bool>, 28> list = {
-        {{ROBOT_USE_FRACHT, true},         {ROBOT_USE_WERBUNG, true},           {ROBOT_USE_NASA, false},
-         {ROBOT_USE_ROUTES, true},         {ROBOT_USE_FORCEROUTES, false},      {ROBOT_USE_ROUTEMISSION, false},
-         {ROBOT_USE_MUCHWERBUNG, false},   {ROBOT_USE_ROUTEBOX, true},          {ROBOT_USE_ABROAD, true},
-         {ROBOT_USE_MUCH_FRACHT, false},   {ROBOT_USE_FREE_FRACHT, false},      {ROBOT_USE_LUXERY, false},
-         {ROBOT_USE_HIGHSHAREPRICE, true}, {ROBOT_USE_WORKQUICK, false},        {ROBOT_USE_GROSSESKONTO, false},
-         {ROBOT_USE_WORKVERYQUICK, false}, {ROBOT_USE_DONTBUYANYSHARES, false}, {ROBOT_USE_NOCHITCHAT, false},
-         {ROBOT_USE_SHORTFLIGHTS, false},  {ROBOT_USE_EXTREME_SABOTAGE, false}, {ROBOT_USE_SECURTY_OFFICE, false},
-         {ROBOT_USE_MAKLER, true},         {ROBOT_USE_PETROLAIR, true},         {ROBOT_USE_MAX20PERCENT, false},
-         {ROBOT_USE_TANKS, true},          {ROBOT_USE_DESIGNER, true},          {ROBOT_USE_DESIGNER_BUY, false},
-         {ROBOT_USE_WORKQUICK_2, true}}};
+    const std::array<std::pair<SLONG, bool>, 29> list = {
+        {{ROBOT_USE_FRACHT, true},          {ROBOT_USE_WERBUNG, true},        {ROBOT_USE_NASA, false},
+         {ROBOT_USE_ROUTES, true},          {ROBOT_USE_FORCEROUTES, false},   {ROBOT_USE_ROUTEMISSION, false},
+         {ROBOT_USE_MUCHWERBUNG, false},    {ROBOT_USE_ROUTEBOX, true},       {ROBOT_USE_ABROAD, true},
+         {ROBOT_USE_MUCH_SABOTAGE, false},  {ROBOT_USE_MUCH_FRACHT, false},   {ROBOT_USE_FREE_FRACHT, false},
+         {ROBOT_USE_LUXERY, false},         {ROBOT_USE_HIGHSHAREPRICE, true}, {ROBOT_USE_WORKQUICK, false},
+         {ROBOT_USE_GROSSESKONTO, false},   {ROBOT_USE_WORKVERYQUICK, false}, {ROBOT_USE_DONTBUYANYSHARES, false},
+         {ROBOT_USE_NOCHITCHAT, false},     {ROBOT_USE_SHORTFLIGHTS, false},  {ROBOT_USE_EXTREME_SABOTAGE, false},
+         {ROBOT_USE_SECURTY_OFFICE, false}, {ROBOT_USE_MAKLER, true},         {ROBOT_USE_PETROLAIR, true},
+         {ROBOT_USE_MAX20PERCENT, false},   {ROBOT_USE_TANKS, true},          {ROBOT_USE_DESIGNER, true},
+         {ROBOT_USE_DESIGNER_BUY, false},   {ROBOT_USE_WORKQUICK_2, true}}};
 
     for (const auto &i : list) {
         bool robotUses = qPlayer.RobotUse(i.first);
