@@ -63,15 +63,21 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: [ubuntu-latest, macos-14, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-14, macos-latest]
         build_type:
           - ${{ needs.env.outputs.build-type }}
-        c_compiler: [gcc]
+        c_compiler: [gcc, cl]
         exclude: # exclude all by default
+          - os: windows-latest
           - os: ubuntu-latest
           - os: macos-14
           - os: macos-latest
         include: # only include the configurations we want
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+            name: 'windows'
+            build_type: ${{ needs.env.outputs.build-type }}
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
@@ -133,8 +139,25 @@ jobs:
         chmod +x cmake/bundle-macos-libs.sh
         ./cmake/bundle-macos-libs.sh "${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}"
 
+    - name: Package artifact (Windows)
+      id: artifact-win
+      if: matrix.name == 'windows'
+      run: |
+        $artifactName = "${{ needs.env.outputs.artifact-name }}-${{ matrix.name }}.zip"
+        $artifactPath = "${{ needs.env.outputs.artifact-dir }}/$artifactName"
+
+        if (!(Test-Path -Path ${{ needs.env.outputs.artifact-dir }} -PathType Container)) {
+            New-Item -Path ${{ needs.env.outputs.artifact-dir }} -ItemType Directory -Force
+        }
+
+        Compress-Archive -Path "${{ needs.env.outputs.cmake-build-dir }}/${{ matrix.build_type }}/*" -DestinationPath $artifactPath -Update
+
+        echo "artifact-name=$artifactName" >> $Env:GITHUB_OUTPUT
+        echo "artifact-path=$artifactPath" >> $Env:GITHUB_OUTPUT
+
     - name: Package artifact
-      id: artifact
+      id: artifact-linux
+      if: matrix.name == 'linux' || startsWith(matrix.name, 'macos')
       run: |
         echo "Packaging ${{ needs.env.outputs.artifact-name }}-${{ matrix.name }}.tar"
         ARTIFACT_NAME=${{ needs.env.outputs.artifact-name }}-${{ matrix.name }}.tar
@@ -150,8 +173,8 @@ jobs:
     - name: Publish artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.artifact.outputs.artifact-name }}
-        path: ${{ steps.artifact.outputs.artifact-path }}
+        name: ${{ steps.artifact-win.outputs.artifact-name || steps.artifact-linux.outputs.artifact-name }}
+        path: ${{ steps.artifact-win.outputs.artifact-path || steps.artifact-linux.outputs.artifact-path }}
 
   release:
     runs-on: ubuntu-latest
