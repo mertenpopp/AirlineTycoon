@@ -1005,38 +1005,35 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
     case DIFF_ADDON05: {
         NumServicePoints = 0;
 
+        SLONG numServicePointPlanes = 0;
+        SLONG numServicePointPersonal = 0;
+
         for (SLONG c = Planes.AnzEntries() - 1; c >= 0; c--) {
             if (Planes.IsInAlbum(c) != 0) {
                 CPlane &qPlane = Planes[c];
 
-                NumServicePoints += qPlane.Sitze;
-                NumServicePoints += qPlane.Tabletts;
-                NumServicePoints += qPlane.Deco;
-                NumServicePoints += qPlane.Triebwerk;
-                NumServicePoints += qPlane.Reifen;
-                NumServicePoints += qPlane.Elektronik;
-                NumServicePoints += qPlane.Sicherheit;
+                numServicePointPlanes += qPlane.Sitze;
+                numServicePointPlanes += qPlane.Tabletts;
+                numServicePointPlanes += qPlane.Deco;
+                numServicePointPlanes += qPlane.Triebwerk;
+                numServicePointPlanes += qPlane.Reifen;
+                numServicePointPlanes += qPlane.Elektronik;
+                numServicePointPlanes += qPlane.Sicherheit;
             }
         }
 
         if (Owner == 1 && RobotUse(ROBOT_USE_FAKE_PERSONAL)) {
             // Computerspieler simuliert Personal:
-            for (SLONG c = Planes.AnzEntries() - 1; c >= 0; c--) {
+            // Gleicher Code wie für die falsche Zahl in der Statistik
+            SLONG Anzahl = 0;
+            for (SLONG c = 0; c < Planes.AnzEntries(); c++) {
                 if (Planes.IsInAlbum(c) != 0) {
-                    CPlane &qPlane = Planes[c];
-
-                    // Piloten und Begleiter:
-                    SLONG Anzahl = qPlane.ptAnzPiloten + qPlane.ptAnzBegleiter;
-                    // SLONG Anzahl = PlaneTypes[qPlane.TypeId].AnzPiloten+PlaneTypes[qPlane.TypeId].AnzBegleiter;
-
-                    // Nach und nach weitere Begleiter:
-                    Anzahl += min(Sim.Date - 3 - (PlayerNum + 2) % 4, qPlane.ptAnzBegleiter);
-                    // Anzahl+=min(Sim.Date-3-(PlayerNum+2)%4, PlaneTypes[qPlane.TypeId].AnzBegleiter);
-
-                    // Durchschnittlich 80%
-                    NumServicePoints += Anzahl * ((80 - 50) / 15);
+                    Anzahl += Planes[c].ptAnzPiloten;
+                    Anzahl += Planes[c].ptAnzBegleiter;
                 }
             }
+            // Durchschnittlich 80%
+            numServicePointPersonal += Anzahl * ((80 - 60) / 15);
         } else {
             // Menschlicher Spieler hat Personal:
             for (SLONG c = 0; c < Workers.Workers.AnzEntries(); c++) {
@@ -1044,11 +1041,14 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
 
                 if (qWorker.Employer == PlayerNum && qWorker.PlaneId != -1) {
                     if (qWorker.Talent > 50) {
-                        NumServicePoints += (qWorker.Talent - 60) / 15;
+                        numServicePointPersonal += (qWorker.Talent - 60) / 15;
                     }
                 }
             }
         }
+        NumServicePoints = numServicePointPlanes + numServicePointPersonal;
+        AT_Log("Airline %s: %d Service Points (%d from planes, %d from personal)", (LPCTSTR)AirlineX, NumServicePoints, numServicePointPlanes,
+               numServicePointPersonal);
 
         return (NumServicePoints);
     } break;
