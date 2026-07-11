@@ -353,7 +353,7 @@ SDL_Surface *SB_CBitmapCore::GetFlippedSurface() {
 
     for (SLONG x = 0, rx = lpDDSurface->w - 1; x < lpDDSurface->w; x++, rx--) {
         // Go through rows
-        for (SLONG y = 0, ry = lpDDSurface->h - 1; y < lpDDSurface->h; y++, ry--) {
+        for (SLONG y = 0; y < lpDDSurface->h; y++) {
             Uint16 pixel = get_pixel16(lpDDSurface, x, y);
             put_pixel16(flippedBufferSurface, rx, y, pixel);
         }
