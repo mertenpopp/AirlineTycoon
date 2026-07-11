@@ -48,7 +48,7 @@ struct RouteScore {
     std::vector<SLONG> planeId{};
     SLONG numPlanesToBuy{-1};
 
-    bool operator<(const RouteScore &other) const {
+    bool operator<(const RouteScore &other) const noexcept {
         if (planeId.size() == other.planeId.size()) {
             return score > other.score;
         }

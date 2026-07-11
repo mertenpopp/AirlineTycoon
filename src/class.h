@@ -1720,7 +1720,7 @@ class /**/ CWorker {
     SLONG TimeInPool{-1}; // Wie lange existiert der Arbeiter bereits?
                           // -1: Bleibt für immer im Pool
 
-    inline bool operator<(const CWorker &i) const {
+    inline bool operator<(const CWorker &i) const noexcept {
         if (Employer != i.Employer) {
             return (Employer < i.Employer);
         }
