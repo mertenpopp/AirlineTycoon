@@ -1751,7 +1751,9 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 }
 
                                                 qPlayer.Locations[d] = 0;
-                                                qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                if (d > 0) {
+                                                    qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                }
                                                 qPlayer.CalcRoom();
 
                                                 if ((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
