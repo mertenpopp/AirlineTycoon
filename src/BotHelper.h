@@ -188,8 +188,8 @@ class SabotageMode {
 
 namespace Helper {
 
-CString getWeekday(UWORD date);
-CString getWeekday(const PlaneTime &time);
+CString getJobTypeStr(int jobType);
+CString getJobSizeStr(int jobSize);
 
 struct FreightInfo {
     std::vector<CString> planeNames{};
@@ -250,6 +250,9 @@ struct ScheduleInfo {
     void printGain() const;
     void printDetails() const;
 };
+
+CString getWeekday(UWORD date);
+CString getWeekday(const PlaneTime &time);
 
 void printJob(const CAuftrag &qAuftrag);
 void printRoute(const CRoute &qRoute);
