@@ -79,7 +79,15 @@ bool Bot::hoursPassed(SLONG room, SLONG hours) const {
     if (it == mLastTimeInRoom.end()) {
         return true;
     }
-    return (Sim.Time - it->second > hours * 60000);
+    return ((Sim.Time - it->second) > (hours * 60000));
+}
+
+bool Bot::minutesPassed(SLONG room, SLONG minutes) const {
+    const auto it = mLastTimeInRoom.find(room);
+    if (it == mLastTimeInRoom.end()) {
+        return true;
+    }
+    return ((Sim.Time - it->second) > (minutes * 1000));
 }
 
 bool Bot::haveDiscount() const {

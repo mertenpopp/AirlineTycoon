@@ -147,6 +147,11 @@ void Bot::actionBuero() {
             planRoutes();
         }
     }
+
+    /* we are in office already, so check international calls */
+    if ((condCallInternational() != Prio::None) || condCallInternationalHandy() != Prio::None) {
+        actionCallInternational(true);
+    }
 }
 
 void Bot::actionCallInternational(bool areWeInOffice) {

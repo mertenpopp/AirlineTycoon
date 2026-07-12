@@ -178,7 +178,7 @@ Bot::Prio Bot::condCallInternational() {
     }
 
     Prio prio = Prio::None;
-    if (hoursPassed(ACTION_CALL_INTERNATIONAL, 2)) {
+    if (minutesPassed(ACTION_CALL_INTERNATIONAL, kCallInternationalEveryXMinutes)) {
         prio = std::max(prio, Prio::High);
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
@@ -196,8 +196,8 @@ Bot::Prio Bot::condCallInternationalHandy() {
     }
 
     Prio prio = Prio::None;
-    if (hoursPassed(ACTION_CALL_INTER_HANDY, 2)) {
-        prio = std::max(prio, Prio::High);
+    if (minutesPassed(ACTION_CALL_INTER_HANDY, kCallInternationalHandyEveryXMinutes)) {
+        prio = std::max(prio, Prio::High); /* we have a cell phone, so every few minutes */
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
         prio = std::max(prio, Prio::Low);
@@ -222,7 +222,7 @@ Bot::Prio Bot::condCheckLastMinute() {
     }
 
     Prio prio = Prio::None;
-    if (hoursPassed(ACTION_CHECKAGENT1, 2)) {
+    if (minutesPassed(ACTION_CHECKAGENT1, kCheckLastMinuteEveryXMinutes)) {
         prio = std::max(prio, Prio::High);
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
@@ -248,7 +248,7 @@ Bot::Prio Bot::condCheckTravelAgency() {
     }
 
     Prio prio = Prio::None;
-    if (hoursPassed(ACTION_CHECKAGENT2, 2)) {
+    if (minutesPassed(ACTION_CHECKAGENT2, kCheckTravelAgencyEveryXMinutes)) {
         auto targetPrio = qPlayer.RobotUse(ROBOT_USE_MUCH_FRACHT) ? Prio::High : Prio::Higher;
         prio = std::max(prio, targetPrio);
     }
@@ -282,7 +282,7 @@ Bot::Prio Bot::condCheckFreight() {
     }
 
     Prio prio = Prio::None;
-    if (hoursPassed(ACTION_CHECKAGENT3, 2)) {
+    if (minutesPassed(ACTION_CHECKAGENT3, kCheckFreightDepotEveryXMinutes)) {
         auto targetPrio = qPlayer.RobotUse(ROBOT_USE_MUCH_FRACHT) ? Prio::Higher : Prio::High;
         prio = std::max(prio, targetPrio);
     }
@@ -848,7 +848,7 @@ Bot::Prio Bot::condVisitDutyFree(__int64 &moneyAvailable) {
 
     /* misc action, can do as often as the bot likes */
     if (moneyAvailable >= 0 && !qPlayer.HasItem(ITEM_HANDY)) {
-        prio = std::max(prio, Prio::Low);
+        prio = std::max(prio, Prio::Medium);
     }
     if (mItemAntiStrike >= 1 && mItemAntiStrike <= 2) {
         prio = std::max(prio, Prio::Low); /* we still need to aquire the horse shoe */
