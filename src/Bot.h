@@ -14,6 +14,12 @@ class CRoute;
 class PLAYER;
 
 extern const bool kAlwaysReplan;
+extern const SLONG kCallInternationalEveryXMinutes;
+extern const SLONG kCallInternationalHandyEveryXMinutes;
+extern const SLONG kCheckTravelAgencyEveryXMinutes;
+extern const SLONG kCheckLastMinuteEveryXMinutes;
+extern const SLONG kCheckFreightDepotEveryXMinutes;
+
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
 extern const SLONG kRouteAvgDays;
@@ -249,6 +255,7 @@ class Bot {
     std::vector<SLONG> getAllPlanes() const;
     bool isOfficeUsable() const;
     bool hoursPassed(SLONG room, SLONG hours) const;
+    bool minutesPassed(SLONG room, SLONG minutes) const;
     bool haveDiscount() const;
     bool checkLaptop();
     enum class HowToPlan { None, Laptop, Office };
