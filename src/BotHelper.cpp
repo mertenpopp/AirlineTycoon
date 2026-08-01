@@ -221,14 +221,20 @@ void printFreight(const CFracht &qAuftrag) {
 
 std::string getRouteName(const CRoute &qRoute) { return {bprintf("%s -> %s", Cities[qRoute.VonCity].Name.c_str(), Cities[qRoute.NachCity].Name.c_str())}; }
 
-std::string getJobName(const CAuftrag &qAuftrag) {
+std::string getJobName(const CAuftrag &qAuftrag, bool forDisplay) {
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
     return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
                     getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
 
-std::string getFreightName(const CFracht &qAuftrag) {
+std::string getFreightName(const CFracht &qAuftrag, bool forDisplay) {
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
     return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
                     getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
