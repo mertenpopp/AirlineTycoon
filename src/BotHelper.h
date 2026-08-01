@@ -259,8 +259,8 @@ void printRoute(const CRoute &qRoute);
 void printFreight(const CFracht &qAuftrag);
 
 std::string getRouteName(const CRoute &qRoute);
-std::string getJobName(const CAuftrag &qAuftrag);
-std::string getFreightName(const CFracht &qAuftrag);
+std::string getJobName(const CAuftrag &qAuftrag, bool forDisplay = false);
+std::string getFreightName(const CFracht &qAuftrag, bool forDisplay = false);
 std::string getPlaneName(const CPlane &qPlane, int mode = 0);
 
 void printFPE(const CFlugplanEintrag &qFPE);

@@ -5935,28 +5935,28 @@ void PLAYER::RandomBeraterMessageJobs() {
         switch (toTake.owner) {
         case BotPlaner::JobOwner::TravelAgency:
             premium = ReisebueroAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(ReisebueroAuftraege[toTake.objectId]);
+            jobName = Helper::getJobName(ReisebueroAuftraege[toTake.objectId], true);
             textId = 10000;
             break;
         case BotPlaner::JobOwner::LastMinute:
             premium = LastMinuteAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(LastMinuteAuftraege[toTake.objectId]);
+            jobName = Helper::getJobName(LastMinuteAuftraege[toTake.objectId], true);
             textId = 10001;
             break;
         case BotPlaner::JobOwner::Freight:
             premium = gFrachten[toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(gFrachten[toTake.objectId]);
+            jobName = Helper::getFreightName(gFrachten[toTake.objectId], true);
             textId = 10002;
             break;
         case BotPlaner::JobOwner::International:
             premium = AuslandsAuftraege[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getJobName(AuslandsAuftraege[toTake.sourceId][toTake.objectId]);
+            jobName = Helper::getJobName(AuslandsAuftraege[toTake.sourceId][toTake.objectId], true);
             cityName = Cities[toTake.sourceId].Name;
             textId = 10003;
             break;
         case BotPlaner::JobOwner::InternationalFreight:
             premium = AuslandsFrachten[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(AuslandsFrachten[toTake.sourceId][toTake.objectId]);
+            jobName = Helper::getFreightName(AuslandsFrachten[toTake.sourceId][toTake.objectId], true);
             cityName = Cities[toTake.sourceId].Name;
             textId = 10004;
             break;

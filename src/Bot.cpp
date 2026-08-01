@@ -134,7 +134,7 @@ void Bot::RobotInit() {
             mItemPills = -1;      /* item not available */
             mItemAntiStrike = -1; /* item not available */
         }
-        if (Sim.Difficulty <= DIFF_FIRST) {
+        if (Sim.Difficulty == DIFF_TUTORIAL || Sim.Difficulty == DIFF_FIRST) {
             mItemAntiVirus = -1; /* item not available */
         }
 
