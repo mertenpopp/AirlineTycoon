@@ -74,6 +74,23 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     mArabHintsTracker -= std::min(3, mArabHintsTracker);
     AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
 
+    auto broke = areWeBroke();
+    if (broke == AreWeBroke::Desperate) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Desperate");
+    } else if (broke == AreWeBroke::Yes) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Yes");
+    } else if (broke == AreWeBroke::Somewhat) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Somewhat");
+    } else {
+        AT_Log("Bot::actionStartDay(): Are we broke? No");
+    }
+
+    AT_Log("Bot::actionStartDay(): Can use laptop? %s", checkLaptop() ? "Yes" : "No");
+
+    AT_Log("Bot::actionStartDay(): mItemPills: %d%s, mItemAntiVirus: %d%s, mItemAntiStrike: %d, mItemArabTrust: %d", mItemPills,
+           qPlayer.HasItem(ITEM_TABLETTEN) ? " (owned)" : "", mItemAntiVirus, qPlayer.HasItem(ITEM_DISKETTE) ? " (owned)" : "", mItemAntiStrike,
+           mItemArabTrust);
+
     /* check lists of planes, check which planes are available for service and which are not */
     if (checkPlaneLists()) {
         planFlights();
@@ -88,15 +105,29 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
+            mDoRoutesMaxCredit = false;
             AT_Log("Bot::actionStartDay(): Switching to routes (forced).");
         } else if (mBestPlaneTypeId != -1) {
             const auto &bestPlaneType = PlaneTypes[mBestPlaneTypeId];
             SLONG costRouteAd = gWerbePrice[1 * 6 + 5];
             __int64 moneyNeeded = 2 * costRouteAd + bestPlaneType.Preis;
+            __int64 moneyCanBeRaised = howMuchMoneyToRaise(true);
             SLONG numPlanes = mPlanesForJobs.size() + mPlanesForJobsUnassigned.size();
+            if (false && !mDoRoutesMaxCredit && (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin) && (moneyAvailable + moneyCanBeRaised) >= moneyNeeded) {
+                mDoRoutesMaxCredit = true;
+                AT_Log("Bot::actionStartDay(): Starting to save for routes. Need 2*%s + %s $ for ads and plane. Have %s $ and can get %s $.",
+                       Insert1000erDots64(costRouteAd).c_str(), Insert1000erDots64(bestPlaneType.Preis).c_str(), Insert1000erDots64(moneyAvailable).c_str(),
+                       Insert1000erDots64(moneyCanBeRaised).c_str());
+            }
             if ((numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMax)) {
                 mDoRoutes = true;
-                AT_Log("Bot::actionStartDay(): Switching to routes. Reserving 2*%d + %d for ads and plane.", costRouteAd, bestPlaneType.Preis);
+                mDoRoutesMaxCredit = false;
+                AT_Log("Bot::actionStartDay(): Switching to routes. Reserving 2*%s + %s $ for ads and plane.", Insert1000erDots64(costRouteAd).c_str(),
+                       Insert1000erDots64(bestPlaneType.Preis).c_str());
+            } else {
+                AT_Log("Bot::actionStartDay(): Not switching to routes. Need 2*%s + %s $ for ads and plane. Have %s $ and can get %s $.",
+                       Insert1000erDots64(costRouteAd).c_str(), Insert1000erDots64(bestPlaneType.Preis).c_str(), Insert1000erDots64(moneyAvailable).c_str(),
+                       Insert1000erDots64(moneyCanBeRaised).c_str());
             }
         }
     }
@@ -134,6 +165,8 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
 
     /* some conditions might have changed (plane availability) */
     forceReplanning();
+
+    static_cast<void>(doWeNeedMoreGates(true));
 }
 
 void Bot::actionBuero() {
@@ -186,8 +219,7 @@ void Bot::actionCheckLastMinute() {
 
 void Bot::actionCheckTravelAgency() {
     if (mItemAntiVirus == 0) {
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_SPINNE)) {
-            AT_Log("Bot::actionCheckTravelAgency(): Picked up item tarantula");
+        if (pickUpItem(ITEM_SPINNE)) {
             mItemAntiVirus = 1;
         }
         if (HowToPlan::None == howToPlanFlights()) {
@@ -334,8 +366,7 @@ void Bot::updateExtraWorkers() {
 
 void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
     if (mItemAntiStrike == 0 && (LocalRandom.Rand() % 2 == 0)) { /* rand() because human player has same chance of item appearing */
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_BH)) {
-            AT_Log("Bot::actionBuyNewPlane(): Picked up item BH");
+        if (pickUpItem(ITEM_BH)) {
             mItemAntiStrike = 1;
         }
     }
@@ -499,15 +530,13 @@ void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
 
 void Bot::actionVisitHR() {
     if (mItemPills == 1) {
-        if (GameMechanic::useItem(qPlayer, ITEM_POSTKARTE)) {
-            AT_Log("Bot::actionVisitHR(): Used item card");
+        if (useItem(ITEM_POSTKARTE)) {
             mItemPills = 2;
         }
     }
     if (mItemPills == 2) {
         if (qPlayer.HasItem(ITEM_TABLETTEN) == 0) {
-            GameMechanic::pickUpItem(qPlayer, ITEM_TABLETTEN);
-            AT_Log("Bot::actionVisitHR(): Picked up item pills");
+            pickUpItem(ITEM_TABLETTEN);
         }
     }
 
@@ -643,8 +672,7 @@ void Bot::actionVisitHR() {
 
 void Bot::actionBuyKerosine(__int64 moneyAvailable) {
     if (mItemArabTrust == 1) {
-        if (GameMechanic::useItem(qPlayer, ITEM_MG)) {
-            AT_Log("Bot::actionBuyKerosine(): Used item MG");
+        if (useItem(ITEM_MG)) {
             mItemArabTrust = 2;
         }
     }
@@ -810,15 +838,13 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
 }
 
 void Bot::actionVisitSaboteur() {
-    if (mItemAntiVirus == 1) {
-        if (GameMechanic::useItem(qPlayer, ITEM_SPINNE)) {
-            AT_Log("Bot::actionVisitSaboteur(): Used item tarantula");
+    if (mItemAntiVirus == 1 && qPlayer.ArabTrust != 0) {
+        if (useItem(ITEM_SPINNE)) {
             mItemAntiVirus = 2;
         }
     }
     if (mItemAntiVirus == 2) {
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_DART)) {
-            AT_Log("Bot::actionVisitSaboteur(): Picked up item dart");
+        if (pickUpItem(ITEM_DART)) {
             mItemAntiVirus = 3;
         }
     }
@@ -826,9 +852,7 @@ void Bot::actionVisitSaboteur() {
         if (qPlayer.HasItem(ITEM_ZANGE) == 1) {
             GameMechanic::removeItem(qPlayer, ITEM_ZANGE);
         }
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_ZANGE)) {
-            AT_Log("Bot::actionVisitSaboteur(): Picked up item pliers");
-        }
+        pickUpItem(ITEM_ZANGE);
     }
 }
 
@@ -937,7 +961,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
             break;
         }
 
-        auto res = howToGetMoney();
+        auto res = howToGetMoney().first;
         if (res == HowToGetMoney::SellOwnShares) {
             SLONG c = qPlayer.PlayerNum;
             __int64 sellsNeeded = calcSellShares(howMuchToRaise, qPlayer.Kurse[0]);
@@ -1047,14 +1071,12 @@ void Bot::actionVisitMech() {
 
 void Bot::actionVisitDutyFree(__int64 moneyAvailable) {
     if (mItemAntiStrike == 1) {
-        if (GameMechanic::useItem(qPlayer, ITEM_BH)) {
-            AT_Log("Bot::actionVisitDutyFree(): Used item BH");
+        if (useItem(ITEM_BH)) {
             mItemAntiStrike = 2;
         }
     }
     if (mItemAntiStrike == 2) {
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_HUFEISEN)) {
-            AT_Log("Bot::actionVisitDutyFree(): Picked up item horse shoe");
+        if (pickUpItem(ITEM_HUFEISEN)) {
             mItemAntiStrike = 3;
         }
     }
@@ -1082,8 +1104,7 @@ void Bot::actionVisitDutyFree(__int64 moneyAvailable) {
 
 void Bot::actionVisitBoss() {
     if (mItemPills == 0 && Sim.ItemPostcard == 1) {
-        if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_POSTKARTE)) {
-            AT_Log("Bot::actionVisitBoss(): Picked up item card");
+        if (pickUpItem(ITEM_POSTKARTE)) {
             mItemPills = 1;
         }
     }
@@ -1185,6 +1206,7 @@ void Bot::actionRentRoute() {
         /* in route mission, do not loose any time! */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
+            mDoRoutesMaxCredit = false;
             AT_Log("Bot::actionRentRoute(): Switching to routes (forced).");
         }
         return;
@@ -1299,15 +1321,13 @@ void Bot::actionBuyAds(__int64 moneyAvailable) {
 
 void Bot::actionVisitAds() {
     if (mItemAntiVirus == 3) {
-        if (GameMechanic::useItem(qPlayer, ITEM_DART)) {
-            AT_Log("Bot::actionVisitAds(): Used item darts");
+        if (useItem(ITEM_DART)) {
             mItemAntiVirus = 4;
         }
     }
     if (mItemAntiVirus == 4) {
         if (qPlayer.HasItem(ITEM_DISKETTE) == 0) {
-            GameMechanic::pickUpItem(qPlayer, ITEM_DISKETTE);
-            AT_Log("Bot::actionVisitAds(): Picked up item floppy disk");
+            pickUpItem(ITEM_DISKETTE);
         }
     }
     mCurrentImage = qPlayer.Image;

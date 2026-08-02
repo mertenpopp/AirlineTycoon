@@ -227,9 +227,9 @@ void Bot::RobotPlan() {
     }
 
     if (mIsSickToday && qPlayer.HasItem(ITEM_TABLETTEN)) {
-        GameMechanic::useItem(qPlayer, ITEM_TABLETTEN);
-        AT_Log("Bot::RobotPlan(): Cured sickness using item pills");
-        mIsSickToday = false;
+        if (useItem(ITEM_TABLETTEN)) {
+            mIsSickToday = false;
+        }
     }
 
     auto &qRobotActions = qPlayer.RobotActions;
@@ -463,13 +463,8 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_RAISEMONEY: {
-        __int64 limit = qPlayer.CalcCreditLimit();
-        __int64 moneyRequired = -getMoneyAvailable();
-        __int64 m = std::min(limit, moneyRequired);
-        m = std::max(m, 1000LL);
-        if (mRunToFinalObjective == FinalPhase::TargetRun) {
-            m = limit;
-        }
+        bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+        __int64 m = howMuchMoneyToRaise(maxCredit);
         if (m > 0) {
             AT_Log("Bot::RobotExecuteAction(): Taking loan: %s $", Insert1000erDots64(m).c_str());
             GameMechanic::takeOutCredit(qPlayer, m);
@@ -536,8 +531,7 @@ void Bot::RobotExecuteAction() {
         mBestPlaneTypeId = list.empty() ? -1 : list[0];
 
         if (mItemAntiStrike == 0) {
-            if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_BH)) {
-                AT_Log("Bot::RobotExecuteAction(): Picked up item BH");
+            if (pickUpItem(ITEM_BH)) {
                 mItemAntiStrike = 1;
             }
         }
@@ -545,7 +539,7 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_VISITARAB:
         if (mItemArabTrust == 1) {
-            if (GameMechanic::useItem(qPlayer, ITEM_MG)) {
+            if (useItem(ITEM_MG)) {
                 AT_Log("Bot::RobotExecuteAction(): Used item MG");
                 mItemArabTrust = 2;
             }
@@ -554,8 +548,7 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_VISITRICK:
         if (mItemAntiStrike == 3) {
-            if (GameMechanic::useItem(qPlayer, ITEM_HUFEISEN)) {
-                AT_Log("Bot::RobotExecuteAction(): Used item horse shoe");
+            if (useItem(ITEM_HUFEISEN)) {
                 mItemAntiStrike = 4;
             }
         }
@@ -652,7 +645,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 101;
+    SLONG savegameVersion = 102;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -697,9 +690,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     }
 
     File << bot.mWantToRentRouteId;
-    File << bot.mFirstRun << bot.mDayStarted << bot.mDoRoutes;
+    File << bot.mFirstRun << bot.mDayStarted << bot.mDoRoutes << bot.mDoRoutesMaxCredit;
     File << static_cast<SLONG>(bot.mRunToFinalObjective) << bot.mMoneyForFinalObjective;
-    File << bot.mOutOfGates;
     File << bot.mNeedToPlanJobs << bot.mNeedToPlanRoutes;
     File << bot.mMoneyReservedForRepairs << bot.mMoneyReservedForUpgrades;
     File << bot.mMoneyReservedForAuctions << bot.mMoneyReservedForFines;
@@ -839,10 +831,18 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mWantToRentRouteId;
     File >> bot.mFirstRun >> bot.mDayStarted >> bot.mDoRoutes;
+    if (savegameVersion < 102) {
+        bot.mDoRoutesMaxCredit = 0;
+    } else {
+        File >> bot.mDoRoutesMaxCredit;
+    }
     SLONG runToFinalObjective = 0;
     File >> runToFinalObjective >> bot.mMoneyForFinalObjective;
     bot.mRunToFinalObjective = static_cast<Bot::FinalPhase>(runToFinalObjective);
-    File >> bot.mOutOfGates;
+    if (savegameVersion < 102) {
+        bool outOfGates = false;
+        File >> outOfGates;
+    }
     File >> bot.mNeedToPlanJobs >> bot.mNeedToPlanRoutes;
     File >> bot.mMoneyReservedForRepairs >> bot.mMoneyReservedForUpgrades;
     File >> bot.mMoneyReservedForAuctions >> bot.mMoneyReservedForFines;

@@ -250,6 +250,8 @@ class Bot {
     void assignPlanesToRoutes(bool areWeInOffice);
 
     /* misc (in BotMisc.cpp) */
+    __int64 howMuchMoneyToRaise(bool maxCredit) const;
+    bool doWeNeedMoreGates(bool print) const;
     void printRobotFlags() const;
     SLONG numPlanes() const;
     std::vector<SLONG> getAllPlanes() const;
@@ -261,7 +263,7 @@ class Bot {
     enum class HowToPlan { None, Laptop, Office };
     HowToPlan howToPlanFlights();
     AreWeBroke areWeBroke() const;
-    HowToGetMoney howToGetMoney();
+    std::pair<HowToGetMoney, Prio> howToGetMoney();
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
@@ -281,6 +283,8 @@ class Bot {
     void setHardcodedDesignerPlaneLarge();
     void setHardcodedDesignerPlaneEco();
     void setMoodByActionId(SLONG actionId);
+    bool useItem(SLONG item);
+    bool pickUpItem(SLONG item);
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
@@ -312,9 +316,9 @@ class Bot {
     bool mFirstRun{true};
     bool mDayStarted{false};
     bool mDoRoutes{false};
+    bool mDoRoutesMaxCredit{false};
     FinalPhase mRunToFinalObjective{FinalPhase::No};
     __int64 mMoneyForFinalObjective{0};
-    bool mOutOfGates{false};
     bool mNeedToPlanJobs{false};
     bool mNeedToPlanRoutes{false};
     __int64 mMoneyReservedForRepairs{0};

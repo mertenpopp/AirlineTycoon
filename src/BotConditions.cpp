@@ -302,8 +302,9 @@ Bot::Prio Bot::condUpgradePlanes() {
 
     /* When broke: Cancel ugprades ASAP */
     if (hoursPassed(ACTION_UPGRADE_PLANES, 1)) {
-        if (howToGetMoney() == HowToGetMoney::CancelPlaneUpgrades) {
-            return Prio::Top;
+        auto res = howToGetMoney();
+        if (res.first == HowToGetMoney::CancelPlaneUpgrades) {
+            return res.second;
         }
     }
 
@@ -353,6 +354,9 @@ Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
     }
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
+    }
+    if (mDoRoutesMaxCredit) {
+        return Prio::None; /* we are saving for routes */
     }
     if (HowToPlan::None == howToPlanFlights()) {
         return Prio::None;
@@ -597,10 +601,20 @@ Bot::Prio Bot::condTakeOutLoan() {
     if (!hoursPassed(ACTION_RAISEMONEY, 1)) {
         return Prio::None;
     }
-    if (howToGetMoney() == HowToGetMoney::IncreaseCredit) {
-        return Prio::Top;
+    bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+    if (howMuchMoneyToRaise(maxCredit) <= 0) {
+        return Prio::None;
     }
-    return Prio::None;
+
+    Prio prio = Prio::None;
+    auto res = howToGetMoney();
+    if (res.first == HowToGetMoney::IncreaseCredit) {
+        prio = std::max(prio, res.second);
+    }
+    if (mDoRoutesMaxCredit) {
+        prio = std::max(prio, Prio::High);
+    }
+    return prio;
 }
 
 Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
@@ -609,6 +623,9 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
         return Prio::None;
     }
     if (mRunToFinalObjective > FinalPhase::No) {
+        return Prio::None;
+    }
+    if (mDoRoutesMaxCredit) {
         return Prio::None;
     }
 
@@ -624,8 +641,9 @@ Bot::Prio Bot::condEmitShares() {
     }
 
     Prio prio = Prio::None;
-    if (howToGetMoney() == HowToGetMoney::EmitShares) {
-        prio = std::max(prio, Prio::Top);
+    auto res = howToGetMoney();
+    if (res.first == HowToGetMoney::EmitShares) {
+        prio = std::max(prio, res.second);
     }
 
     if (hoursPassed(ACTION_EMITSHARES, 24)) {
@@ -723,8 +741,8 @@ Bot::Prio Bot::condSellShares(__int64 &moneyAvailable) {
 
     Prio prio = Prio::None;
     auto res = howToGetMoney();
-    if (res == HowToGetMoney::SellShares || res == HowToGetMoney::SellOwnShares || res == HowToGetMoney::SellAllOwnShares) {
-        prio = std::max(prio, Prio::Top);
+    if (res.first == HowToGetMoney::SellShares || res.first == HowToGetMoney::SellOwnShares || res.first == HowToGetMoney::SellAllOwnShares) {
+        prio = std::max(prio, res.second);
     }
 
     if (hoursPassed(ACTION_SELLSHARES, 24)) {
@@ -748,8 +766,9 @@ Bot::Prio Bot::condVisitMech() {
     }
 
     Prio prio = Prio::None;
-    if (howToGetMoney() == HowToGetMoney::LowerRepairTargets) {
-        prio = std::max(prio, Prio::Top);
+    auto res = howToGetMoney();
+    if (res.first == HowToGetMoney::LowerRepairTargets) {
+        prio = std::max(prio, res.second);
     }
     if (hoursPassed(ACTION_VISITMECH, 4)) { /* Not broke: Do not need to visit too often */
         if (getMoneyAvailable() >= 0 || mMoneyReservedForRepairs > 0) {
@@ -872,8 +891,7 @@ Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
             prio = std::max(prio, Prio::High); /* check again right before end of day */
         }
         if (mBossGateAvailable || (mBossNumCitiesAvailable == -1)) { /* there is gate available (or we don't know yet) */
-            auto targetPrio = mOutOfGates ? Prio::High : Prio::Medium;
-            prio = std::max(prio, targetPrio);
+            prio = std::max(prio, Prio::High);
         }
         if (mBossNumCitiesAvailable > 0 && hoursPassed(ACTION_VISITAUFSICHT, 4)) {
             prio = std::max(prio, Prio::Low);
@@ -901,11 +919,7 @@ Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
         return Prio::None;
     }
 
-    DOUBLE gateUtilization = 0;
-    for (auto util : qPlayer.Gates.Auslastung) {
-        gateUtilization += util;
-    }
-    if (gateUtilization / (24 * 7) < (qPlayer.Gates.NumRented - 1)) {
+    if (!doWeNeedMoreGates(false)) {
         return Prio::None;
     }
 

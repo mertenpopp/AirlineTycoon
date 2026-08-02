@@ -33,6 +33,31 @@ __int64 Bot::getMoneyAvailable() const {
     return m;
 }
 
+__int64 Bot::howMuchMoneyToRaise(bool maxCredit) const {
+    __int64 limit = qPlayer.CalcCreditLimit();
+    __int64 moneyRequired = -getMoneyAvailable();
+    __int64 m = std::min(limit, moneyRequired);
+    m = std::max(m, 1000LL);
+    if (maxCredit) {
+        m = limit;
+    }
+    return m;
+}
+
+bool Bot::doWeNeedMoreGates(bool print) const {
+    DOUBLE gateUtilization = 0;
+    for (auto util : qPlayer.Gates.Auslastung) {
+        gateUtilization += util;
+    }
+    gateUtilization /= (24 * 7 * qPlayer.Gates.NumRented); /* average utilization per gate */
+    bool needMoreGates = (gateUtilization > 0.8);
+    if (print) {
+        AT_Log("Bot::doWeNeedMoreGates(): Gate utilization: %f, rented gates: %d, need more: %s", gateUtilization, qPlayer.Gates.NumRented,
+               (needMoreGates ? "YES" : "NO"));
+    }
+    return needMoreGates;
+}
+
 void Bot::printRobotFlags() const {
     const std::array<std::pair<SLONG, bool>, 29> list = {
         {{ROBOT_USE_FRACHT, true},          {ROBOT_USE_WERBUNG, true},        {ROBOT_USE_NASA, false},
@@ -98,7 +123,7 @@ bool Bot::haveDiscount() const {
 bool Bot::checkLaptop() {
     if (qPlayer.HasItem(ITEM_LAPTOP)) {
         if ((qPlayer.LaptopVirus == 1) && (qPlayer.HasItem(ITEM_DISKETTE) == 1)) {
-            GameMechanic::useItem(qPlayer, ITEM_DISKETTE);
+            useItem(ITEM_DISKETTE);
         }
         if (qPlayer.LaptopVirus == 0) {
             return true;
@@ -140,10 +165,10 @@ Bot::AreWeBroke Bot::areWeBroke() const {
     return AreWeBroke::No;
 }
 
-Bot::HowToGetMoney Bot::howToGetMoney() {
+std::pair<Bot::HowToGetMoney, Bot::Prio> Bot::howToGetMoney() {
     auto broke = areWeBroke();
     if (broke == AreWeBroke::No) {
-        return HowToGetMoney::None;
+        return {HowToGetMoney::None, Prio::None};
     }
 
     SLONG numShares = 0;
@@ -161,37 +186,45 @@ Bot::HowToGetMoney Bot::howToGetMoney() {
         numOwnShares = std::max(0, numOwnShares - qPlayer.AnzAktien / 2 - 1);
     }
 
+    auto prio = Prio::Medium;
+    if (areWeBroke() == AreWeBroke::Desperate) {
+        prio = Prio::Top;
+    } else if (areWeBroke() == AreWeBroke::Yes) {
+        prio = Prio::High;
+    }
+
     /* Step 1: Lower repair targets */
     if (mMoneyReservedForRepairs > 0) {
-        return HowToGetMoney::LowerRepairTargets;
+        return {HowToGetMoney::LowerRepairTargets, prio};
     }
 
     /* Step 2: Cancel plane upgrades */
     if (mMoneyReservedForUpgrades > 0) {
-        return HowToGetMoney::CancelPlaneUpgrades;
+        return {HowToGetMoney::CancelPlaneUpgrades, prio};
     }
 
     /* Step 3: Emit shares */
     if (GameMechanic::canEmitStock(qPlayer) == GameMechanic::EmitStockResult::Ok) {
-        return HowToGetMoney::EmitShares;
+        return {HowToGetMoney::EmitShares, prio};
     }
 
     /* Step 4: Sell shares */
     if (numShares > 0) {
-        return HowToGetMoney::SellShares;
+        return {HowToGetMoney::SellShares, prio};
     }
     if (broke == AreWeBroke::Somewhat) {
-        return HowToGetMoney::None;
+        return {HowToGetMoney::None, prio};
     }
     if (numOwnShares > 0) {
-        return (broke == AreWeBroke::Desperate) ? HowToGetMoney::SellAllOwnShares : HowToGetMoney::SellOwnShares;
+        auto how = (broke == AreWeBroke::Desperate) ? HowToGetMoney::SellAllOwnShares : HowToGetMoney::SellOwnShares;
+        return {how, prio};
     }
 
     /* Step 5: Take out loan */
     if (qPlayer.CalcCreditLimit() >= 1000) {
-        return HowToGetMoney::IncreaseCredit;
+        return {HowToGetMoney::IncreaseCredit, prio};
     }
-    return HowToGetMoney::None;
+    return {HowToGetMoney::None, Prio::None};
 }
 
 __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
@@ -753,4 +786,28 @@ void Bot::setMoodByActionId(SLONG actionId) {
     default:
         DebugBreak();
     }
+}
+
+bool Bot::useItem(SLONG item) {
+    if (!GameMechanic::useItem(qPlayer, item)) {
+        return false;
+    }
+    if (qPlayer.HasItem(item)) {
+        AT_Error("Bot::useItem(): Still have item %s after using it", Helper::getItemName(item));
+        return false;
+    }
+    AT_Log("Bot::useItem(): Used item: %s", Helper::getItemName(item));
+    return true;
+}
+
+bool Bot::pickUpItem(SLONG item) {
+    if (GameMechanic::PickUpItemResult::PickedUp != GameMechanic::pickUpItem(qPlayer, item)) {
+        return false;
+    }
+    if (!qPlayer.HasItem(item)) {
+        AT_Error("Bot::pickUpItem(): Did not receive item %s after picking it up", Helper::getItemName(item));
+        return false;
+    }
+    AT_Log("Bot::pickUpItem(): Picked up item: %s", Helper::getItemName(item));
+    return true;
 }
