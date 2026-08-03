@@ -3,7 +3,7 @@ The Game
 
 Airline Tycoon Deluxe is a resource-management/tycoon game where you control the airline manager during the day. You walk in the airport from room to room and talk to different people in different rooms to perform specific actions. You buy planes, upgrade them, hire staff, take flight jobs and schedule flights. Flights bring you money which you can use to buy more planes.
 
-The game simulates a day/night cycle. You work from 9 am to 18 pm and can only perform actions during this time. The game state however advanced during night: Planes start and land as scheduled, money made or lost as usual.
+The game simulates a day/night cycle. You work from 9 am to 18 pm and can only perform actions during this time. The game state however advanced during night: Planes start and land as scheduled, money made or lost as usual. You work the entire week including on Sunday.
 
 There are always four competing airlines:
 - "Sunshine Airways" (SA)
@@ -13,15 +13,21 @@ There are always four competing airlines:
 
 ClaudeBot will play as "HoneyAirlines". Airlines are enumerated starting at 0 in the order given.
 
-We will list now all actions that can be performed in the game via the class GameMechanic.
-If GameMechanic returns a bool this usually means whether or not the action could be completed.
 In the following, qPlayer always is a reference to the instance of the Player class which refers to Honey Airlines.
 
-Note that most actions have to performed in a particular room. ClaudeBot shall set the desired action ID in RobotPlan() and the game will walk the character to the correct room. On arrival, RobotExecuteAction() will be called.
+Note that most actions have to performed in a particular room. ClaudeBot shall set the desired action ID in `RobotPlan()` and the game will walk the character to the correct room. On arrival, `RobotExecuteAction()` will be called.
+
+In `RobotPlan()`, a secondary action ID shall also be set. This will used to walk the character to a different room in case the room connected to the primary action ID is already occupied by a competitor. Thus in `RobotExecuteAction()`, it shall be checked which action ID was successful by checking `qPlayer.RobotActions[0]`.
+
+ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the action.
+
+Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
 - ClaudeBot shall use the following function to check if the room is open: bool checkRoomOpen(SLONG roomId)
 - ClaudeBot shall use the following to translate an action ID to a room ID: SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)
-- ClaudeBot shall check that it is in the correct room before performing an action using the function: qPlayer.GetRoom()
-- If it is not the correct room, only print a warning for now and do still perform the action
+- When planning the next action, consider the time it requires to walk to a room
+
+We will list now all actions that can be performed in the game via the class GameMechanic.
+If GameMechanic returns a bool this usually means whether or not the action could be completed.
 
 Bank actions
 ------------
@@ -184,11 +190,14 @@ A passenger flight job is an instance of `CAuftrag`, a freight job is an instanc
 Flight planning
 ----------------
 
-Flight jobs that have been taken shall be planned. If not, they will expire and this might incur a fine.
+### Import data structures
 
-Flights can only be planned in the player's office or when the item "laptop" is available.
-To walk to your office, use the action ID ACTION_BUERO. Note that the office is only usuable when `(qPlayer.OfficeState != 2)`.
-The laptop can be used at any point during any action as long as the condition `qPlayer.HasItem(ITEM_LAPTOP) && (qPlayer.LaptopVirus == 0)` holds (laptop available and no virus).
+Familiarize yourself with the data structures:
+- CAuftrag
+- CFracht
+- CRoute
+- CFlugplanEintrag
+- CPlane
 
 A list of planes is found in `qPlayer.Planes`. Each plane has a flight plan object `Flugplan`.  Each flight plan object has a chronologically sorted list of flights in the array `Flug`.
 The items in this array have the type `CFlugplanEintrag ` and are only referring to an actual flight if their `ObjectType` is larger than 0. This is the definition for `ObjectType`:
@@ -205,6 +214,14 @@ You can use the following helper functions:
 - `const CFlugplanEintrag *getLastFlightNotAfter(const CPlane &qPlane, PlaneTime ignoreFrom)`: Returns a pointer to the last valid flight plan object when flights after a certain time are ignored. This is useful when the intention is to replan a flight schedule but you do not want to touch flights that are scheduled for takeoff very soon given the fact that the game is real-time.
 - `std::pair<PlaneTime, int> getPlaneAvailableTimeLoc(const CPlane &qPlane, std::optional<PlaneTime> ignoreFrom, std::optional<PlaneTime> earliest)`: Return both time and location when the plane is available, meaning it has landed and is available for the next flight. As above, there is an option for a cutoff if the intention is to replan. The earliest returned time will be the next full hour or the optional argument `earliest` if it contains a later point in time.
 
+### How to plan flights
+
+Flight jobs that have been taken shall be planned. If not, they will expire and this might incur a fine.
+
+Flights can only be planned in the player's office or when the item "laptop" is available.
+To walk to your office, use the action ID ACTION_BUERO. Note that the office is only usuable when `(qPlayer.OfficeState != 2)`.
+The laptop can be used at any point during any action as long as the condition `qPlayer.HasItem(ITEM_LAPTOP) && (qPlayer.LaptopVirus == 0)` holds (laptop available and no virus).
+
 Do not modify anything in the plane, flight plan or flight plan object classes directly. Instead, use the following functions:
 - `bool GameMechanic::killFlightJob(PLAYER &qPlayer, SLONG par1, bool payFine)`: Remove a passenger flight from the backlog and pay fine immediately. Note that it is assumed the flight has been removed from the plane schedule already.
 - `bool GameMechanic::killFreightJob(PLAYER &qPlayer, SLONG par1, bool payFine)`: Remove a freight job from the backlog and pay fine immediately. Note that it is assumed the flight has been removed from the plane schedule already.
@@ -214,6 +231,8 @@ Do not modify anything in the plane, flight plan or flight plan object classes d
 - `bool GameMechanic::planFlightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (passenger job) for the given plane and time into the plane's flight schedule.
 - `bool GameMechanic::planFreightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (freight job) for the given plane and time into the plane's flight schedule.
 - `bool GameMechanic::planRouteJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (route job) for the given plane and time into the plane's flight schedule.
+
+### Constraints
 
 There are constraints when scheduling flights. In the following, `qPlane` is a reference to the plane that shall fly this job:
 - earliest possible start time is `(Sim.GetHour() + 2) % 24` 
@@ -255,20 +274,84 @@ Hint: A good place to learn more about the rules of flight jobs is the function 
 
 Hint: It is a good idea to regularly check if flight plan entries are scheduled correctly by reading the field `CFlugplanEintrag::Okay`. Rather surprising, the field is set to `0` if everything is fine. If a constraint is violated, an error code larger zero is set. Check the functions `PLAYER::UpdateAuftragsUsage()` and `PLAYER::UpdateFrachtauftragsUsage()` to learn more.
 
-TODO:
-fuel
-empty flight
+### Automatic flights
 
-Flight picking and planning
----------------------------
+A plane is either in the home airport or in the city denoted by `NachCity` of the most recently performed flight. However, for the following scheduled flight, the plane needs to be at the city denoted by `VonCity` by the time the flight is scheduled. To facilitate this, the game automatically inserts "automatic flights" to bring the plane from the previous `NachCity` to the next `VonCity`. These flights have their own `CFlugplanEintrag` with `ObjectType == 3`. They gain little money and usually cost more than they bring.
+
+ClaudeBot never has to add or remove them itself. The game adds them where necessary and also removes them if possible. However, ClaudeBot needs to be aware that these flights take time and usually cost money.
+
+These flights are sometimes also called "empty flights" or "Leerflug".
+
+There are no automatic flights inserted if previous `NachCity` is identical to next `VonCity`.
+
+Flight planning
+---------------
+
+If a new flight is added to a (partially) filled plane schedule at a specific point, the game might need to shift the earlier or later flights to make enough room in the schedule. This behavior is compounded by the fact that the automatic flights change. Example:
+
+- Passenger job: Berlin -> London
+- Automatic flight: London -> Frankfurt
+- Freight job: Frankfurt -> Delhi
+
+If the job Dublin -> Brussels is inserted in the middle, we get:
+
+- Passenger job: Berlin -> London
+- Automatic flight: London -> Dublin
+- Passenger job: Dublin -> Brussels
+- Automatic flight: Brussels -> Frankfurt
+- Freight job: Frankfurt -> Delhi
+
+Consider the change from one automatic flight to two new, different automatic flights.
+
+Because this behavior is difficult to predict, my recommendation is:
+- First plan how the ideal flight schedule for a given plane shall look like
+- Consider automatic flights from the start
+- Verify the ideal schedule and check all the constraints
+- Only then apply the schedule by following the next steps
+- (Partially) Clear the plane schedule
+- Add the flight jobs one by one at the calculated point in time
+- Do not attempt to schedule automatic flights manually, this is not possible
+- In the end, verify that all flight jobs ended up at the intended position in the schedule
+
+Real-time concerns
+------------------
+
+Flights can be scheduled and plane schedules can be altered at any point in time when the player has a laptop available and it has no virus. These action can also be done in the player's office unless the office is currently unusable. If both office and laptop are unusable, no flights can be scheduled and no plane schedule can be altered.
+
+Note that in case a flight job is picked up in one room and then the player has to walk to the office in order to schedule it, time will pass. This can make it impossible to schedule a flight that was supposed to start very soon. Plan accordingly if walking is required.
 
 Routes
 ------
 
+Familiarize yourself with the data structures:
+- CRoute
+- CRentRoute
+
+### Route box
+
+`bool GameMechanic::rentRoute(PLAYER &qPlayer, SLONG routeA)`
+
+Rents a new route at the "route box" room. A daily fee has to be paid for each rented route.
+
+Use the following function to check which routes are buyable:
+
+`BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer)`
+
+A route always connects two cities. A route is buyable if either city is the home airport or either city is already connected by a different route that the player flies sufficiently enough.
+
+Use this function to stop renting a route but ensure that no plane will be flying this route anymore beforehand:
+
+`bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`
+
+The action ID ACTION_VISITROUTEBOX / ACTION_VISITROUTEBOX2 shall be used to walk to the route box. All three functions in this section can only be done at the route box.
+
+### Route mechanics
+
+SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA):
+
 - `bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: 
 - `bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: 
 
-walk to office?
 
 Office / personal / staffing actions
 ------------------------------------
@@ -351,14 +434,6 @@ Visit the broker / airplane dealer room. This is where new aircraft can be bough
 
 ACTION_VISITRICK
 Visit Rick’s room. This is a special service room.
-
-BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer):
-bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA):
-bool GameMechanic::rentRoute(PLAYER &qPlayer, SLONG routeA):
-ACTION_VISITROUTEBOX / ACTION_VISITROUTEBOX2
-Visit route-box. This is the route-management room, with access gated by difficulty.
-
-SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA):
 
 5) Security / sabotage actions
 These are the “consequence” actions that can affect the game state directly.

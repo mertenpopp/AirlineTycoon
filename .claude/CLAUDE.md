@@ -28,8 +28,9 @@ Constraints
 The game is a real-time not turn-based. ClaudeBot is called by the game simulation via the following callbacks:
 - RobotInit(): Called once per in-game day. Can be used for initialization and check what has changed since evening.
 - RobotPlan(): Called when the game wants you to plan what to do next. Needs to set a primary and secondary action ID. Player character will walk to the appropriate place for the primary action or for the secondary if the room for the first is already occupied.
-- RobotExecuteAction(): Called when it is now possible to execute the primary action. Note that the game can shift actions and that the primary action now might have been planned as secondary action.
+- RobotExecuteAction(): Called when it is now possible to execute the primary action. Note that if the room was full, the primary action now might have been planned as secondary action. 
 
+Note that the game is single-threaded. Thus, during a callback, the game state does not advance. However, it is possible that between two callbacks quite a bit of time has passed. Recommendation: In RobotExecuteAction(), check again if the preconditions for the planned actions still apply.
 
 How to build
 ------------
