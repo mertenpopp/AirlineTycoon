@@ -97,7 +97,7 @@ Action ID ACTION_VISITBANK can be used for a generic action for bank interaction
 
 
 Flight jobs / freight jobs actions
----------------------------------
+----------------------------------
 
 These actions send the bot to the special offices where flight jobs can be viewed and taken.
 
@@ -106,7 +106,7 @@ These actions send the bot to the special offices where flight jobs can be viewe
 Action ID to access room: ACTION_CHECKAGENT1
 
 Only while performing this action, the global array LastMinuteAuftraege may be accessed. Never write to this array.
-Browse this array to find suitable flights. All flights here can go from any city to any other city and typically need to be completed either today or tomorrow. Plane must have required number of seats at least. Plane needs to be able to travel the required distance. There is a premium if completed on time. If flight has been taken but not completed on time, a fine has to be paid. Some jobs have a fine of zero.
+Browse this array to find suitable flights. All flights here can go from any city to any other city and typically need to be completed either today or tomorrow. Plane must have required number of seats at least. Plane needs to be able to travel the required distance. The money for the job is paid if completed on time. If flight has been taken but not completed on time, a fine has to be paid. Some jobs have a fine of zero.
 You can pick a flight job using:
 
 `bool GameMechanic::takeLastMinuteJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId)`
@@ -177,6 +177,9 @@ Job will be added to qPlayer.Frachten and can be found using outObjectId.
 ACTION_CALL_INTER_HANDY can be used for a special “no-walk” international-call action; it does not require a location walk and is thus faster.
 The item "phone" is required. Everything else said about ACTION_CALL_INTERNATIONAL also applies here.
 
+### General rules
+
+A passenger flight job is an instance of `CAuftrag`, a freight job is an instance of `CFracht`. In the global arrays, for any given job always check for validity using the expression `(job.VonCity != job.NachCity) && (job.Praemie >= 0)`.
 
 Flight planning
 ----------------
@@ -188,7 +191,11 @@ To walk to your office, use the action ID ACTION_BUERO. Note that the office is 
 The laptop can be used at any point during any action as long as the condition `qPlayer.HasItem(ITEM_LAPTOP) && (qPlayer.LaptopVirus == 0)` holds (laptop available and no virus).
 
 A list of planes is found in `qPlayer.Planes`. Each plane has a flight plan object `Flugplan`.  Each flight plan object has a chronologically sorted list of flights in the array `Flug`.
-The items in this array have the type `CFlugplanEintrag ` and are only referring to an actual flight if their `ObjectType` is larger than 0.
+The items in this array have the type `CFlugplanEintrag ` and are only referring to an actual flight if their `ObjectType` is larger than 0. This is the definition for `ObjectType`:
+- 1 means route job
+- 2 means passenger job
+- 3 is an automatic flight
+- 4 means freight job
 
 A flight plan object cannot be altered if the plane has already started or the start happens until the next in-game hour. Check using this expression: `qFPE.Startdate == Sim.Date && qFPE.Startzeit <= Sim.GetHour() + 1` where `qFPE` is a reference to a flight plan object. If this is the case, the entry is considered to be locked.
 
@@ -207,6 +214,46 @@ Do not modify anything in the plane, flight plan or flight plan object classes d
 - `bool GameMechanic::planFlightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (passenger job) for the given plane and time into the plane's flight schedule.
 - `bool GameMechanic::planFreightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (freight job) for the given plane and time into the plane's flight schedule.
 - `bool GameMechanic::planRouteJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time)`: Attempts to place the given flight (route job) for the given plane and time into the plane's flight schedule.
+
+There are constraints when scheduling flights. In the following, `qPlane` is a reference to the plane that shall fly this job:
+- earliest possible start time is `(Sim.GetHour() + 2) % 24` 
+- number of passengers must be ` <= qPlane.ptPassagiere` for passenger flight jobs
+- freight jobs can split the total freight volume (`CFracht::Tons`) across multiple trips and/or planes. `CFracht::TonsLeft` tracks the number of tons still left
+- distance between start city (`VonCity`) and target city (`NachCity`) must be ` <= qPlane.ptReichweite * 1000`
+- flight duration must not exceed 24 hours (relevant for long distance flights and slow planes)
+
+You can use the following helper functions to determine cost, duration and distance of a flight. The parameter `emptyFlight` has to be set if it is an automatic flight (game assumes a little bit of income from these which reduces cost). Note that this function only includes cost for passenger, freight and route jobs.
+```
+inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
+    assert(startCity >= 0 && startCity < Cities.AnzEntries());
+    assert(destCity >= 0 && destCity < Cities.AnzEntries());
+    /* needs to match CITIES::CalcFlugdauer() */
+    distance = Cities.CalcDistance(startCity, destCity);
+    duration = (distance / qPlane.ptGeschwindigkeit + 999) / 1000 + 1 + 2 - 2;
+    if (duration < 2) {
+        duration = 2;
+    }
+
+    /* needs to match CalculateFlightKerosin() */
+    SLONG kerosene = distance / 1000            // weil Distanz in m übergeben wird
+                     * qPlane.ptVerbrauch / 160 // Liter pro Barrel
+                     / qPlane.ptGeschwindigkeit;
+
+    /* needs to match CalculateFlightCostNoTank() */
+    cost = kerosene * Sim.Kerosin;
+    if (cost < 1000) {
+        cost = 1000;
+    }
+
+    if (emptyFlight) {
+        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
+    }
+}
+```
+
+Hint: A good place to learn more about the rules of flight jobs is the function `CFlugplanEintrag::BookFlight`. This function trigers all the effects of a flight: Money gained for job, money spent for fuel and passenger food, plane deterioration, changes to company image and much more.
+
+Hint: It is a good idea to regularly check if flight plan entries are scheduled correctly by reading the field `CFlugplanEintrag::Okay`. Rather surprising, the field is set to `0` if everything is fine. If a constraint is violated, an error code larger zero is set. Check the functions `PLAYER::UpdateAuftragsUsage()` and `PLAYER::UpdateFrachtauftragsUsage()` to learn more.
 
 TODO:
 fuel
