@@ -4,7 +4,6 @@
 #include "AtNet.h"
 #include "Bot.h"
 #include "BotHelper.h"
-#include "BotPlaner.h"
 #include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
@@ -5886,126 +5885,7 @@ void PLAYER::RandomBeraterMessagePlane() {
     }
 }
 
-void PLAYER::RandomBeraterMessageJobs() {
-    TEAKRAND rnd(Sim.Time);
-    if ((Owner != 0) || HasBerater(BERATERTYP_AUFTRAG) < rnd.getRandInt(0, 100)) {
-        return;
-    }
-
-    std::vector<int> cities;
-    for (SLONG n = 0; n < Cities.AnzEntries(); n++) {
-        if (!GameMechanic::canCallInternational(*this, n)) {
-            continue;
-        }
-        cities.push_back(n);
-    }
-
-    std::vector<int> planeIds;
-    for (SLONG i = 0; i < Planes.AnzEntries(); i++) {
-        if (Planes.IsInAlbum(i)) {
-            planeIds.push_back(Planes.GetIdFromIndex(i));
-        }
-    }
-
-    BotPlaner bot(*this, Planes);
-    if (Helper::checkRoomOpen(ACTION_CHECKAGENT2)) {
-        bot.addJobSource(BotPlaner::JobOwner::TravelAgency, {});
-    }
-    if (Helper::checkRoomOpen(ACTION_CHECKAGENT1)) {
-        bot.addJobSource(BotPlaner::JobOwner::LastMinute, {});
-    }
-    if (Helper::checkRoomOpen(ACTION_CHECKAGENT3)) {
-        bot.addJobSource(BotPlaner::JobOwner::Freight, {});
-    }
-    if (!cities.empty()) {
-        bot.addJobSource(BotPlaner::JobOwner::International, cities);
-        bot.addJobSource(BotPlaner::JobOwner::InternationalFreight, cities);
-    }
-    bot.setMinScoreRatio(14 * 1000.0f);
-    bot.setMinScoreRatioLastMinute(1 * 1000.0f);
-    auto solutions = bot.generateSolution(planeIds, {}, kAvailTimeExtra);
-
-    FLOAT bestScoreRatio = 0.0F;
-    std::vector<std::pair<FLOAT, CString>> bestJobs;
-    for (const auto &toTake : solutions.toTake) {
-        SLONG premium = 0;
-        CString jobName;
-        CString cityName;
-        ULONG textId = 0;
-        switch (toTake.owner) {
-        case BotPlaner::JobOwner::TravelAgency:
-            premium = ReisebueroAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(ReisebueroAuftraege[toTake.objectId], true);
-            textId = 10000;
-            break;
-        case BotPlaner::JobOwner::LastMinute:
-            premium = LastMinuteAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(LastMinuteAuftraege[toTake.objectId], true);
-            textId = 10001;
-            break;
-        case BotPlaner::JobOwner::Freight:
-            premium = gFrachten[toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(gFrachten[toTake.objectId], true);
-            textId = 10002;
-            break;
-        case BotPlaner::JobOwner::International:
-            premium = AuslandsAuftraege[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getJobName(AuslandsAuftraege[toTake.sourceId][toTake.objectId], true);
-            cityName = Cities[toTake.sourceId].Name;
-            textId = 10003;
-            break;
-        case BotPlaner::JobOwner::InternationalFreight:
-            premium = AuslandsFrachten[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(AuslandsFrachten[toTake.sourceId][toTake.objectId], true);
-            cityName = Cities[toTake.sourceId].Name;
-            textId = 10004;
-            break;
-        default:
-            continue;
-        }
-
-        /* find plane */
-        SLONG planeId = -1;
-        PlaneTime start{};
-        FLOAT scoreRatio = 0.0F;
-        for (const auto &solution : solutions.list) {
-            for (const auto &job : solution.jobs) {
-                if (job.jobIdx == toTake.jobIdx) {
-                    planeId = solution.planeId;
-                    start = job.start;
-                    scoreRatio = job.scoreRatio;
-                    break;
-                }
-            }
-        }
-        if (planeId == -1) {
-            continue;
-        }
-        if (scoreRatio <= 10 * 1000.0F) {
-            continue;
-        }
-        bestScoreRatio = std::max(bestScoreRatio, scoreRatio);
-
-        CString premiumStr{Einheiten[EINH_DM].bString(premium)};
-        if (textId == 10003U || textId == 10004U) {
-            bestJobs.emplace_back(scoreRatio, bprintf(StandardTexte.GetS(TOKEN_ADVICE, textId), cityName.c_str(), jobName.c_str(), Planes[planeId].Name.c_str(),
-                                                      Helper::getWeekday(start.getDate()).c_str(), start.getHour(), premiumStr.c_str()));
-        } else {
-            bestJobs.emplace_back(scoreRatio, bprintf(StandardTexte.GetS(TOKEN_ADVICE, textId), jobName.c_str(), Planes[planeId].Name.c_str(),
-                                                      Helper::getWeekday(start.getDate()).c_str(), start.getHour(), premiumStr.c_str()));
-        }
-    }
-
-    if (bestJobs.empty()) {
-        return;
-    }
-
-    std::sort(bestJobs.begin(), bestJobs.end(),
-              [](const std::pair<FLOAT, std::string> &a, const std::pair<FLOAT, std::string> &b) { return (a.first > b.first); });
-
-    SLONG idx = rnd.getRandInt(0, bestJobs.size() - 1);
-    Messages.AddMessage(BERATERTYP_PERSONAL, bestJobs[idx].second);
-}
+void PLAYER::RandomBeraterMessageJobs() {}
 
 void PLAYER::RandomBeraterMessage() {
     switch (rand() % 4) {

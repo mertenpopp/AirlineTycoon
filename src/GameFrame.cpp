@@ -5,7 +5,6 @@
 //============================================================================================
 #include "AtNet.h"
 #include "AirportView.h"
-#include "BotDesigner.h"
 #include "BotHelper.h"
 #include "ColorFx.h"
 #include "CVideo.h"
@@ -2091,10 +2090,6 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 
         if (nChar == ATKEY_F6) {
             Helper::printAllSchedules(true);
-        }
-
-        if (nChar == ATKEY_F7) {
-            BotDesigner().findBestDesignerPlane();
         }
     }
 #endif
