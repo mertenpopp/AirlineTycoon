@@ -323,9 +323,15 @@ Note that in case a flight job is picked up in one room and then the player has 
 Routes
 ------
 
+Routes have to be rented once and then as many flights on this route as desired can be added to any number of planes.
+
 Familiarize yourself with the data structures:
 - CRoute
 - CRentRoute
+
+The global array `Routen` contains all available routes and may only be accessed while in the "route box" room.
+
+The array `qPlayer.RentRouten` has one instance of `CRentRoute` for each instance of `CRoute` in the global array at the same index. `CRentRoute` contains information regarding the player for the corresponding route, for example, if the player has rented this routes (`CRentRoute::Rang != 0`). This array may only be accessed while in the player's office or while having a functioning laptop.
 
 ### Route box
 
@@ -333,7 +339,7 @@ Familiarize yourself with the data structures:
 
 Rents a new route at the "route box" room. A daily fee has to be paid for each rented route.
 
-Use the following function to check which routes are buyable:
+Use the following function to check which routes are buyable. It returns an array with a boolean for each route at the corresponding index:
 
 `BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer)`
 
@@ -347,11 +353,23 @@ The action ID ACTION_VISITROUTEBOX / ACTION_VISITROUTEBOX2 shall be used to walk
 
 ### Route mechanics
 
-SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA):
+When renting a route from city A to city B, one does automatically rent the route in reverse from B to A. The GameMechanic automatically rents or kills the route in reverse direction. To find the routeId of the reverse direction for a given route, the following function shall be used:
 
-- `bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: 
+`SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA)`
+
+The ticket price for one direction of the route can set using the following function. There is a regular ticket price and one for first class (FC):
+
+`bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`
+
+The following function set for both direction at once:
+
 - `bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: 
 
+These functions can be called while in the player's office or while having a functioning laptop.
+
+The money gained from a single route flight is calculated by the game in `CFlugplanEintrag::BookFlight`. The most important factors are the set ticket price and the number of passengers. As opposed to regular flight jobs, for route flights the number of passengers is calculated dynamically in `CFlugplanEintrag::CalcPassengers` with `(ObjectType == 1)` and depends on price, competitors flying this route, current demand on this route, time of flight, the airlines's image and the specific image for the route and other factors.
+
+Hint: Of these factors, ticket price and route image are the easiest to adjust and have a big impact on passenger count. 
 
 Office / personal / staffing actions
 ------------------------------------
