@@ -2681,7 +2681,7 @@ bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA) {
     /* find route in reverse direction */
     SLONG routeB = findRouteInReverse(qPlayer, routeA);
     if (-1 == routeB) {
-        AT_Error("GameMechanic::rentRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
+        AT_Error("GameMechanic::killRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
         return false;
     }
 
