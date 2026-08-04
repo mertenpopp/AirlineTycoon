@@ -11,7 +11,8 @@ There are always four competing airlines:
 - "Phoenix Travel" (PT)
 - "Honey Airlines" (HA)
 
-ClaudeBot will play as "HoneyAirlines". Airlines are enumerated starting at 0 in the order given.
+Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in Bot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
+
 
 In the following, qPlayer always is a reference to the instance of the Player class which refers to Honey Airlines.
 
@@ -40,7 +41,7 @@ Bank actions are all performed in the bank room. All action IDs listed in this s
 
 Call this to take out a loan. Call qPlayer.CalcCreditLimit() to find out how much money can be raised.
 Total amount of money owed is stored in qPlayer.Credit. Note that this is a loan and interest has to be paid.
-
+qPlayer
 Recommended action ID: ACTION_RAISEMONEY
 
 ### Pay back loan
@@ -335,6 +336,8 @@ The array `qPlayer.RentRouten` has one instance of `CRentRoute` for each instanc
 
 ### Route box
 
+The action ID ACTION_VISITROUTEBOX or ACTION_VISITROUTEBOX2 shall be used to walk to the route box. All three functions in this section can only be done at the route box.
+
 `bool GameMechanic::rentRoute(PLAYER &qPlayer, SLONG routeA)`
 
 Rents a new route at the "route box" room. A daily fee has to be paid for each rented route.
@@ -349,8 +352,6 @@ Use this function to stop renting a route but ensure that no plane will be flyin
 
 `bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`
 
-The action ID ACTION_VISITROUTEBOX / ACTION_VISITROUTEBOX2 shall be used to walk to the route box. All three functions in this section can only be done at the route box.
-
 ### Route mechanics
 
 When renting a route from city A to city B, one does automatically rent the route in reverse from B to A. The GameMechanic automatically rents or kills the route in reverse direction. To find the routeId of the reverse direction for a given route, the following function shall be used:
@@ -363,7 +364,7 @@ The ticket price for one direction of the route can set using the following func
 
 The following function set for both direction at once:
 
-- `bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: 
+`bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`
 
 These functions can be called while in the player's office or while having a functioning laptop.
 
@@ -371,25 +372,53 @@ The money gained from a single route flight is calculated by the game in `CFlugp
 
 Hint: Of these factors, ticket price and route image are the easiest to adjust and have a big impact on passenger count. 
 
-Office / personal / staffing actions
+HR / staffing actions
+------------------------------------
+
+Familiarize yourself with the data structure:
+- CWorker
+
+Use the action ID ACTION_PERSONAL to go to the HR/personal office. This is the staff management room. Only while in this room, the following functions may be called.
+
+Only while in this room, the global array `Workers.Workers` may be accessed. Only the CWorker instances where `Employer` equals `WORKER_JOBLESS` (can be hired) or `qPlayer.PlayerNum` (already hired) may be read.
+
+`bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId)`: Hire the worker with the given ID.
+
+
+`bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId)`: Fire the worker with the given ID.
+
+
+`void GameMechanic::increaseAllSalaries(PLAYER &qPlayer)`: Increases salary for all workers by 10%.
+
+
+`void GameMechanic::decreaseAllSalaries(PLAYER &qPlayer)`: Decreases salary for all workers by 10%.
+
+`CWorker::Gehaltsaenderung(BOOL Art)`: Increases the salary for one worker by 10% (Art == true) or decreses by 10 % (Art == false).
+
+Changes in salary affect worker happiness. There is a one-time effect and a chance of a regular increase/decrease in happiness if salary is above/below baseline salary.
+
+ClaudeBot has to hire enough pilots and stewardesses. The required number of pilots depends on the plane type and is found in `CPlaneType::AnzPiloten`, required number of stewardesses in `CPlaneType::AnzBegleiter`.
+
+Workers are paid daily, amount is `CWorker::Gehalt`/30. Worker talent (`CWorker::Talent`) affects customer satisfaction.
+
+Workers might have quit over night. It should be checked regularly to see if there is a crew deficit. Assignment of crew to planes is done automatically. While it is possible to assign manually, we shall leave it to the automatic assignment and ClaudeBot only needs to ensure that enough people are hired in total.
+
+Claude shall hire the following types of employees:
+- pilots (CWorker::Typ == WORKER_PILOT)
+- stewardesses (CWorker::Typ == WORKER_STEWARDESS)
+- advisors (CWorker::Typ one of BERATERTYP_PERSONAL, BERATERTYP_KEROSIN, BERATERTYP_GELD, BERATERTYP_INFO, BERATERTYP_FLUGZEUG, BERATERTYP_FITNESS, BERATERTYP_SICHERHEIT)
+
+For each type of advisor, only the one with the hightest `CWorker::Talent` is relevant. Advisors, depending on `Talent`, gate access to important information. The advisor BERATERTYP_SICHERHEIT gives depending on `Talent` up to 10% discount on various purchases (for example planes).
+
+Office  actions
 ------------------------------------
 These are administrative actions.
 
 ACTION_STARTDAY
 Start the day by going to the player’s own office. This is a standard “begin day” room action.
 
-bool GameMechanic::killCity(PLAYER &qPlayer, SLONG cityID):
 bool GameMechanic::toggleKerosinTankOpen(PLAYER &qPlayer):
 bool GameMechanic::setKerosinTankOpen(PLAYER &qPlayer, BOOL open):
-ACTION_BUERO
-Same office/general office room in multiplayer or split-room contexts.
-
-void GameMechanic::increaseAllSalaries(PLAYER &qPlayer):
-void GameMechanic::decreaseAllSalaries(PLAYER &qPlayer):
-bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId):
-bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId):
-ACTION_PERSONAL
-Go to the HR/personal office. This is the staff management room.
 
 ACTION_UPGRADE_PLANES
 Upgrade planes; mapped to the office block. This is a plane-maintenance/admin action.
