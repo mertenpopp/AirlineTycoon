@@ -444,33 +444,22 @@ Analyze the function `CFlugplanEintrag::BookFlight` (variable `Add`) to see how 
 Kerosene  actions
 -----------------
 
+By default, kerosine is automatically bought for the regular market price. There is an opportunity to save money by buying kerosine manually and filling up the airline's tank.
+
+If tanks are set to open and still full, the function `CFlugplanEintrag::BookFlight` deducts volume from the tank instead of buying for the market price.
+
+The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visit the Arab where tanks and kerosine can be bought.
+
+`bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount)`: Buys kerosene for the tanks
+
+`bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount)`:
+
+`GameMechanic::KerosinTransaction GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)`:
+
+`CPlane::Zustand`
+
 4) Shops and service rooms
-These are mostly “visit a room, then resolve the associated business interaction there”.
 
-ACTION_VISITARAB
-Go to the Arab Air / fuel office. This is the room for kerosene and related fuel purchases. The real constraints are:
-
-difficulty must be easy or free game;
-opens only at timeArabOpen;
-not on Saturday.
-ACTION_BUY_KEROSIN
-Same room, but specifically buy kerosene. GameMechanic::buyKerosin() requires:
-
-bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount):
-valid kerosene type;
-positive amount;
-enough storage capacity;
-enough money.
-GameMechanic::KerosinTransaction GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)
-
-bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount):
-ACTION_BUY_KEROSIN_TANKS
-Same room, but buy fuel tanks. GameMechanic::buyKerosinTank() requires:
-
-valid tank type;
-positive amount;
-enough space or tank capacity;
-enough money.
 ACTION_VISITKIOSK
 Visit the kiosk room. This is a generic service-room action.
 
