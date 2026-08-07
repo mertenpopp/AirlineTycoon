@@ -378,7 +378,7 @@ HR / staffing actions
 Familiarize yourself with the data structure:
 - CWorker
 
-Use the action ID ACTION_PERSONAL to go to the HR/personal office. This is the staff management room. Only while in this room, the following functions may be called.
+Use the action ID ACTION_PERSONAL to go to the HR office. This is the staff management room. Only while in this room, the following functions may be called.
 
 Only while in this room, the global array `Workers.Workers` may be accessed. Only the CWorker instances where `Employer` equals `WORKER_JOBLESS` (can be hired) or `qPlayer.PlayerNum` (already hired) may be read.
 
@@ -408,20 +408,41 @@ Claude shall hire the following types of employees:
 - stewardesses (CWorker::Typ == WORKER_STEWARDESS)
 - advisors (CWorker::Typ one of BERATERTYP_PERSONAL, BERATERTYP_KEROSIN, BERATERTYP_GELD, BERATERTYP_INFO, BERATERTYP_FLUGZEUG, BERATERTYP_FITNESS, BERATERTYP_SICHERHEIT)
 
-For each type of advisor, only the one with the hightest `CWorker::Talent` is relevant. Advisors, depending on `Talent`, gate access to important information. The advisor BERATERTYP_SICHERHEIT gives depending on `Talent` up to 10% discount on various purchases (for example planes).
+For each type of advisor, only the one with the hightest `CWorker::Talent` is relevant. Advisors, depending on `Talent`, gate access to important information. The advisor BERATERTYP_SICHERHEIT gives up to 10% discount depending on `Talent` discount on various purchases (for example planes).
 
 Office  actions
-------------------------------------
-These are administrative actions.
+---------------
 
-ACTION_STARTDAY
-Start the day by going to the player’s own office. This is a standard “begin day” room action.
+Use the action ID ACTION_BUERO or ACTION_UPGRADE_PLANES to go to the player’s own office. Only while in this room, the following functions may be called.
 
-bool GameMechanic::toggleKerosinTankOpen(PLAYER &qPlayer):
-bool GameMechanic::setKerosinTankOpen(PLAYER &qPlayer, BOOL open):
+The action ID ACTION_STARTDAY is the standard “begin day” room action and is automatically executed at the beginning of the day. Do not return this action ID from the `RobotPlan()` function.
 
-ACTION_UPGRADE_PLANES
-Upgrade planes; mapped to the office block. This is a plane-maintenance/admin action.
+# Open kerosine tanks
+
+`bool GameMechanic::setKerosinTankOpen(PLAYER &qPlayer, BOOL open)`: Sets if the kerosine tanks are open or closed. Open means that planes are refueled from the tanks first as long as there is still kerosine in them.
+
+# Upgrade planes
+
+The action ID ACTION_UPGRADE_PLANES can be used to update planes in the office. While in the office, the following members of all `CPlane` instances may be written if the plane belongs to ClaudeBot:
+- SitzeTarget
+- TablettsTarget
+- DecoTarget
+- ReifenTarget
+- TriebwerkTarget
+- SicherheitTarget
+- ElektronikTarget
+- EssenTarget
+
+Permitted values are 0, 1 and 2. These refer to the targeted upgrade levels. There are additional variables without the "Target" suffix which refer to the current upgrade levels. These may only be read.
+
+`EssenTarget` determines the quality of passenger food. Higher value means higher cost per flight but also higher passenger satisfaction. Check `CFlugplanEintrag::BookFlight` to see the cost of better food.
+
+All other upgrades are applied the next time the plane is on the ground. At this point, the money for the upgrade is deducted and the value of the target variable is copied to the other one (e.g., Triebwerk is set TriebwerkTarget). Attention: A common cause for airlines going bankrupt is because an ugprade is planned when money is available but at the time the upgrade is applied, the money has been spent elsewhere. While in the personal office, all target variables may be rewritten to cancel previously planned upgrades. You can use the function `PLAYER::CalcPlanePropSum` to calculate the cost of open plane upgrades.
+
+Analyze the function `CFlugplanEintrag::BookFlight` (variable `Add`) to see how plane upgrades affect customer satisfation, airline and route image, if applicable.
+
+Kerosene  actions
+-----------------
 
 4) Shops and service rooms
 These are mostly “visit a room, then resolve the associated business interaction there”.
@@ -626,6 +647,8 @@ operative saldo
 gates
 
 home airport and niederlassungen
+
+bankruptcy
 
 Open questions / ambiguities
 -----------------------------
