@@ -417,11 +417,11 @@ Use the action ID ACTION_BUERO or ACTION_UPGRADE_PLANES to go to the player’s 
 
 The action ID ACTION_STARTDAY is the standard “begin day” room action and is automatically executed at the beginning of the day. Do not return this action ID from the `RobotPlan()` function.
 
-# Open kerosine tanks
+### Open kerosine tanks
 
 `bool GameMechanic::setKerosinTankOpen(PLAYER &qPlayer, BOOL open)`: Sets if the kerosine tanks are open or closed. Open means that planes are refueled from the tanks first as long as there is still kerosine in them.
 
-# Upgrade planes
+### Upgrade planes
 
 The action ID ACTION_UPGRADE_PLANES can be used to update planes in the office. While in the office, the following members of all `CPlane` instances may be written if the plane belongs to ClaudeBot:
 - SitzeTarget
@@ -450,23 +450,62 @@ If tanks are set to open and still full, the function `CFlugplanEintrag::BookFli
 
 The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visit the Arab where tanks and kerosine can be bought.
 
-`bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount)`: Buys kerosene for the tanks
+`bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount)`: Buys kerosene for the tanks. Type is either 0, 1 or 2 and determines the quality (0="good", 1="normal", 2="bad") of the kerosene. Use the function `GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)` to find out the price before buying.
 
-`bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount)`:
+`bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount)`: Permanently increases the maximum tank capacity. Use `type` to select a tank size from global array `TankSize`. The price is found at the corresponding index in array `TankPrice`. Note that larger tanks are cheaper per volume unit. Multiple tanks can be bought at once using the parameter `amount`.
 
-`GameMechanic::KerosinTransaction GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)`:
+`SLONG SIM::HoleKerosinPreis(SLONG typ)`: Checks current market price for the different qualities of kerosene.
 
-`CPlane::Zustand`
+### Kerosene quality
+
+The game updates the quality of the kerosene in the tank using the following formula:
+
+`qPlayer.KerosinQuali = (oldAmount * qPlayer.KerosinQuali + amount * type) / qPlayer.TankInhalt;`
+
+So the resulting quality `KerosinQuali` is the weighted sum of the original quality plus the quality of the new kerosene. 
+
+Analyze in `CFlugplanEintrag::BookFlight` how bad kerosene affects the amount the plane is damaged after each flight. If total quality is larger than 1, the game calculates `faktorKerosin` which in turn affects the resulting plane condition `CPlane::Zustand`. Note that a "better than normal" quality (factor below 1) does not have any benefits. Buying kerosene of high quality (type == 0) might however still be useful to correct a bad current quality of the kerosene in the tanks.
+
+Hints:
+- At an amount of 10000, 5% discount is granted. At 50000, it is 10%.
+- Buying kerosene manually also grants the discount from the advisor BERATERTYP_SICHERHEIT.
+
+Mechanic
+--------
+
+Use the action ID ACTION_VISITMECH to visit your airline's mechanic. Only while in this room, the following functions may be called.
+
+`bool GameMechanic::setPlaneTargetZustand(PLAYER &qPlayer, SLONG idx, SLONG zustand)`: Sets the plane repair target for the `qPlayer.Planes[idx]`.
+
+`SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode)`: Defines which mechanic will be used from now on.
+
+### Explanation of repair mechanic
+
+Planes get damaged after each flight as calculated in `CFlugplanEintrag::BookFlight`. Repair happens at midnight for all planes at once. The current plane condition is stored in `CPlane::Zustand`. If this is lower that `CPlane::WorstZustand`, the game will set `CPlane::WorstZustand` to `CPlane::Zustand`. Depending on the mechanic chosen, the planes will be repaired a certain amount:
+- Mechanic 0: Actually has a 50% chance to damage the plane by 2 points, never repairs
+- Mechanic 1: Has an 1/8 change to damage the plane by 2 points, else repairs by 5 points
+- Mechanic 2: Repairs between 2 to 9 points or 2 to 6 points if condition is below 60, value choosen uniformly at random between the two limits
+- Mechanic 3: Repairs exactly 15 points or 18 points if condition is below 60
+
+The repair amount which we will call `Delta` is then capped to ensure that planes is not repaired beyond repair target `CPlane::TargetZustand` or 100. The game then checks if the new `CPlane::Zustand` exceeds the value of `Planes[c].WorstZustand + 20`. If so, the difference is stored in variable `Improvement`. `CPlane::WorstZustand` is then updated to `Planes[c].Zustand - 20` or 0, whatever is higher.
+
+The total repair cost is then calculated as sum of three parts:
+- mechanic base salary: Calulated from global array as `gRepairPrice[MechMode] / 30`, per plane. You may check this array. `MechMode` is set via `GameMechanic::setMechMode`.
+- regular repair cost: Calculated as `Delta * 10 * CPlane::ptWartungsfaktor * (2100 - CPlane::Baujahr) / 100 * (200 - CPlane::Zustand) / 100` where 
+`CPlane::ptWartungsfaktor` is a plane type specific factor and `CPlane::Baujahr` the year when the plane was built.
+- extra repair cost: Calculated as `Improvement * CPlane::ptPreis / 110` where `CPlane::ptPreis` is the price for a new plane.
+
+Hint:
+- The extra repair cost is often the dominating factor.
+- The rule is that `CPlane::WorstZustand` must never be lower then `Planes[c].Zustand - 20`. But since raising `CPlane::WorstZustand` incurs additional cost, it is thus advisable to ensure that `CPlane::Zustand` never drops below 80.
+
+Buying items
+------------
 
 4) Shops and service rooms
 
 ACTION_VISITKIOSK
 Visit the kiosk room. This is a generic service-room action.
-
-bool GameMechanic::setPlaneTargetZustand(PLAYER &qPlayer, SLONG idx, SLONG zustand):
-SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode):
-ACTION_VISITMECH
-Visit the mechanic/workshop. This is the room for airplane maintenance and repair-related choices.
 
 ACTION_VISITMUSEUM
 Visit the museum. This is the room for used-plane purchases and related old-aircraft transactions.
