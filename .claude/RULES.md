@@ -499,6 +499,46 @@ Hint:
 - The extra repair cost is often the dominating factor.
 - The rule is that `CPlane::WorstZustand` must never be lower then `Planes[c].Zustand - 20`. But since raising `CPlane::WorstZustand` incurs additional cost, it is thus advisable to ensure that `CPlane::Zustand` never drops below 80.
 
+Plane purchase actions
+----------------------
+
+Familiarize yourself with the data structures:
+- CPlaneType
+- CPlane
+
+These are direct buy actions, usually routed to either the museum or the broker.
+
+Use action ID ACTION_BUYNEWPLANE to walk to the plane broker. Only there, the following two functions may be used:
+
+`bool GameMechanic::checkPlaneTypeAvailable(SLONG planeType)`: Checks if planes with the given type ID can be bought. You may check the global array `PlaneTypes` at index planeType if this function returns true.
+
+`std::vector<SLONG> GameMechanic::getAvailablePlaneTypes()`: Returns a list of plane type IDs for all planes that can be bought. You may check the global array `PlaneTypes` at all indices returned by this function.
+
+`std::vector<SLONG> GameMechanic::buyPlane(PLAYER &qPlayer, SLONG planeType, SLONG amount)`: Buys specified amount of planes of the given type.
+
+Use action ID ACTION_BUYUSEDPLANE to walk to the museum. Only there, the following two functions may be used:
+
+`SLONG GameMechanic::buyUsedPlane(PLAYER &qPlayer, SLONG planeID)`: Buy a used plane from the museum. You may check the global array `Sim.UsedPlanes[planeID]` for valid entries to find planes that can be bought.
+
+`bool GameMechanic::sellPlane(PLAYER &qPlayer, SLONG planeID)`: Sells a plane to the museum. Ensure that no flights are scheduled for this plane before selling.
+
+`std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount)`: Buys a designed plane. DO NOT USE CURRENTLY.
+
+Advertisement / marketing actions
+---------------------------------
+
+Use the action IDs ACTION_WERBUNG, ACTION_WERBUNG_ROUTES or ACTION_VISITADS to visit the advertising room. Only while in this room, the following functions may be called.
+
+`bool GameMechanic::buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG adCampaignSize, SLONG routeA)`: Buys an ad campaign to improve the airline's image (`adCampaignType` == 0), the image of a single route (`adCampaignType` == 1) or combined for both (`adCampaignType` == 2). `routeA` has to be given for `adCampaignType` 1 or 2. `adCampaignSize` determines size of effect and also cost.
+
+The cost of the campaign is found in the global array at `gWerbePrice[adCampaignType * 6 + adCampaignSize]`. The effect is:
+
+- `adCampaignType` == 0: Airline's image increases by `cost / 10000 * (adCampaignSize + 6) / 55`
+- `adCampaignType` == 1: Routes's image increases by `cost / 30000`
+- `adCampaignType` == 2: Airline's image increases by `cost / 15000 * (adCampaignSize + 6) / 55` and routes's image increases by `cost * (adCampaignSize + 6) / 6 / 120000`
+
+The airline's image is capped at 1000, a route's individual image is capped at 100.
+
 Buying items
 ------------
 
@@ -561,42 +601,7 @@ bool GameMechanic::expandAirport(PLAYER &qPlayer):
 ACTION_EXPANDAIRPORT
 Expand the airport. This is the airport-authority branch of the same room family, and there are explicit legality checks like “not already expanded”, “limit reached”, “too early”, “expanding right now”.
 
-6) Plane purchase actions
-These are direct buy actions, usually routed to either the museum or the broker.
-
-ACTION_BUYUSEDPLANE
-SLONG GameMechanic::buyUsedPlane(PLAYER &qPlayer, SLONG planeID):
-Buy a used plane from the museum. Room is the museum. Requires a valid plane ID and allowed engine/airline rules.
-
-ACTION_BUYNEWPLANE
-bool GameMechanic::checkPlaneTypeAvailable(SLONG planeType)
-std::vector<SLONG> GameMechanic::getAvailablePlaneTypes()
-std::vector<SLONG> GameMechanic::buyPlane(PLAYER &qPlayer, SLONG planeType, SLONG amount):
-Buy a new airplane from the broker. Room is the dealer/makler. The availability gate is timeMaklClose.
-
-bool GameMechanic::sellPlane(PLAYER &qPlayer, SLONG planeID)
-std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount) 
-
-7) Advertisement / marketing actions
-------
-
-bool GameMechanic::buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG adCampaignSize, SLONG routeA):
-ACTION_WERBUNG
-General ad campaign action. It is routed to the advertising room, and the room is open only during business hours.
-
-ACTION_WERBUNG_ROUTES
-Route-focused advertising campaign.
-
-ACTION_VISITADS
-Another ad-room visit variant, with the same general room-open gating.
-
 8) Misc and convenience actions
-ACTION_STARTDAY_LAPTOP
-“Start day with laptop” style no-walk action; it is treated as a zero-location action.
-
-ACTION_CALL_INTER_HANDY
-Another no-walk/high-priority action that acts like a quick international call.
-
 Key constraints to keep in mind
 The main gameplay constraints are not in the action name alone; they are enforced by the GameMechanic functions and the room-open gates:
 
@@ -677,6 +682,8 @@ gates
 home airport and niederlassungen
 
 bankruptcy
+
+album check for valid entries
 
 Open questions / ambiguities
 -----------------------------
