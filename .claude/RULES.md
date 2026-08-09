@@ -539,8 +539,38 @@ The cost of the campaign is found in the global array at `gWerbePrice[adCampaign
 
 The airline's image is capped at 1000, a route's individual image is capped at 100.
 
+Boss actions
+------------
+
+Use the action IDs ACTION_EXPANDAIRPORT or ACTION_VISITAUFSICHT to visit the boss room. Only while in this room, the following functions may be called.
+
+### Airport expansion
+
+`GameMechanic::ExpandAirportResult GameMechanic::canExpandAirport(PLAYER & /*qPlayer*/)`: Asks the boss whether a new airport gate can be constructed. The resulting enum will be `ExpandAirportResult::Ok` if an extension is possible or will state the reason otherwise.
+
+`bool GameMechanic::expandAirport(PLAYER &qPlayer)`: Asks the boss to build a new airport gate. Action is only triggered if `expandAirport` returns `ExpandAirportResult::Ok`. This costs 1000000. Note that this does not grant ownership of the gate yet. Auction of the new gate starts the next day.
+
+### Bidding on cities and gates
+
+There might be auctions every day for unassigned gates (either recently built or became unassigned due to airline liquidation) and branch offices in other cities. You may check the global array `TafelData.ByPositions` for available auctions.
+
+Gates are either unassigned or owned by one airline. Only gates owned by your airline will be used. A gate is occupied for one full hour after each arrival and one full hour before and after each departure each. For each planned flight, you can check `CFlugplanEintrag::Gate` to see which gate was assigned and `CFlugplanEintrag::GateWarning` if there is a "no gate available" warning. If no gate was available for the flight, airline image is reduced by 2 points. Gate assignment is done automatically. Note that the game only requires gates for planes landing in or starting from the home airport (city ID given by `Sim.HomeAirportId`).
+
+Branch offices can be called (ACTION_CALL_INTERNATIONAL or ACTION_CALL_INTERNATIONAL_HANDY) to get access to additional flight jobs starting or landing in their city. If you lost an auction to a competitor, there might be a later auction for another office in the same city.
+
+Bids can be placed by ClaudeBot and all competitors the entire day. It is possible to overbid a competitor who made a bid on the same gate or city before. On the beginning of the next day, the airline that placed the last bid wins.
+
+`bool GameMechanic::bidOnGate(PLAYER &qPlayer, SLONG idx)`: Places a bid on the gate at index `idx` in `TafelData.ByPositions`. Price increases by 10% after every bid.
+
+`bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx)`: Places a bid on the city office at index `idx` in `TafelData.ByPositions`. Price increases by 10% after every bid.
+
 Buying items
 ------------
+
+GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):
+ACTION_VISITDUTYFREE
+Visit duty-free. Open only during business hours and not on weekend.
+
 
 4) Shops and service rooms
 
@@ -549,15 +579,6 @@ Visit the kiosk room. This is a generic service-room action.
 
 ACTION_VISITMUSEUM
 Visit the museum. This is the room for used-plane purchases and related old-aircraft transactions.
-
-GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):
-ACTION_VISITDUTYFREE
-Visit duty-free. Open only during business hours and not on weekend.
-
-bool GameMechanic::bidOnGate(PLAYER &qPlayer, SLONG idx):
-bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx):
-ACTION_VISITAUFSICHT
-Visit airport authority / airport expansion room. This is the place for airport expansion and related authority interactions.
 
 ACTION_VISITNASA
 Visit NASA room; only available in the later difficulty settings (DIFF_FINAL or DIFF_ADDON10).
@@ -595,11 +616,6 @@ money;
 whether the victim has a laptop;
 whether the chosen attack is legal for that target.
 
-
-GameMechanic::ExpandAirportResult GameMechanic::canExpandAirport(PLAYER & /*qPlayer*/):
-bool GameMechanic::expandAirport(PLAYER &qPlayer):
-ACTION_EXPANDAIRPORT
-Expand the airport. This is the airport-authority branch of the same room family, and there are explicit legality checks like “not already expanded”, “limit reached”, “too early”, “expanding right now”.
 
 8) Misc and convenience actions
 Key constraints to keep in mind
