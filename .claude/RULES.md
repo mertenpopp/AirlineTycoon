@@ -20,7 +20,7 @@ Note that most actions have to performed in a particular room. ClaudeBot shall s
 
 In `RobotPlan()`, a secondary action ID shall also be set. This will used to walk the character to a different room in case the room connected to the primary action ID is already occupied by a competitor. Thus in `RobotExecuteAction()`, it shall be checked which action ID was successful by checking `qPlayer.RobotActions[0]`.
 
-ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the action.
+ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
 
 Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
 - ClaudeBot shall use the following function to check if the room is open: bool checkRoomOpen(SLONG roomId)
@@ -41,7 +41,7 @@ Bank actions are all performed in the bank room. All action IDs listed in this s
 
 Call this to take out a loan. Call qPlayer.CalcCreditLimit() to find out how much money can be raised.
 Total amount of money owed is stored in qPlayer.Credit. Note that this is a loan and interest has to be paid.
-qPlayer
+
 Recommended action ID: ACTION_RAISEMONEY
 
 ### Pay back loan
@@ -57,7 +57,7 @@ Recommended action ID: ACTION_DROPMONEY
 `bool GameMechanic::emitStock(PLAYER &qPlayer, SLONG neueAktien, SLONG mode)`
 
 Issue new shares. Gives the airline some money however, reduces stock price and more float means competitors could take you over.
-Analyze the code to see how the mode affects how much money is made and by how much the stock drops.
+Analyze the code of this function to see how the mode affects how much money is made and by how much the stock price drops.
 
 Recommended action ID: ACTION_EMITSHARES
 
@@ -65,7 +65,7 @@ Recommended action ID: ACTION_EMITSHARES
 
 `bool GameMechanic::setDividend(PLAYER &qPlayer, SLONG dividend)`
 
-Set the dividend for the airline’s stock. Higher dividend costs more money but improves stock price. Note that increases in dividend have a delay before they take effect.
+Set the dividend for the airline’s stock. Higher dividend costs more money but improves stock price. Note that increases in dividend have a delay before they take effect. Decreases immediately have a (negative) effect.
 
 Recommended action ID: ACTION_SET_DIVIDEND
 
@@ -94,7 +94,7 @@ Recommended action ID: ACTION_SELLSHARES
 `bool GameMechanic::overtakeAirline(PLAYER &qPlayer, SLONG targetAirline, bool liquidate)`
 
 Action for trying to take over another airline via stock acquisition. Airline is taken over with all planes, routes, money and debt. Parameter liquidate can be used to erase airline completely instead.
-The function canOvertakeAirline() checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisitation by owning stock from your airline (>= 30%).
+The function canOvertakeAirline() checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%).
 
 Recommended action ID: ACTION_OVERTAKE_AIRLINE
 
@@ -167,6 +167,7 @@ Job will be added to qPlayer.Auftraege and can be found using outObjectId.
 Each airline can purchase offices in other cities. They grant access to additional freight jobs.
 
 Action ID to access room: ACTION_CALL_INTERNATIONAL
+
 You can call any number of your international offices to take freight flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT3 apply. Use the following function to check if a specific city can be called:
 
 `bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId)`
@@ -191,7 +192,7 @@ A passenger flight job is an instance of `CAuftrag`, a freight job is an instanc
 Flight planning
 ----------------
 
-### Import data structures
+### Important data structures
 
 Familiarize yourself with the data structures:
 - CAuftrag
@@ -212,7 +213,7 @@ A flight plan object cannot be altered if the plane has already started or the s
 You can use the following helper functions:
 - class `PlaneTime` stores both a date and a time and provides proper operator overloading for adding/subtracting time and comparisons
 - `const CFlugplanEintrag *getLastFlight(const CPlane &qPlane)`: Returns a pointer to the last valid flight plan object
-- `const CFlugplanEintrag *getLastFlightNotAfter(const CPlane &qPlane, PlaneTime ignoreFrom)`: Returns a pointer to the last valid flight plan object when flights after a certain time are ignored. This is useful when the intention is to replan a flight schedule but you do not want to touch flights that are scheduled for takeoff very soon given the fact that the game is real-time.
+- `const CFlugplanEintrag *getLastFlightNotAfter(const CPlane &qPlane, PlaneTime ignoreFrom)`: Returns a pointer to the last valid flight plan object when flights after a certain time are ignored. This is useful when the intention is to replan a flight schedule but you do not want to touch flights that are scheduled for takeoff very soon.
 - `std::pair<PlaneTime, int> getPlaneAvailableTimeLoc(const CPlane &qPlane, std::optional<PlaneTime> ignoreFrom, std::optional<PlaneTime> earliest)`: Return both time and location when the plane is available, meaning it has landed and is available for the next flight. As above, there is an option for a cutoff if the intention is to replan. The earliest returned time will be the next full hour or the optional argument `earliest` if it contains a later point in time.
 
 ### How to plan flights
