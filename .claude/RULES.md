@@ -286,8 +286,8 @@ These flights are sometimes also called "empty flights" or "Leerflug".
 
 There are no automatic flights inserted if previous `NachCity` is identical to next `VonCity`.
 
-Flight planning
----------------
+Flight planning mechanics
+-------------------------
 
 If a new flight is added to a (partially) filled plane schedule at a specific point, the game might need to shift the earlier or later flights to make enough room in the schedule. This behavior is compounded by the fact that the automatic flights change. Example:
 
@@ -449,7 +449,7 @@ By default, kerosine is automatically bought for the regular market price. There
 
 If tanks are set to open and still full, the function `CFlugplanEintrag::BookFlight` deducts volume from the tank instead of buying for the market price.
 
-The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visit the Arab where tanks and kerosine can be bought.
+The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visit the Arab where tanks and kerosine can be bought. Only while in this room, the following functions may be called.
 
 `bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount)`: Buys kerosene for the tanks. Type is either 0, 1 or 2 and determines the quality (0="good", 1="normal", 2="bad") of the kerosene. Use the function `GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)` to find out the price before buying.
 
@@ -565,8 +565,12 @@ Bids can be placed by ClaudeBot and all competitors the entire day. It is possib
 
 `bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx)`: Places a bid on the city office at index `idx` in `TafelData.ByPositions`. Price increases by 10% after every bid.
 
-Buying items
-------------
+Item management
+---------------
+
+GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG item)
+bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item)
+bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item)
 
 GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):
 ACTION_VISITDUTYFREE
@@ -580,9 +584,6 @@ Visit the kiosk room. This is a generic service-room action.
 
 ACTION_VISITMUSEUM
 Visit the museum. This is the room for used-plane purchases and related old-aircraft transactions.
-
-ACTION_VISITNASA
-Visit NASA room; only available in the later difficulty settings (DIFF_FINAL or DIFF_ADDON10).
 
 ACTION_VISITTELESCOPE
 Visit telescope room / “research” room. Same difficulty-gated behavior as the NASA room.
@@ -641,23 +642,133 @@ enough trust for sabotage jobs;
 laptop requirement for security and sabotage-related actions;
 storage/credit capacity for fuel and loans.
 
-Item management
----------------
-
-GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG item)
-bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item)
-bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item)
 
 
 Global game state read permissions
 ==================================
+
+The game unfortunately stores its state in global variables. Thus there is a risk of accidently implement
+
+ing a cheating computer player by:
+
+- modifying a global variable directly when there is no player action that would have the same effect
+- reading a global variable to learn something about the game's state that a human player would not be able to know
+
+This section outline what can be accessed. Only access global variables and call global functions defined here.
+
+If you think you should have access to a variable or you find that you are strongly limited by not having access, flag it to me and I might grant you access.
+
+Global variables
+----------------
+
+### Global Sim instance
+
+Global object that manages most of the game state
+
+You have read access to:
+- `Sim.Date`, `Sim.Time`, `Sim.GetHour()`, `Sim.GetMinute()`: Query in-game time.
+- `Sim.Weekday`: Get current day of the week.
+- `Sim.StartWeekday`: Get day of the week where game was started.
+- `Sim.Difficulty`: Denotes whether we are in a free game or a mission. Always assume free game `Sim.Difficulty == -1`.
+- `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
+- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Only permitted while visiting the Arab.
+- `Sim.HomeAirportId`: City ID of the home airport.
+- `Sim.ItemZange`
+- `Sim.ItemPostcard`
+
+### Player objects (yourself)
+
+- `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`
+
+### Player objects (competitors)
+
+
+Global read-only helpers and tables
+You may also read the following global tables and helpers when the rules permit them:
+
+StandardTexte.GetS(...)
+PlaneTypes[...]
+Cities[...], Cities.AnzEntries(), Cities.find(...), Cities.CalcDistance(...), Cities.CalcFlugdauer(...)
+Routen[...], Routen.AnzEntries()
+Einheiten[...]
+SeatCosts[...]
+StationPrices[...]
+RocketPrices[...]
+Hdu.HercPrintfMsg(...) for logging
+All of these are non-authoritative command paths. They are for observation and diagnostics only.
+
+What the agent must never do
+Do not write directly to any of the above global variables.
+Do not modify Sim state except through the permitted GameMechanic and PLAYER API calls.
+Do not use global arrays or tables outside the legal access window defined by the room/action rules.
+Do not treat the bot’s own internal Bot state as a substitute for a legal game action.
+Main working model
+The bot’s main working object is the per-player PLAYER instance passed in as qPlayer.
+Any legal game-state changes must happen through GameMechanic or through a legal PLAYER method/API call.
+Access to job arrays and route arrays is only legal when the corresponding room/action is active and the relevant rules allow it.
+Compliance rule
+If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a qPlayer/GameMechanic pattern.
+
+StandardTexte
+
+Access pattern: StandardTexte.GetS(...)
+Classification: read-only
+Evidence: localization table reads only.
+AppPath
+
+Access pattern: CString path{AppPath + MyPlanePath};
+Classification: read-only
+Evidence: string path lookup/concatenation only.
+MyPlanePath
+
+Access pattern: FullFilename(..., MyPlanePath) and AppPath + MyPlanePath
+Classification: read-only
+Evidence: path prefix for designer plane file materialization.
+PlaneTypes
+
+Access pattern: PlaneTypes[...], PlaneTypes.IsInAlbum(), PlaneTypes.AnzEntries(), PlaneTypes[i].Name, PlaneTypes[i].Geschwindigkeit
+Classification: read-only
+Evidence: bot reads plane catalog data.
+Cities
+
+Access pattern: Cities.AnzEntries(), Cities.find(...), Cities.CalcDistance(...), Cities.CalcFlugdauer(...), Cities[...]
+Classification: read-only
+Evidence: city graph / lookup / distance helpers are read from.
+Routen
+
+Access pattern: Routen.AnzEntries(), Routen[...], Routen[c].VonCity, Routen[c].NachCity, Routen[c].AnzPassagiere(), Routen[c].Miete
+Classification: read-only
+Evidence: route catalog is consumed, not written in Bot files.
+Einheiten
+
+Access pattern: Einheiten[EINH_KM]
+Classification: read-only
+Evidence: numeric/unit formatting table only.
+RocketPrices
+
+Access pattern: const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
+Classification: read-only
+Evidence: Bot code selects this table and only reads price values.
+StationPrices
+
+Same as above, read-only.
+SeatCosts
+
+Access pattern: SeatCosts[0], SeatCosts[2], SeatCosts[qPlane.Sitze]
+Classification: read-only
+Evidence: cost formulas only.
+
+Global functions
+----------------
+
+`Hdu.HercPrintfMsg(...)`: Read-only. Logging interface for ClaudeBot.
 
 GameMechanic class
 ------------------
 
 Found in src/GameMechanic.cpp
 
-Main interface to perform actions in the game.
+Main interface to perform actions in the game. This class was implemented as part of a larger refactoring to reduce write access to global variables. Thus most of this class is safe to use with exceptions listed in the following:
 
 # Forbidden actions in GameMechanic
 
@@ -701,6 +812,8 @@ home airport and niederlassungen
 bankruptcy
 
 album check for valid entries
+
+saving
 
 Open questions / ambiguities
 -----------------------------
