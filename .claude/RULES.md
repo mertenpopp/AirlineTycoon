@@ -13,27 +13,6 @@ There are always four competing airlines:
 
 Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in Bot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
 
-Actions and rooms
------------------
-
-Note that most actions have to performed in a particular room. ClaudeBot shall set the desired action ID in `RobotPlan()` and the game will walk the character to the correct room. On arrival, `RobotExecuteAction()` will be called.
-
-Use `RobotPlan()` to determine what shall be done next. In this function, a primary and also a secondary action ID shall be set. The character will attempt to enter the primary room first. If the room is already occupied by a competitor or closed, the secondary ID will used to walk the character to a different room.
-
-Use `RobotExecuteAction()` to actually perform a planned action. It shall be checked which action ID (primary or secondary) was successful by checking `qPlayer.RobotActions[0]`.
-
-ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
-
-Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
-- ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG roomId)`
-- ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
-- When planning the next action, consider the time it requires to walk to a room
-
-We will list now all actions that can be performed in the game via the class `GameMechanic`.
-If `GameMechanic` returns a bool this usually means whether or not the action could be completed.
-
-In the following, qPlayer always is a reference to the instance of the Player class which refers to the player controlled by ClaudeBot.
-
 Target
 ------
 
@@ -63,6 +42,38 @@ Corrective actions to prevent bankruptcy might include the following. Treat thes
 - emit new shares
 - reduce amount pre-allocated for repairs
 - reduce amount pre-allocated for upgrades
+
+Savegames
+---------
+
+You are free to add as many member variables in sub-classes as you like to the `Bot` class. However, you need to ensure that upon saving, the full state of ClaudeBot is saved to disk and restored on savegame load.
+
+The `Bot` class already has the two friend functions:
+- `TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot)`: Saves the state of the bot to a file
+- `TEAKFILE &operator>>(TEAKFILE &File, Bot &bot)`: Restores the state of the bot from a file
+
+Remember to always update these two functions when you add a new data member to the `Bot` class.
+
+Game actions
+============
+
+Note that most actions have to performed in a particular room. ClaudeBot shall set the desired action ID in `RobotPlan()` and the game will walk the character to the correct room. On arrival, `RobotExecuteAction()` will be called.
+
+Use `RobotPlan()` to determine what shall be done next. In this function, a primary and also a secondary action ID shall be set. The character will attempt to enter the primary room first. If the room is already occupied by a competitor or closed, the secondary ID will used to walk the character to a different room.
+
+Use `RobotExecuteAction()` to actually perform a planned action. It shall be checked which action ID (primary or secondary) was successful by checking `qPlayer.RobotActions[0]`.
+
+ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
+
+Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
+- ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG roomId)`
+- ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
+- When planning the next action, consider the time it requires to walk to a room
+
+We will list now all actions that can be performed in the game via the class `GameMechanic`.
+If `GameMechanic` returns a bool this usually means whether or not the action could be completed.
+
+In the following, qPlayer always is a reference to the instance of the Player class which refers to the player controlled by ClaudeBot.
 
 Bank actions
 ------------
@@ -815,20 +826,12 @@ All instances of the PLAYER class can be found in the global array `Sim.Players.
 
 
 
-gates
-
-home airport and niederlassungen
-
-bankruptcy
-
 album check for valid entries
 
 saving
-
-room IDs
 
 Open questions / ambiguities
 -----------------------------
 
 Use this section to list any open questions or ambiguities regarding rules that you need me to clarify.
-operative saldooperative saldooperative saldooperative saldooperative saldo
+operative saldooperative saldooperative saldooperative saldooperative saldorespective
