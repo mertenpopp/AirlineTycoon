@@ -13,22 +13,56 @@ There are always four competing airlines:
 
 Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in Bot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
 
-
-In the following, qPlayer always is a reference to the instance of the Player class which refers to Honey Airlines.
+Actions and rooms
+-----------------
 
 Note that most actions have to performed in a particular room. ClaudeBot shall set the desired action ID in `RobotPlan()` and the game will walk the character to the correct room. On arrival, `RobotExecuteAction()` will be called.
 
-In `RobotPlan()`, a secondary action ID shall also be set. This will used to walk the character to a different room in case the room connected to the primary action ID is already occupied by a competitor. Thus in `RobotExecuteAction()`, it shall be checked which action ID was successful by checking `qPlayer.RobotActions[0]`.
+Use `RobotPlan()` to determine what shall be done next. In this function, a primary and also a secondary action ID shall be set. The character will attempt to enter the primary room first. If the room is already occupied by a competitor or closed, the secondary ID will used to walk the character to a different room.
+
+Use `RobotExecuteAction()` to actually perform a planned action. It shall be checked which action ID (primary or secondary) was successful by checking `qPlayer.RobotActions[0]`.
 
 ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
 
 Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
-- ClaudeBot shall use the following function to check if the room is open: bool checkRoomOpen(SLONG roomId)
-- ClaudeBot shall use the following to translate an action ID to a room ID: SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)
+- ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG roomId)`
+- ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
 - When planning the next action, consider the time it requires to walk to a room
 
-We will list now all actions that can be performed in the game via the class GameMechanic.
-If GameMechanic returns a bool this usually means whether or not the action could be completed.
+We will list now all actions that can be performed in the game via the class `GameMechanic`.
+If `GameMechanic` returns a bool this usually means whether or not the action could be completed.
+
+In the following, qPlayer always is a reference to the instance of the Player class which refers to the player controlled by ClaudeBot.
+
+Target
+------
+
+The goal is to maximize the airline's weekly "operative saldo" which can be queried with `qPlayer.BilanzWoche.Hole().GetOpSaldo()`.
+
+"Operative" means that the saldo only includes money gained from airline operations (flight jobs and routes, both passenger and freight). From the gains, the money spent to facilitate these flights are deducted: 
+- Kerosene
+- Airline food
+- Fines if flights were not executed correctly
+- Repair cost (scheduled maintenance and unexpected malfunctions)
+- Refitting costs when a plane has to switch from carrying passengers to freight or vice versa
+- personal cost
+- rent for airport gates
+- rent for branch offices in other cities
+- rent for routes
+- cost for security office
+
+Game over
+---------
+
+The game is lost when the airline goes bankrupt. This happens when the money on the account is less than the value given in `DEBT_GAMEOVER` (default: negative 5 million). The game checks this at 9 am before the player has a chance for corrective actions. Note that the cost for plane repairs are deducted at midnight.
+
+Corrective actions to prevent bankruptcy might include the following. Treat these only as suggestions:
+- sell shares from other airlines
+- sell own shares
+- take new loan
+- emit new shares
+- reduce amount pre-allocated for repairs
+- reduce amount pre-allocated for upgrades
 
 Bank actions
 ------------
@@ -94,7 +128,7 @@ Recommended action ID: ACTION_SELLSHARES
 `bool GameMechanic::overtakeAirline(PLAYER &qPlayer, SLONG targetAirline, bool liquidate)`
 
 Action for trying to take over another airline via stock acquisition. Airline is taken over with all planes, routes, money and debt. Parameter liquidate can be used to erase airline completely instead.
-The function canOvertakeAirline() checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%).
+The function canOvertakeAirline() checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%). Note that your competitors can also overtake you when they meet the respective conditions.
 
 Recommended action ID: ACTION_OVERTAKE_AIRLINE
 
@@ -315,12 +349,19 @@ Because this behavior is difficult to predict, my recommendation is:
 - Do not attempt to schedule automatic flights manually, this is not possible
 - In the end, verify that all flight jobs ended up at the intended position in the schedule
 
-Real-time concerns
-------------------
+### Real-time concerns
 
 Flights can be scheduled and plane schedules can be altered at any point in time when the player has a laptop available and it has no virus. These action can also be done in the player's office unless the office is currently unusable. If both office and laptop are unusable, no flights can be scheduled and no plane schedule can be altered.
 
 Note that in case a flight job is picked up in one room and then the player has to walk to the office in order to schedule it, time will pass. This can make it impossible to schedule a flight that was supposed to start very soon. Plan accordingly if walking is required.
+
+### Helper functions
+
+You can use the following helper functions and are also allowed to rewrite them for your convenience:
+
+- `SLONG checkPlaneSchedule(...)`: Checks the current schedule of the specified plane for mistakes, prints every mistake to the log and returns total number of mistakes.
+- `ScheduleInfo calculateScheduleInfo(...)`: Returns a struct with lots of useful information about the current flight schedule of the given plane.
+- `SLONG checkFlightJobs(...) `: Performs the check for all planes and also prints combined statistics to the log.
 
 Routes
 ------
@@ -683,6 +724,16 @@ If you think you should have access to a variable or you find that you are stron
 Global variables
 ----------------
 
+This section lists which functions and variables outside of the `Bot` class may be access by ClaudeBot.
+
+What the agent must never do:
+- Do not write directly to any of the listed global variables.
+- Do not modify Sim state except through the permitted GameMechanic and PLAYER API calls.
+- Do not use global arrays or tables outside the legal access window defined by the room/action rules.
+- Do not treat the bot’s own internal Bot state as a substitute for a legal game action.
+
+If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a GameMechanic pattern. If you find yourself unable to do so or it comes with a massive cost, ask me if access rights might be granted.
+
 ### Global Sim instance
 
 Global object that manages most of the game state
@@ -695,8 +746,9 @@ You have read access to:
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
 - `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Only permitted while visiting the Arab.
 - `Sim.HomeAirportId`: City ID of the home airport.
-- `Sim.ItemZange`
-- `Sim.ItemPostcard`
+- `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
+- `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
+- `Sim.nSecOutDays`: Check for how many days the security office is closed. Security office can close due to sabotage.
 
 ### Player objects (yourself)
 
@@ -705,80 +757,14 @@ You have read access to:
 ### Player objects (competitors)
 
 
-Global read-only helpers and tables
+### Global read-only helpers and tables
+
 You may also read the following global tables and helpers when the rules permit them:
 
-StandardTexte.GetS(...)
-PlaneTypes[...]
-Cities[...], Cities.AnzEntries(), Cities.find(...), Cities.CalcDistance(...), Cities.CalcFlugdauer(...)
-Routen[...], Routen.AnzEntries()
-Einheiten[...]
-SeatCosts[...]
-StationPrices[...]
-RocketPrices[...]
-Hdu.HercPrintfMsg(...) for logging
-All of these are non-authoritative command paths. They are for observation and diagnostics only.
-
-What the agent must never do
-Do not write directly to any of the above global variables.
-Do not modify Sim state except through the permitted GameMechanic and PLAYER API calls.
-Do not use global arrays or tables outside the legal access window defined by the room/action rules.
-Do not treat the bot’s own internal Bot state as a substitute for a legal game action.
-Main working model
-The bot’s main working object is the per-player PLAYER instance passed in as qPlayer.
-Any legal game-state changes must happen through GameMechanic or through a legal PLAYER method/API call.
-Access to job arrays and route arrays is only legal when the corresponding room/action is active and the relevant rules allow it.
-Compliance rule
-If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a qPlayer/GameMechanic pattern.
-
-StandardTexte
-
-Access pattern: StandardTexte.GetS(...)
-Classification: read-only
-Evidence: localization table reads only.
-AppPath
-
-Access pattern: CString path{AppPath + MyPlanePath};
-Classification: read-only
-Evidence: string path lookup/concatenation only.
-MyPlanePath
-
-Access pattern: FullFilename(..., MyPlanePath) and AppPath + MyPlanePath
-Classification: read-only
-Evidence: path prefix for designer plane file materialization.
-PlaneTypes
-
-Access pattern: PlaneTypes[...], PlaneTypes.IsInAlbum(), PlaneTypes.AnzEntries(), PlaneTypes[i].Name, PlaneTypes[i].Geschwindigkeit
-Classification: read-only
-Evidence: bot reads plane catalog data.
-Cities
-
-Access pattern: Cities.AnzEntries(), Cities.find(...), Cities.CalcDistance(...), Cities.CalcFlugdauer(...), Cities[...]
-Classification: read-only
-Evidence: city graph / lookup / distance helpers are read from.
-Routen
-
-Access pattern: Routen.AnzEntries(), Routen[...], Routen[c].VonCity, Routen[c].NachCity, Routen[c].AnzPassagiere(), Routen[c].Miete
-Classification: read-only
-Evidence: route catalog is consumed, not written in Bot files.
-Einheiten
-
-Access pattern: Einheiten[EINH_KM]
-Classification: read-only
-Evidence: numeric/unit formatting table only.
-RocketPrices
-
-Access pattern: const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
-Classification: read-only
-Evidence: Bot code selects this table and only reads price values.
-StationPrices
-
-Same as above, read-only.
-SeatCosts
-
-Access pattern: SeatCosts[0], SeatCosts[2], SeatCosts[qPlane.Sitze]
-Classification: read-only
-Evidence: cost formulas only.
+- `PlaneTypes[...]` while at the plane broker.
+- `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` to query informations about cities and flight distances/duration.
+- `Routen` while at the route box.
+- `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades
 
 Global functions
 ----------------
@@ -790,9 +776,9 @@ GameMechanic class
 
 Found in src/GameMechanic.cpp
 
-Main interface to perform actions in the game. This class was implemented as part of a larger refactoring to reduce write access to global variables. Thus most of this class is safe to use with exceptions listed in the following:
+Main interface to perform actions in the game. This class was implemented as part of a larger refactoring to reduce write access to global variables. Thus most of this class is safe to use with exceptions listed in the following.
 
-# Forbidden actions in GameMechanic
+### Forbidden actions in GameMechanic
 
 You are not allowed to call the following functions:
 - GameMechanic::bankruptPlayer(PLAYER &qPlayer)
@@ -808,10 +794,14 @@ You are not allowed to call the following functions:
 - GameMechanic::injectFakeSabotage()
 
 Further restrictions apply:
-- Call GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) only with EndStrikeMode::Drunk as second parameter
-- Only call GameMechanic::endStrike if item horse shoe has been given to the trinker (check via qPlayer.TrinkerTrust == TRUE)
-- A call to GameMechanic::killFlightJob(PLAYER &qPlayer, SLONG par1, bool payFine) must use payFine == true
-- A call to GameMechanic::killFreightJob(PLAYER &qPlayer, SLONG par1, bool payFine) must use payFine == true
+- Call `GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode)` only with `EndStrikeMode::Drunk` as second parameter
+- Only call `GameMechanic::endStrike` if item horse shoe has been given to the trinker (check `via qPlayer.TrinkerTrust == TRUE`)
+- A call to `GameMechanic::killFlightJob(PLAYER &qPlayer, SLONG par1, bool payFine)` must use `payFine == true`
+- A call to `GameMechanic::killFreightJob(PLAYER &qPlayer, SLONG par1, bool payFine)` must use `payFine == true`
+
+### Restrictions for allowed functions
+
+Note that even for allowed functions there are usage restrictions (player character almost always must be in the correct room) which are listed in this document together with the explanation for the given function.
 
 Player class
 ------------
@@ -823,9 +813,7 @@ All instances of the PLAYER class can be found in the global array `Sim.Players.
 
 
 
-action IDs
 
-operative saldo
 
 gates
 
@@ -843,3 +831,4 @@ Open questions / ambiguities
 -----------------------------
 
 Use this section to list any open questions or ambiguities regarding rules that you need me to clarify.
+operative saldooperative saldooperative saldooperative saldooperative saldo
