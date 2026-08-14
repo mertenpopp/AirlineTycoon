@@ -630,39 +630,41 @@ Buy a mobile phone (`ITEM_HANDY`) at the "Duty Free" shop to be able to get inte
 Security office
 ---------------
 
-ACTION_VISITSECURITY / ACTION_VISITSECURITY2
-Visit the security office. Security settings are handled through GameMechanic::setSecurity() / toggleSecurity(). The important constraints are:
+Use the action IDs ACTION_VISITSECURITY or ACTION_VISITSECURITY2 to visit the security office. Only while in this room, the following functions may be called.
 
-bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState):
-bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType):
-bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer):
+`bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState)`:
+
+`bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType)`:
+
+`bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer)`:
+
+For now, please do not use these actions.
 
 Sabotage actions
 ----------------
 
-ACTION_SABOTAGE / ACTION_VISITSABOTEUR
-Sabotage action. The room is the saboteur room. The actual sabotage logic checks:
+Use the action IDs ACTION_SABOTAGE or ACTION_VISITSABOTEUR to visit the saboteur room. Only while in this room, the following functions may be called.
 
-SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target):
-GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage);
-bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage);
-the player must have a laptop;
-security type must be valid.
+`SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target)`:
+
+`GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage)`:
+
+`bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage)`:
+
+For now, please do not use these actions.
 
 Misc rooms
 ----------
 
-ACTION_VISITKIOSK
-Visit the kiosk room. This is a generic service-room action.
+The following actions and corresponding rooms do not serve any real purpose. They can be used as default actions to give the player character a more "human" 
 
-ACTION_VISITMUSEUM
-Visit the museum. This is the room for used-plane purchases and related old-aircraft transactions.
+Use ACTION_VISITKIOSK to visit the kiosk room.
 
-ACTION_VISITTELESCOPE
-Visit telescope room / “research” room. Same difficulty-gated behavior as the NASA room.
+Use ACTION_VISITMUSEUM to visit the museum.
 
-ACTION_VISITRICK
-Visit Rick’s room. This is a special service room.
+Use ACTION_VISITTELESCOPE to visit telescope.
+
+Use ACTION_VISITRICK to visit Rick’s bar. This can be useful to end a strike.
 
 Global game state read permissions
 ==================================
