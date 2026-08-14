@@ -509,7 +509,7 @@ Familiarize yourself with the data structures:
 
 These are direct buy actions, usually routed to either the museum or the broker.
 
-Use action ID ACTION_BUYNEWPLANE to walk to the plane broker. Only there, the following two functions may be used:
+Use action ID ACTION_BUYNEWPLANE or ACTION_VISITMAKLER to walk to the plane broker. Only there, the following two functions may be used:
 
 `bool GameMechanic::checkPlaneTypeAvailable(SLONG planeType)`: Checks if planes with the given type ID can be bought. You may check the global array `PlaneTypes` at index planeType if this function returns true.
 
@@ -568,16 +568,89 @@ Bids can be placed by ClaudeBot and all competitors the entire day. It is possib
 Item management
 ---------------
 
-GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG item)
-bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item)
-bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item)
+The game has an item mechanic. Items can be used to sabotage competitors or protect yourself against their sabotage.
 
-GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):
-ACTION_VISITDUTYFREE
-Visit duty-free. Open only during business hours and not on weekend.
+`GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG item)`: Attempts to pick up the specified item. Item IDs are defined in `defines.h` and are macros that start with `ITEM_`. The returned enum tells you if the item was picked up, there was no space, it is not allowed yet or other conditions are not met. One has to be in the correct room for the given item.
 
+`bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item)`: Drops the specified item from the inventory to make space.
 
-4) Shops and service rooms
+`bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item)`: Attempts to use the specified item at the current location.
+
+`GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):` This action can only be used in the "Duty Free" shop. Use the action ID ACTION_VISITDUTYFREE to walk there. Use this function to buy certain items for money.
+
+We now explain certain items. The are more items but for now, please do not use these yet.
+
+### Pills
+
+Necessary if a competitor poisened you which will cause you to walk to the bathroom constantly. Check variable `mIsSickToday` to see if this is the case. Follow the steps:
+
+- Pick up the item `ITEM_POSTKARTE` in the boss room. Check `Sim.ItemPostcard != 0` to see if it is there. Only needs to be done once.
+- Use item `ITEM_POSTKARTE` while in HR office. Only needs to be done once.
+- Pick up item `ITEM_TABLETTEN` while in HR office.
+- Use item `ITEM_TABLETTEN` to cure sickness.
+
+Repeat the last two steps to cure sickness again.
+
+### Antivirus
+
+Necessary if competitor infected your laptop with a virus. Check `qPlayer.LaptopVirus != 0` to see if laptop is infected. Follow the steps:
+
+- Pick up item `ITEM_SPINNE` while in travel agency. Only needs to be done once.
+- Use item `ITEM_SPINNE` while in the saboteur room. You need to have his trust (`qPlayer.ArabTrust != 0`). Only needs to be done once.
+- Pick up item `ITEM_DART` while in the saboteur room. Only needs to be done once.
+- Use item `ITEM_DART` while in the advertising room. Only needs to be done once.
+- Pick up item `ITEM_DISKETTE` while in the advertising room.
+- Use item `ITEM_DISKETTE` to fix laptop.
+
+Repeat the last two steps to repair laptop again.
+
+### End strike
+
+Can be used to end a strike. Strikes can be stirred up by a competitor or are caused by low wages. Check `qPlayer.StrikeHours > 0` if there is currently a strike. Follow the steps:
+
+- Pick up item `ITEM_BH` while at the plane broker. Only needs to be done once.
+- Use item `ITEM_BH` while in "Duty Free" shop. Only needs to be done once.
+- Pick up item `ITEM_HUFEISEN` while in "Duty Free" shop. Only needs to be done once.
+- Use item `ITEM_HUFEISEN` while at Rick's bar. Only needs to be done once.
+
+Only after these steps have been completed once, you may call the function `GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode)` with `EndStrikeMode::Drunk` to end the worker's strike.
+
+### Gain saboteur trust
+
+To gain the trust of the saboteur, buy item `ITEM_MG` at the "Duty Free" shop. Give it to the saboteur to gain his trust.
+
+### Buy laptop
+
+Buy a laptop (`ITEM_LAPTOP`) at the "Duty Free" shop to be able to plan flights anywhere. Shop only has one laptop in stock at any given day, a competitor might have been faster. This action can be repeated to improve laptop quality (`qPlayer.LaptopQuality`) point-by-point until maximum quality of 4. Laptops only become available starting at a specific day. Use `Sim.Date > DAYS_WITHOUT_LAPTOP` to check.
+
+### Buy mobile phone
+
+Buy a mobile phone (`ITEM_HANDY`) at the "Duty Free" shop to be able to get international flight jobs from other cities.
+
+Security office
+---------------
+
+ACTION_VISITSECURITY / ACTION_VISITSECURITY2
+Visit the security office. Security settings are handled through GameMechanic::setSecurity() / toggleSecurity(). The important constraints are:
+
+bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState):
+bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType):
+bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer):
+
+Sabotage actions
+----------------
+
+ACTION_SABOTAGE / ACTION_VISITSABOTEUR
+Sabotage action. The room is the saboteur room. The actual sabotage logic checks:
+
+SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target):
+GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage);
+bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage);
+the player must have a laptop;
+security type must be valid.
+
+Misc rooms
+----------
 
 ACTION_VISITKIOSK
 Visit the kiosk room. This is a generic service-room action.
@@ -588,61 +661,8 @@ Visit the museum. This is the room for used-plane purchases and related old-airc
 ACTION_VISITTELESCOPE
 Visit telescope room / “research” room. Same difficulty-gated behavior as the NASA room.
 
-ACTION_VISITMAKLER
-Visit the broker / airplane dealer room. This is where new aircraft can be bought.
-
 ACTION_VISITRICK
 Visit Rick’s room. This is a special service room.
-
-5) Security / sabotage actions
-These are the “consequence” actions that can affect the game state directly.
-
-bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState):
-bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType):
-bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer):
-ACTION_VISITSECURITY / ACTION_VISITSECURITY2
-Visit the security office. Security settings are handled through GameMechanic::setSecurity() / toggleSecurity(). The important constraints are:
-
-SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target):
-GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage);
-bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage);
-the player must have a laptop;
-security type must be valid.
-ACTION_SABOTAGE / ACTION_VISITSABOTEUR
-Sabotage action. The room is the sabotage office. The actual sabotage logic checks:
-
-target validity;
-whether the saboteur is idle;
-trust level;
-money;
-whether the victim has a laptop;
-whether the chosen attack is legal for that target.
-
-
-8) Misc and convenience actions
-Key constraints to keep in mind
-The main gameplay constraints are not in the action name alone; they are enforced by the GameMechanic functions and the room-open gates:
-
-Difficulty gates:
-
-ACTION_VISITARAB, ACTION_BUY_KEROSIN, ACTION_BUY_KEROSIN_TANKS
-ACTION_WERBUNG, ACTION_WERBUNG_ROUTES, ACTION_VISITADS
-ACTION_VISITROUTEBOX, ACTION_VISITROUTEBOX2
-ACTION_VISITNASA, ACTION_VISITTELESCOPE
-ACTION_SABOTAGE, ACTION_VISITSABOTEUR
-Time/weekday gates:
-
-some rooms only open during set hours;
-duty-free, kiosk, museum, advertisements, and agent rooms are all time-limited in BotHelper.cpp:686-796.
-Resource/legality checks:
-
-money for fuel, stock, sabotage, and plane purchases;
-valid plane/route/airline identifiers;
-enough trust for sabotage jobs;
-laptop requirement for security and sabotage-related actions;
-storage/credit capacity for fuel and loans.
-
-
 
 Global game state read permissions
 ==================================
@@ -814,6 +834,8 @@ bankruptcy
 album check for valid entries
 
 saving
+
+room IDs
 
 Open questions / ambiguities
 -----------------------------
