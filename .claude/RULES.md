@@ -211,6 +211,8 @@ Job will be added to qPlayer.Frachten and can be found using outObjectId.
 ACTION_CALL_INTER_HANDY can be used for a special “no-walk” international-call action; it does not require a location walk and is thus faster.
 The item "phone" is required. Everything else said about ACTION_CALL_INTERNATIONAL also applies here.
 
+Every time the phone is used, set the existing variable `mOnThePhone` to 30.
+
 ### General rules
 
 A passenger flight job is an instance of `CAuftrag`, a freight job is an instance of `CFracht`. In the global arrays, for any given job always check for validity using the expression `(job.VonCity != job.NachCity) && (job.Praemie >= 0)`.
