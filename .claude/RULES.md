@@ -82,64 +82,45 @@ Bank actions are all performed in the bank room. All action IDs listed in this s
 
 ### Take out loans
 
-`bool GameMechanic::takeOutCredit(qPlayer, amountToRaise)`
-
-Call this to take out a loan. Call qPlayer.CalcCreditLimit() to find out how much money can be raised.
-Total amount of money owed is stored in qPlayer.Credit. Note that this is a loan and interest has to be paid.
+`bool GameMechanic::takeOutCredit(qPlayer, amountToRaise)`: Take out a loan. Call qPlayer.CalcCreditLimit() to find out how much money can be raised. Total amount of money owed is stored in qPlayer.Credit. Note that this is a loan and interest has to be paid.
 
 Recommended action ID: ACTION_RAISEMONEY
 
 ### Pay back loan
 
-`bool GameMechanic::payBackCredit(qPlayer, amountToPayBack)`
-
-Call this to pay back your loans. Total amount owed is stored in qPlayer.Credit.
+`bool GameMechanic::payBackCredit(qPlayer, amountToPayBack)`: Pay back a part of your loan. Total amount owed is stored in qPlayer.Credit.
 
 Recommended action ID: ACTION_DROPMONEY
 
 ### Emit stock
 
-`bool GameMechanic::emitStock(PLAYER &qPlayer, SLONG neueAktien, SLONG mode)`
-
-Issue new shares. Gives the airline some money however, reduces stock price and more float means competitors could take you over.
-Analyze the code of this function to see how the mode affects how much money is made and by how much the stock price drops.
+`bool GameMechanic::emitStock(PLAYER &qPlayer, SLONG neueAktien, SLONG mode)`: Issue new shares. Gives the airline some money however, reduces stock price and more float means competitors could take you over. Analyze the code of this function to see how the mode affects how much money is made and by how much the stock price drops.
 
 Recommended action ID: ACTION_EMITSHARES
 
 ### Set dividend
 
-`bool GameMechanic::setDividend(PLAYER &qPlayer, SLONG dividend)`
-
-Set the dividend for the airline’s stock. Higher dividend costs more money but improves stock price. Note that increases in dividend have a delay before they take effect. Decreases immediately have a (negative) effect.
+`bool GameMechanic::setDividend(PLAYER &qPlayer, SLONG dividend)`: Set the dividend for the airline’s stock. Higher dividend costs more money but improves stock price. Note that increases in dividend have a delay before they take effect. Decreases immediately have a (negative) effect.
 
 Recommended action ID: ACTION_SET_DIVIDEND
 
 ### Buy stock
 
-`bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount)`
-
-Purchase shares in another airline identified by airlineNum. Analyze the code to see how high the bank fee is.
-If commit == false, no action is made. The second return value gives the total amount of money that will be spent.
-Note that stock price will increase.
+`std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Purchase shares in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the total amount of money that will be spent. Note that stock price will increase.
 
 Recommended action ID: ACTION_BUYSHARES
 
 ### Sell stock
 
-`std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`
-
-Sell shares held in another airline identified by airlineNum. Analyze the code to see how high the bank fee is.
-If commit == false, no action is made. The second return value gives the total amount of money that will be gained.
-Note that stock price will decrease.
+`std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Sell shares held in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the total amount of money that will be gained. Note that stock price will decrease.
 
 Recommended action ID: ACTION_SELLSHARES
 
 ### Overtake airline
 
-`bool GameMechanic::overtakeAirline(PLAYER &qPlayer, SLONG targetAirline, bool liquidate)`
+`bool GameMechanic::overtakeAirline(PLAYER &qPlayer, SLONG targetAirline, bool liquidate)`: Action for trying to take over another airline via stock acquisition. Airline is taken over with all planes, routes, money and debt. Parameter `liquidate` can be used to erase airline completely instead.
 
-Action for trying to take over another airline via stock acquisition. Airline is taken over with all planes, routes, money and debt. Parameter liquidate can be used to erase airline completely instead.
-The function canOvertakeAirline() checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%). Note that your competitors can also overtake you when they meet the respective conditions.
+The function `canOvertakeAirline()` checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%). Note that your competitors can also overtake you when they meet the respective conditions.
 
 Recommended action ID: ACTION_OVERTAKE_AIRLINE
 
@@ -377,7 +358,7 @@ You can use the following helper functions and are also allowed to rewrite them 
 Routes
 ------
 
-Routes have to be rented once and then as many flights on this route as desired can be added to any number of planes.
+Routes have to be rented once and then as many flights on this route as desired can be added to any number of planes. Routes always connect exactly two cities, called `VonCity` and `NachCity` in the game code.
 
 Familiarize yourself with the data structures:
 - CRoute
@@ -391,35 +372,25 @@ The array `qPlayer.RentRouten` has one instance of `CRentRoute` for each instanc
 
 The action ID ACTION_VISITROUTEBOX or ACTION_VISITROUTEBOX2 shall be used to walk to the route box. All three functions in this section can only be done at the route box.
 
-`bool GameMechanic::rentRoute(PLAYER &qPlayer, SLONG routeA)`
+`bool GameMechanic::rentRoute(PLAYER &qPlayer, SLONG routeA)`: Rents a new route at the "route box" room. A daily fee has to be paid for each rented route.
 
-Rents a new route at the "route box" room. A daily fee has to be paid for each rented route.
+`BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer)`: Check which routes are buyable. It returns an array with a boolean for each route at the corresponding index. A route always connects two cities. A route is buyable if either city is the home airport or either city is already connected by a different route that the player flies sufficiently enough. This can checked via `qPlayer.RentRouten.RentRouten[c].RoutenAuslastung  >= 20` where `c` is the index of any route which has either the same `VonCity` or same `NachCity` as the route that you want to rent.
 
-Use the following function to check which routes are buyable. It returns an array with a boolean for each route at the corresponding index:
-
-`BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer)`
-
-A route always connects two cities. A route is buyable if either city is the home airport or either city is already connected by a different route that the player flies sufficiently enough.
-
-Use this function to stop renting a route but ensure that no plane will be flying this route anymore beforehand:
-
-`bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`
+`bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`: Stop renting the specified route. First ensure that no plane will be flying this route anymore.
 
 ### Route mechanics
 
-When renting a route from city A to city B, one does automatically rent the route in reverse from B to A. The GameMechanic automatically rents or kills the route in reverse direction. To find the routeId of the reverse direction for a given route, the following function shall be used:
+When renting a route from city A to city B, one does automatically rent the route in reverse from B to A. The GameMechanic automatically rents or kills the route in reverse direction. 
 
-`SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA)`
+`SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA)`: Find the routeId of the reverse direction for a given route.
 
-The ticket price for one direction of the route can set using the following function. There is a regular ticket price and one for first class (FC):
+`bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: Sets the ticket price for one direction of the route. There is a regular ticket price and one for first class (FC).
 
-`bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`
-
-The following function set for both direction at once:
-
-`bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`
+`bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`:  Sets the ticket price for both directions of the route. There is a regular ticket price and one for first class (FC).
 
 These functions can be called while in the player's office or while having a functioning laptop.
+
+Routes have a certain demand which crucially determines how many tickets can be sold per day at most which means that airlines renting the same route will be competing for passengers. The field `CRoute::Bedarf` gives how many passengers still want to fly today. Analyze the function `CRouten::NewDay()` to understand how the demand is renewed on every new day.
 
 The money gained from a single route flight is calculated by the game in `CFlugplanEintrag::BookFlight`. The most important factors are the set ticket price and the number of passengers. As opposed to regular flight jobs, for route flights the number of passengers is calculated dynamically in `CFlugplanEintrag::CalcPassengers` with `(ObjectType == 1)` and depends on price, competitors flying this route, current demand on this route, time of flight, the airlines's image and the specific image for the route and other factors.
 
@@ -441,7 +412,7 @@ Only while in this room, the global array `Workers.Workers` may be accessed. Onl
 `bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId)`: Fire the worker with the given ID.
 
 
-`void GameMechanic::increaseAllSalaries(PLAYER &qPlayer)`: Increases salary for all workers by 10%.
+`void GameMechanic::increaseAllSalaries(PLAYER &qPlayer)`: Increases salary for all workers by 10%. Also ends any currently ongoing strikes.
 
 
 `void GameMechanic::decreaseAllSalaries(PLAYER &qPlayer)`: Decreases salary for all workers by 10%.
@@ -522,7 +493,7 @@ The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visi
 
 The game updates the quality of the kerosene in the tank using the following formula:
 
-`qPlayer.KerosinQuali = (oldAmount * qPlayer.KerosinQuali + amount * type) / qPlayer.TankInhalt;`
+`qPlayer.KerosinQuali = (oldAmount * qPlayer.KerosinQuali + amountBought * type) / (oldAmount + amountBought);`
 
 So the resulting quality `KerosinQuali` is the weighted sum of the original quality plus the quality of the new kerosene. 
 
@@ -672,9 +643,9 @@ Can be used to end a strike. Strikes can be stirred up by a competitor or are ca
 - Pick up item `ITEM_BH` while at the plane broker. Only needs to be done once.
 - Use item `ITEM_BH` while in "Duty Free" shop. Only needs to be done once.
 - Pick up item `ITEM_HUFEISEN` while in "Duty Free" shop. Only needs to be done once.
-- Use item `ITEM_HUFEISEN` while at Rick's bar. Only needs to be done once.
+- Use item `ITEM_HUFEISEN` while at Rick's bar. `qPlayer.TrinkerTrust` should now be `1`. Only needs to be done once.
 
-Only after these steps have been completed once, you may call the function `GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode)` with `EndStrikeMode::Drunk` to end the worker's strike.
+Only after these steps have been completed once, you may call the function `GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode)` with `EndStrikeMode::Drunk` to end the worker's strike. Check ``qPlayer.TrinkerTrust == 1` to see if this condition is met.
 
 ### Gain saboteur trust
 
@@ -802,10 +773,11 @@ All classifications are read-only except where explicitly shown as read/write.
 - `Planes`: Plane collection (accessing, iterating, reading plane data).
 - `PlayerNum`: Player number, used as index in many arrays.
 - `PlayerWalkRandom`: Random number generator.
-- `RentRouten`: Rented routes.
+- `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
 - `RobotActions`: Read and write access permitted. Used to store the planned actions. 
 - `Tank`: Total volume of kerosene tank.
 - `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
+- `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
 - `xBegleiter`: Number of superfluous stewardesses. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
 - `xPiloten`: Number of superfluous pilots. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
 
@@ -813,7 +785,7 @@ All classifications are read-only except where explicitly shown as read/write.
 
 You can read some fields in the PLAYER class instance that refer to a competitor.
 
-Some values may only be read if the spy has been hired and has sufficient skill level. Current skill level can be queried using `Player.HasBerater(BERATERTYP_INFO)`.
+Some values may only be read if the spy has been hired and has sufficient skill level. Current skill level can be queried using `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
 
 All classifications are read-only.
 
@@ -827,6 +799,30 @@ All classifications are read-only.
 - `OfficeState`: Office usability status.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. Only read for at index referring to own airline when `qPlayer.HasBerater(BERATERTYP_GELD) > 0`. Only read at other indices when `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
 - `PlayerNum`: Player number, used as index in many arrays.
+
+### RentRouten object
+
+Located in each `PLAYER` object at `qPlayer.RentRouten.RentRouten`. Contains an instance of type `CRentRoute` for every instance of `CRoute` in the global array `Routen` at the same index. `CRentRoute` describes whether `qPlayer` rents and flies the corresponding route.
+
+Familiarize yourself with the data structure:
+- CRentRoute
+
+All classifications are read-only.
+
+The following may be accessed if the player object is ClaudeBot:
+- `Rang`: You may always use the expression `Rang != 0` to check if you are currently renting this route. If the value is `> 0`, it gives the position of the player in the ranking of who flies this route the most of all four airlines. The exact value may only be read while at the route box or in the personal office.
+- `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant.
+- `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant.
+- `RoutenAuslastung`: Gives how much the route is being utilized in percent of the daily demand by your airline. You may only read this while in the personal office or at the route box. The value is averaged over the past days. `RoutenAuslastungBot` is the data but filtered using a faster time constant.
+- `Image`: Image of this route. You may only read this while in the personal office or at the route box.
+- `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
+- `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
+- `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
+
+The following may be accessed if the player object is a competitor:
+- `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `RoutenAuslastung`: Gives how much the route is being utilized in percent of the daily demand by the competitor. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
 ### Global read-only helpers and tables
 
@@ -872,7 +868,7 @@ You are not allowed to call the following functions:
 
 Further restrictions apply:
 - Call `GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode)` only with `EndStrikeMode::Drunk` as second parameter
-- Only call `GameMechanic::endStrike` if item horse shoe has been given to the trinker (check `via qPlayer.TrinkerTrust == TRUE`)
+- Only call `GameMechanic::endStrike` if item horse shoe has been given to the trinker (check `via qPlayer.TrinkerTrust == 1`)
 - A call to `GameMechanic::killFlightJob(PLAYER &qPlayer, SLONG par1, bool payFine)` must use `payFine == true`
 - A call to `GameMechanic::killFreightJob(PLAYER &qPlayer, SLONG par1, bool payFine)` must use `payFine == true`
 
@@ -942,13 +938,7 @@ It is possible to iterator over albums using range-based for-loops:
     }
 ```
 
-album check for valid entries
-
-TODO:
-RentRouten permissions
-
 Open questions / ambiguities
------------------------------
+============================
 
 Use this section to list any open questions or ambiguities regarding rules that you need me to clarify.
-operative saldooperative saldooperative saldooperative saldooperative saldorespective
