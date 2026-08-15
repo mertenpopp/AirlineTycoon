@@ -880,11 +880,72 @@ Further restrictions apply:
 
 Note that even for allowed functions there are usage restrictions (player character almost always must be in the correct room) which are listed in this document together with the explanation for the given function.
 
+Notes regarding code base
+=========================
 
+Album containers
+----------------
 
-TODO:
+The game uses a legacy container to store objects called `ALBUM_V`. It comes with a few quirks that we will now explain.
+
+Generally, these are sortable containers for objects of the same type. The storage is handled automatically, but they do not expand automatically. On insertion, a unique ID of type `uint32_t` is created for the new element. "Unique" here means that it is unique to the album not globally unique. Elements can be retrieved using either the unique ID or the index. When accessing elements using the unique ID, an `ALBUM_V<T>` is comparable to an `std::unordered_map<uint32_t, T>`. When accessing elements using the index, an `ALBUM_V<T>` behaves like an `std::vector<T>`. This also holds true regarding time complexity. When the album is sorted, unique IDs are preserved but indices are not. Confusingly, access via unique ID and index are made using the same overloaded `operator[id]`. If `id` is below magic number `0x1000000`, it is treated as an index. Otherwise, it is treated as a unique ID.
+
+Another pitfall of these data structures that it does not grow as required and after manually growing the array using `ReSize()`, it does not hide the new, empty slots. Empty slots also remain after an item is deleted from the album. When iterating over an album, the code will also iterate over empty slots. Thus, these need to be explicitly skipped during iteration like this:
+
+```
+    for (SLONG i = 0; i < album.AnzEntries(); i++) {
+        if (album.IsInAlbum(i) == 0) {
+            continue;
+        }
+        [...]
+    }
+```
+
+For new data structures, never use `ALBUM_V`. Use C++ STL containers instead.
+
+### Member functions
+
+Only ever use the following functions of existing `ALBUM_V` objects:
+
+- `SLONG AnzEntries()`: Query capacity of the container, includes previously deleted items.
+- `SLONG GetNumUsed()`: Query number of valid items of the container.
+- `SLONG GetNumFree()`: Query number free slots in the container.
+- `ULONG GetIdFromIndex(SLONG i)`: Converts an index into the corresponding unique ID.
+- `SLONG IsInAlbum(ULONG id)`: Checks if specified item is a valid item or an empty slot. Works both with indices and unique IDs.
+- `SLONG operator()(ULONG id)`: Alias for `find`. Use that one instead.
+- `SLONG find(ULONG id)`: Converts a valid unique ID into the corresponding index. If parameter already is a valid index, it is directly returned. Raises an exception otherwise (invalid unique ID and/or index).
+- `T &operator[](ULONG id)`: Retrieve an element either using an index or an global ID.
+- `operators == and !=`: Can be used to compare the contents of two albums.
+- `SLONG GetRandomUsedIndex(TEAKRAND *random = NULL)`: Returns the unique ID of a randomly chosen, valid element of the album. Can optionally be called with a pointer to a random number generated of type `TEAKRAND`.
+
+You should not need to use the following functions:
+
+- `void ReSize(SLONG anz)`: Resizes a container.
+- `void ClearAlbum()`: Removes all items, leaving capacity the same.
+- `void FillAlbum()`: Fills all empty slots with default-constructed items.
+- `ULONG operator*=(T rhs)`: Places the given element into the last empty slot in the album and returns its unique ID. Raises an exception if no empty slot is available.
+- `ULONG operator+=(T rhs)`: Places the given element into the first empty slot in the album and returns its unique ID. Raises an exception if no empty slot is available.
+- `void operator-=(ULONG id)`: Removes an element either using an index or an global ID. Raises an exception if no matching element can be found.
+- `void Sort()`: Stable-sorts the album.
+- `void Swap(SLONG a, SLONG b)`: Swaps two items in the item, both either specified as index or both as unique ID.
+
+### Iterators
+
+It is possible to iterator over albums using range-based for-loops:
+
+```
+    for (auto &i : album) {
+        if (!i.IsInAlbum()) {
+            continue;
+        }
+        [...]
+    }
+```
+
 album check for valid entries
 
+TODO:
+RentRouten permissions
 
 Open questions / ambiguities
 -----------------------------
