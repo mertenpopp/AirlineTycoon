@@ -1,5 +1,5 @@
-#ifndef BOT_H_
-#define BOT_H_
+#ifndef CLAUDE_BOT_H_
+#define CLAUDE_BOT_H_
 
 #include "class.h"
 #include "defines.h"
@@ -8,9 +8,9 @@ class PLAYER;
 
 extern const SLONG kRouteAvgDays;
 
-class Bot {
+class ClaudeBot {
   public:
-    explicit Bot(PLAYER &player);
+    explicit ClaudeBot(PLAYER &player);
 
     void RobotInit();
     void RobotPlan();
@@ -25,8 +25,8 @@ class Bot {
     bool getOnThePhone() const { return mOnThePhone > 0; }
     void decOnThePhone() { mOnThePhone--; }
 
-    friend TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);
-    friend TEAKFILE &operator>>(TEAKFILE &File, Bot &bot);
+    friend TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
+    friend TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot);
 
   private:
     TEAKRAND LocalRandom{};
@@ -41,7 +41,7 @@ class Bot {
     SLONG mMoodNext{-1};
 };
 
-TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);
-TEAKFILE &operator>>(TEAKFILE &File, Bot &bot);
+TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
+TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot);
 
-#endif // BOT_H_
+#endif // CLAUDE_BOT_H_

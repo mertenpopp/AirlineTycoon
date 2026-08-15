@@ -263,7 +263,7 @@ class CStdRaum {
     friend class PERSON;
     friend class PLAYER;
     friend class SIM;
-    friend class Bot;
+    friend class ClaudeBot;
     friend class GameMechanic;
 
   private:

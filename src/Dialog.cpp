@@ -5,7 +5,6 @@
 //============================================================================================
 #include "AtNet.h"
 #include "Aufsicht.h"
-#include "Bot.h"
 #include "BotHelper.h"
 #include "GameMechanic.h"
 #include "global.h"

@@ -11,7 +11,7 @@ There are always four competing airlines:
 - "Phoenix Travel" (PT)
 - "Honey Airlines" (HA)
 
-Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in Bot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
+Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in ClaudeBot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
 
 Target
 ------
@@ -46,13 +46,13 @@ Corrective actions to prevent bankruptcy might include the following. Treat thes
 Savegames
 ---------
 
-You are free to add as many member variables in sub-classes as you like to the `Bot` class. However, you need to ensure that upon saving, the full state of ClaudeBot is saved to disk and restored on savegame load.
+You are free to add as many member variables in sub-classes as you like to the `ClaudeBot` class. However, you need to ensure that upon saving, the full state of ClaudeBot is saved to disk and restored on savegame load.
 
-The `Bot` class already has the two friend functions:
-- `TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot)`: Saves the state of the bot to a file
-- `TEAKFILE &operator>>(TEAKFILE &File, Bot &bot)`: Restores the state of the bot from a file
+The `ClaudeBot` class already has the two friend functions:
+- `TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot)`: Saves the state of the bot to a file
+- `TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot)`: Restores the state of the bot from a file
 
-Remember to always update these two functions when you add a new data member to the `Bot` class.
+Remember to always update these two functions when you add a new data member to the `ClaudeBot` class.
 
 Game actions
 ============
@@ -715,13 +715,13 @@ If you think you should have access to a variable or you find that you are stron
 Global variables
 ----------------
 
-This section lists which functions and variables outside of the `Bot` class may be access by ClaudeBot.
+This section lists which functions and variables outside of the `ClaudeBot` class may be access by ClaudeBot.
 
 What the agent must never do:
 - Do not write directly to any of the listed global variables.
 - Do not modify Sim state except through the permitted GameMechanic and PLAYER API calls.
 - Do not use global arrays or tables outside the legal access window defined by the room/action rules.
-- Do not treat the bot’s own internal Bot state as a substitute for a legal game action.
+- Do not treat the bot’s own internal ClaudeBot state as a substitute for a legal game action.
 
 If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a GameMechanic pattern. If you find yourself unable to do so or it comes with a massive cost, ask me if access rights might be granted.
 

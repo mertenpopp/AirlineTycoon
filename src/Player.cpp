@@ -2,8 +2,8 @@
 // Player.cpp : Routinen zum verwalten der Spieler
 //============================================================================================
 #include "AtNet.h"
-#include "Bot.h"
 #include "BotHelper.h"
+#include "ClaudeBot.h"
 #include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
@@ -62,7 +62,7 @@ __int64 abs64(__int64 v) {
 //============================================================================================
 // Konstruktor:
 //============================================================================================
-PLAYER::PLAYER() : mBot(new Bot(*this)) {
+PLAYER::PLAYER() : mClaudeBot(new ClaudeBot(*this)) {
     SLONG c = 0;
 
     NewDir = 8;
@@ -106,15 +106,15 @@ PLAYER::~PLAYER() {
     delete pSmack;
     pSmack = nullptr;
 
-    delete mBot;
-    mBot = nullptr;
+    delete mClaudeBot;
+    mClaudeBot = nullptr;
 }
 
 void PLAYER::ReInitBot() {
-    if (mBot) {
-        delete mBot;
+    if (mClaudeBot) {
+        delete mClaudeBot;
     }
-    mBot = new Bot(*this);
+    mClaudeBot = new ClaudeBot(*this);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3107,7 +3107,7 @@ void PLAYER::RobotPump() {
                         pPerson->MoodCountdown = max(MOODCOUNT_START - 16, pPerson->MoodCountdown);
 
                         if (IsSuperBot()) {
-                            mBot->setNoticedSickness();
+                            mClaudeBot->setNoticedSickness();
                         }
                     }
                 }
@@ -3141,11 +3141,11 @@ void PLAYER::RobotPump() {
         return; // War Irtum, kein Computerspieler
     }
 
-    if (mBot->getOnThePhone()) {
+    if (mClaudeBot->getOnThePhone()) {
         PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
         if (qPerson.LookDir == 8) {
             qPerson.Phase = 6;
-            mBot->decOnThePhone();
+            mClaudeBot->decOnThePhone();
         }
     }
 
@@ -3246,7 +3246,7 @@ void PLAYER::RobotInit() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotInit();
+        mClaudeBot->RobotInit();
     } else {
         RobotActions[1].ActionId = ACTION_STARTDAY;
         RobotActions[2].ActionId = ACTION_PERSONAL;
@@ -3296,7 +3296,7 @@ void PLAYER::RobotPlan() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotPlan();
+        mClaudeBot->RobotPlan();
         PLAYER::NetSyncRobot(WaitWorkTill, WaitWorkTill2);
         return;
     }
@@ -3976,7 +3976,7 @@ void PLAYER::RobotExecuteAction() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotExecuteAction();
+        mClaudeBot->RobotExecuteAction();
 
         Sim.Players.CheckFlighplans();
 
@@ -6781,7 +6781,7 @@ void PLAYER::ApplyMood(PERSON &qPerson) {
     }
 
     if (qPerson.MoodCountdown == 0U) {
-        SLONG mood = mBot->getNextMood();
+        SLONG mood = mClaudeBot->getNextMood();
         if (mood != -1) {
             qPerson.Mood = static_cast<UBYTE>(mood);
             qPerson.MoodCountdown = MOODCOUNT_START + rand() % 15;
@@ -7283,7 +7283,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player) {
     File << Player.IsTalking << Player.IsWalking2Player;
 
     // For improved bot
-    File << *Player.mBot;
+    File << *Player.mClaudeBot;
 
     return (File);
 }
@@ -7502,7 +7502,7 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
     File >> Player.IsTalking >> Player.IsWalking2Player;
 
     // For improved bot
-    File >> *Player.mBot;
+    File >> *Player.mClaudeBot;
     // Player.Owner = (Player.PlayerNum == 3) ? 0 : 1;
 
     return (File);

@@ -16,7 +16,7 @@
 #include <array>
 #include <vector>
 
-class Bot;
+class ClaudeBot;
 class CPlane;
 class CPlaner;
 class CStdRaum;
@@ -1431,7 +1431,7 @@ class /**/ CLAN {
     friend class AIRPORT;
     friend class PLAYER;
     friend class GameMechanic;
-    friend class Bot;
+    friend class ClaudeBot;
     friend void UpdateHLinePool(void);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CLAN &Clan);
@@ -1530,7 +1530,7 @@ class /**/ PERSON {
     friend class SIM;
     friend class GameMechanic;
     friend class AIRPORT;
-    friend class Bot;
+    friend class ClaudeBot;
 };
 
 class /**/ PERSONS : public ALBUM_V<PERSON> {
@@ -2308,7 +2308,7 @@ class PLAYER {
     /* methods and data for improved robot */
     bool IsSuperBot() const;
     void ApplyMood(PERSON &qPerson);
-    Bot *mBot{nullptr};
+    ClaudeBot *mClaudeBot{nullptr};
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player);
     friend TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player);

@@ -1,6 +1,6 @@
 #include "BotHelper.h"
+#include "ClaudeBot.h"
 
-#include "Bot.h"
 #include "Proto.h"
 #include "TeakLibW.h"
 #include "class.h"
@@ -23,10 +23,10 @@
 #include <unordered_map>
 #include <utility>
 
-template <class... Types> void AT_Error(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Bot", args...); }
-template <class... Types> void AT_Warn(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Bot", args...); }
-template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Bot", args...); }
-template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...); }
+template <class... Types> void AT_Error(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "ClaudeBot", args...); }
+template <class... Types> void AT_Warn(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "ClaudeBot", args...); }
+template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "ClaudeBot", args...); }
+template <class... Types> void AT_Log(Types... args) { AT_Log_I("ClaudeBot", args...); }
 
 // Öffnungszeiten:
 extern SLONG timeDutyOpen;
@@ -956,7 +956,7 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     std::vector<__int64> values;
     auto balanceAvg = qPlayer.BilanzWoche.Hole();
     auto balance = qPlayer.BilanzGesamt;
-    auto moneyAvailable = qPlayer.IsSuperBot() ? qPlayer.mBot->getMoneyAvailable() : 0;
+    auto moneyAvailable = qPlayer.IsSuperBot() ? qPlayer.mClaudeBot->getMoneyAvailable() : 0;
     values.insert(values.end(), {Sim.Date, qPlayer.Money, qPlayer.Credit, moneyAvailable});
     values.insert(values.end(), {balance.GetOpSaldo(), balanceAvg.GetOpSaldo(), balanceAvg.GetOpGewinn(), balanceAvg.GetOpVerlust()});
     values.insert(values.end(), {balance.Tickets, balance.Auftraege, balance.FrachtAuftraege});

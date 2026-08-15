@@ -67,10 +67,10 @@ add_executable (AT
     Auftrag.cpp
     Bank.cpp
     Block.cpp
-    Bot.cpp
     BotHelper.cpp
     Brick.cpp
     Checkup.cpp
+    ClaudeBot.cpp
     ColorFx.cpp
     Credits.cpp
     DeltaVid.cpp

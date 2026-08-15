@@ -1,4 +1,4 @@
-#include "Bot.h"
+#include "ClaudeBot.h"
 
 #include "BotHelper.h"
 #include "Proto.h"
@@ -10,18 +10,18 @@
 #include <cstdio>
 #include <iostream>
 
-template <class... Types> void AT_Error(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Bot", args...); }
-template <class... Types> void AT_Warn(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Bot", args...); }
-template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Bot", args...); }
-template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...); }
+template <class... Types> void AT_Error(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "ClaudeBot", args...); }
+template <class... Types> void AT_Warn(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "ClaudeBot", args...); }
+template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "ClaudeBot", args...); }
+template <class... Types> void AT_Log(Types... args) { AT_Log_I("ClaudeBot", args...); }
 
 const SLONG kRouteAvgDays = 3;
 
-Bot::Bot(PLAYER &player) : qPlayer(player) {}
+ClaudeBot::ClaudeBot(PLAYER &player) : qPlayer(player) {}
 
-void Bot::RobotInit() {
+void ClaudeBot::RobotInit() {
     auto balance = qPlayer.BilanzWoche.Hole();
-    AT_Info("Bot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
+    AT_Info("ClaudeBot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
             Insert1000erDots64(balance.GetOpVerlust()).c_str());
 
@@ -35,13 +35,13 @@ void Bot::RobotInit() {
     printf("\n");
 
     if (mFirstRun) {
-        AT_Log("Bot::RobotInit(): First run.");
+        AT_Log("ClaudeBot::RobotInit(): First run.");
 
         /* random source */
         LocalRandom.SRand(qPlayer.WaitWorkTill);
 
         /* bot level */
-        AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
+        AT_Log("ClaudeBot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
 
         mFirstRun = false;
     }
@@ -51,21 +51,21 @@ void Bot::RobotInit() {
     }
 
     RobotPlan();
-    AT_Log("Bot.cpp: Leaving RobotInit()");
+    AT_Log("ClaudeBot.cpp: Leaving RobotInit()");
 }
 
-void Bot::RobotPlan() {
+void ClaudeBot::RobotPlan() {
     if (mFirstRun) {
-        AT_Error("Bot::RobotPlan(): Bot was not initialized!");
+        AT_Error("ClaudeBot::RobotPlan(): ClaudeBot was not initialized!");
         RobotInit();
-        AT_Log("Bot.cpp: Leaving RobotPlan() (not initialized)\n");
+        AT_Log("ClaudeBot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
     }
 
     auto &qRobotActions = qPlayer.RobotActions;
 
     if (qRobotActions[0].ActionId != ACTION_NONE || qRobotActions[1].ActionId != ACTION_NONE) {
-        AT_Log("Bot.cpp: Leaving RobotPlan() (actions already planned)\n");
+        AT_Log("ClaudeBot.cpp: Leaving RobotPlan() (actions already planned)\n");
         return;
     }
 
@@ -74,7 +74,7 @@ void Bot::RobotPlan() {
     qFirstAction.ActionId = ACTION_NONE;
     qSecondAction.ActionId = ACTION_NONE;
 
-    AT_Log("Bot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
+    AT_Log("ClaudeBot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
            Translate_ACTION(qSecondAction.ActionId));
 
     if (qFirstAction.ActionId == ACTION_NONE) {
@@ -85,28 +85,28 @@ void Bot::RobotPlan() {
     }
 }
 
-void Bot::RobotExecuteAction() {
+void ClaudeBot::RobotExecuteAction() {
     if (mFirstRun) {
-        AT_Error("Bot::RobotExecuteAction(): Bot was not initialized!");
+        AT_Error("ClaudeBot::RobotExecuteAction(): ClaudeBot was not initialized!");
         RobotInit();
-        AT_Log("Bot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
+        AT_Log("ClaudeBot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
         return;
     }
 
     /* refuse to work outside working hours (game sometimes calls this too early) */
     if (Sim.Time <= 540000) { /* check if it is precisely 09:00 or earlier */
-        AT_Log("Bot.cpp: Leaving RobotExecuteAction() (too early)\n");
+        AT_Log("ClaudeBot.cpp: Leaving RobotExecuteAction() (too early)\n");
         return;
     }
     if (Sim.GetHour() >= 18) {
-        AT_Log("Bot.cpp: Leaving RobotExecuteAction() (too late)\n");
+        AT_Log("ClaudeBot.cpp: Leaving RobotExecuteAction() (too late)\n");
         return;
     }
 
     auto &qAction = qPlayer.RobotActions[0];
     LocalRandom.Rand(2); // Sicherheitshalber, damit wir immer genau ein Random ausführen
 
-    AT_Info("Bot::RobotExecuteAction() for %s: Executing %s, current time: %02ld:%02ld, money: %s $ (available: %s $)", qPlayer.Abk.c_str(),
+    AT_Info("ClaudeBot::RobotExecuteAction() for %s: Executing %s, current time: %02ld:%02ld, money: %s $ (available: %s $)", qPlayer.Abk.c_str(),
             Translate_ACTION(qAction.ActionId), Sim.GetHour(), Sim.GetMinute(), Insert1000erDots64(qPlayer.Money).c_str(),
             Insert1000erDots64(getMoneyAvailable()).c_str());
 
@@ -120,7 +120,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     default:
-        AT_Error("Bot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
+        AT_Error("ClaudeBot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
         DebugBreak();
     }
 
@@ -137,14 +137,14 @@ void Bot::RobotExecuteAction() {
     AT_Log("");
 }
 
-SLONG Bot::getNextMood() {
+SLONG ClaudeBot::getNextMood() {
     SLONG mood = mMood;
     mMood = mMoodNext;
     mMoodNext = -1;
     return mood;
 }
 
-TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
+TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     SLONG savegameVersion = 102;
     File << savegameVersion;
 
@@ -159,7 +159,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     return (File);
 }
 
-TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
+TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     SLONG savegameVersion;
     File >> savegameVersion;
 

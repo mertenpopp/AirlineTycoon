@@ -17,13 +17,13 @@ Work independently. Only stop and ask me if you can't get a passing build after 
 Constraints
 -----------
 
-- Only make changes in Bot.cpp, Bot.h or any new files you created (they have to start with "Bot")
+- Only make changes in ClaudeBot.cpp, ClaudeBot.h or any new files you created (they have to start with "ClaudeBot")
 - Follow all the game rules in RULES.md
 - You can analyze the entire source code to better understand the game.
 - Ignore rendering, audio, animation, networking/multiplayer sync, save-game serialization, launcher code, and localization files — these don't affect game rules or valid moves.
 - Write ClaudeBot for the "free game" only, you can assume `Sim.Difficulty == -1`
 - Beware that there is an existing computer player who is cheating and does not follow the rules
-- There is existing scaffolding in Bot.cpp which shall be used for Claude bot
+- There is existing scaffolding in ClaudeBot.cpp which shall be used for Claude bot
 - Action IDs define to which room ClaudeBot will walk and what he does there. Use only the action IDs defined in defines.h (starting with "ACTION_"). If you need more action IDs to better structure ClaudeBot, tell me what it does and which room is associated with it and I will add it.
 
 The game is real-time not turn-based. ClaudeBot is called by the game simulation via the following callbacks:
