@@ -26,7 +26,7 @@ Constraints
 - There is existing scaffolding in Bot.cpp which shall be used for Claude bot
 - Action IDs define to which room ClaudeBot will walk and what he does there. Use only the action IDs defined in defines.h (starting with "ACTION_"). If you need more action IDs to better structure ClaudeBot, tell me what it does and which room is associated with it and I will add it.
 
-The game is a real-time not turn-based. ClaudeBot is called by the game simulation via the following callbacks:
+The game is real-time not turn-based. ClaudeBot is called by the game simulation via the following callbacks:
 - RobotInit(): Called once per in-game day. Can be used for initialization and check what has changed since evening.
 - RobotPlan(): Called when the game wants you to plan what to do next. Needs to set a primary and secondary action ID. Player character will walk to the appropriate place for the primary action or for the secondary if the room for the first is already occupied.
 - RobotExecuteAction(): Called when it is now possible to execute the primary action. Note that if the room was full, the primary action now might have been planned as secondary action. 

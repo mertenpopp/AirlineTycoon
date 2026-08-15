@@ -461,7 +461,16 @@ Claude shall hire the following types of employees:
 - stewardesses (CWorker::Typ == WORKER_STEWARDESS)
 - advisors (CWorker::Typ one of BERATERTYP_PERSONAL, BERATERTYP_KEROSIN, BERATERTYP_GELD, BERATERTYP_INFO, BERATERTYP_FLUGZEUG, BERATERTYP_FITNESS, BERATERTYP_SICHERHEIT)
 
-For each type of advisor, only the one with the hightest `CWorker::Talent` is relevant. Advisors, depending on `Talent`, gate access to important information. The advisor BERATERTYP_SICHERHEIT gives up to 10% discount depending on `Talent` discount on various purchases (for example planes).
+For each type of advisor, only the one with the highest skill level (`CWorker::Talent`) is relevant. The following advisors, depending on `Talent`, gate access to important information:
+- BERATERTYP_PERSONAL: Info regarding staff
+- BERATERTYP_KEROSIN: Info regarding kerosene
+- BERATERTYP_GELD: Info regarding money and saldos
+- BERATERTYP_INFO: Info about competitors
+- BERATERTYP_FLUGZEUG: Info about used planes
+
+The advisor BERATERTYP_SICHERHEIT gives up to 10% discount depending on `Talent` discount on various purchases (for example planes).
+
+The advisor BERATERTYP_FITNESS increases movement speed of the player character.
 
 Office  actions
 ---------------
@@ -721,14 +730,12 @@ Use ACTION_VISITRICK to visit Rick’s bar. This can be useful to end a strike.
 Global game state read permissions
 ==================================
 
-The game unfortunately stores its state in global variables. Thus there is a risk of accidently implement
-
-ing a cheating computer player by:
+The game unfortunately stores its state in global variables. Thus there is a risk of accidently implementing a cheating computer player by:
 
 - modifying a global variable directly when there is no player action that would have the same effect
 - reading a global variable to learn something about the game's state that a human player would not be able to know
 
-This section outline what can be accessed. Only access global variables and call global functions defined here.
+This section outline what can be accessed. Only access global variables and call global functions if defined here.
 
 If you think you should have access to a variable or you find that you are strongly limited by not having access, flag it to me and I might grant you access.
 
@@ -747,7 +754,9 @@ If a global variable or function is not listed here, assume it is forbidden. If 
 
 ### Global Sim instance
 
-Global object that manages most of the game state
+Global object that manages most of the game state.
+
+All classifications are read-only.
 
 You have read access to:
 - `Sim.Date`, `Sim.Time`, `Sim.GetHour()`, `Sim.GetMinute()`: Query in-game time.
@@ -763,18 +772,75 @@ You have read access to:
 
 ### Player objects (yourself)
 
-- `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`
+You can access everything in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
+
+All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`.
+
+All classifications are read-only except where explicitly shown as read/write.
+
+- `Abk`: Abbreviation of airline name.
+- `AnzAktien`: Total number of shares.
+- `ArabTrust`: Current trust level of the saboteur.
+- `Auftraege`: List of taken passenger jobs. Only access while in personal office or while you have a access to a laptop.
+- `BilanzWoche`: Weekly balance.
+- `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot.
+- `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
+- `Credit`: Current loan amount.
+- `Dividende`: Check current dividend.
+- `Frachten`: List of taken freight jobs. Only access while in personal office or while you have a access to a laptop.
+- `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
+- `HasBerater()`: Check advisor availability.
+- `HasItem()`: Check item ownership.
+- `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_GELD) >= 50`.
+- `KerosinQuali`: Current kerosene quality level. Only read if `qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30`.
+- `Kooperation`: Cooperation flags with other players.
+- `LaptopVirus`: Laptop virus status.
+- `MaxAktien`: Maximum number of shares including those that can still be emitted.
+- `Money`: Current cash balance.
+- `OfficeState`: Office usability status.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID.
+- `Planes`: Plane collection (accessing, iterating, reading plane data).
+- `PlayerNum`: Player number, used as index in many arrays.
+- `PlayerWalkRandom`: Random number generator.
+- `RentRouten`: Rented routes.
+- `RobotActions`: Read and write access permitted. Used to store the planned actions. 
+- `Tank`: Total volume of kerosene tank.
+- `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
+- `xBegleiter`: Number of superfluous stewardesses. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
+- `xPiloten`: Number of superfluous pilots. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
 
 ### Player objects (competitors)
 
+You can read some fields in the PLAYER class instance that refer to a competitor.
+
+Some values may only be read if the spy has been hired and has sufficient skill level. Current skill level can be queried using `Player.HasBerater(BERATERTYP_INFO)`.
+
+All classifications are read-only.
+
+- `Abk`: Abbreviation of airline name.
+- `AnzAktien`: Total number of shares. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
+- `BilanzWoche`: Weekly balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
+- `Credit`: Current loan amount. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
+- `MaxAktien`: Maximum number of shares including those that can still be emitted.
+- `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `OfficeState`: Office usability status.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. Only read for at index referring to own airline when `qPlayer.HasBerater(BERATERTYP_GELD) > 0`. Only read at other indices when `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
+- `PlayerNum`: Player number, used as index in many arrays.
 
 ### Global read-only helpers and tables
 
 You may also read the following global tables and helpers when the rules permit them:
 
-- `PlaneTypes[...]` while at the plane broker.
-- `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` to query informations about cities and flight distances/duration.
+- `LastMinuteAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT1
+- `ReisebueroAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT2
+- `gFrachten` may only be read while in the room accessed via ACTION_CHECKAGENT3
+- `AuslandsAuftraege[cityId]` may only be if canCallInternational() was checked with the cityId
+- `AuslandsFrachten[cityId]` may only be if canCallInternational() was checked with the cityId
 - `Routen` while at the route box.
+- `PlaneTypes` may only be read while at the plane broker
+- `TafelData` may only be read while in the boss office
+- `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` to query informations about cities and flight distances/duration.
 - `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades
 
 Global functions
@@ -814,21 +880,11 @@ Further restrictions apply:
 
 Note that even for allowed functions there are usage restrictions (player character almost always must be in the correct room) which are listed in this document together with the explanation for the given function.
 
-Player class
-------------
-
-You can access everything in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
-
-All instances of the PLAYER class can be found in the global array `Sim.Players.Players`.
 
 
-
-
-
-
+TODO:
 album check for valid entries
 
-saving
 
 Open questions / ambiguities
 -----------------------------
