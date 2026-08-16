@@ -41,10 +41,10 @@ In top-level directory, run the following commands:
 - ninja -C build install
 
 Output should contain the following line if there was a change in source code:
-Installing: /media/LINUX/GOG Games/Airline Tycoon Deluxe/game/AT
+`Installing: /media/LINUX/GOG Games/Airline Tycoon Deluxe/game/AT`
 
 Output should contain the following line if no change was made:
-Up-to-date: /media/LINUX/GOG Games/Airline Tycoon Deluxe/game/AT
+`Up-to-date: /media/LINUX/GOG Games/Airline Tycoon Deluxe/game/AT`
 
 How to test
 -----------
@@ -60,6 +60,8 @@ This runs the game in a mode which requires no human input. Note:
 - A detailled log is printed to GameLog.txt
 - ClaudeBot.csv contains important stats with one line of data per in-game day. Very first filtered line are column headers
 - You can also filter for the other airlines by adapting the grep command above: Search for "BotStatistics/<abbreviation>" instead
+
+For a quick smoke test, use `/quicker` instead of `/quick`. This ends the game automatically after 5 in-game days.
 
 How to measure performance of bot
 ---------------------------------

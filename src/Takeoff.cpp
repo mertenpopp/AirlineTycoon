@@ -287,6 +287,12 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gAutoQuitOnDay = 99; /* auto-quit in freegame */
             }
         }
+        if (stricmp(Argument, "/quicker") == 0) {
+            CheatAutoSkip = 1;
+            gQuickTestRun = 1;
+            gAutoBotDiff = 2;
+            gAutoQuitOnDay = 5;
+        }
         if (stricmp(Argument, "/testbot") == 0) {
             gAutoBotDiff = 3;
 
