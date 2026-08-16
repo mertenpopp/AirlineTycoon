@@ -1654,112 +1654,116 @@ void PLAYER::NewDay() {
 
         Summe = 0;
         for (c = Planes.AnzEntries() - 1; c >= 0; c--) {
-            if (Planes.IsInAlbum(c) != 0) {
-                SLONG Improvement = 0;
-
-                Planes[c].FlugplaeneFortfuehren(PlayerNum);
-
-                // Reparaturkosten auch in die Salden (aber nur wenn etwas repariert werden soll)
-                if (Planes[c].Zustand < Planes[c].TargetZustand + 2) {
-                    UBYTE OldZustand = Planes[c].Zustand;
-
-                    if (Planes[c].Zustand < Planes[c].WorstZustand) {
-                        Planes[c].WorstZustand = Planes[c].Zustand;
-                    }
-                    UBYTE OldWorst = Planes[c].WorstZustand;
-
-                    switch (MechMode) {
-                    // Putzfrau:
-                    case 0:
-                        if (((c + Planes[c].Zustand + Sim.Date) & 1) == 0) {
-                            Planes[c].Zustand -= 2;
-                        }
-                        if (Planes[c].Zustand > 200) {
-                            Planes[c].Zustand = 0;
-                        }
-                        break;
-
-                        // Lehrling:
-                    case 1:
-                        if (((c + Planes[c].Zustand + Sim.Date) & 7) == 0) {
-                            Planes[c].Zustand -= 2;
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 5, 100));
-                        }
-                        if (Planes[c].Zustand > 200) {
-                            Planes[c].Zustand = 0;
-                        }
-                        break;
-
-                        // Mechaniker:
-                    case 2:
-                        if (Planes[c].Zustand < 60) {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(5) + 2, 100));
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(8) + 2, 100));
-                        }
-                        break;
-
-                        // Diplom-Dingsbums:
-                    case 3:
-                        if (Planes[c].Zustand < 60) {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 18, 100));
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 15, 100));
-                        }
-                        break;
-                    default:
-                        AT_Log("Player.cpp: Default case should not be reached.");
-                        DebugBreak();
-                    }
-
-                    if (Planes[c].Zustand > Planes[c].TargetZustand) {
-                        Planes[c].Zustand = Planes[c].TargetZustand;
-                    }
-                    if (Planes[c].Zustand > Planes[c].WorstZustand + 20) {
-                        Improvement = Planes[c].Zustand - (Planes[c].WorstZustand + 20);
-
-                        if (Planes[c].Zustand < 20) {
-                            Planes[c].WorstZustand = 0;
-                        } else {
-                            Planes[c].WorstZustand = Planes[c].Zustand - 20;
-                        }
-
-                        // Planes[c].Zustand=UBYTE(Planes[c].WorstZustand+20);
-                    }
-
-                    // Wartungskosten berechnen:
-                    SLONG salary = gRepairPrice[MechMode] / 30;
-                    SLONG costImprovement = 0;
-                    SLONG costRepairs = 0;
-
-                    if (Planes[c].Zustand > OldZustand) {
-                        Planes[c].WorstZustand = max(Planes[c].WorstZustand, Planes[c].Zustand - 20);
-
-                        costImprovement = Improvement * Planes[c].ptPreis / 110;
-
-                        costRepairs = SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - Planes[c].Baujahr) / 100 *
-                                            (200 - Planes[c].Zustand) / 100);
-                    }
-
-                    SLONG delta = salary + costImprovement + costRepairs;
-                    AT_Log("Player.cpp: %s: Repair of plane %s (%u => %u; worst %u => %u) costs: %ld+%ld+%ld=%ld", (LPCTSTR)AirlineX, (LPCTSTR)Planes[c].Name,
-                           OldZustand, Planes[c].Zustand, OldWorst, Planes[c].WorstZustand, salary, costImprovement, costRepairs, delta);
-                    if (delta < 0) {
-                        delta = 0;
-                        AT_Error("Player.cpp: Repair cost for Player %li negative!", PlayerNum);
-                    }
-
-                    Summe += delta;
-                    Planes[c].Salden[0] -= delta;
-                    Planes[c].Wartungskosten += delta;
-                }
-
-                for (d = 6; d >= 1; d--) {
-                    Planes[c].Salden[d] = Planes[c].Salden[d - 1];
-                }
-                Planes[c].Salden[0] = 0;
+            if (Planes.IsInAlbum(c) == 0) {
+                continue;
             }
+
+            SLONG Improvement = 0;
+
+            Planes[c].Wartungskosten = 0;
+
+            Planes[c].FlugplaeneFortfuehren(PlayerNum);
+
+            // Reparaturkosten auch in die Salden (aber nur wenn etwas repariert werden soll)
+            if (Planes[c].Zustand < Planes[c].TargetZustand + 2) {
+                UBYTE OldZustand = Planes[c].Zustand;
+
+                if (Planes[c].Zustand < Planes[c].WorstZustand) {
+                    Planes[c].WorstZustand = Planes[c].Zustand;
+                }
+                UBYTE OldWorst = Planes[c].WorstZustand;
+
+                switch (MechMode) {
+                // Putzfrau:
+                case 0:
+                    if (((c + Planes[c].Zustand + Sim.Date) & 1) == 0) {
+                        Planes[c].Zustand -= 2;
+                    }
+                    if (Planes[c].Zustand > 200) {
+                        Planes[c].Zustand = 0;
+                    }
+                    break;
+
+                    // Lehrling:
+                case 1:
+                    if (((c + Planes[c].Zustand + Sim.Date) & 7) == 0) {
+                        Planes[c].Zustand -= 2;
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 5, 100));
+                    }
+                    if (Planes[c].Zustand > 200) {
+                        Planes[c].Zustand = 0;
+                    }
+                    break;
+
+                    // Mechaniker:
+                case 2:
+                    if (Planes[c].Zustand < 60) {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(5) + 2, 100));
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(8) + 2, 100));
+                    }
+                    break;
+
+                    // Diplom-Dingsbums:
+                case 3:
+                    if (Planes[c].Zustand < 60) {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 18, 100));
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 15, 100));
+                    }
+                    break;
+                default:
+                    AT_Log("Player.cpp: Default case should not be reached.");
+                    DebugBreak();
+                }
+
+                if (Planes[c].Zustand > Planes[c].TargetZustand) {
+                    Planes[c].Zustand = Planes[c].TargetZustand;
+                }
+                if (Planes[c].Zustand > Planes[c].WorstZustand + 20) {
+                    Improvement = Planes[c].Zustand - (Planes[c].WorstZustand + 20);
+
+                    if (Planes[c].Zustand < 20) {
+                        Planes[c].WorstZustand = 0;
+                    } else {
+                        Planes[c].WorstZustand = Planes[c].Zustand - 20;
+                    }
+
+                    // Planes[c].Zustand=UBYTE(Planes[c].WorstZustand+20);
+                }
+
+                // Wartungskosten berechnen:
+                SLONG salary = gRepairPrice[MechMode] / 30;
+                SLONG costImprovement = 0;
+                SLONG costRepairs = 0;
+
+                if (Planes[c].Zustand > OldZustand) {
+                    Planes[c].WorstZustand = max(Planes[c].WorstZustand, Planes[c].Zustand - 20);
+
+                    costImprovement = Improvement * Planes[c].ptPreis / 110;
+
+                    costRepairs = SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - Planes[c].Baujahr) / 100 *
+                                        (200 - Planes[c].Zustand) / 100);
+                }
+
+                SLONG delta = salary + costImprovement + costRepairs;
+                AT_Log("Player.cpp: %s: Repair of plane %s (%u => %u; worst %u => %u) costs: %ld+%ld+%ld=%ld", (LPCTSTR)AirlineX, (LPCTSTR)Planes[c].Name,
+                       OldZustand, Planes[c].Zustand, OldWorst, Planes[c].WorstZustand, salary, costImprovement, costRepairs, delta);
+                if (delta < 0) {
+                    delta = 0;
+                    AT_Error("Player.cpp: Repair cost for Player %li negative!", PlayerNum);
+                }
+
+                Summe += delta;
+                Planes[c].Salden[0] -= delta;
+                Planes[c].Wartungskosten += delta;
+            }
+
+            for (d = 6; d >= 1; d--) {
+                Planes[c].Salden[d] = Planes[c].Salden[d - 1];
+            }
+            Planes[c].Salden[0] = 0;
         }
         ChangeMoney(-Summe, 3110, "");
     }
