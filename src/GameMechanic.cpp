@@ -2572,6 +2572,64 @@ bool GameMechanic::_planFlightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID
     return true;
 }
 
+bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
+    if (!qPlayer.Planes.IsInAlbum(planeId)) {
+        AT_Error("GameMechanic::increaseFirstClassRatio(%s): Invalid plane index (%ld).", qPlayer.AirlineX.c_str(), planeId);
+        return false;
+    }
+
+    auto &qPlane = qPlayer.Planes[planeId];
+    SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
+    SLONG prozent = qPlane.MaxPassagiereFC * 2 * 100 / total;
+
+    prozent = (prozent + 5) / 10 * 10; // Runden
+
+    prozent += 10;
+    SLONG newMaxPassagiereFC = total * (prozent) / 2 / 100;
+    SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
+
+    if (newMaxPassagiere == qPlane.MaxPassagiere) {
+        newMaxPassagiereFC++;
+        newMaxPassagiere -= 2;
+    }
+
+    if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(qPlayer.PlayerNum)) {
+        qPlane.MaxPassagiere = newMaxPassagiere;
+        qPlane.MaxPassagiereFC = newMaxPassagiereFC;
+        return true;
+    }
+    return false;
+}
+
+bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
+    if (!qPlayer.Planes.IsInAlbum(planeId)) {
+        AT_Error("GameMechanic::decreaseFirstClassRatio(%s): Invalid plane index (%ld).", qPlayer.AirlineX.c_str(), planeId);
+        return false;
+    }
+
+    auto &qPlane = qPlayer.Planes[planeId];
+    SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
+    SLONG prozent = qPlane.MaxPassagiereFC * 2 * 100 / total;
+
+    prozent = (prozent + 5) / 10 * 10; // Runden
+
+    prozent -= 10;
+    SLONG newMaxPassagiereFC = total * (prozent) / 2 / 100;
+    SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
+
+    if (newMaxPassagiere == qPlane.MaxPassagiere) {
+        newMaxPassagiereFC--;
+        newMaxPassagiere += 2;
+    }
+
+    if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(qPlayer.PlayerNum)) {
+        qPlane.MaxPassagiere = newMaxPassagiere;
+        qPlane.MaxPassagiereFC = newMaxPassagiereFC;
+        return true;
+    }
+    return false;
+}
+
 bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {
     if (workerId < 0 || workerId >= Workers.Workers.size()) {
         AT_Error("GameMechanic::hireWorker(%s): Invalid worker id (%ld).", qPlayer.AirlineX.c_str(), workerId);

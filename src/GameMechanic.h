@@ -133,6 +133,10 @@ class GameMechanic {
     static bool planFreightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time);
     static bool planRouteJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time);
 
+    /* Planes */
+    static bool increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId);
+    static bool decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId);
+
     /* Crew */
     static bool hireWorker(PLAYER &qPlayer, SLONG workerId);
     static bool fireWorker(PLAYER &qPlayer, SLONG workerId);
