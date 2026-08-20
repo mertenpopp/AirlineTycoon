@@ -2580,12 +2580,10 @@ bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
 
     auto &qPlane = qPlayer.Planes[planeId];
     SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
-    SLONG prozent = qPlane.MaxPassagiereFC * 2 * 100 / total;
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
 
-    prozent = (prozent + 5) / 10 * 10; // Runden
-
-    prozent += 10;
-    SLONG newMaxPassagiereFC = total * (prozent) / 2 / 100;
+    prozent += 10.0f;
+    SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
     SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
 
     if (newMaxPassagiere == qPlane.MaxPassagiere) {
@@ -2609,12 +2607,10 @@ bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
 
     auto &qPlane = qPlayer.Planes[planeId];
     SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
-    SLONG prozent = qPlane.MaxPassagiereFC * 2 * 100 / total;
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
 
-    prozent = (prozent + 5) / 10 * 10; // Runden
-
-    prozent -= 10;
-    SLONG newMaxPassagiereFC = total * (prozent) / 2 / 100;
+    prozent -= 10.0f;
+    SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
     SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
 
     if (newMaxPassagiere == qPlane.MaxPassagiere) {
