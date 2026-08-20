@@ -940,43 +940,9 @@ void CPlaneProps::OnLButtonDown(UINT nFlags, CPoint point) {
                 qPlayer.NetUpdatePlaneProps(PlaneId);
             }
         } else if (MouseClickArea == ROOM_PLANEPROPS && MouseClickId == 115) {
-            SLONG total = qPlane.ptPassagiere;
-            FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<float>(total);
-
-            prozent -= 10;
-            SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
-            SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
-
-            if (newMaxPassagiere == qPlane.MaxPassagiere) {
-                newMaxPassagiereFC--;
-                newMaxPassagiere += 2;
-            }
-
-            if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(PlayerNum)) {
-                qPlane.MaxPassagiere = newMaxPassagiere;
-                qPlane.MaxPassagiereFC = newMaxPassagiereFC;
-            }
-
-            // if (qPlane.AnzPutzcrew>0) qPlane.AnzPutzcrew--;
+            GameMechanic::decreaseFirstClassRatio(qPlayer, PlaneId);
         } else if (MouseClickArea == ROOM_PLANEPROPS && MouseClickId == 116) {
-            SLONG total = qPlane.ptPassagiere;
-            FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<float>(total);
-
-            prozent += 10;
-            SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
-            SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
-
-            if (newMaxPassagiere == qPlane.MaxPassagiere) {
-                newMaxPassagiereFC++;
-                newMaxPassagiere -= 2;
-            }
-
-            if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(PlayerNum)) {
-                qPlane.MaxPassagiere = newMaxPassagiere;
-                qPlane.MaxPassagiereFC = newMaxPassagiereFC;
-            }
-
-            // if (qPlane.AnzPutzcrew<qPlane.ptAnzBegleiter*2) qPlane.AnzPutzcrew++;
+            GameMechanic::increaseFirstClassRatio(qPlayer, PlaneId);
         }
 
         /*else if (MouseClickArea==ROOM_PLANEPROPS && MouseClickId==115)
