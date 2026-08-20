@@ -59,7 +59,7 @@ void CalcPlayerMaximums(bool bForce);
 
 // Daten des aktuellen Savegames beim laden:
 SLONG SaveVersion = 1;
-SLONG SaveVersionSub = 203;
+SLONG SaveVersionSub = 204;
 
 // Öffnungszeiten:
 extern SLONG timeDutyOpen;

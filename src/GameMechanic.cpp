@@ -2579,24 +2579,16 @@ bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
     }
 
     auto &qPlane = qPlayer.Planes[planeId];
-    SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
-    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
+    SLONG total = qPlane.ptPassagiere;
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereTargetFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
 
-    prozent += 10.0f;
+    prozent = std::min(prozent + 10.0f, 100.0f);
     SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
     SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
 
-    if (newMaxPassagiere == qPlane.MaxPassagiere) {
-        newMaxPassagiereFC++;
-        newMaxPassagiere -= 2;
-    }
-
-    if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(qPlayer.PlayerNum)) {
-        qPlane.MaxPassagiere = newMaxPassagiere;
-        qPlane.MaxPassagiereFC = newMaxPassagiereFC;
-        return true;
-    }
-    return false;
+    qPlane.MaxPassagiereTarget = newMaxPassagiere;
+    qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    return true;
 }
 
 bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
@@ -2606,24 +2598,16 @@ bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
     }
 
     auto &qPlane = qPlayer.Planes[planeId];
-    SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
-    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
+    SLONG total = qPlane.ptPassagiere;
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereTargetFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
 
-    prozent -= 10.0f;
+    prozent = std::max(0.0f, prozent - 10.0f);
     SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
     SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
 
-    if (newMaxPassagiere == qPlane.MaxPassagiere) {
-        newMaxPassagiereFC--;
-        newMaxPassagiere += 2;
-    }
-
-    if (newMaxPassagiereFC >= 0 && newMaxPassagiere >= 0 && newMaxPassagiereFC + newMaxPassagiere >= qPlane.GetMaxPassengerOpenFlight(qPlayer.PlayerNum)) {
-        qPlane.MaxPassagiere = newMaxPassagiere;
-        qPlane.MaxPassagiereFC = newMaxPassagiereFC;
-        return true;
-    }
-    return false;
+    qPlane.MaxPassagiereTarget = newMaxPassagiere;
+    qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    return true;
 }
 
 bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {

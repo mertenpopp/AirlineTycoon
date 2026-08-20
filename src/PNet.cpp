@@ -455,7 +455,7 @@ void PLAYER::NetUpdatePlaneProps(SLONG PlaneId) {
 
         Message << qPlane.Sitze << qPlane.SitzeTarget << qPlane.Essen << qPlane.EssenTarget << qPlane.Tabletts << qPlane.TablettsTarget << qPlane.Deco
                 << qPlane.DecoTarget << qPlane.Triebwerk << qPlane.TriebwerkTarget << qPlane.Reifen << qPlane.ReifenTarget << qPlane.Elektronik
-                << qPlane.ElektronikTarget << qPlane.Sicherheit << qPlane.SicherheitTarget;
+                << qPlane.ElektronikTarget << qPlane.Sicherheit << qPlane.SicherheitTarget << qPlane.MaxPassagiereTarget << qPlane.MaxPassagiereTargetFC;
 
         Message << qPlane.WorstZustand << qPlane.Zustand << qPlane.TargetZustand;
         Message << qPlane.AnzBegleiter << qPlane.MaxBegleiter;
