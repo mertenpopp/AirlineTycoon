@@ -240,6 +240,8 @@ CPlane::CPlane(const CString &Name, ULONG TypeId, UBYTE Zustand, SLONG Baujahr) 
     if (TypeId != -1) {
         CPlane::MaxPassagiere = PlaneTypes[TypeId].Passagiere * 6 / 8;
         CPlane::MaxPassagiereFC = PlaneTypes[TypeId].Passagiere * 1 / 8;
+        CPlane::MaxPassagiereTarget = CPlane::MaxPassagiere;
+        CPlane::MaxPassagiereTargetFC = CPlane::MaxPassagiereFC;
         CPlane::MaxBegleiter = PlaneTypes[TypeId].AnzBegleiter;
 
         CPlaneType &qPlaneType = PlaneTypes[TypeId];
@@ -574,6 +576,13 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                 Delta = (SicherheitCosts[SicherheitTarget] - SicherheitCosts[Sicherheit] / 2);
                 Costs += Delta;
                 Sicherheit = SicherheitTarget;
+            }
+
+            if (MaxPassagiere != MaxPassagiereTarget) {
+                MaxPassagiere = MaxPassagiereTarget;
+            }
+            if (MaxPassagiereFC != MaxPassagiereTargetFC) {
+                MaxPassagiereFC = MaxPassagiereTargetFC;
             }
 
             if (Costs != 0) {
@@ -1429,6 +1438,9 @@ TEAKFILE &operator<<(TEAKFILE &File, const CPlane &Plane) {
         File << Plane.OhneSitze;
         File << Plane.PersonalQuality;
     }
+    if (SaveVersion == 1 && SaveVersionSub >= 104) {
+        File << Plane.MaxPassagiereTarget << Plane.MaxPassagiereTargetFC;
+    }
 
     File << Plane.ptHersteller << Plane.ptErstbaujahr << Plane.ptName << Plane.ptReichweite << Plane.ptGeschwindigkeit << Plane.ptPassagiere
          << Plane.ptAnzPiloten << Plane.ptAnzBegleiter << Plane.ptTankgroesse << Plane.ptVerbrauch << Plane.ptPreis << Plane.ptWartungsfaktor
@@ -1490,6 +1502,12 @@ TEAKFILE &operator>>(TEAKFILE &File, CPlane &Plane) {
         Plane.Elektronik = Plane.ElektronikTarget = 0;
         Plane.Sicherheit = Plane.SicherheitTarget = 0;
         Plane.OhneSitze = 0;
+    }
+    if (SaveVersion == 1 && SaveVersionSub >= 104) {
+        File >> Plane.MaxPassagiereTarget >> Plane.MaxPassagiereTargetFC;
+    } else {
+        Plane.MaxPassagiereTarget = Plane.MaxPassagiere;
+        Plane.MaxPassagiereTargetFC = Plane.MaxPassagiereFC;
     }
 
     File >> Plane.ptHersteller >> Plane.ptErstbaujahr >> Plane.ptName >> Plane.ptReichweite >> Plane.ptGeschwindigkeit >> Plane.ptPassagiere >>

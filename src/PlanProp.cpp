@@ -587,8 +587,8 @@ void CPlaneProps::OnPaint() {
 
             // Erster-Klasse Anzahl blitten:
             {
-                SLONG total = qPlane.MaxPassagiere + qPlane.MaxPassagiereFC * 2;
-                SLONG prozent = qPlane.MaxPassagiereFC * 2 * 100 / total;
+                SLONG total = qPlane.MaxPassagiereTarget + qPlane.MaxPassagiereTargetFC * 2;
+                SLONG prozent = qPlane.MaxPassagiereTargetFC * 2 * 100 / total;
 
                 prozent = (prozent + 5) / 10 * 10 / 10; // Runden
 
