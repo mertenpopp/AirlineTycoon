@@ -355,9 +355,6 @@ Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    if (mDoRoutesMaxCredit) {
-        return Prio::None; /* we are saving for routes */
-    }
     if (HowToPlan::None == howToPlanFlights()) {
         return Prio::None;
     }
@@ -607,7 +604,7 @@ Bot::Prio Bot::condTakeOutLoan() {
     if (!hoursPassed(ACTION_RAISEMONEY, 1)) {
         return Prio::None;
     }
-    bool maxCredit = (kUseMaxCredit || mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+    bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
     if (howMuchMoneyToRaise(maxCredit) <= 0) {
         return Prio::None;
     }
@@ -617,8 +614,8 @@ Bot::Prio Bot::condTakeOutLoan() {
     if (res.first == HowToGetMoney::IncreaseCredit) {
         prio = std::max(prio, res.second);
     }
-    if (kUseMaxCredit || mDoRoutesMaxCredit) {
-        prio = std::max(prio, Prio::High);
+    if (mDoRoutesMaxCredit) {
+        prio = std::max(prio, Prio::Medium);
     }
     return prio;
 }
@@ -631,7 +628,7 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    if (kUseMaxCredit || mDoRoutesMaxCredit) {
+    if (mDoRoutesMaxCredit) {
         return Prio::None; /* we deliberately keep the line drawn */
     }
 

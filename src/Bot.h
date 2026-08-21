@@ -38,7 +38,6 @@ extern const SLONG kStockEmissionMode;
 extern const bool kReduceDividend;
 extern const SLONG kMaxSabotageHints;
 
-extern const bool kUseMaxCredit;
 extern const bool kBuySharesWhileLeveraged;
 extern const SLONG kMoneyEmergencyFund;
 extern const SLONG kMoneyReserveRepairs;
@@ -133,7 +132,7 @@ class Bot {
         float kSchedulingMinScoreRatio{140 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
         SLONG kSwitchToRoutesNumPlanesMin{2};
-        SLONG kSwitchToRoutesNumPlanesMax{4};
+        SLONG kSwitchToRoutesNumPlanesMax{2};
         SLONG kMaximumRouteUtilization{90};
         DOUBLE kMaxTicketPriceFactor{5.7};
         DOUBLE kMaxKerosinQualiZiel{1.2};
