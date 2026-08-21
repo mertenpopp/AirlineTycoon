@@ -2308,6 +2308,7 @@ class PLAYER {
 
     /* methods and data for improved robot */
     bool IsSuperBot() const;
+    bool IsMertenBot() const;
     bool IsClaudeBot() const;
     void ApplyMood(PERSON &qPerson);
     Bot *mBot{nullptr};

@@ -1540,6 +1540,16 @@
   D::brutal
 >NewG
 >>0005005
+  B::Claude
+  E::Claude
+  F::Claude
+  I::Claude
+  N::Claude
+  O::Claude
+  S::Claude
+  D::Claude
+>NewG
+>>0005006
   B::Choose bot level
   E::Choose bot level
   F::Choose bot level
