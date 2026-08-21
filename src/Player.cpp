@@ -6929,7 +6929,7 @@ void PLAYER::BroadcastPosition(bool bForce) {
     }
 }
 
-bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > 0); }
+bool PLAYER::IsSuperBot() const { return (Owner == 1) /*&& (BotLevel > 0)*/; }
 bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel == 0); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
