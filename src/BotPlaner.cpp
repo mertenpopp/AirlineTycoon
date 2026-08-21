@@ -696,7 +696,7 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     if (std::abs(mMinScoreRatioLastMinute - 1.0F) < 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinScoreRatioLastMinute = %f", mMinScoreRatioLastMinute);
     }
-    if (std::abs(mMinSpeedRatio - 0.0F) < 0.01F) {
+    if (std::abs(mMinSpeedRatio - 0.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinSpeedRatio = %f", mMinSpeedRatio);
     }
 
