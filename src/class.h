@@ -1432,7 +1432,7 @@ class /**/ CLAN {
     friend class AIRPORT;
     friend class PLAYER;
     friend class GameMechanic;
-    friend class Bot;
+    friend class ClaudeBot;
     friend void UpdateHLinePool(void);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CLAN &Clan);
@@ -1531,7 +1531,7 @@ class /**/ PERSON {
     friend class SIM;
     friend class GameMechanic;
     friend class AIRPORT;
-    friend class Bot;
+    friend class ClaudeBot;
 };
 
 class /**/ PERSONS : public ALBUM_V<PERSON> {

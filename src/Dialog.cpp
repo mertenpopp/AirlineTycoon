@@ -5,12 +5,14 @@
 //============================================================================================
 #include "AtNet.h"
 #include "Aufsicht.h"
-#include "Bot.h"
+#include "BotHelper.h"
 #include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
 #include "Nasa.h"
 #include "Proto.h"
+
+#include <iostream>
 
 CString Space = " ";
 
