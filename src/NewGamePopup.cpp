@@ -581,7 +581,7 @@ void NewGamePopup::RefreshKlackerField() {
             KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4000)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4000)); // Start
         }
 
-        KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 5005)); // Headline
+        KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 5006)); // Headline
 
         for (c = 0; c < 4; c++) {
             auto &qPlayer = Sim.Players.Players[c];
@@ -1691,7 +1691,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                         auto &qPlayer = Sim.Players.Players[c];
                         if (qPlayer.Owner == 1) {
                             qPlayer.BotLevel += 1;
-                            if (qPlayer.BotLevel > 3) {
+                            if (qPlayer.BotLevel > 4) {
                                 qPlayer.BotLevel = 0;
                             }
                             SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
@@ -2044,7 +2044,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
                 if (qPlayer.Owner == 1) {
                     qPlayer.BotLevel -= 1;
                     if (qPlayer.BotLevel < 0) {
-                        qPlayer.BotLevel = 3;
+                        qPlayer.BotLevel = 4;
                     }
                     SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                 }

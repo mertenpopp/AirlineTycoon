@@ -3120,8 +3120,11 @@ void PLAYER::RobotPump() {
                         pPerson->MoodCountdown = max(MOODCOUNT_START - 16, pPerson->MoodCountdown);
 
                         if (IsSuperBot()) {
-                            mBot->setNoticedSickness();
-                            mClaudeBot->setNoticedSickness();
+                            if (IsMertenBot()) {
+                                mBot->setNoticedSickness();
+                            } else if (IsClaudeBot()) {
+                                mClaudeBot->setNoticedSickness();
+                            }
                         }
                     }
                 }
@@ -3270,10 +3273,10 @@ void PLAYER::RobotInit() {
     }
 
     if (IsSuperBot()) {
-        if (IsClaudeBot()) {
-            mClaudeBot->RobotInit();
-        } else {
+        if (IsMertenBot()) {
             mBot->RobotInit();
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotInit();
         }
     } else {
         RobotActions[1].ActionId = ACTION_STARTDAY;
@@ -3324,10 +3327,10 @@ void PLAYER::RobotPlan() {
     }
 
     if (IsSuperBot()) {
-        if (IsClaudeBot()) {
-            mClaudeBot->RobotPlan();
-        } else {
+        if (IsMertenBot()) {
             mBot->RobotPlan();
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotPlan();
         }
         PLAYER::NetSyncRobot(WaitWorkTill, WaitWorkTill2);
         return;
@@ -4008,10 +4011,10 @@ void PLAYER::RobotExecuteAction() {
     }
 
     if (IsSuperBot()) {
-        if (IsClaudeBot()) {
-            mClaudeBot->RobotExecuteAction();
-        } else {
+        if (IsMertenBot()) {
             mBot->RobotExecuteAction();
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotExecuteAction();
         }
 
         Sim.Players.CheckFlighplans();
@@ -6929,15 +6932,21 @@ void PLAYER::BroadcastPosition(bool bForce) {
     }
 }
 
-bool PLAYER::IsSuperBot() const { return (Owner == 1) /*&& (BotLevel > 0)*/; }
-bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel == 0); }
+bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > 0); }
+bool PLAYER::IsMertenBot() const { return (Owner == 1) && (BotLevel >= 1) && (BotLevel <= 3); }
+bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= 4); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
         return;
     }
 
     if (qPerson.MoodCountdown == 0U) {
-        SLONG mood = IsClaudeBot() ? mClaudeBot->getNextMood() : mBot->getNextMood();
+        SLONG mood = -1;
+        if (IsMertenBot()) {
+            mood = mBot->getNextMood();
+        } else if (IsClaudeBot()) {
+            mood = mClaudeBot->getNextMood();
+        }
         if (mood != -1) {
             qPerson.Mood = static_cast<UBYTE>(mood);
             qPerson.MoodCountdown = MOODCOUNT_START + rand() % 15;
