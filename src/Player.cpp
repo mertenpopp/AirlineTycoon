@@ -5,6 +5,7 @@
 #include "Bot.h"
 #include "BotHelper.h"
 #include "BotPlaner.h"
+#include "ClaudeBot.h"
 #include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
@@ -63,7 +64,7 @@ __int64 abs64(__int64 v) {
 //============================================================================================
 // Konstruktor:
 //============================================================================================
-PLAYER::PLAYER() : mBot(new Bot(*this)) {
+PLAYER::PLAYER() : mBot(new Bot(*this)), mClaudeBot(new ClaudeBot(*this)) {
     SLONG c = 0;
 
     NewDir = 8;
@@ -109,6 +110,8 @@ PLAYER::~PLAYER() {
 
     delete mBot;
     mBot = nullptr;
+    delete mClaudeBot;
+    mClaudeBot = nullptr;
 }
 
 void PLAYER::ReInitBot() {
@@ -116,6 +119,11 @@ void PLAYER::ReInitBot() {
         delete mBot;
     }
     mBot = new Bot(*this);
+
+    if (mClaudeBot) {
+        delete mClaudeBot;
+    }
+    mClaudeBot = new ClaudeBot(*this);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3113,6 +3121,7 @@ void PLAYER::RobotPump() {
 
                         if (IsSuperBot()) {
                             mBot->setNoticedSickness();
+                            mClaudeBot->setNoticedSickness();
                         }
                     }
                 }
@@ -3146,11 +3155,21 @@ void PLAYER::RobotPump() {
         return; // War Irtum, kein Computerspieler
     }
 
-    if (mBot->getOnThePhone()) {
-        PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
-        if (qPerson.LookDir == 8) {
-            qPerson.Phase = 6;
-            mBot->decOnThePhone();
+    if (IsClaudeBot()) {
+        if (mClaudeBot->getOnThePhone()) {
+            PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+            if (qPerson.LookDir == 8) {
+                qPerson.Phase = 6;
+                mClaudeBot->decOnThePhone();
+            }
+        }
+    } else {
+        if (mBot->getOnThePhone()) {
+            PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+            if (qPerson.LookDir == 8) {
+                qPerson.Phase = 6;
+                mBot->decOnThePhone();
+            }
         }
     }
 
@@ -3251,7 +3270,11 @@ void PLAYER::RobotInit() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotInit();
+        if (IsClaudeBot()) {
+            mClaudeBot->RobotInit();
+        } else {
+            mBot->RobotInit();
+        }
     } else {
         RobotActions[1].ActionId = ACTION_STARTDAY;
         RobotActions[2].ActionId = ACTION_PERSONAL;
@@ -3301,7 +3324,11 @@ void PLAYER::RobotPlan() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotPlan();
+        if (IsClaudeBot()) {
+            mClaudeBot->RobotPlan();
+        } else {
+            mBot->RobotPlan();
+        }
         PLAYER::NetSyncRobot(WaitWorkTill, WaitWorkTill2);
         return;
     }
@@ -3981,7 +4008,11 @@ void PLAYER::RobotExecuteAction() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotExecuteAction();
+        if (IsClaudeBot()) {
+            mClaudeBot->RobotExecuteAction();
+        } else {
+            mBot->RobotExecuteAction();
+        }
 
         Sim.Players.CheckFlighplans();
 
@@ -6899,13 +6930,14 @@ void PLAYER::BroadcastPosition(bool bForce) {
 }
 
 bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > 0); }
+bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel == 0); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
         return;
     }
 
     if (qPerson.MoodCountdown == 0U) {
-        SLONG mood = mBot->getNextMood();
+        SLONG mood = IsClaudeBot() ? mClaudeBot->getNextMood() : mBot->getNextMood();
         if (mood != -1) {
             qPerson.Mood = static_cast<UBYTE>(mood);
             qPerson.MoodCountdown = MOODCOUNT_START + rand() % 15;
@@ -7408,6 +7440,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player) {
 
     // For improved bot
     File << *Player.mBot;
+    File << *Player.mClaudeBot;
 
     return (File);
 }
@@ -7627,6 +7660,7 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 
     // For improved bot
     File >> *Player.mBot;
+    File >> *Player.mClaudeBot;
     // Player.Owner = (Player.PlayerNum == 3) ? 0 : 1;
 
     return (File);

@@ -78,6 +78,7 @@ add_executable (AT
     BotPlanerAlgo.cpp
     Brick.cpp
     Checkup.cpp
+    ClaudeBot.cpp
     ColorFx.cpp
     Credits.cpp
     DeltaVid.cpp
