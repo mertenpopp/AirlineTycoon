@@ -105,7 +105,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
-            mDoRoutesMaxCredit = false;
+            mDoRoutesMaxCredit = true;
             AT_Log("Bot::actionStartDay(): Switching to routes (forced).");
         } else if (mBestPlaneTypeId != -1) {
             const auto &bestPlaneType = PlaneTypes[mBestPlaneTypeId];
@@ -113,15 +113,9 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
             __int64 moneyNeeded = 2 * costRouteAd + bestPlaneType.Preis;
             __int64 moneyCanBeRaised = howMuchMoneyToRaise(true);
             SLONG numPlanes = mPlanesForJobs.size() + mPlanesForJobsUnassigned.size();
-            if (false && !mDoRoutesMaxCredit && (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin) && (moneyAvailable + moneyCanBeRaised) >= moneyNeeded) {
-                mDoRoutesMaxCredit = true;
-                AT_Log("Bot::actionStartDay(): Starting to save for routes. Need 2*%s + %s $ for ads and plane. Have %s $ and can get %s $.",
-                       Insert1000erDots64(costRouteAd).c_str(), Insert1000erDots64(bestPlaneType.Preis).c_str(), Insert1000erDots64(moneyAvailable).c_str(),
-                       Insert1000erDots64(moneyCanBeRaised).c_str());
-            }
             if ((numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMax)) {
                 mDoRoutes = true;
-                mDoRoutesMaxCredit = false;
+                mDoRoutesMaxCredit = true;
                 AT_Log("Bot::actionStartDay(): Switching to routes. Reserving 2*%s + %s $ for ads and plane.", Insert1000erDots64(costRouteAd).c_str(),
                        Insert1000erDots64(bestPlaneType.Preis).c_str());
             } else {
@@ -134,6 +128,10 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     if (mDoRoutes && !mLongTermStrategy) {
         mLongTermStrategy = true;
         AT_Log("Bot::actionStartDay(): Switching to longterm strategy.");
+    }
+    if (mDoRoutesMaxCredit && moneyAvailable > kMoneyReservePaybackCredit) {
+        mDoRoutesMaxCredit = false;
+        AT_Log("Bot::actionStartDay(): Starting to pay back route credit");
     }
 
     /* logic deciding when to switch to final target run */
