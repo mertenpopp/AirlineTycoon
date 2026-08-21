@@ -1,6 +1,7 @@
 #include "BotHelper.h"
 
 #include "Bot.h"
+#include "ClaudeBot.h"
 #include "Proto.h"
 #include "TeakLibW.h"
 #include "class.h"
@@ -956,7 +957,12 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     std::vector<__int64> values;
     auto balanceAvg = qPlayer.BilanzWoche.Hole();
     auto balance = qPlayer.BilanzGesamt;
-    auto moneyAvailable = qPlayer.IsSuperBot() ? qPlayer.mBot->getMoneyAvailable() : 0;
+    auto moneyAvailable = 0;
+    if (qPlayer.IsMertenBot()) {
+        qPlayer.mBot->getMoneyAvailable();
+    } else if (qPlayer.IsClaudeBot()) {
+        qPlayer.mClaudeBot->getMoneyAvailable();
+    }
     values.insert(values.end(), {Sim.Date, qPlayer.Money, qPlayer.Credit, moneyAvailable});
     values.insert(values.end(), {balance.GetOpSaldo(), balanceAvg.GetOpSaldo(), balanceAvg.GetOpGewinn(), balanceAvg.GetOpVerlust()});
     values.insert(values.end(), {balance.Tickets, balance.Auftraege, balance.FrachtAuftraege});
