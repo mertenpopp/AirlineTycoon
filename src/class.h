@@ -907,7 +907,7 @@ class /**/ CPlane {
     void DoOneStep(SLONG PlayerNum);
     BOOL CanBeSold(void); // Wird's zur Zeit verwendet?
     void UpdateGlobePos(UWORD EarthAlpha);
-    SLONG GetSaldo(void);
+    SLONG GetSaldo(void) const;
     SLONG GetMaxPassengerOpenFlight(SLONG PlayerNum);
     void ClearSaldo(void);
     void CalculateHappyPassengers(SLONG PlayerNum, SLONG mod, bool addToQueue = false, XY pos = XY());

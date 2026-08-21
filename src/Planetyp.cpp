@@ -1069,7 +1069,7 @@ void CPlane::UpdateGlobePos(UWORD EarthAlpha) {
 //--------------------------------------------------------------------------------------------
 // Berechnet den Saldo einer Woche:
 //--------------------------------------------------------------------------------------------
-SLONG CPlane::GetSaldo() {
+SLONG CPlane::GetSaldo() const {
     SLONG c = 0;
     SLONG Summe = 0;
 
