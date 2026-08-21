@@ -4,6 +4,7 @@
 #include "class.h"
 #include "defines.h"
 #include "GameMechanic.h"
+#include "global.h"
 
 #include <array>
 #include <cassert>
@@ -289,6 +290,58 @@ const char *getItemName(SLONG item);
 
 void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool printHeader);
 void printStatisticsLineForAllPlayers(const CString &prefix, bool printHeader);
+
+inline void calcCostAndDuration(int startCity, int destCity, const CPlaneType &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
+    assert(startCity >= 0 && startCity < Cities.AnzEntries());
+    assert(destCity >= 0 && destCity < Cities.AnzEntries());
+    /* needs to match CITIES::CalcFlugdauer() */
+    distance = Cities.CalcDistance(startCity, destCity);
+    duration = (distance / qPlane.Geschwindigkeit + 999) / 1000 + 1 + 2 - 2;
+    if (duration < 2) {
+        duration = 2;
+    }
+
+    /* needs to match CalculateFlightKerosin() */
+    SLONG kerosene = distance / 1000          // weil Distanz in m übergeben wird
+                     * qPlane.Verbrauch / 160 // Liter pro Barrel
+                     / qPlane.Geschwindigkeit;
+
+    /* needs to match CalculateFlightCostNoTank() */
+    cost = kerosene * Sim.Kerosin;
+    if (cost < 1000) {
+        cost = 1000;
+    }
+
+    if (emptyFlight) {
+        cost -= (qPlane.Passagiere * distance / 1000 / 40);
+    }
+}
+
+inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
+    assert(startCity >= 0 && startCity < Cities.AnzEntries());
+    assert(destCity >= 0 && destCity < Cities.AnzEntries());
+    /* needs to match CITIES::CalcFlugdauer() */
+    distance = Cities.CalcDistance(startCity, destCity);
+    duration = (distance / qPlane.ptGeschwindigkeit + 999) / 1000 + 1 + 2 - 2;
+    if (duration < 2) {
+        duration = 2;
+    }
+
+    /* needs to match CalculateFlightKerosin() */
+    SLONG kerosene = distance / 1000            // weil Distanz in m übergeben wird
+                     * qPlane.ptVerbrauch / 160 // Liter pro Barrel
+                     / qPlane.ptGeschwindigkeit;
+
+    /* needs to match CalculateFlightCostNoTank() */
+    cost = kerosene * Sim.Kerosin;
+    if (cost < 1000) {
+        cost = 1000;
+    }
+
+    if (emptyFlight) {
+        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
+    }
+}
 
 } // namespace Helper
 

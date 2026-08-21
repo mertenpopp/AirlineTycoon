@@ -48,32 +48,6 @@ inline bool canFlyThisJob(const CPlane &qPlane, int passengers, int distance, in
     return true;
 }
 
-inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
-    assert(startCity >= 0 && startCity < Cities.AnzEntries());
-    assert(destCity >= 0 && destCity < Cities.AnzEntries());
-    /* needs to match CITIES::CalcFlugdauer() */
-    distance = Cities.CalcDistance(startCity, destCity);
-    duration = (distance / qPlane.ptGeschwindigkeit + 999) / 1000 + 1 + 2 - 2;
-    if (duration < 2) {
-        duration = 2;
-    }
-
-    /* needs to match CalculateFlightKerosin() */
-    SLONG kerosene = distance / 1000            // weil Distanz in m übergeben wird
-                     * qPlane.ptVerbrauch / 160 // Liter pro Barrel
-                     / qPlane.ptGeschwindigkeit;
-
-    /* needs to match CalculateFlightCostNoTank() */
-    cost = kerosene * Sim.Kerosin;
-    if (cost < 1000) {
-        cost = 1000;
-    }
-
-    if (emptyFlight) {
-        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
-    }
-}
-
 BotPlaner::FlightJob::FlightJob(int i, int j, CAuftrag a, JobOwner o) : auftrag(a), id(i), sourceId(j), owner(o) {
     assert(i >= 0x1000000);
     startCity = Cities.find(auftrag.VonCity);
@@ -457,7 +431,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
             int cost = 0;
             int duration = 0;
             int distance = 0;
-            calcCostAndDuration(job.getStartCity(), job.getDestCity(), *plane, false, cost, duration, distance);
+            Helper::calcCostAndDuration(job.getStartCity(), job.getDestCity(), *plane, false, cost, duration, distance);
 
             /* calculate job score for this plane type */
             int score = 0;
@@ -506,7 +480,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
                     int cost = 0;
                     int duration = 0;
                     int distance = 0;
-                    calcCostAndDuration(startCity, destCity, *plane, true, cost, duration, distance);
+                    Helper::calcCostAndDuration(startCity, destCity, *plane, true, cost, duration, distance);
                     g.adjMatrix[i][j].cost = cost;
                     g.adjMatrix[i][j].duration = duration + kDurationExtra;
                 } else {
