@@ -16,7 +16,7 @@ Constraints
 -----------
 
 - Only make changes in ClaudeBot.cpp, ClaudeBot.h or any new files you created (they have to start with "ClaudeBot")
-- Follow all the game rules in RULES.md
+- Follow all the game rules in `.claude/RULES.md`
 - You can analyze the entire source code to better understand the game.
 - Ignore rendering, audio, animation, networking/multiplayer sync, save-game serialization, launcher code, and localization files — these don't affect game rules or valid moves.
 - Write ClaudeBot for the "free game" only, you can assume `Sim.Difficulty == -1`
@@ -25,18 +25,17 @@ Constraints
 - Action IDs define to which room ClaudeBot will walk and what he does there. Use only the action IDs defined in defines.h (starting with "ACTION_"). If you need more action IDs to better structure ClaudeBot, tell me what it does and which room is associated with it and I will add it.
 
 The game is real-time not turn-based. ClaudeBot is called by the game simulation via the following callbacks:
-- RobotInit(): Called once per in-game day. Can be used for initialization and check what has changed since evening.
-- RobotPlan(): Called when the game wants you to plan what to do next. Needs to set a primary and secondary action ID. Player character will walk to the appropriate place for the primary action or for the secondary if the room for the first is already occupied.
-- RobotExecuteAction(): Called when it is now possible to execute the primary action. Note that if the room was full, the primary action now might have been planned as secondary action. 
+- `RobotInit()`: Called once at the start of each in-game day. Can be used for initialization and to prepare internal bot state for the new day. Note that the player character is not in any room yet. Thus, access to the game state is very limited. After `RobotInit()`, the game will call the callback `RobotExecuteAction()` with the action ID ACTION_STARTDAY. This is usually the better place to check what has changed in the game state since last evening.
+- `RobotPlan()`: Called when the game wants you to plan what to do next. Needs to set a primary and secondary action ID. Player character will walk to the appropriate place for the primary action or for the secondary if the room for the first is already occupied. Note that this is called usually between rooms. Thus, the decision making usually needs to be based on cached data since access to the game state is very limited.
+- `RobotExecuteAction()`: Called when it is now possible to execute the primary action. Note that if the room was full, the primary action now might have been planned as secondary action. This callback is where almost all of ClaudeBots actions will be executed and also most of the planning and thinking needs to happen because only here ClaudeBot will have access to certain parts of the game's state (depending on the current room).
 
 Note that the game is single-threaded. Thus, during a callback, the game state does not advance. However, it is possible that between two callbacks quite a bit of time has passed. Recommendation: In RobotExecuteAction(), check again if the preconditions for the planned actions still apply.
 
 How to build
 ------------
 
-In top-level directory, run the following commands:
-- cmake -B build -S . -G Ninja
-- ninja -C build install
+In top-level directory, run the command:
+- ./scripts/run_build.sh
 
 Output should contain the following line if there was a change in source code:
 `Installing: /media/LINUX/GOG Games/Airline Tycoon Deluxe/game/AT`
@@ -47,8 +46,8 @@ Output should contain the following line if no change was made:
 How to test
 -----------
 
-In the installation directory, run the command:
-./AT /quick -1 2>&1 | tee GameLog.txt | grep 'BotStatistics/HA' > ClaudeBot.csv"
+In top-level directory, run the command:
+- `./scripts/run_test.sh`
 
 This runs the game in a mode which requires no human input. Note:
 - Players "Sunshine Airways" and "Falcon Lines" will be controlled by the regular CPU player
@@ -59,25 +58,22 @@ This runs the game in a mode which requires no human input. Note:
 - ClaudeBot.csv contains important stats with one line of data per in-game day. Very first filtered line are column headers
 - You can also filter for the other airlines by adapting the grep command above: Search for "BotStatistics/<abbreviation>" instead
 
-For a quick smoke test, use `/quicker` instead of `/quick`. This ends the game automatically after 5 in-game days.
+For a quick smoke test, use `./scripts/run_smoketest.sh`. This ends the game automatically after 5 in-game days.
 
 How to measure performance of bot
 ---------------------------------
 
-To get the performance score of the bot, run these commands in the installation directory:
+In top-level directory, run the command:
+- `./scripts/run_measurement.sh`
 
-- ruby threadpool.rb 
-- python concat.py 'dataCLAUDE_*.csv'
+This commands runs 50 game instances in parallel and waits until all have terminated. The CSV data from the runs is then combined and a performance score is computed: Weekly averaged operative saldo after 100 days.
 
-First commands runs 50 game instances in parallel and waits until all have terminated.
-Second commands parses the CSV data from the runs and computes our performance score: Weekly averaged operative saldo after 100 days.
-
-Last line of output shall look like this: Day 99 / Airline HA:  -49091.0
+Last line of output shall look like this: `Day 99 / Airline HA:  -49091.0`
 
 Persistent progress log
 -----------------------
 
-Append to the file DECISIONS.md after each session — what you tried, what the performance indicator was, what you are trying next.
+Append to the file `.claude/DECISIONS.md` after each session — what you tried, what the performance indicator was, what you are trying next.
 
 Development loop
 ----------------

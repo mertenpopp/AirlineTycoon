@@ -697,9 +697,9 @@ void printAllSchedules(bool infoOnly) {
     }
 }
 
-bool checkRoomOpen(SLONG roomId) {
+bool checkRoomOpen(SLONG actionId) {
     SLONG time = Sim.Time;
-    switch (roomId) {
+    switch (actionId) {
     case ACTION_VISITDUTYFREE:
         return (time >= timeDutyOpen && ((Sim.Weekday != 5 && Sim.Weekday != 6) || time < timeDutyClose));
     case ACTION_BUY_KEROSIN:
