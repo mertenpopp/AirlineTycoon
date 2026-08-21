@@ -6,12 +6,16 @@ Airline Tycoon Deluxe is a resource-management/tycoon game where you control the
 The game simulates a day/night cycle. You work from 9 am to 18 pm and can only perform actions during this time. The game state however advanced during night: Planes start and land as scheduled, money made or lost as usual. You work the entire week including on Sunday.
 
 There are always four competing airlines:
-- "Sunshine Airways" (SA)
-- "Falcon Lines" (FL)
-- "Phoenix Travel" (PT)
-- "Honey Airlines" (HA)
+- "Sunshine Airways" (abbreviation: SA, array index: 0)
+- "Falcon Lines" (abbreviation: FL, array index: 1)
+- "Phoenix Travel" (abbreviation: PT, array index: 2)
+- "Honey Airlines" (abbreviation: HA, array index: 3)
 
-Airlines are enumerated starting at 0 in the order given. ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in ClaudeBot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
+ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in ClaudeBot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
+
+Technical details:
+- The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp` and sets bot difficulty in `PLAYER::BotLevel`. The command line argument can be a three digit number. The first digit will set `PLAYER::BotLevel` for the first non-human player and so on. A `BotLevel > 0` indicates that this player is controlled by ClaudeBot.
+- The human player (which always must exist for technical reasons) will be determined by the value `OptionLastPlayer` in the `AT.json` game settings in the game directory. Otherwise, it will be determined by `Sim.Options.OptionLastPlayer`.
 
 Target
 ------
@@ -66,7 +70,7 @@ Use `RobotExecuteAction()` to actually perform a planned action. It shall be che
 ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
 
 Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
-- ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG roomId)`
+- ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG actionId)`
 - ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
 - When planning the next action, consider the time it requires to walk to a room
 
@@ -136,75 +140,59 @@ These actions send the bot to the special offices where flight jobs can be viewe
 
 ### Last minute jobs
 
-Action ID to access room: ACTION_CHECKAGENT1
+Use the action ID ACTION_CHECKAGENT1 to visit the last minute agency room.
 
-Only while performing this action, the global array LastMinuteAuftraege may be accessed. Never write to this array.
+Only while performing this action, the global array `LastMinuteAuftraege` may be accessed. Never write to this array.
 Browse this array to find suitable flights. All flights here can go from any city to any other city and typically need to be completed either today or tomorrow. Plane must have required number of seats at least. Plane needs to be able to travel the required distance. The money for the job is paid if completed on time. If flight has been taken but not completed on time, a fine has to be paid. Some jobs have a fine of zero.
 You can pick a flight job using:
 
-`bool GameMechanic::takeLastMinuteJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId)`
-
-Job will be added to qPlayer.Auftraege and can be found using outObjectId.
+`bool GameMechanic::takeLastMinuteJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId)`: Pick a flight job from `LastMinuteAuftraege`. Job will be added to qPlayer.Auftraege and can be found using outObjectId.
 
 ### Travel agency jobs
 
-Action ID to access room: ACTION_CHECKAGENT2
+Use the action ID ACTION_CHECKAGENT2 to visit the travel agency room.
 
-Only while performing this action, the global array ReisebueroAuftraege may be accessed. Never write to this array.
-Browse this array to find suitable flights. All flights here will connect the home airport with any other city. Plane must have required number of seats at least. Plane needs to be able to travel the required distance. There is a premium if completed on time. If flight has been taken but not completed on time, a fine has to be paid. Some jobs have a fine of zero.
-You can pick a flight job using:
+Only while performing this action, the global array `ReisebueroAuftraege` may be accessed. Never write to this array. Browse this array to find suitable flights. All flights here will connect the home airport with any other city. Plane must have required number of seats at least. Plane needs to be able to travel the required distance. There is a premium if completed on time. If flight has been taken but not completed on time, a fine has to be paid. Some jobs have a fine of zero.
 
-`bool GameMechanic::takeFlightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId)`
-
-Job will be added to qPlayer.Auftraege and can be found using outObjectId.
+`bool GameMechanic::takeFlightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId)`: Pick a flight job from `ReisebueroAuftraege`. Job will be added to qPlayer.Auftraege and can be found using outObjectId.
 
 ### Freight jobs
 
-Action ID to access room: ACTION_CHECKAGENT3
+Use the action ID ACTION_CHECKAGENT3 to visit the freight depot.
 
-Only while performing this action, the global array gFrachten may be accessed. Never write to this array.
+Only while performing this action, the global array `gFrachten` may be accessed. Never write to this array.
 Browse this array to find suitable flights. All flights here can go from any city to any other city. Total freight volume can be transported via multiple trips and/or planes. Plane needs to be able to travel the required distance. There is a premium if total freight volume was transported on time, otherwise, a fine has to be paid. Some jobs have a fine of zero.
 You can pick a freight job using:
 
-`bool GameMechanic::takeFreightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId):`
-
-Job will be added to qPlayer.Frachten and can be found using outObjectId.
+`bool GameMechanic::takeFreightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId):` Pick a flight job from `gFrachten`. Job will be added to qPlayer.Frachten and can be found using outObjectId.
 
 ### International jobs (passenger flights)
 
-Each airline can purchase offices in other cities. They grant access to additional flight jobs.
+Each airline can purchase offices in other cities. They grant access to additional international flight jobs.
 
-Action ID to access room: ACTION_CALL_INTERNATIONAL
+You can pick up international flight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL
 
-You can call any number of your international offices to take passenger flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT2 apply. Use the following function to check if a specific city can be called:
+You can call any number of your international offices to take passenger flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT2 apply.
 
-`bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId)`
+`bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId)`: Use this function to check if a specific city can be called.
 
-Only while performing this action and after canCallInternational() was checked with the cityId, the global array AuslandsAuftraege[cityId] may be accessed. Never write to this array.
+Only while performing this action and after `canCallInternational()` was checked with the cityId, the global array `AuslandsAuftraege[cityId]` may be accessed. Never write to this array.
 
-You can pick a flight job using:
-
-`bool GameMechanic::takeInternationalFlightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId)`
-
-Job will be added to qPlayer.Auftraege and can be found using outObjectId.
+`bool GameMechanic::takeInternationalFlightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId)`: Pick a flight job from `AuslandsAuftraege[cityId]`. Job will be added to qPlayer.Auftraege and can be found using outObjectId.
 
 ### International jobs (freight jobs)
 
-Each airline can purchase offices in other cities. They grant access to additional freight jobs.
+The airline offices in other cities also grant access to additional freight jobs.
 
-Action ID to access room: ACTION_CALL_INTERNATIONAL
+You can pick up international freight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL
 
-You can call any number of your international offices to take freight flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT3 apply. Use the following function to check if a specific city can be called:
+You can call any number of your international offices to take freight flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT3 apply.
 
-`bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId)`
+`bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId)`: Use this function to check if a specific city can be called.
 
-Only while performing this action and after canCallInternational() was checked with the cityId, the global array AuslandsFrachten[cityId] may be accessed. Never write to this array.
+Only while performing this action and after `canCallInternational()` was checked with the cityId, the global array `AuslandsFrachten[cityId]` may be accessed. Never write to this array.
 
-You can pick a freight job using:
-
-`bool GameMechanic::takeInternationalFreightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId)`
-
-Job will be added to qPlayer.Frachten and can be found using outObjectId.
+`bool GameMechanic::takeInternationalFreightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId)`: Pick a flight job from `AuslandsFrachten[cityId]`. Job will be added to qPlayer.Frachten and can be found using outObjectId.
 
 ### Call via mobile phone
 
@@ -265,40 +253,14 @@ Do not modify anything in the plane, flight plan or flight plan object classes d
 ### Constraints
 
 There are constraints when scheduling flights. In the following, `qPlane` is a reference to the plane that shall fly this job:
-- earliest possible start time is `(Sim.GetHour() + 2) % 24` 
+- earliest possible start time is `(Sim.GetHour() + 2) % 24`
+- latest possible start day is `Sim.Date + 6`
 - number of passengers must be ` <= qPlane.ptPassagiere` for passenger flight jobs
 - freight jobs can split the total freight volume (`CFracht::Tons`) across multiple trips and/or planes. `CFracht::TonsLeft` tracks the number of tons still left
 - distance between start city (`VonCity`) and target city (`NachCity`) must be ` <= qPlane.ptReichweite * 1000`
 - flight duration must not exceed 24 hours (relevant for long distance flights and slow planes)
 
-You can use the following helper functions to determine cost, duration and distance of a flight. The parameter `emptyFlight` has to be set if it is an automatic flight (game assumes a little bit of income from these which reduces cost). Note that this function only includes cost for passenger, freight and route jobs.
-```
-inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
-    assert(startCity >= 0 && startCity < Cities.AnzEntries());
-    assert(destCity >= 0 && destCity < Cities.AnzEntries());
-    /* needs to match CITIES::CalcFlugdauer() */
-    distance = Cities.CalcDistance(startCity, destCity);
-    duration = (distance / qPlane.ptGeschwindigkeit + 999) / 1000 + 1 + 2 - 2;
-    if (duration < 2) {
-        duration = 2;
-    }
-
-    /* needs to match CalculateFlightKerosin() */
-    SLONG kerosene = distance / 1000            // weil Distanz in m übergeben wird
-                     * qPlane.ptVerbrauch / 160 // Liter pro Barrel
-                     / qPlane.ptGeschwindigkeit;
-
-    /* needs to match CalculateFlightCostNoTank() */
-    cost = kerosene * Sim.Kerosin;
-    if (cost < 1000) {
-        cost = 1000;
-    }
-
-    if (emptyFlight) {
-        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
-    }
-}
-```
+`void BotHelper::calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance)`: You can use this helper functions to determine cost, duration and distance of a flight. The parameter `emptyFlight` has to be set if it is an automatic flight (game assumes a little bit of income from these which reduces cost). Note that this function only includes cost for passenger, freight and route jobs. This function does access the current kerosene price `Sim.Kerosin` which normally is only available while at the Arab. This is permitted as the human player will also see the cost of a flight in the game.
 
 Hint: A good place to learn more about the rules of flight jobs is the function `CFlugplanEintrag::BookFlight`. This function trigers all the effects of a flight: Money gained for job, money spent for fuel and passenger food, plane deterioration, changes to company image and much more.
 
@@ -347,15 +309,17 @@ Because this behavior is difficult to predict, my recommendation is:
 
 Flights can be scheduled and plane schedules can be altered at any point in time when the player has a laptop available and it has no virus. These action can also be done in the player's office unless the office is currently unusable. If both office and laptop are unusable, no flights can be scheduled and no plane schedule can be altered.
 
-Note that in case a flight job is picked up in one room and then the player has to walk to the office in order to schedule it, time will pass. This can make it impossible to schedule a flight that was supposed to start very soon. Plan accordingly if walking is required.
+Before a laptop is bought there is no legal way to schedule a flight directly after picking it up at one of the agencies. The player has to walk to the office in order to schedule it and time will pass. This can make it impossible to schedule a flight that was supposed to start very soon. Plan accordingly if walking is required.
+
+Hint: This is mainly a restriction for early game. As soon as the player has laptop and antivirus items, this is usually not a concern anymore. It is probably enough to use a "need to check and update flight plans" marker for early game.
 
 ### Helper functions
 
 You can use the following helper functions and are also allowed to rewrite them for your convenience:
 
-- `SLONG checkPlaneSchedule(...)`: Checks the current schedule of the specified plane for mistakes, prints every mistake to the log and returns total number of mistakes.
-- `ScheduleInfo calculateScheduleInfo(...)`: Returns a struct with lots of useful information about the current flight schedule of the given plane.
-- `SLONG checkFlightJobs(...) `: Performs the check for all planes and also prints combined statistics to the log.
+- `SLONG BotHelper::checkPlaneSchedule(...)`: Checks the current schedule of the specified plane for mistakes, prints every mistake to the log and returns total number of mistakes.
+- `ScheduleInfo BotHelper::calculateScheduleInfo(...)`: Returns a struct with lots of useful information about the current flight schedule of the given plane.
+- `SLONG BotHelper::checkFlightJobs(...) `: Performs the check for all planes and also prints combined statistics to the log. Use this function every time after you made a change to a plane's flight schedule.
 
 Routes
 ------
@@ -398,6 +362,8 @@ The money gained from a single route flight is calculated by the game in `CFlugp
 
 Hint: Of these factors, ticket price and route image are the easiest to adjust and have a big impact on passenger count. 
 
+Routes have to be utilized by at least 10%. If a player servers less than 10% of the demand for 20 consecutive days, the route is taken away from the airline and cannot be rented again for several days. In rare cases, competitors can also use sabotage to steal a route from another airline. In any case, ClaudeBot must be resilient enough to detect that a route has been removed and act accordingly (e.g., schedule planes on other routes).
+
 HR / staffing actions
 ------------------------------------
 
@@ -423,7 +389,7 @@ Only while in this room, the global array `Workers.Workers` may be accessed. Onl
 
 Changes in salary affect worker happiness. There is a one-time effect and a chance of a regular increase/decrease in happiness if salary is above/below baseline salary.
 
-ClaudeBot has to hire enough pilots and stewardesses. The required number of pilots depends on the plane type and is found in `CPlaneType::AnzPiloten`, required number of stewardesses in `CPlaneType::AnzBegleiter`.
+ClaudeBot has to hire enough pilots and stewardesses. The required number of pilots depends on the plane type and is found in `CPlaneType::AnzPiloten`, required number of stewardesses in `CPlaneType::AnzBegleiter`. These same values are also found in the `CPlane` instance at `CPlane::ptAnzPiloten` and `CPlane::ptAnzBegleiter`.
 
 Workers are paid daily, amount is `CWorker::Gehalt`/30. Worker talent (`CWorker::Talent`) affects customer satisfaction.
 
@@ -445,10 +411,10 @@ The advisor BERATERTYP_SICHERHEIT gives up to 10% discount depending on `Talent`
 
 The advisor BERATERTYP_FITNESS increases movement speed of the player character.
 
-Office  actions
----------------
+Office actions
+--------------
 
-Use the action ID ACTION_BUERO or ACTION_UPGRADE_PLANES to go to the player’s own office. Only while in this room, the following functions may be called.
+Use the action ID ACTION_BUERO, ACTION_UPGRADE_PLANES or ACTION_CALL_INTERNATIONAL to go to the player’s personal office. Only while in this room, the following functions may be called.
 
 The action ID ACTION_STARTDAY is the standard “begin day” room action and is automatically executed at the beginning of the day. Do not return this action ID from the `RobotPlan()` function.
 
@@ -474,22 +440,30 @@ Permitted values are 0, 1 and 2. These refer to the targeted upgrade levels. The
 
 All other upgrades are applied the next time the plane is on the ground. At this point, the money for the upgrade is deducted and the value of the target variable is copied to the other one (e.g., Triebwerk is set TriebwerkTarget). Attention: A common cause for airlines going bankrupt is because an ugprade is planned when money is available but at the time the upgrade is applied, the money has been spent elsewhere. While in the personal office, all target variables may be rewritten to cancel previously planned upgrades. You can use the function `PLAYER::CalcPlanePropSum` to calculate the cost of open plane upgrades.
 
+Additionally, ClaudeBot may hire more stewardesses than necessary to improve service quality. The value `CPlane::AnzBegleiter` gives the current number of stewardesses, `CPlane::MaxBegleiter` gives the target value and may be written by ClaudeBot and `CPlane::ptAnzBegleiter` gives the minimum for the plane to be operational. The maximum number is twice the minimum amount. If the number of stewardesses hired is not sufficient, the game will try to meet the requirement minimum per plane first before attempting to reach a higher target amount.
+
 Analyze the function `CFlugplanEintrag::BookFlight` (variable `Add`) to see how plane upgrades affect customer satisfation, airline and route image, if applicable.
 
-Kerosene  actions
------------------
+For route flights, the number of first class seats is important. First class passengers will pay a higher ticket price but a seat for first class replaces two regular seats.
+
+`bool increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId)`: Increases the amount of first class seats by 10%. Returns true if change was made.
+
+`bool decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId)`: Decreases the amount of first class seats by 10%. Returns true if change was made.
+
+Kerosene actions
+----------------
 
 By default, kerosine is automatically bought for the regular market price. There is an opportunity to save money by buying kerosine manually and filling up the airline's tank.
 
 If tanks are set to open and still full, the function `CFlugplanEintrag::BookFlight` deducts volume from the tank instead of buying for the market price.
 
-The action IDs ACTION_VISITARAB and ACTION_BUY_KEROSIN_TANKS can be used to visit the Arab where tanks and kerosine can be bought. Only while in this room, the following functions may be called.
+The action IDs ACTION_BUY_KEROSIN, ACTION_BUY_KEROSIN_TANKS and ACTION_VISITARAB can be used to visit the Arab where tanks and kerosine can be bought. Only while in this room, the following functions may be called.
 
 `bool GameMechanic::buyKerosin(PLAYER &qPlayer, SLONG type, SLONG amount)`: Buys kerosene for the tanks. Type is either 0, 1 or 2 and determines the quality (0="good", 1="normal", 2="bad") of the kerosene. Use the function `GameMechanic::calcKerosinPrice(PLAYER &qPlayer, __int64 type, __int64 amount)` to find out the price before buying.
 
 `bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount)`: Permanently increases the maximum tank capacity. Use `type` to select a tank size from global array `TankSize`. The price is found at the corresponding index in array `TankPrice`. Note that larger tanks are cheaper per volume unit. Multiple tanks can be bought at once using the parameter `amount`.
 
-`SLONG SIM::HoleKerosinPreis(SLONG typ)`: Checks current market price for the different qualities of kerosene.
+`SLONG SIM::HoleKerosinPreis(SLONG typ)`: Checks current market price for the different qualities of kerosene. Price for normal quality (`typ == 1`) is stored in `Sim.Kerosin` and may also be accessed directly.
 
 ### Kerosene quality
 
@@ -555,7 +529,7 @@ Use action ID ACTION_BUYUSEDPLANE to walk to the museum. Only there, the followi
 
 `SLONG GameMechanic::buyUsedPlane(PLAYER &qPlayer, SLONG planeID)`: Buy a used plane from the museum. You may check the global array `Sim.UsedPlanes[planeID]` for valid entries to find planes that can be bought.
 
-`bool GameMechanic::sellPlane(PLAYER &qPlayer, SLONG planeID)`: Sells a plane to the museum. Ensure that no flights are scheduled for this plane before selling.
+`bool GameMechanic::sellPlane(PLAYER &qPlayer, SLONG planeID)`: Sells a plane to the museum. Ensure that no flights are scheduled for this plane before selling. Use the function `CPlane::CanBeSold` to check. Value of a plane is calculated as `CPlane::ptPreis * CPlane::Zustand / 10000 * CPlane::Zustand * (CPlane::Baujahr - kYearsSinceRelease - 1900) / 120`. Value is reduced to only 10% if it is a starting plane (`CPlane::Sponsored != 0`).
 
 `std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount)`: Buys a designed plane. DO NOT USE CURRENTLY.
 
@@ -591,7 +565,7 @@ There might be auctions every day for unassigned gates (either recently built or
 
 Gates are either unassigned or owned by one airline. Only gates owned by your airline will be used. A gate is occupied for one full hour after each arrival and one full hour before and after each departure each. For each planned flight, you can check `CFlugplanEintrag::Gate` to see which gate was assigned and `CFlugplanEintrag::GateWarning` if there is a "no gate available" warning. If no gate was available for the flight, airline image is reduced by 2 points. Gate assignment is done automatically. Note that the game only requires gates for planes landing in or starting from the home airport (city ID given by `Sim.HomeAirportId`).
 
-Branch offices can be called (ACTION_CALL_INTERNATIONAL or ACTION_CALL_INTERNATIONAL_HANDY) to get access to additional flight jobs starting or landing in their city. If you lost an auction to a competitor, there might be a later auction for another office in the same city.
+Branch offices can be called (ACTION_CALL_INTERNATIONAL or ACTION_CALL_INTER_HANDY) to get access to additional flight jobs starting or landing in their city. If you lost an auction to a competitor, there might be a later auction for another office in the same city.
 
 Bids can be placed by ClaudeBot and all competitors the entire day. It is possible to overbid a competitor who made a bid on the same gate or city before. On the beginning of the next day, the airline that placed the last bid wins.
 
@@ -725,6 +699,8 @@ What the agent must never do:
 
 If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a GameMechanic pattern. If you find yourself unable to do so or it comes with a massive cost, ask me if access rights might be granted.
 
+Hint: It might be reasonable to cache certain global variables for later use and update the cached value whenever access is permitted.
+
 ### Global Sim instance
 
 Global object that manages most of the game state.
@@ -737,7 +713,7 @@ You have read access to:
 - `Sim.StartWeekday`: Get day of the week where game was started.
 - `Sim.Difficulty`: Denotes whether we are in a free game or a mission. Always assume free game `Sim.Difficulty == -1`.
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
-- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Only permitted while visiting the Arab.
+- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Only permitted while visiting the Arab. `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly while visiting the Arab.
 - `Sim.HomeAirportId`: City ID of the home airport.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
@@ -756,7 +732,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. Only access while in personal office or while you have a access to a laptop.
 - `BilanzWoche`: Weekly balance.
-- `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot.
+- `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
@@ -772,7 +748,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `Money`: Current cash balance.
 - `OfficeState`: Office usability status.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID.
-- `Planes`: Plane collection (accessing, iterating, reading plane data).
+- `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
 - `PlayerNum`: Player number, used as index in many arrays.
 - `PlayerWalkRandom`: Random number generator.
 - `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
@@ -780,8 +756,8 @@ All classifications are read-only except where explicitly shown as read/write.
 - `Tank`: Total volume of kerosene tank.
 - `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
-- `xBegleiter`: Number of superfluous stewardesses. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
-- `xPiloten`: Number of superfluous pilots. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0`.
+- `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
+- `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
 
 ### Player objects (competitors)
 
@@ -802,6 +778,59 @@ All classifications are read-only.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. Only read for at index referring to own airline when `qPlayer.HasBerater(BERATERTYP_GELD) > 0`. Only read at other indices when `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
 - `PlayerNum`: Player number, used as index in many arrays.
 
+### CPlane object
+
+Located in each `PLAYER` object at `qPlayer.Planes`. Contains instances of type `CPlane` which describe a plane that the player owns.
+
+The access rights refer to planes owned by ClaudeBot. For competitor planes, you may only browse the entire list and access `Name` and `TypeId`.
+
+- `Name`: Individual name of the plane.
+- `TypeId`: Gives the plane type ID (index for the global array `PlaneTypes`).
+- `Flugplan`: Flight plan, only access while in personal office or while you have a access to a laptop.
+- `WorstZustand`: Low point of plane's condition given as percentage. Access permitted only while visiting the mechanic.
+- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic.
+- `TargetZustand`: Target condition given as percentage. Access permitted only while visiting the mechanic.
+- `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office or while having access to a laptop. Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
+- `Baujahr`: Access permitted only while visiting the mechanic, while in personal office or while you have a access to a laptop.
+- `AnzPiloten`: Current number of pilots assigned to this plane. Only access while in personal office, HR office or while having access to a laptop.
+- `AnzBegleiter`: Current number of stewardesses assigned to this plane. Only access while in personal office, HR office or while having access to a laptop.
+- `MaxBegleiter`: Target number of stewardesses. Only access while in personal office, HR office or while having access to a laptop. Write access permitted while in personal office (valid range: `ptAnzBegleiter` up to including `ptAnzBegleiter *2`).
+- `PersonalQuality`: Average personal skill ranging from 0 to 100. Read access while in HR office.
+- `Wartungskosten`: Amount spent for plane maintenance and repairs on the previous day. Access permitted only while visiting the mechanic.
+- `Sitze`, `Tabletts`, `Deco`, `Reifen`, `Triebwerk`, `Sicherheit`, `Elektronik` and `Essen`: Current plane upgrade levels. Read access while in personal office.
+- `SitzeTarget`, `TablettsTarget`, `DecoTarget`, `ReifenTarget`, `TriebwerkTarget`, `SicherheitTarget`, `ElektronikTarget`, `EssenTarget`: Planned plane upgrade levels. Read and write access while in personal office.
+- `Auslastung`: Gives the average utilization over the previous day in % of seats. Only access while in personal office or while you have a access to a laptop.
+- `AuslastungFC`: Gives the average utilization over the previous day in % of first class seats. Only access while in personal office or while you have a access to a laptop.
+- `Kilometer`: Total number of kilometers flown. Only access while in personal office or while you have a access to a laptop.
+- `SummePassagiere`: Total number of passengers transported. Only access while in personal office or while you have a access to a laptop.
+- `MaxPassagiere` and `MaxPassagiereFC`: Denotes the current split of seats between regular and first-class passengers (affects utilization and income for route flights).
+- `Sponsored`: Denotes a starting plane. Can only be sold for 10% of the usual value.
+- `Problem`: If larger than zero, plane has technical problem and cannot be used. Only access while in personal office or while you have a access to a laptop.
+
+The following member variables are copied over from the corresponding CPlaneType and can always be read:
+- `ptHersteller`: String containing manufactorer name.
+- `ptName`: String containing type name.
+- `ptErstbaujahr`: First year where this type entered the market.
+- `ptReichweite`: Maximum range of the plane in kilometers.
+- `ptGeschwindigkeit`: Aircraft speed in kilometers per hour.
+- `ptPassagiere`: Maximum number of passengers that can be transported. `ptPassagiere / 10` rounded down is freight capacity in tons.
+- `ptAnzPiloten`: Number of pilots required for normal operation.
+- `ptAnzBegleiter`: Number of stewardesses required for normal operation.
+- `ptTankgroesse`: Tank size in liters.
+- `ptVerbrauch`: Fuel consumption in liters per flight hour.
+- `ptPreis`: Price to pay for a new plane of this type.
+- `ptLaerm`: Noise level of this plane type, can reduce customer satisfaction.
+- `ptWartungsfaktor`: Multiplier in repair cost.
+
+A plane is only able to operate if the following conditions are met:
+- `AnzBegleiter >= ptAnzBegleiter`
+- `AnzPiloten >= ptAnzPiloten`
+- `Problem == 0`
+
+The following member function may be called:
+- `CPlane::CalculatePrice`: Current value of the plane. Call allowed while in museum.
+- `CPlane::CanBeSold`: Checks if plane has flights scheduled. Call allowed while in museum.
+
 ### RentRouten object
 
 Located in each `PLAYER` object at `qPlayer.RentRouten.RentRouten`. Contains an instance of type `CRentRoute` for every instance of `CRoute` in the global array `Routen` at the same index. `CRentRoute` describes whether `qPlayer` rents and flies the corresponding route.
@@ -813,9 +842,9 @@ All classifications are read-only.
 
 The following may be accessed if the player object is ClaudeBot:
 - `Rang`: You may always use the expression `Rang != 0` to check if you are currently renting this route. If the value is `> 0`, it gives the position of the player in the ranking of who flies this route the most of all four airlines. The exact value may only be read while at the route box or in the personal office.
-- `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant.
-- `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant.
-- `RoutenAuslastung`: Gives how much the route is being utilized in percent of the daily demand by your airline. You may only read this while in the personal office or at the route box. The value is averaged over the past days. `RoutenAuslastungBot` is the data but filtered using a faster time constant.
+- `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
+- `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
+- `RoutenAuslastung`: Gives how much the route is being utilized by your airline in percent of the weekly demand. You may only read this while in the personal office or at the route box. `RoutenAuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
 - `Image`: Image of this route. You may only read this while in the personal office or at the route box.
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 - `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
@@ -823,7 +852,7 @@ The following may be accessed if the player object is ClaudeBot:
 
 The following may be accessed if the player object is a competitor:
 - `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
-- `RoutenAuslastung`: Gives how much the route is being utilized in percent of the daily demand by the competitor. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `RoutenAuslastung`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
 ### Global read-only helpers and tables

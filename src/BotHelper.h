@@ -282,7 +282,7 @@ ScheduleInfo calculateScheduleInfo(const PLAYER &qPlayer, SLONG planeId);
 
 void printAllSchedules(bool infoOnly);
 
-bool checkRoomOpen(SLONG roomId);
+bool checkRoomOpen(SLONG actionId);
 SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId);
 SLONG getWalkDistance(int playerNum, SLONG roomId);
 
