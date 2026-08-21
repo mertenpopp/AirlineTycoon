@@ -3215,7 +3215,7 @@ void PLAYER::RobotPump() {
             RobotActions[c] = RobotActions[c + 1];
         }
         if (IsSuperBot()) {
-            AT_Log("RobotPump(): Action 0: %s", Translate_ACTION(RobotActions[0].ActionId));
+            // AT_Log("RobotPump(): Action 0: %s", Translate_ACTION(RobotActions[0].ActionId));
         }
 
         RobotActions[RobotActions.AnzEntries() - 1].ActionId = ACTION_NONE;

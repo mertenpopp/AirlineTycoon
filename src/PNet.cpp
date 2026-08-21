@@ -496,7 +496,7 @@ void PLAYER::NetBuyXPlane(SLONG Anzahl, CXPlane &plane) const {
 // Broadcasts robot state:
 //--------------------------------------------------------------------------------------------
 void PLAYER::NetSyncRobot(SLONG Par1, SLONG Par2) const {
-    AT_Log("%s NetSyncRobot(): Par1 = %d, Par2 = %d", AirlineX.c_str(), Par1, Par2);
+    // AT_Log("%s NetSyncRobot(): Par1 = %d, Par2 = %d", AirlineX.c_str(), Par1, Par2);
 
     TEAKFILE Message;
 
