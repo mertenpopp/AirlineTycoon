@@ -134,6 +134,20 @@ class Bot {
         std::vector<SLONG> planeIds{};
         bool canUpgrade{false};
     };
+    struct RouteScore {
+        __int64 score{};
+        SLONG routeId{-1};
+        SLONG planeTypeId{-1};
+        std::vector<SLONG> planeId{};
+        SLONG numPlanesToBuy{-1};
+
+        bool operator<(const RouteScore &other) const noexcept {
+            if (planeId.size() == other.planeId.size()) {
+                return score > other.score;
+            }
+            return (planeId.size() > other.planeId.size());
+        }
+    };
     struct ConfigurableOptions {
         float kSchedulingMinScoreRatio{140 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
@@ -254,6 +268,7 @@ class Bot {
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
+    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds);
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
     std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
