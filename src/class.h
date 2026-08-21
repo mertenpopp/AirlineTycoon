@@ -17,6 +17,7 @@
 #include <vector>
 
 class Bot;
+class ClaudeBot;
 class CPlane;
 class CPlaner;
 class CStdRaum;
@@ -2307,8 +2308,10 @@ class PLAYER {
 
     /* methods and data for improved robot */
     bool IsSuperBot() const;
+    bool IsClaudeBot() const;
     void ApplyMood(PERSON &qPerson);
     Bot *mBot{nullptr};
+    ClaudeBot *mClaudeBot{nullptr};
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player);
     friend TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player);
