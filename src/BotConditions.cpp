@@ -447,6 +447,12 @@ Bot::Prio Bot::condVisitHR() {
     if (hoursPassed(ACTION_PERSONAL, 24)) {
         prio = std::max(prio, Prio::Medium); /* hire new crew every day */
     }
+    if (hoursPassed(ACTION_PERSONAL, 2) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0) && (mBuyPlaneForRouteId != -1)) {
+        const auto &bestPlaneType = PlaneTypes[mBuyPlaneForRouteId];
+        if ((qPlayer.xPiloten < bestPlaneType.AnzPiloten) || (qPlayer.xBegleiter < bestPlaneType.AnzBegleiter)) {
+            prio = std::max(prio, Prio::Medium); /* to be able to hire crew more than once per day */
+        }
+    }
     if (mItemPills >= 1 && qPlayer.HasItem(ITEM_TABLETTEN) == 0) {
         prio = std::max(prio, Prio::Low); /* we need new pills */
     }
