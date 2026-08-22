@@ -210,6 +210,9 @@ void Bot::RobotInit() {
     mBossNumCitiesAvailable = -1;
     mBossGateAvailable = false;
 
+    /* crew */
+    mQualifiedCrewForHire = 0;
+
     /* items */
     mIsSickToday = false;
 
@@ -644,7 +647,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 102;
+    SLONG savegameVersion = 103;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -727,7 +730,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << static_cast<SLONG>(bot.mRoutesNextStep) << bot.mImproveRouteId;
     File << bot.mRouteToSteal << bot.mRouteToStealFrom << bot.mSabotageSeed;
 
-    File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter;
+    File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter << bot.mQualifiedCrewForHire;
 
     File << bot.mItemPills << bot.mItemAntiVirus << bot.mItemAntiStrike << bot.mItemArabTrust << bot.mIsSickToday;
 
@@ -899,6 +902,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
 
     File >> bot.mNumEmployees >> bot.mExtraPilots >> bot.mExtraBegleiter;
+    if (savegameVersion < 103) {
+        bot.mQualifiedCrewForHire = 0;
+    } else {
+        File >> bot.mQualifiedCrewForHire;
+    }
 
     File >> bot.mItemPills >> bot.mItemAntiVirus >> bot.mItemAntiStrike >> bot.mItemArabTrust >> bot.mIsSickToday;
 

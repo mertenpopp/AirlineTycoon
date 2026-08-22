@@ -360,6 +360,7 @@ class Bot {
     SLONG mNumEmployees{0};
     SLONG mExtraPilots{0};
     SLONG mExtraBegleiter{0};
+    SLONG mQualifiedCrewForHire{0};
 
     /* items */
     SLONG mItemPills{0};      /* 1: card taken, 2: card given */

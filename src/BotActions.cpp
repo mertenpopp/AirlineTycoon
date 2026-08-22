@@ -639,6 +639,7 @@ void Bot::actionVisitHR() {
         stewardessTarget = std::max(stewardessTarget, mDesignerPlane.CalcBegleiter());
     }
 
+    mQualifiedCrewForHire = 0;
     for (SLONG c : workersSorted) {
         const auto &qWorker = Workers.Workers[c];
         if (qWorker.Employer != WORKER_JOBLESS) {
@@ -647,20 +648,28 @@ void Bot::actionVisitHR() {
         if (qWorker.Talent < kMinimumEmployeeSkill) {
             continue;
         }
-        if (qWorker.Typ == WORKER_PILOT && qPlayer.xPiloten < pilotsTarget) {
-            if (GameMechanic::hireWorker(qPlayer, c)) {
-                mNumEmployees++;
-                numPilotsHired++;
+        if (qWorker.Typ == WORKER_PILOT) {
+            if (qPlayer.xPiloten < pilotsTarget) {
+                if (GameMechanic::hireWorker(qPlayer, c)) {
+                    mNumEmployees++;
+                    numPilotsHired++;
+                }
+            } else {
+                mQualifiedCrewForHire++;
             }
-        } else if (qWorker.Typ == WORKER_STEWARDESS && qPlayer.xBegleiter < stewardessTarget) {
-            if (GameMechanic::hireWorker(qPlayer, c)) {
-                mNumEmployees++;
-                numStewardessHired++;
+        } else if (qWorker.Typ == WORKER_STEWARDESS) {
+            if (qPlayer.xBegleiter < stewardessTarget) {
+                if (GameMechanic::hireWorker(qPlayer, c)) {
+                    mNumEmployees++;
+                    numStewardessHired++;
+                }
+            } else {
+                mQualifiedCrewForHire++;
             }
         }
     }
     if (numPilotsHired > 0 || numStewardessHired > 0) {
-        AT_Log("Bot::actionVisitHR(): Hiring %d pilots and %d attendants", numPilotsHired, numStewardessHired);
+        AT_Log("Bot::actionVisitHR(): Hiring %d pilots and %d attendants (%d crew still available)", numPilotsHired, numStewardessHired, mQualifiedCrewForHire);
     }
 
     /* check whether we lost employees / increase salary for unhappy employees once */
