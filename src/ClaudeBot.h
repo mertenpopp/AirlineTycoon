@@ -102,6 +102,7 @@ class ClaudeBot {
     void executeBank();
     void executeStock();
     void executeRouteBox();
+    void executeBoss();
     void executeAds();
     void executeUpgrades();
     void executeBuyPlane();
@@ -112,6 +113,11 @@ class ClaudeBot {
      * we are still inside the window in which buying them is free of the score. */
     bool inFuelPrepayWindow() const;
     SLONG fuelPrepayTarget() const;
+    /* Forms the burn estimate the Arab and the broker work from. Office only: it reads
+     * qPlayer.BilanzGestern, which RULES.md gates on the office and a financial advisor. */
+    void cacheFuelBurn();
+    /* Whether qPlayer.TankInhalt may legally be read (kerosene advisor above talent 30). */
+    bool canReadTankInhalt() const;
 
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
@@ -165,6 +171,7 @@ class ClaudeBot {
     bool mVisitedMechToday{false};
     bool mVisitedRouteBoxToday{false};
     bool mVisitedAdsToday{false};
+    bool mVisitedBossToday{false};
     bool mVisitedBrokerToday{false};
     bool mVisitedBankToday{false};
     bool mVisitedStockToday{false};
@@ -195,6 +202,15 @@ class ClaudeBot {
     SLONG mImageAfterAds{0};
     SLONG mImageAdsDay{-1};
 
+    /* Units of kerosene the fleet burns in a day, measured in the office off yesterday's
+     * balance. The Arab and the broker size the fuel manoeuvre from this, because neither
+     * may read the balance itself. */
+    SLONG mFuelUnitsPerDay{0};
+
+    /* Room-check bookkeeping: the day the last mismatch warning was printed, and how many
+     * mismatches that day has seen. */
+    SLONG mWrongRoomDay{-1};
+    SLONG mWrongRoomCount{0};
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
