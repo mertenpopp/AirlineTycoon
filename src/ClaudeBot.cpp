@@ -226,6 +226,12 @@ static const SLONG kMinFleetBeforeSaving = 2;
  * seventeen hours long and a leg either fits twice into it or does not. */
 static const SLONG kUsableHoursPerDay = 17;
 
+/* How close to the best pair an aeroplane can reach another pair has to be, in percent,
+ * before that plane is allowed to fly it - see scheduleRouteFlights(). Guards the
+ * demand-weighted spreading against a pair that is only in the network for a plane that
+ * cannot reach anything better. */
+static const SLONG kMinRouteValueShare = 80;
+
 /* Economy passengers the plane valuation credits a route flight with.
  *
  * Historically a deliberate under-estimate rather than a measured ceiling. Per-leg instrumentation of
@@ -530,6 +536,14 @@ void ClaudeBot::RobotPlan() {
         qSecondAction.ActionId = pickFillerAction();
     }
 
+    /* Run, always. RobotPump() halves the walking countdown for an action whose Running
+     * flag is set (Player.cpp:3218-3221) and charges nothing for it - no fatigue, no mood,
+     * no money. The airport is the one place where the bot pays for its own decisions in
+     * wall clock time, and the working day is fixed at 09:00-18:00, so every halved walk
+     * is another slot in a day that is otherwise spent in the corridor. */
+    qFirstAction.Running = TRUE;
+    qSecondAction.Running = TRUE;
+
     AT_Log("ClaudeBot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
            Translate_ACTION(qSecondAction.ActionId));
 
@@ -697,6 +711,48 @@ static void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlan
 static SLONG routePriceBase(ULONG vonCity, ULONG nachCity) {
     SLONG kerosene = Cities.CalcDistance(vonCity, nachCity) / 1000 * kRefVerbrauch / 160 / kRefGeschwindigkeit;
     return kerosene * Sim.Kerosin * 3 / 180 * 2;
+}
+
+/* What one pair is worth per plane hour to a given aeroplane.
+ *
+ * Plane hours, not money, are the scarce resource, so every route decision - which pair to
+ * rent, and which of the pairs we hold a particular aeroplane should fly - is ranked on
+ * this one number. Negative or small means the hour is better spent elsewhere.
+ *
+ * Returns a value that only makes sense if the plane can actually reach the pair; callers
+ * check ptReichweite themselves. */
+static SLONG routeValuePerHour(const CPlane &qPlane, const CRoute &qRoute) {
+    int cost = 0;
+    int duration = 0;
+    int dist = 0;
+    calcCostAndDuration(Cities.find(qRoute.VonCity), Cities.find(qRoute.NachCity), qPlane, false, cost, duration, dist);
+    if (duration > 24) {
+        return 0;
+    }
+
+    const SLONG base = routePriceBase(qRoute.VonCity, qRoute.NachCity);
+
+    /* Passengers per flight: our seats, but never more than the route wants. Half the
+     * demand is a deliberately pessimistic share estimate for a route we do not fly
+     * yet (image 0) and may have to share with a competitor. */
+    SLONG seats = std::min<SLONG>(qPlane.MaxPassagiere, qRoute.Bedarf / 2);
+    SLONG seatsFC = std::min<SLONG>(qPlane.MaxPassagiereFC, qRoute.Bedarf / 2);
+    /* Deliberately at the tolerance thresholds rather than at the prices we actually
+     * charge. Substituting the real prices measured 15,339,552 against 18,383,803: it
+     * scales economy revenue up by nearly two, which lifts marginal routes over the
+     * bar, and every extra pair splits the same demand while its rent is scored. */
+    SLONG revenue = seats * base * 3 + seatsFC * base * 9;
+
+    /* Rent is charged per day whether we fly or not, and it is part of the score.
+     *
+     * `Miete` is a *monthly* figure: PLAYER::NewDay charges `Miete / 30` a day
+     * (Player.cpp:912), once per direction, so a pair costs `Miete / 15` a day - and
+     * that is a cost of the route, to be spread over the plane hours we put on it,
+     * not a cost of one hour. Charging the whole monthly rent against every single
+     * hour overstated it thirtyfold, and it fell hardest on the dense long haul pairs,
+     * which carry the highest rent. */
+    const SLONG rentPerHour = qRoute.Miete / 15 / (kPlanesPerRoute * 24);
+    return (revenue - cost) / (duration + 1) - rentPerHour;
 }
 
 bool ClaudeBot::planeCanFly(const CPlane &qPlane, const CAuftrag &qJob) const {
@@ -1098,6 +1154,7 @@ void ClaudeBot::executeRouteBox() {
         state.distance = Cities.CalcDistance(state.vonCity, state.nachCity);
         state.bedarf = Routen[state.id].Bedarf;
         state.anzPax = Routen[state.id].AnzPassagiere();
+        state.valuePerHour = routeValuePerHour(qRef, Routen[r]);
         state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
         state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
         mRoutes.push_back(state);
@@ -1143,42 +1200,11 @@ void ClaudeBot::executeRouteBox() {
         if (!touchesNetwork(qRoute.VonCity, qRoute.NachCity)) {
             continue;
         }
-        SLONG distance = Cities.CalcDistance(qRoute.VonCity, qRoute.NachCity);
-        if (distance > qRef.ptReichweite * 1000) {
+        if (Cities.CalcDistance(qRoute.VonCity, qRoute.NachCity) > qRef.ptReichweite * 1000) {
             continue;
         }
 
-        int cost = 0;
-        int duration = 0;
-        int dist = 0;
-        calcCostAndDuration(Cities.find(qRoute.VonCity), Cities.find(qRoute.NachCity), qRef, false, cost, duration, dist);
-        if (duration > 24) {
-            continue;
-        }
-
-        const SLONG base = routePriceBase(qRoute.VonCity, qRoute.NachCity);
-
-        /* Passengers per flight: our seats, but never more than the route wants. Half the
-         * demand is a deliberately pessimistic share estimate for a route we do not fly
-         * yet (image 0) and may have to share with a competitor. */
-        SLONG seats = std::min<SLONG>(qRef.MaxPassagiere, qRoute.Bedarf / 2);
-        SLONG seatsFC = std::min<SLONG>(qRef.MaxPassagiereFC, qRoute.Bedarf / 2);
-        /* Deliberately at the tolerance thresholds rather than at the prices we actually
-         * charge. Substituting the real prices measured 15,339,552 against 18,383,803: it
-         * scales economy revenue up by nearly two, which lifts marginal routes over the
-         * bar, and every extra pair splits the same demand while its rent is scored. */
-        SLONG revenue = seats * base * 3 + seatsFC * base * 9;
-
-        /* Rent is charged per day whether we fly or not, and it is part of the score.
-         *
-         * `Miete` is a *monthly* figure: PLAYER::NewDay charges `Miete / 30` a day
-         * (Player.cpp:912), once per direction, so a pair costs `Miete / 15` a day - and
-         * that is a cost of the route, to be spread over the plane hours we put on it,
-         * not a cost of one hour. Charging the whole monthly rent against every single
-         * hour overstated it thirtyfold, and it fell hardest on the dense long haul pairs,
-         * which carry the highest rent. */
-        const SLONG rentPerHour = qRoute.Miete / 15 / (kPlanesPerRoute * 24);
-        SLONG value = (revenue - cost) / (duration + 1) - rentPerHour;
+        SLONG value = routeValuePerHour(qRef, qRoute);
         if (value <= bestValue) {
             continue;
         }
@@ -1208,6 +1234,7 @@ void ClaudeBot::executeRouteBox() {
      * most demand, and a default of 0 makes a new route invisible to it. */
     state.bedarf = Routen[bestRoute].Bedarf;
     state.anzPax = Routen[bestRoute].AnzPassagiere();
+    state.valuePerHour = routeValuePerHour(qRef, Routen[bestRoute]);
     state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
     state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
     mRoutes.push_back(state);
@@ -1331,8 +1358,8 @@ void ClaudeBot::executeBuyPlane() {
             }
         }
         if (cheapest >= 0) {
-            AT_Log("ClaudeBot::executeBuyPlane(): Budget %s, cheapest plane %s costs %s.", Insert1000erDots64(budget).c_str(), PlaneTypes[cheapest].Name.c_str(),
-                   Insert1000erDots64(PlaneTypes[cheapest].Preis).c_str());
+            AT_Log("ClaudeBot::executeBuyPlane(): Budget %s, cheapest plane %s costs %s.", Insert1000erDots64(budget).c_str(),
+                   PlaneTypes[cheapest].Name.c_str(), Insert1000erDots64(PlaneTypes[cheapest].Preis).c_str());
         }
         return;
     }
@@ -1574,8 +1601,8 @@ void ClaudeBot::executeBank() {
         return;
     }
     if (GameMechanic::takeOutCredit(qPlayer, limit)) {
-        AT_Log("ClaudeBot::executeBank(): Borrowed %s, now at %s cash / %s debt.", Insert1000erDots64(limit).c_str(),
-               Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(qPlayer.Credit).c_str());
+        AT_Log("ClaudeBot::executeBank(): Borrowed %s, now at %s cash / %s debt.", Insert1000erDots64(limit).c_str(), Insert1000erDots64(qPlayer.Money).c_str(),
+               Insert1000erDots64(qPlayer.Credit).c_str());
     }
 }
 
@@ -1842,8 +1869,8 @@ void ClaudeBot::executeKerosinTanks() {
             continue;
         }
         if (GameMechanic::buyKerosinTank(qPlayer, type, 1)) {
-            AT_Log("ClaudeBot::executeKerosinTanks(): Bought a %ld unit tank for %s, capacity now %ld.", capacity,
-                   Insert1000erDots64(TankPrice[type]).c_str(), static_cast<SLONG>(qPlayer.Tank));
+            AT_Log("ClaudeBot::executeKerosinTanks(): Bought a %ld unit tank for %s, capacity now %ld.", capacity, Insert1000erDots64(TankPrice[type]).c_str(),
+                   static_cast<SLONG>(qPlayer.Tank));
         }
         return;
     }
@@ -2051,6 +2078,28 @@ SLONG ClaudeBot::scheduleRouteFlights() {
         PlaneTime time = avail.first;
         SLONG city = avail.second;
 
+        /* The best any pair we hold is worth to *this* aeroplane, per hour it flies.
+         *
+         * The spreading rule below hands legs out by demand share, which says nothing about
+         * what an hour on a pair is worth. That is fine while every pair we hold cleared
+         * kMinRouteValuePerHour, and stops being fine the moment one does not - a pair
+         * rented for a castaway, or one the fleet has outgrown. Renting Berlin-Lanzarote
+         * for the starting 737-400 and leaving the spreading alone pulled Boeing 777-300s
+         * onto a 3,504 km pair worth a quarter of Rio an hour: 440,211,765 against
+         * 532,263,251.
+         *
+         * Measured against the best pair *this* plane can reach rather than against a fixed
+         * floor. An absolute gate leaks: Berlin-Delhi is worth 45,644/h to the starting
+         * 757-300 against a floor of 45,000, so on any day the route's Bedarf dipped the
+         * 757 counted as having nothing worthwhile either and joined the 737 on Lanzarote -
+         * twice the legs for a fifth of the saldo by day 60, and 473,873,231 overall. */
+        SLONG bestReachableValue = 0;
+        for (const auto &qRoute : mRoutes) {
+            if (qRoute.distance <= qPlane.ptReichweite * 1000) {
+                bestReachableValue = std::max(bestReachableValue, qRoute.valuePerHour);
+            }
+        }
+
         while (time < horizon) {
             /* Pick the route leg that departs where the plane already stands; anything
              * else would need an empty flight to reposition. */
@@ -2062,11 +2111,14 @@ SLONG ClaudeBot::scheduleRouteFlights() {
                 if (qRoute.distance > qPlane.ptReichweite * 1000) {
                     continue;
                 }
+                if (qRoute.valuePerHour * 100 < bestReachableValue * kMinRouteValueShare) {
+                    continue;
+                }
                 /* Least-served route first, measured as legs per unit of daily demand so
                  * that a small route cannot soak up the fleet. Cross-multiplied to keep it
                  * in integers. */
-                if (routeIdx >= 0 && legsOnRoute[r] * std::max<SLONG>(1, mRoutes[routeIdx].anzPax) >=
-                                         legsOnRoute[routeIdx] * std::max<SLONG>(1, qRoute.anzPax)) {
+                if (routeIdx >= 0 &&
+                    legsOnRoute[r] * std::max<SLONG>(1, mRoutes[routeIdx].anzPax) >= legsOnRoute[routeIdx] * std::max<SLONG>(1, qRoute.anzPax)) {
                     continue;
                 }
                 if (static_cast<ULONG>(city) == qRoute.vonCity) {
@@ -2115,8 +2167,7 @@ SLONG ClaudeBot::scheduleRouteFlights() {
              * airline has. Giving up the last leg of the day once costs one leg and moves
              * the plane into the home phase for good. */
             const PlaneTime after = time + duration + 1;
-            const bool anotherLegFitsToday =
-                (after.getDate() == time.getDate() && after.getHour() >= 5 && after.getHour() + duration <= 22);
+            const bool anotherLegFitsToday = (after.getDate() == time.getDate() && after.getHour() >= 5 && after.getHour() + duration <= 22);
             /* ...but only where giving up the leg actually buys the night at home. On a pair
              * whose leg is long enough that two of them never fit between 05:00 and 22:00,
              * `anotherLegFitsToday` is false at every hour of every day, so the rule does not
@@ -2312,9 +2363,10 @@ SLONG ClaudeBot::schedulePendingFreight() {
         }
 
         if (qPlayer.Frachten[j].TonsOpen > 0) {
-            AT_Log("ClaudeBot::schedulePendingFreight(): %s -> %s still has %ld of %ld tons unplanned (due %ld).", Cities[qPlayer.Frachten[j].VonCity].Name.c_str(),
-                   Cities[qPlayer.Frachten[j].NachCity].Name.c_str(), static_cast<SLONG>(qPlayer.Frachten[j].TonsOpen),
-                   static_cast<SLONG>(qPlayer.Frachten[j].Tons), static_cast<SLONG>(qPlayer.Frachten[j].BisDate));
+            AT_Log("ClaudeBot::schedulePendingFreight(): %s -> %s still has %ld of %ld tons unplanned (due %ld).",
+                   Cities[qPlayer.Frachten[j].VonCity].Name.c_str(), Cities[qPlayer.Frachten[j].NachCity].Name.c_str(),
+                   static_cast<SLONG>(qPlayer.Frachten[j].TonsOpen), static_cast<SLONG>(qPlayer.Frachten[j].Tons),
+                   static_cast<SLONG>(qPlayer.Frachten[j].BisDate));
         }
     }
 
