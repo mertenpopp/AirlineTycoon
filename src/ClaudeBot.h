@@ -77,6 +77,10 @@ class ClaudeBot {
         SLONG ticketPrice{0};
         SLONG ticketPriceFC{0};
         SLONG bedarf{0}; /* passengers still waiting in the route's pool */
+        /* What the pair is worth per plane hour to the best aeroplane we own. Below
+         * kMinRouteValuePerHour the pair is a castaway route: rented only because some
+         * plane can reach nothing else, and reserved for exactly those planes. */
+        SLONG valuePerHour{0};
         SLONG anzPax{0};  /* passengers the route wants per day, CRoute::AnzPassagiere() */
         bool pricesSet{false};
     };
