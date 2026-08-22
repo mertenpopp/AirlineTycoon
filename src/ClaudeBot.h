@@ -8,6 +8,7 @@
 #include <vector>
 
 class PLAYER;
+class CFracht;
 
 extern const SLONG kRouteAvgDays;
 
@@ -47,6 +48,15 @@ class ClaudeBot {
         SLONG city{-1};  /* where the plane waits, i.e. where a job must depart */
     };
 
+    /* One leg of a freight job placed into an idle window. `slot` indexes the parallel
+     * arrays the placement was computed on, not qPlayer.Planes. */
+    struct FreightLeg {
+        SLONG slot{-1};
+        SLONG gap{-1};
+        PlaneTime start{};
+        PlaneTime back{};
+    };
+
     /* Cached view of one plane. Only the fields derived from the flight plan need
      * caching; everything copied from CPlaneType may be read in any room. */
     struct PlaneState {
@@ -79,7 +89,9 @@ class ClaudeBot {
 
     /* --- action implementations --- */
     void executePersonal();
+    void hireAdvisors();
     void executeCheckAgent2();
+    void executeCheckAgent3();
     void executeOffice();
     void executeMech();
     void executeBank();
@@ -95,6 +107,7 @@ class ClaudeBot {
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
     SLONG schedulePendingJobs();
+    SLONG schedulePendingFreight();
     void refreshPlaneState();
     bool planeCanFly(const CPlane &qPlane, const CAuftrag &qJob) const;
     /* Finds the idle window that can serve the job most profitably, working on the cached
@@ -104,6 +117,16 @@ class ClaudeBot {
     std::vector<PlaneGap> collectGaps(const CPlane &qPlane) const;
     /* Fits a job into one idle window, return leg included. False if it does not fit. */
     static bool fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain);
+    /* One out-and-back into one idle window, for any city pair and date range. The kerosene
+     * of the empty return the game inserts itself is part of outCost. */
+    static bool fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
+                              PlaneTime &outBack, SLONG &outCost);
+    /* Spreads a freight job over the idle windows of the given planes, earliest window
+     * first. Returns the tons that can be delivered before the deadline; outCost is the
+     * kerosene of every leg plus one refit charge per window used. The windows passed in
+     * are consumed, so the caller may keep planning against them. */
+    SLONG fitFreightIntoGaps(const std::vector<SLONG> &planeIds, std::vector<std::vector<PlaneGap>> &gaps, const CFracht &qFreight, SLONG tons, SLONG &outCost,
+                             std::vector<FreightLeg> &outLegs) const;
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
@@ -141,8 +164,13 @@ class ClaudeBot {
     bool mWantUsedPlane{false};
     bool mUpgradedToday{false};
     bool mAgencyEmptyToday{false};
+    SLONG mAgencyVisitsToday{0};
+    SLONG mFreightVisitsToday{0};
     bool mVisitedTanksToday{false};
     bool mVisitedKerosinToday{false};
+    bool mVisitedFreightToday{false};
+    bool mFreightEmptyToday{false};
+    SLONG mFreightTakenToday{0};
 
     /* mPlanes is stale and has to be rebuilt in the office before it may be used */
     bool mPlaneStateStale{true};
