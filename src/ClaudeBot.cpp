@@ -122,7 +122,15 @@ static const SLONG kMinAdvisorTalent = 30;
 static const SLONG kKerosinGrade = 1;
 
 /* Whether to run the tank at all. */
-static const bool kUseKerosinTank = true;
+/* Off. Buying kerosene ahead of burning it turns unscored capital into a scored cost early,
+ * and both halves of that trade have moved against it. The stock is scored the day it is
+ * bought (`KerosinVorrat`), the fleet it is meant to feed now burns 2,983 litres an hour
+ * instead of 11,000, and the cash it ties up is the very thing the aeroplane budget is
+ * short of - executeBuyPlane() spends whole days logging "saving for A 300". The tank was
+ * costing 78.1M of scored kerosene stock against 25.5M actually burnt in flight.
+ * Measured over two runs each: on -> 253.8M, capped at 5,000 units -> 277.8M,
+ * off -> 287.0M. */
+static const bool kUseKerosinTank = false;
 
 /* The bounds SIM::NewDay() clamps the price walk to. The stock we hold is scaled by where
  * the spot price sits between them. */
@@ -182,11 +190,16 @@ static const SLONG kPlanesPerRoute = 2;
  *
  * The bar used to be zero, which let in pairs like Berlin-Warsaw at 18 an hour, and the
  * flight log shows what those are worth: -7,123 dollars on a 343 mile leg, because the
- * ticket price scales with distance while the minimum kerosene charge does not. They are
- * worse than they look, too - scheduleRouteFlights() deliberately spreads legs over the
- * least-used pair first, so a cheap pair does not merely sit there, it takes plane hours
- * away from Berlin-Delhi. */
-static const SLONG kMinRouteValuePerHour = 18000;
+ * ticket price scales with distance while the minimum kerosene charge does not.
+ *
+ * Raised from 18,000 once the rent term stopped being overstated thirtyfold. That fix
+ * lifted every route's value, so the old bar admitted Berlin-Brussels at 18,541 and
+ * Berlin-Paris at 18,185 - short pairs whose tickets are cheap because the price scales
+ * with distance. Measured across the range: 10,000 -> 45.5M, 18,000 -> 55.4M,
+ * 25,000 -> 57.8M, 35,000 -> 59.3M, 45,000 -> 62.2M, 50,000 -> 62.7M, 55,000 -> 59.6M
+ * (45,000 and 18,000 averaged over two runs; the rest single, and the run-to-run spread
+ * is about 2M). */
+static const SLONG kMinRouteValuePerHour = 45000;
 
 /* Fleet cap. wantRoutes derives the number of route pairs from the fleet size, so this
  * caps scored fixed cost (route rent, wages, maintenance) as well.
@@ -196,12 +209,26 @@ static const SLONG kMinRouteValuePerHour = 18000;
  * but share emission now raises 573 million a game and the measurement ended with 753
  * million sitting in the bank behind a two-plane fleet that never bought a single new
  * aircraft. A route leg grosses about 176,000 against 50,000 of kerosene, so idle capital
- * is the most expensive thing on the balance sheet. */
-static const SLONG kMaxPlanes = 20;
+ * is the most expensive thing on the balance sheet.
+ *
+ * Raised from 20 once the fleet became A 300s: 20 -> 222.1M, 30 -> 255.9M, 36 -> 254.5M,
+ * 45 -> 257.8M, 70 -> 262.9M. The cap stopped binding somewhere around 30 - at 70 the
+ * airline still finished with 29 aeroplanes, because cash runs out first - so anything on
+ * the plateau is the same setting. 45 keeps a rail without being the constraint. */
+static const SLONG kMaxPlanes = 45;
+
+/* Planes we want in the air before we start holding cash back for a better type. Below this
+ * the airline has nothing earning, so anything that flies beats waiting. */
+static const SLONG kMinFleetBeforeSaving = 2;
+
+/* Hours of the day scheduleRouteFlights() can place a leg in. It keeps every departure and
+ * every landing inside 05:00-22:00 to dodge the night penalty, so the flying day is
+ * seventeen hours long and a leg either fits twice into it or does not. */
+static const SLONG kUsableHoursPerDay = 17;
 
 /* Economy passengers the plane valuation credits a route flight with.
  *
- * This is a deliberate under-estimate, not a measured ceiling. Per-leg instrumentation of
+ * Historically a deliberate under-estimate rather than a measured ceiling. Per-leg instrumentation of
  * the flight plans gave, over a full game:
  *
  *     737-400   126 seats   mean 89.0   35.5% of legs at the seat cap
@@ -214,11 +241,21 @@ static const SLONG kMaxPlanes = 20;
  *
  * Feeding that measured relationship (load ~= 56 + 0.263 * seats) into the valuation was
  * tried and scored -112,389 against +948,402 for the flat 90, because it buys large planes
- * again: load rises ~16% from the 126-seat cabin to the 180-seat one while Verbrauch rises
- * far more, and the kerosene term in the value function does not price that gap correctly.
- * Until that term is fixed, a flat figure near the small plane's mean is the better
- * heuristic precisely because it under-values capacity. */
-static const SLONG kExpectedPaxPerFlight = 90;
+ * again. That was measured on a two-plane airline handing legs out evenly across pairs,
+ * which starved the big cabins of the demand that justifies them. Legs now go where the
+ * demand is and fly around the clock, so the cabins fill, and holding the credit at 90
+ * simply made every aircraft over 120 seats look identical - which is how the fleet came to
+ * be Boeing 720s at 11,000 litres an hour.
+ *
+ * Measured: 90 -> 62.2M, 150 -> 65.2M, 250 -> 67.2M, 600 -> 64.6M.
+ *
+ * Raised again to 400 once the first class cabin was sold off for economy seats. That
+ * roughly doubles MaxPassagiere - an A 300 goes from 375 economy plus 46 first to 467
+ * economy - so a credit of 250 had quietly become a cap again, and the same flattening
+ * came back at the top of the catalogue. Measured after that change: 250 -> 307.8M,
+ * 400 -> 540.2M, 550 -> 535.8M, 700 -> 532.0M. Anywhere on that plateau the aeroplane's
+ * own cabin is the binding term and this constant is not. */
+static const SLONG kExpectedPaxPerFlight = 400;
 
 /* Ticket price as a percentage of the threshold the game considers extortionate. Prices in
  * this game are absolute money; this constant only says where we sit relative to that
@@ -1060,6 +1097,7 @@ void ClaudeBot::executeRouteBox() {
         state.nachCity = Routen[r].NachCity;
         state.distance = Cities.CalcDistance(state.vonCity, state.nachCity);
         state.bedarf = Routen[state.id].Bedarf;
+        state.anzPax = Routen[state.id].AnzPassagiere();
         state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
         state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
         mRoutes.push_back(state);
@@ -1131,8 +1169,16 @@ void ClaudeBot::executeRouteBox() {
          * bar, and every extra pair splits the same demand while its rent is scored. */
         SLONG revenue = seats * base * 3 + seatsFC * base * 9;
 
-        /* Rent is charged per day whether we fly or not, and it is part of the score. */
-        SLONG value = (revenue - cost) / (duration + 1) - qRoute.Miete / 24;
+        /* Rent is charged per day whether we fly or not, and it is part of the score.
+         *
+         * `Miete` is a *monthly* figure: PLAYER::NewDay charges `Miete / 30` a day
+         * (Player.cpp:912), once per direction, so a pair costs `Miete / 15` a day - and
+         * that is a cost of the route, to be spread over the plane hours we put on it,
+         * not a cost of one hour. Charging the whole monthly rent against every single
+         * hour overstated it thirtyfold, and it fell hardest on the dense long haul pairs,
+         * which carry the highest rent. */
+        const SLONG rentPerHour = qRoute.Miete / 15 / (kPlanesPerRoute * 24);
+        SLONG value = (revenue - cost) / (duration + 1) - rentPerHour;
         if (value <= bestValue) {
             continue;
         }
@@ -1161,6 +1207,7 @@ void ClaudeBot::executeRouteBox() {
      * visit. Bedarf has to be carried over too: executeBuyPlane() picks the route with the
      * most demand, and a default of 0 makes a new route invisible to it. */
     state.bedarf = Routen[bestRoute].Bedarf;
+    state.anzPax = Routen[bestRoute].AnzPassagiere();
     state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
     state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
     mRoutes.push_back(state);
@@ -1217,13 +1264,19 @@ void ClaudeBot::executeBuyPlane() {
         return;
     }
 
+    /* Ranked without reference to what we can afford today, then bought only when we can
+     * afford it. The fleet is capped at kMaxPlanes, so the scarce thing is a slot in it,
+     * not the cash - and buying the best plane on the lot the moment the money clears the
+     * cheapest one fills those slots with the cheapest one. On Delhi an Airbus A 300 is
+     * worth about 80,000 a plane hour and an Ilyushin Il 62 about 26,000: the A 300 carries
+     * twice the cabin on a quarter of the fuel, for 28.1 million against 9.9. Waiting a few
+     * days for it beats flying the Ilyushin for the rest of the game. */
     SLONG bestType = -1;
     SLONG bestValue = 0;
+    SLONG bestAffordableType = -1;
+    SLONG bestAffordableValue = 0;
     for (SLONG type : GameMechanic::getAvailablePlaneTypes()) {
         const auto &qType = PlaneTypes[type];
-        if (qType.Preis > budget) {
-            continue;
-        }
         if (target->distance > qType.Reichweite * 1000) {
             continue;
         }
@@ -1247,11 +1300,26 @@ void ClaudeBot::executeBuyPlane() {
         SLONG revenue = seats * target->ticketPrice + seatsFC * target->ticketPriceFC;
 
         SLONG value = (revenue - cost) / (duration + 1);
+        if (qType.Preis <= budget && value > bestAffordableValue) {
+            bestAffordableValue = value;
+            bestAffordableType = type;
+        }
         if (value <= bestValue) {
             continue;
         }
         bestValue = value;
         bestType = type;
+    }
+
+    /* An airline with nothing in the air earns nothing, so the first planes are bought from
+     * whatever is affordable; after that the slot is worth more than the wait. */
+    if (bestType >= 0 && PlaneTypes[bestType].Preis > budget) {
+        if (havePlanes >= kMinFleetBeforeSaving) {
+            AT_Log("ClaudeBot::executeBuyPlane(): Saving for %s (%s), budget %s.", PlaneTypes[bestType].Name.c_str(),
+                   Insert1000erDots64(PlaneTypes[bestType].Preis).c_str(), Insert1000erDots64(budget).c_str());
+            return;
+        }
+        bestType = bestAffordableType;
     }
 
     if (bestType < 0) {
@@ -1483,7 +1551,14 @@ void ClaudeBot::executeUpgrades() {
         /* Measured, not assumed: raising the first class share from its default 25% of the
          * cabin to 50% cost 559,000 a week (657,245 -> 98,360). First class demand is
          * drawn against the competitors with a weight of 10000/price and needs 72 hours
-         * of lead time rather than 48, so the converted seats do not fill. */
+         * of lead time rather than 48, so the converted seats do not fill.
+         *
+         * Which is an argument for going the other way as well. A first class seat costs two
+         * economy seats (GameMechanic::decreaseFirstClassRatio: total = MaxPassagiere +
+         * 2 * MaxPassagiereFC) and the instrumented load shows first class filling to about
+         * a fifth while economy is the cabin the demand is actually queueing for. */
+        while (qPlane.MaxPassagiereFC > 0 && GameMechanic::decreaseFirstClassRatio(qPlayer, c)) {
+        }
     }
 }
 
@@ -1951,7 +2026,15 @@ SLONG ClaudeBot::scheduleRouteFlights() {
 
     /* Legs already laid on each route in this pass. A route's demand regenerates by a
      * seventh a day (CRouten::NewDay) while every flight consumes it, so piling all our
-     * flights onto one route empties it - spread them evenly instead. */
+     * flights onto one route empties it - spread them out instead.
+     *
+     * Spread them in proportion to what each route wants per day, not evenly. Evenly is
+     * what the game punishes: a route is confiscated after twenty days below 10% of its
+     * weekly demand (PLAYER::NewDay, Player.cpp:1511), and that share is measured against
+     * the route's own size. An equal split gave Lanzarote (299 passengers a day) 41 legs a
+     * week and pinned it at 100%, while New York (4,362 a day) got 6 and sat at 1-4% - one
+     * route saturated and drained, the other a fortnight from being taken away. Weighting
+     * by demand parks every pair we hold at roughly the same utilisation instead. */
     std::vector<SLONG> legsOnRoute(mRoutes.size(), 0);
 
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
@@ -1979,8 +2062,11 @@ SLONG ClaudeBot::scheduleRouteFlights() {
                 if (qRoute.distance > qPlane.ptReichweite * 1000) {
                     continue;
                 }
-                /* Least-used route first, so the flights spread over the demand pools. */
-                if (routeIdx >= 0 && legsOnRoute[r] >= legsOnRoute[routeIdx]) {
+                /* Least-served route first, measured as legs per unit of daily demand so
+                 * that a small route cannot soak up the fleet. Cross-multiplied to keep it
+                 * in integers. */
+                if (routeIdx >= 0 && legsOnRoute[r] * std::max<SLONG>(1, mRoutes[routeIdx].anzPax) >=
+                                         legsOnRoute[routeIdx] * std::max<SLONG>(1, qRoute.anzPax)) {
                     continue;
                 }
                 if (static_cast<ULONG>(city) == qRoute.vonCity) {
@@ -2005,13 +2091,13 @@ SLONG ClaudeBot::scheduleRouteFlights() {
                 break;
             }
 
-            /* Avoid the night penalty on departure and on landing. */
-            if (time.getHour() < 5) {
-                time = PlaneTime{time.getDate(), 5};
-            }
-            if (time.getHour() > 22 || time.getHour() + duration > 22) {
-                time = PlaneTime{time.getDate() + 1, 5};
-            }
+            /* Fly around the clock. CalcPassengers docks a night departure and a night
+             * landing a sixth each (Schedule.cpp:355-361), but it applies them to a figure
+             * that was capped at one and a half times the cabin first (line 321): while the
+             * pool holds more than 1.5x our seats, the two penalties together come to 25/36
+             * of 1.5, which is still a full aeroplane. Daylight, by contrast, costs whole
+             * legs - a nine hour leg to Delhi fits the 05:00-22:00 window once a day and
+             * leaves the plane parked for the other fifteen hours. */
             if (time > horizon) {
                 break;
             }
@@ -2031,7 +2117,15 @@ SLONG ClaudeBot::scheduleRouteFlights() {
             const PlaneTime after = time + duration + 1;
             const bool anotherLegFitsToday =
                 (after.getDate() == time.getDate() && after.getHour() >= 5 && after.getHour() + duration <= 22);
-            if (!anotherLegFitsToday && city == Sim.HomeAirportId && static_cast<SLONG>(destCity) != Sim.HomeAirportId) {
+            /* ...but only where giving up the leg actually buys the night at home. On a pair
+             * whose leg is long enough that two of them never fit between 05:00 and 22:00,
+             * `anotherLegFitsToday` is false at every hour of every day, so the rule does not
+             * postpone the leg - it cancels it, and the loop offers the same pair again
+             * tomorrow and cancels it again. Any plane whose turn came up on Delhi or New
+             * York was parked for the entire planning horizon, which is why 41 legs a week
+             * went to Lanzarote (short enough to fly twice a day) against 6 to New York. */
+            const bool pairFitsTwiceADay = (2 * (duration + 1) <= kUsableHoursPerDay);
+            if (pairFitsTwiceADay && !anotherLegFitsToday && city == Sim.HomeAirportId && static_cast<SLONG>(destCity) != Sim.HomeAirportId) {
                 time = PlaneTime{time.getDate() + 1, 5};
                 continue;
             }

@@ -76,7 +76,8 @@ class ClaudeBot {
         SLONG distance{0};
         SLONG ticketPrice{0};
         SLONG ticketPriceFC{0};
-        SLONG bedarf{0}; /* passengers the route wants per day */
+        SLONG bedarf{0}; /* passengers still waiting in the route's pool */
+        SLONG anzPax{0};  /* passengers the route wants per day, CRoute::AnzPassagiere() */
         bool pricesSet{false};
     };
 
