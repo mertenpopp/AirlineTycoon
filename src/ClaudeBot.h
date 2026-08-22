@@ -86,7 +86,7 @@ class ClaudeBot {
     };
 
     /* --- planning --- */
-    SLONG pickNextAction();
+    void collectActions(std::vector<SLONG> &out) const;
     SLONG pickFillerAction();
     bool canUseAction(SLONG actionId) const;
     bool haveOffice() const;
@@ -108,6 +108,10 @@ class ClaudeBot {
     void executeMuseum();
     void executeKerosinTanks();
     void executeBuyKerosin();
+    /* The end-game fuel manoeuvre: how many units the tank should hold today, and whether
+     * we are still inside the window in which buying them is free of the score. */
+    bool inFuelPrepayWindow() const;
+    SLONG fuelPrepayTarget() const;
 
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
@@ -184,6 +188,13 @@ class ClaudeBot {
 
     /* alternates the filler action so we do not stand in the same room twice */
     SLONG mFillerIdx{0};
+
+    /* measured erosion of the airline image between two advertising visits, and the reading
+     * the last visit left behind to measure the next one against */
+    SLONG mImageDecayPerDay{0};
+    SLONG mImageAfterAds{0};
+    SLONG mImageAdsDay{-1};
+
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
