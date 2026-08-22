@@ -804,6 +804,7 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 - `Kilometer`: Total number of kilometers flown. Only access while in personal office or while you have a access to a laptop.
 - `SummePassagiere`: Total number of passengers transported. Only access while in personal office or while you have a access to a laptop.
 - `MaxPassagiere` and `MaxPassagiereFC`: Denotes the current split of seats between regular and first-class passengers (affects utilization and income for route flights).
+- `MaxPassagiereTarget` and `MaxPassagiereTargetFC`: Denotes the target split of seats between regular and first-class passengers (will be applied the next day).
 - `Sponsored`: Denotes a starting plane. Can only be sold for 10% of the usual value.
 - `Problem`: If larger than zero, plane has technical problem and cannot be used. Only access while in personal office or while you have a access to a laptop.
 
