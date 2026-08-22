@@ -21,10 +21,21 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("ClaudeBot", arg
 
 /* used to calculate a sliding average in CRentRoute exclusively for ClaudeBot.
  * Value may be changed. */
+const SLONG kRouteAvgDays = 3;
 
 /* Upper bound on jobs accepted per day. Acceptance is really limited by the simulated
  * flight plan (we only take what we can fly); this is just a safety net. */
 static const SLONG kMaxJobsPerDay = 20;
+
+/* How often we go back to the travel agency and the freight depot in one day.
+ *
+ * The boards hold six contracts each and SIM::DoOneStep refills one empty slot every five
+ * in-game minutes (Sim.cpp:1341-1358, GameMechanic::flightJobsRefill), so over a working
+ * day the agency offers far more than six jobs - it just never shows more than six at a
+ * time. Visiting once and latching "nothing more fits" threw all of that away. The fleet
+ * now parks twenty planes at home overnight, which is about 140 idle windows a week
+ * against the eight jobs a single visit was finding. */
+static const SLONG kMaxAgencyVisitsPerDay = 10;
 
 /* Minimum profit (premium minus kerosene for the flight and for the empty leg needed to
  * reach its start) for a job to be worth accepting. */
@@ -37,6 +48,66 @@ static const SLONG kJobGapSlack = 1;
 
 /* Shortest idle window worth remembering: nothing can be flown and returned in less. */
 static const SLONG kMinGapHours = 5;
+
+/* Freight.
+ *
+ * A freight flight carries CPlane::ptPassagiere / 10 tons (BookFlight, Schedule.cpp:707)
+ * and the premium is paid *only* on the flight that brings TonsLeft to zero, so a job is
+ * worth nothing at all until the last ton is delivered. Every leg has to depart inside
+ * [Date, BisDate] as well (UpdateFrachtauftragsUsage, Player.cpp:2366-2371), and for the
+ * most common contract type those two are the same day. A job is therefore only accepted
+ * if the whole tonnage fits into the idle windows we already know about. */
+static const bool kUseFreight = true;
+
+/* Upper bound on freight contracts accepted per day; the tonnage limit binds first. */
+static const SLONG kMaxFreightPerDay = 4;
+
+/* Legs one contract may occupy. A 126 seat plane carries 12 tons, so a 100 ton contract
+ * would need nine of them - more idle windows than the whole fleet has in a week. */
+static const SLONG kMaxFreightLegs = 6;
+
+/* Refit charge for one idle window that hosts freight.
+ *
+ * BookFlight flips CPlane::OhneSitze whenever a plane flies a job of the other kind and
+ * charges 15,000 under FlugzeugUmbau, which *is* part of GetOpVerlust() (Schedule.cpp:
+ * 782-787). A window between two route legs pays it twice: once going into the freight
+ * configuration and once coming back out. Automatic flights (ObjectType 3) are exempt, so
+ * the empty return the game inserts costs nothing extra. */
+static const SLONG kFreightRefitCost = 2 * 15000;
+
+/* What one idle window is worth to the rest of the airline, charged per freight leg.
+ *
+ * The windows are not free capacity: the travel agency wants them too. Across three
+ * measurements the passenger job count fell in step with the freight taken - 128 jobs a
+ * game with no freight, then 123 / 118 / 116 as freight went to 3 / 5 / 11 contracts - so
+ * roughly one passenger job is given up per three freight legs. A job nets on the order of
+ * 50,000 after its kerosene, which puts the charge near 20,000 a leg.
+ *
+ * Route revenue also came out 1.4 to 3.2 million below the baseline in all three runs, but
+ * it did not scale with the freight taken (the run with the fewest contracts had the lowest
+ * route revenue of the three), so that part is noise and is deliberately not priced in. */
+static const SLONG kFreightLegOpportunityCost = 20000;
+
+/* Minimum profit (premium minus kerosene for every leg, minus the refit charge, minus the
+ * opportunity cost above) for a freight contract to be worth accepting. */
+static const SLONG kMinFreightGain = 20000;
+
+/* Advisors we employ.
+ *
+ * Only the highest Talent of a type counts (PLAYER::HasBerater, Player.cpp:2224), so one
+ * of each is enough and a second is only hired to replace a worse one.
+ *
+ * BERATERTYP_SICHERHEIT is the bodyguard: PLAYER::DoBodyguardRabatt() refunds
+ * Talent / 10 percent of every plane, tank and kerosene purchase, capped at 10% and
+ * inactive below Talent 21 (Player.cpp:6373-6390). Note what it does *not* do for the
+ * score: the purchase is booked at full price (KerosinVorrat, scored) and the refund lands
+ * under category 3130 / Bilanz.BodyguardRabatt, which GetOpVerlust() ignores. So the
+ * discount is cash, not score, while the salary is scored - see DECISIONS.md. */
+static const SLONG kAdvisors[] = {BERATERTYP_SICHERHEIT};
+
+/* Talent below this buys nothing: DoBodyguardRabatt() returns early at 20 or less and the
+ * discount is Talent / 10 percent, so 30 is the first talent worth a salary. */
+static const SLONG kMinAdvisorTalent = 30;
 
 /* Kerosene stock.
  *
@@ -107,9 +178,26 @@ static const SLONG kMechMode = 3;
  * near 84 of ~180 seats. The extra rent simply cancels the extra demand at this scale. */
 static const SLONG kPlanesPerRoute = 2;
 
+/* Lowest value per plane hour a route pair has to promise before we rent it.
+ *
+ * The bar used to be zero, which let in pairs like Berlin-Warsaw at 18 an hour, and the
+ * flight log shows what those are worth: -7,123 dollars on a 343 mile leg, because the
+ * ticket price scales with distance while the minimum kerosene charge does not. They are
+ * worse than they look, too - scheduleRouteFlights() deliberately spreads legs over the
+ * least-used pair first, so a cheap pair does not merely sit there, it takes plane hours
+ * away from Berlin-Delhi. */
+static const SLONG kMinRouteValuePerHour = 18000;
+
 /* Fleet cap. wantRoutes derives the number of route pairs from the fleet size, so this
- * caps scored fixed cost (route rent, wages, maintenance) as well. */
-static const SLONG kMaxPlanes = 2;
+ * caps scored fixed cost (route rent, wages, maintenance) as well.
+ *
+ * This was 2 for a long time and the reason has expired. It was set when a plane cost 9.9
+ * million against a cash peak of 2.5, so the cap was never the binding constraint anyway -
+ * but share emission now raises 573 million a game and the measurement ended with 753
+ * million sitting in the bank behind a two-plane fleet that never bought a single new
+ * aircraft. A route leg grosses about 176,000 against 50,000 of kerosene, so idle capital
+ * is the most expensive thing on the balance sheet. */
+static const SLONG kMaxPlanes = 20;
 
 /* Economy passengers the plane valuation credits a route flight with.
  *
@@ -142,12 +230,35 @@ static const SLONG kExpectedPaxPerFlight = 90;
  * on the demand weight at 3x/5x/6x cost. The threshold is recomputed from Sim.Kerosin at
  * flight time, and kerosene moves at every day boundary, so a price set today can be above
  * the threshold on the day the flight actually runs. */
-static const SLONG kTicketPriceThresholdPercent = 90;
+static const SLONG kTicketPriceThresholdPercent = 190;
+
+/* The same, for first class, whose threshold is 9 * routePriceBase() rather than 3
+ * (CalcPassengers, Schedule.cpp:509-514).
+ *
+ * Economy pays to sit above its threshold because every economy seat sells anyway. First
+ * class does not: the flight log books 5 of the ~21 first class seats a Boeing 720 has, so
+ * the cabin is demand-limited and overpricing it just empties it further. */
+static const SLONG kTicketPriceThresholdPercentFC = 60;
+
+/* Passenger food quality, 0 to 2. Costs FoodCosts[level] per passenger on every flight and
+ * that cost is scored - 2.3 million in the last week of the measurement - but cutting it
+ * is much more expensive than that. Level 0 measured 10,371,466 and level 1 10,813,119
+ * against 18,383,803 for level 2.
+ *
+ * The reasoning that said otherwise was wrong in an instructive way. Food is worth three
+ * points of the cabin score (Schedule.cpp:937-956), the cabin score reaches the airline
+ * only as `Image += Add / 10`, and ImageTotal is clamped at 1000 in CalcPassengers - so the
+ * points looked free. They are not: that clamp is on the *total*, and its dominant term is
+ * `4 * routeImage`, which the same Add erodes on every one of ~1200 flights a game. Nothing
+ * else refills route image except advertising, one campaign per route per day. */
+static const SLONG kEssenTarget = 2;
 
 /* Image is worth roughly a factor two in route passengers ((400 + ImageTotal) / 1100 with
  * ImageTotal = 4 * routeImage + airlineImage + 200, capped at 1000). Advertising is not
  * part of the operating result, so image is simply purchasable: 50,000 per airline image
  * point, 30,000 per route image point. */
+/* Raising this to 1000 measured 13,280,374 against 18,383,803: airline image is bought with
+ * the same cash that buys planes, and a plane is worth more. */
 static const SLONG kTargetImage = 700;
 static const __int64 kAdCashBuffer = 1500000;
 
@@ -249,8 +360,13 @@ void ClaudeBot::startNewDay() {
     mVisitedMuseumToday = false;
     mUpgradedToday = false;
     mAgencyEmptyToday = false;
+    mAgencyVisitsToday = 0;
+    mFreightVisitsToday = 0;
     mVisitedTanksToday = false;
     mVisitedKerosinToday = false;
+    mVisitedFreightToday = false;
+    mFreightEmptyToday = false;
+    mFreightTakenToday = 0;
     /* Flights were flown overnight, so every cached availability is out of date. */
     mPlaneStateStale = true;
     mNeedSchedule = true;
@@ -330,8 +446,16 @@ SLONG ClaudeBot::pickNextAction() {
     }
 
     /* 6) Pick up new work. Needs a fresh plane state to decide what we can fly. */
-    if (!mAgencyEmptyToday && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT2)) {
+    if (mAgencyVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT2)) {
         return ACTION_CHECKAGENT2;
+    }
+
+    /* 7) Freight is a second pool of work for the same idle windows, so it is checked after
+     *    the travel agency: a passenger job pays its whole premium on one flight, a freight
+     *    contract only on its last one. */
+    if (kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < kMaxFreightPerDay &&
+        canUseAction(ACTION_CHECKAGENT3)) {
+        return ACTION_CHECKAGENT3;
     }
 
     return ACTION_NONE;
@@ -460,6 +584,10 @@ void ClaudeBot::RobotExecuteAction() {
         executeCheckAgent2();
         break;
 
+    case ACTION_CHECKAGENT3:
+        executeCheckAgent3();
+        break;
+
     case ACTION_BUY_KEROSIN_TANKS:
         executeKerosinTanks();
         break;
@@ -580,6 +708,8 @@ void ClaudeBot::executePersonal() {
         }
     }
 
+    hireAdvisors();
+
     SLONG missingPilots = needPilots - havePilots;
     SLONG missingAttendants = needAttendants - haveAttendants;
     if (missingPilots <= 0 && missingAttendants <= 0) {
@@ -618,45 +748,190 @@ void ClaudeBot::executePersonal() {
     AT_Log("ClaudeBot::executePersonal(): Hired crew, still missing %ld pilots / %ld attendants.", missingPilots, missingAttendants);
 }
 
-/* Fits a job into one idle window. Returns false if it does not fit; otherwise sets the
- * departure time, the hour the plane is back where it started, and the profit.
+//--------------------------------------------------------------------------------------------
+// HR office: keep the best advisor of every type we want on the payroll.
+//
+// PLAYER::HasBerater() returns the highest Talent among the ones we employ, so a second
+// advisor of a type is dead salary unless it is better than the one we have - in which case
+// the old one goes. Only legal in the HR room, which is where the worker pool may be read.
+//--------------------------------------------------------------------------------------------
+void ClaudeBot::hireAdvisors() {
+    for (SLONG typ : kAdvisors) {
+        SLONG bestApplicant = -1;
+        SLONG bestApplicantTalent = -1;
+        SLONG worstOwn = -1;
+        SLONG worstOwnTalent = -1;
+        SLONG ownCount = 0;
+        SLONG ownBestTalent = 0;
+
+        for (SLONG i = 0; i < Workers.Workers.AnzEntries(); i++) {
+            const auto &qWorker = Workers.Workers[i];
+            if (qWorker.Typ != typ) {
+                continue;
+            }
+            if (qWorker.Employer == qPlayer.PlayerNum) {
+                ownCount++;
+                ownBestTalent = std::max<SLONG>(ownBestTalent, qWorker.Talent);
+                if (worstOwn < 0 || qWorker.Talent < worstOwnTalent) {
+                    worstOwn = i;
+                    worstOwnTalent = qWorker.Talent;
+                }
+            } else if (qWorker.Employer == WORKER_JOBLESS && qWorker.Talent > bestApplicantTalent) {
+                bestApplicant = i;
+                bestApplicantTalent = qWorker.Talent;
+            }
+        }
+
+        /* A second one of the same type only raises HasBerater() if it is better. */
+        if (bestApplicant >= 0 && bestApplicantTalent >= kMinAdvisorTalent && bestApplicantTalent > ownBestTalent) {
+            if (GameMechanic::hireWorker(qPlayer, bestApplicant)) {
+                AT_Log("ClaudeBot::hireAdvisors(): Hired advisor type %ld with talent %ld (had %ld).", typ, bestApplicantTalent, ownBestTalent);
+                ownCount++;
+            }
+        }
+
+        /* Never pay two salaries for one advice: the weaker one contributes nothing. */
+        while (ownCount > 1 && worstOwn >= 0) {
+            if (!GameMechanic::fireWorker(qPlayer, worstOwn)) {
+                break;
+            }
+            AT_Log("ClaudeBot::hireAdvisors(): Fired surplus advisor type %ld with talent %ld.", typ, worstOwnTalent);
+            ownCount--;
+
+            worstOwn = -1;
+            worstOwnTalent = -1;
+            for (SLONG i = 0; i < Workers.Workers.AnzEntries(); i++) {
+                const auto &qWorker = Workers.Workers[i];
+                if (qWorker.Typ != typ || qWorker.Employer != qPlayer.PlayerNum) {
+                    continue;
+                }
+                if (worstOwn < 0 || qWorker.Talent < worstOwnTalent) {
+                    worstOwn = i;
+                    worstOwnTalent = qWorker.Talent;
+                }
+            }
+        }
+    }
+}
+
+/* Fits one out-and-back into one idle window. Returns false if it does not fit; otherwise
+ * sets the departure time, the hour the plane is back where it started, and the kerosene
+ * both legs burn.
  *
- * The job has to be back in the window's city before the window closes: the plane's next
+ * The flight has to be back in the window's city before the window closes: the plane's next
  * route leg departs from there, and an entry that overruns pushes every following flight
  * later (Planetyp.cpp:753-780). The game flies the empty return itself, so its kerosene
- * is part of the job's cost even though we never plan it. */
-bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain) {
-    if (qGap.city < 0 || static_cast<ULONG>(qGap.city) != qJob.VonCity) {
+ * is part of the cost even though we never plan it.
+ *
+ * [fromDate, toDate] is the contract window the departure has to fall into. */
+bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
+                              PlaneTime &outBack, SLONG &outCost) {
+    if (qGap.city < 0 || static_cast<ULONG>(qGap.city) != vonCity) {
         return false; /* repositioning first would eat the premium and the window */
     }
 
     PlaneTime start = qGap.start;
-    if (start.getDate() < static_cast<int>(qJob.Date)) {
-        start = PlaneTime{static_cast<int>(qJob.Date), 0};
+    if (start.getDate() < fromDate) {
+        start = PlaneTime{fromDate, 0};
     }
-    if (start.getDate() > static_cast<int>(qJob.BisDate) || start.getDate() > Sim.Date + kMaxPlanDate) {
+    if (start.getDate() > toDate || start.getDate() > Sim.Date + kMaxPlanDate) {
         return false;
     }
 
-    int outCost = 0;
-    int outDuration = 0;
-    int backCost = 0;
-    int backDuration = 0;
+    int costOut = 0;
+    int durationOut = 0;
+    int costBack = 0;
+    int durationBack = 0;
     int dist = 0;
-    calcCostAndDuration(Cities.find(qJob.VonCity), Cities.find(qJob.NachCity), qPlane, false, outCost, outDuration, dist);
-    calcCostAndDuration(Cities.find(qJob.NachCity), Cities.find(qJob.VonCity), qPlane, true, backCost, backDuration, dist);
+    calcCostAndDuration(Cities.find(vonCity), Cities.find(nachCity), qPlane, false, costOut, durationOut, dist);
+    calcCostAndDuration(Cities.find(nachCity), Cities.find(vonCity), qPlane, true, costBack, durationBack, dist);
 
     /* One idle hour after each landing, plus one hour of slack so a rounding difference
      * against CalcFlugdauer() cannot turn into a shifted route leg. */
-    PlaneTime back = start + outDuration + 1 + backDuration + 1;
+    PlaneTime back = start + durationOut + 1 + durationBack + 1;
     if (back + kJobGapSlack > qGap.end) {
         return false;
     }
 
     outStart = start;
     outBack = back;
-    outGain = qJob.Praemie - outCost - backCost;
+    outCost = costOut + costBack;
     return true;
+}
+
+/* Fits a passenger job into one idle window, return leg included. */
+bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain) {
+    SLONG cost = 0;
+    if (!fitLegIntoGap(qGap, qPlane, qJob.VonCity, qJob.NachCity, static_cast<SLONG>(qJob.Date), static_cast<SLONG>(qJob.BisDate), outStart, outBack, cost)) {
+        return false;
+    }
+    outGain = qJob.Praemie - cost;
+    return true;
+}
+
+/* Spreads one freight contract over the idle windows of a fleet, earliest window first.
+ *
+ * Returns the tons that can be delivered before the deadline. The windows are consumed as
+ * they are used, so the caller may keep planning further contracts against the same
+ * vectors, and outLegs records where every leg went.
+ *
+ * Windows are taken in chronological order rather than cheapest-first: every leg of one
+ * contract flies the same city pair, so the kerosene per leg is fixed and the only thing
+ * that differs between windows is how soon the tonnage is done. */
+SLONG ClaudeBot::fitFreightIntoGaps(const std::vector<SLONG> &planeIds, std::vector<std::vector<PlaneGap>> &gaps, const CFracht &qFreight, SLONG tons,
+                                    SLONG &outCost, std::vector<FreightLeg> &outLegs) const {
+    outCost = 0;
+    outLegs.clear();
+    if (tons <= 0) {
+        return 0;
+    }
+
+    /* (start, slot, gap) of every window, oldest first. */
+    std::vector<std::pair<PlaneTime, std::pair<SLONG, SLONG>>> order;
+    for (SLONG p = 0; p < static_cast<SLONG>(planeIds.size()); p++) {
+        for (SLONG g = 0; g < static_cast<SLONG>(gaps[p].size()); g++) {
+            order.emplace_back(gaps[p][g].start, std::make_pair(p, g));
+        }
+    }
+    std::sort(order.begin(), order.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+    SLONG covered = 0;
+    for (const auto &entry : order) {
+        if (covered >= tons || static_cast<SLONG>(outLegs.size()) >= kMaxFreightLegs) {
+            break;
+        }
+        const SLONG p = entry.second.first;
+        const SLONG g = entry.second.second;
+        const auto &qPlane = qPlayer.Planes[planeIds[p]];
+        if (Cities.CalcDistance(qFreight.VonCity, qFreight.NachCity) > qPlane.ptReichweite * 1000) {
+            continue;
+        }
+        const SLONG tonsPerLeg = qPlane.ptPassagiere / 10;
+        if (tonsPerLeg <= 0) {
+            continue;
+        }
+
+        bool usedThisGap = false;
+        while (covered < tons && static_cast<SLONG>(outLegs.size()) < kMaxFreightLegs) {
+            PlaneTime start{};
+            PlaneTime back{};
+            SLONG cost = 0;
+            if (!fitLegIntoGap(gaps[p][g], qPlane, qFreight.VonCity, qFreight.NachCity, static_cast<SLONG>(qFreight.Date), static_cast<SLONG>(qFreight.BisDate),
+                               start, back, cost)) {
+                break;
+            }
+            if (!usedThisGap) {
+                outCost += kFreightRefitCost;
+                usedThisGap = true;
+            }
+            outCost += cost + kFreightLegOpportunityCost;
+            covered += tonsPerLeg;
+            outLegs.push_back(FreightLeg{p, g, start, back});
+            gaps[p][g].start = back;
+        }
+    }
+
+    return covered;
 }
 
 /* Finds the idle window that can serve a job most profitably. Works purely on the cached
@@ -786,7 +1061,7 @@ void ClaudeBot::executeRouteBox() {
         state.distance = Cities.CalcDistance(state.vonCity, state.nachCity);
         state.bedarf = Routen[state.id].Bedarf;
         state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
-        state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercent / 100;
+        state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
         mRoutes.push_back(state);
     }
 
@@ -806,26 +1081,22 @@ void ClaudeBot::executeRouteBox() {
      * scarce resource. */
     auto buyable = GameMechanic::getBuyableRoutes(qPlayer);
 
-    /* Cities our fleet can actually reach. scheduleRouteFlights() only ever lays a leg that
-     * departs from where the plane already stands and never plans a repositioning flight,
-     * so a route pair sharing no city with the ones we already hold can never be flown -
-     * it would earn nothing while its Routenmiete is charged daily and scored. Renting one
-     * is what made the second pair cost 371,000 of score. */
-    std::vector<ULONG> reachable;
-    for (const auto &qRoute : mRoutes) {
-        reachable.push_back(qRoute.vonCity);
-        reachable.push_back(qRoute.nachCity);
-    }
+    /* Every route has to touch the home airport.
+     *
+     * scheduleRouteFlights() only ever lays a leg that departs from where the plane already
+     * stands and never plans a repositioning flight, so a route pair the fleet cannot reach
+     * earns nothing while its Routenmiete is charged daily and scored - renting one is what
+     * made the second pair cost 371,000 of score in an earlier session. Merely sharing a
+     * city with an existing pair is not enough: the parking rule puts every plane at the
+     * home airport overnight, so a pair between two outstations would only ever be flown by
+     * accident. Anchoring every pair at home also means any plane can serve any route,
+     * which is what lets the fleet grow past one pair. */
     auto touchesNetwork = [&](ULONG vonCity, ULONG nachCity) {
-        if (reachable.empty()) {
-            return true; /* first route: the fleet is still at the home airport */
-        }
-        return std::find(reachable.begin(), reachable.end(), vonCity) != reachable.end() ||
-               std::find(reachable.begin(), reachable.end(), nachCity) != reachable.end();
+        return static_cast<SLONG>(vonCity) == Sim.HomeAirportId || static_cast<SLONG>(nachCity) == Sim.HomeAirportId;
     };
 
     SLONG bestRoute = -1;
-    SLONG bestValue = 0;
+    SLONG bestValue = kMinRouteValuePerHour;
     for (SLONG r = 0; r < Routen.AnzEntries(); r++) {
         if (Routen.IsInAlbum(r) == 0 || buyable[r] == 0) {
             continue;
@@ -854,6 +1125,10 @@ void ClaudeBot::executeRouteBox() {
          * yet (image 0) and may have to share with a competitor. */
         SLONG seats = std::min<SLONG>(qRef.MaxPassagiere, qRoute.Bedarf / 2);
         SLONG seatsFC = std::min<SLONG>(qRef.MaxPassagiereFC, qRoute.Bedarf / 2);
+        /* Deliberately at the tolerance thresholds rather than at the prices we actually
+         * charge. Substituting the real prices measured 15,339,552 against 18,383,803: it
+         * scales economy revenue up by nearly two, which lifts marginal routes over the
+         * bar, and every extra pair splits the same demand while its rent is scored. */
         SLONG revenue = seats * base * 3 + seatsFC * base * 9;
 
         /* Rent is charged per day whether we fly or not, and it is part of the score. */
@@ -887,7 +1162,7 @@ void ClaudeBot::executeRouteBox() {
      * most demand, and a default of 0 makes a new route invisible to it. */
     state.bedarf = Routen[bestRoute].Bedarf;
     state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
-    state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercent / 100;
+    state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
     mRoutes.push_back(state);
     mNeedSchedule = true;
 
@@ -988,8 +1263,8 @@ void ClaudeBot::executeBuyPlane() {
             }
         }
         if (cheapest >= 0) {
-            AT_Log("ClaudeBot::executeBuyPlane(): Budget %s, cheapest plane %s costs %s.", Insert1000erDots64(budget).c_str(),
-                   PlaneTypes[cheapest].Name.c_str(), Insert1000erDots64(PlaneTypes[cheapest].Preis).c_str());
+            AT_Log("ClaudeBot::executeBuyPlane(): Budget %s, cheapest plane %s costs %s.", Insert1000erDots64(budget).c_str(), PlaneTypes[cheapest].Name.c_str(),
+                   Insert1000erDots64(PlaneTypes[cheapest].Preis).c_str());
         }
         return;
     }
@@ -1192,10 +1467,14 @@ void ClaudeBot::executeUpgrades() {
                 qPlane.DecoTarget = qPlane.Deco;
             }
         }
-        /* Food is the one fitting with a recurring per-flight cost, which *is* scored -
-         * but it was only 23,000 a week against the image it buys. */
-        if (qPlane.EssenTarget != 2) {
-            qPlane.EssenTarget = 2;
+        /* Food is the one fitting with a recurring per-flight cost, which *is* scored:
+         * FoodCosts[2] is 50 a passenger, which was 2.3 million in the last week of the
+         * measurement. What it buys is three points of the cabin score, and the cabin score
+         * only reaches the airline through `Image += Add / 10`. Image is already saturated -
+         * CalcPassengers clamps 4 * routeImage + airlineImage + 200 at 1000 and we sit well
+         * over it - so those points buy nothing at the margin. */
+        if (qPlane.EssenTarget != kEssenTarget) {
+            qPlane.EssenTarget = kEssenTarget;
             if (!affordable()) {
                 qPlane.EssenTarget = qPlane.Essen;
             }
@@ -1220,8 +1499,8 @@ void ClaudeBot::executeBank() {
         return;
     }
     if (GameMechanic::takeOutCredit(qPlayer, limit)) {
-        AT_Log("ClaudeBot::executeBank(): Borrowed %s, now at %s cash / %s debt.", Insert1000erDots64(limit).c_str(), Insert1000erDots64(qPlayer.Money).c_str(),
-               Insert1000erDots64(qPlayer.Credit).c_str());
+        AT_Log("ClaudeBot::executeBank(): Borrowed %s, now at %s cash / %s debt.", Insert1000erDots64(limit).c_str(),
+               Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(qPlayer.Credit).c_str());
     }
 }
 
@@ -1267,6 +1546,8 @@ void ClaudeBot::executeStock() {
 // Travel agency: take the jobs we can actually fly, most profitable first.
 //--------------------------------------------------------------------------------------------
 void ClaudeBot::executeCheckAgent2() {
+    mAgencyVisitsToday++;
+
     if (mPlaneStateStale) {
         /* No trustworthy view of the flight plans: accepting now risks a fine. */
         AT_Log("ClaudeBot::executeCheckAgent2(): Plane state stale, taking nothing.");
@@ -1313,7 +1594,6 @@ void ClaudeBot::executeCheckAgent2() {
         }
 
         if (bestJob < 0) {
-            mAgencyEmptyToday = true;
             break;
         }
 
@@ -1342,6 +1622,118 @@ void ClaudeBot::executeCheckAgent2() {
     }
 
     AT_Log("ClaudeBot::executeCheckAgent2(): Took %ld job(s) worth %ld, %ld taken today.", taken, totalGain, mJobsTakenToday);
+}
+
+//--------------------------------------------------------------------------------------------
+// Freight depot: take the contracts we can deliver in full.
+//
+// gFrachten may only be read here and qPlayer.Frachten may not, so the decision runs
+// entirely on the cached idle windows - exactly like the travel agency. A contract is only
+// taken if every ton of it fits, because the premium is paid on the last flight and
+// nothing before it.
+//--------------------------------------------------------------------------------------------
+void ClaudeBot::executeCheckAgent3() {
+    mVisitedFreightToday = true;
+    mFreightVisitsToday++;
+
+    if (mPlaneStateStale) {
+        AT_Log("ClaudeBot::executeCheckAgent3(): Plane state stale, taking nothing.");
+        return;
+    }
+
+    /* The windows we are planning against, in the parallel form fitFreightIntoGaps() wants.
+     * Committed back into mPlanes for every contract we actually take. */
+    std::vector<SLONG> planeIds;
+    for (const auto &qState : mPlanes) {
+        if (qPlayer.Planes.IsInAlbum(qState.id) == 0) {
+            continue;
+        }
+        planeIds.push_back(qState.id);
+    }
+    if (planeIds.empty()) {
+        return;
+    }
+
+    std::vector<std::vector<PlaneGap>> gaps;
+    for (const auto &qState : mPlanes) {
+        if (qPlayer.Planes.IsInAlbum(qState.id) == 0) {
+            continue;
+        }
+        gaps.push_back(qState.gaps);
+    }
+
+    SLONG taken = 0;
+    SLONG totalGain = 0;
+
+    /* Greedy, most profitable contract first, re-evaluated after every acceptance because
+     * the windows the last one used are gone. */
+    while (mFreightTakenToday < kMaxFreightPerDay) {
+        SLONG bestJob = -1;
+        SLONG bestGain = kMinFreightGain;
+        std::vector<FreightLeg> bestLegs;
+
+        for (SLONG i = 0; i < gFrachten.AnzEntries(); i++) {
+            if (gFrachten.IsInAlbum(i) == 0) {
+                continue;
+            }
+            const auto &qFreight = gFrachten[i];
+            if (qFreight.VonCity == qFreight.NachCity || qFreight.Praemie <= 0) {
+                continue;
+            }
+            if (qFreight.BisDate < Sim.Date || qFreight.Date > Sim.Date + kMaxPlanDate) {
+                continue;
+            }
+
+            auto trial = gaps;
+            SLONG cost = 0;
+            std::vector<FreightLeg> legs;
+            SLONG covered = fitFreightIntoGaps(planeIds, trial, qFreight, qFreight.Tons, cost, legs);
+            if (covered < qFreight.Tons) {
+                continue; /* a part delivery earns nothing and still risks the fine */
+            }
+
+            const SLONG gain = qFreight.Praemie - cost;
+            if (gain <= bestGain) {
+                continue;
+            }
+            bestJob = i;
+            bestGain = gain;
+            bestLegs = legs;
+        }
+
+        if (bestJob < 0) {
+            break;
+        }
+
+        const SLONG tons = gFrachten[bestJob].Tons;
+        SLONG outObjectId = -1;
+        if (!GameMechanic::takeFreightJob(qPlayer, bestJob, outObjectId)) {
+            break;
+        }
+
+        /* Book the windows the contract will use, so the next contract sees them spent. */
+        for (const auto &qLeg : bestLegs) {
+            gaps[qLeg.slot][qLeg.gap].start = qLeg.back;
+        }
+
+        mFreightTakenToday++;
+        taken++;
+        totalGain += bestGain;
+        mNeedSchedule = true;
+
+        AT_Log("ClaudeBot::executeCheckAgent3(): Took %ld tons over %ld leg(s), gain %ld.", tons, static_cast<SLONG>(bestLegs.size()), bestGain);
+    }
+
+    /* Hand the consumed windows back so the travel agency does not sell them twice. */
+    SLONG slot = 0;
+    for (auto &qState : mPlanes) {
+        if (qPlayer.Planes.IsInAlbum(qState.id) == 0) {
+            continue;
+        }
+        qState.gaps = gaps[slot++];
+    }
+
+    AT_Log("ClaudeBot::executeCheckAgent3(): Took %ld contract(s) worth %ld, %ld taken today.", taken, totalGain, mFreightTakenToday);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1375,8 +1767,8 @@ void ClaudeBot::executeKerosinTanks() {
             continue;
         }
         if (GameMechanic::buyKerosinTank(qPlayer, type, 1)) {
-            AT_Log("ClaudeBot::executeKerosinTanks(): Bought a %ld unit tank for %s, capacity now %ld.", capacity, Insert1000erDots64(TankPrice[type]).c_str(),
-                   static_cast<SLONG>(qPlayer.Tank));
+            AT_Log("ClaudeBot::executeKerosinTanks(): Bought a %ld unit tank for %s, capacity now %ld.", capacity,
+                   Insert1000erDots64(TankPrice[type]).c_str(), static_cast<SLONG>(qPlayer.Tank));
         }
         return;
     }
@@ -1444,6 +1836,9 @@ void ClaudeBot::executeOffice() {
     }
 
     SLONG planned = schedulePendingJobs();
+    if (kUseFreight) {
+        planned += schedulePendingFreight();
+    }
     planned += scheduleRouteFlights();
     refreshPlaneState();
 
@@ -1634,7 +2029,8 @@ SLONG ClaudeBot::scheduleRouteFlights() {
              * airline has. Giving up the last leg of the day once costs one leg and moves
              * the plane into the home phase for good. */
             const PlaneTime after = time + duration + 1;
-            const bool anotherLegFitsToday = (after.getDate() == time.getDate() && after.getHour() >= 5 && after.getHour() + duration <= 22);
+            const bool anotherLegFitsToday =
+                (after.getDate() == time.getDate() && after.getHour() >= 5 && after.getHour() + duration <= 22);
             if (!anotherLegFitsToday && city == Sim.HomeAirportId && static_cast<SLONG>(destCity) != Sim.HomeAirportId) {
                 time = PlaneTime{time.getDate() + 1, 5};
                 continue;
@@ -1754,6 +2150,83 @@ SLONG ClaudeBot::schedulePendingJobs() {
     return planned;
 }
 
+/* Places every ton of every freight contract we own that is not in a flight plan yet.
+ *
+ * CFracht::TonsOpen is the tonnage neither flown nor planned; PLAYER::UpdateFrachtauftrags-
+ * Usage() recomputes it after every successful planFreightJob(), so the loop simply keeps
+ * planning until it reaches zero. Contracts are taken in deadline order: an incomplete
+ * delivery pays nothing at all, so the tightest one has first call on the windows.
+ *
+ * Reads qPlayer.Frachten and the flight plans, so office only. */
+SLONG ClaudeBot::schedulePendingFreight() {
+    /* (deadline, index) of every contract that still has unplanned tonnage */
+    std::vector<std::pair<SLONG, SLONG>> open;
+    for (SLONG j = 0; j < qPlayer.Frachten.AnzEntries(); j++) {
+        if (qPlayer.Frachten.IsInAlbum(j) == 0) {
+            continue;
+        }
+        const auto &qFreight = qPlayer.Frachten[j];
+        if (qFreight.InPlan == -1 || qFreight.TonsOpen <= 0) {
+            continue; /* delivered, or every ton is already in a plan */
+        }
+        if (qFreight.BisDate < Sim.Date) {
+            continue; /* expired: the fine is already sunk */
+        }
+        open.emplace_back(qFreight.BisDate, j);
+    }
+    if (open.empty()) {
+        return 0;
+    }
+    std::sort(open.begin(), open.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+    std::vector<SLONG> planeIds;
+    std::vector<std::vector<PlaneGap>> gaps;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        if (qPlayer.Planes[c].Problem != 0) {
+            continue;
+        }
+        planeIds.push_back(c);
+        gaps.push_back(collectGaps(qPlayer.Planes[c]));
+    }
+    if (planeIds.empty()) {
+        return 0;
+    }
+
+    SLONG planned = 0;
+    for (const auto &entry : open) {
+        const SLONG j = entry.second;
+
+        SLONG cost = 0;
+        std::vector<FreightLeg> legs;
+        fitFreightIntoGaps(planeIds, gaps, qPlayer.Frachten[j], qPlayer.Frachten[j].TonsOpen, cost, legs);
+
+        for (const auto &qLeg : legs) {
+            /* planFlightJob() refuses anything earlier than Sim.GetHour() + 2 today */
+            PlaneTime start = qLeg.start;
+            if (start.getDate() == Sim.Date && start.getHour() < Sim.GetHour() + 2) {
+                start = PlaneTime{Sim.Date, static_cast<int>(Sim.GetHour()) + 2};
+            }
+            if (qPlayer.Frachten[j].TonsOpen <= 0) {
+                break; /* the tonnage ran out before the legs did */
+            }
+            if (GameMechanic::planFreightJob(qPlayer, planeIds[qLeg.slot], j, start.getDate(), start.getHour())) {
+                planned++;
+            }
+        }
+
+        if (qPlayer.Frachten[j].TonsOpen > 0) {
+            AT_Log("ClaudeBot::schedulePendingFreight(): %s -> %s still has %ld of %ld tons unplanned (due %ld).", Cities[qPlayer.Frachten[j].VonCity].Name.c_str(),
+                   Cities[qPlayer.Frachten[j].NachCity].Name.c_str(), static_cast<SLONG>(qPlayer.Frachten[j].TonsOpen),
+                   static_cast<SLONG>(qPlayer.Frachten[j].Tons), static_cast<SLONG>(qPlayer.Frachten[j].BisDate));
+        }
+    }
+
+    return planned;
+}
+
 SLONG ClaudeBot::getNextMood() {
     SLONG mood = mMood;
     mMood = mMoodNext;
@@ -1762,7 +2235,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 103;
+    SLONG savegameVersion = 104;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -1772,8 +2245,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
 
     File << bot.mDay;
     File << bot.mJobsTakenToday;
+    File << bot.mFreightTakenToday;
     File << bot.mVisitedPersonalToday;
     File << bot.mAgencyEmptyToday;
+    File << bot.mFreightEmptyToday;
     File << bot.mNeedSchedule;
     File << bot.mFillerIdx;
     /* mPlanes is not serialised: it is rebuilt from the flight plans on the next office
@@ -1796,8 +2271,10 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
 
     File >> bot.mDay;
     File >> bot.mJobsTakenToday;
+    File >> bot.mFreightTakenToday;
     File >> bot.mVisitedPersonalToday;
     File >> bot.mAgencyEmptyToday;
+    File >> bot.mFreightEmptyToday;
     File >> bot.mNeedSchedule;
     File >> bot.mFillerIdx;
 
