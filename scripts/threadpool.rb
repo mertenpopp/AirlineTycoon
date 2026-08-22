@@ -1,6 +1,7 @@
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 require 'support.rb'
 
+require 'etc'
 require 'thread'
 require 'tsort'
 require 'yaml'
@@ -349,7 +350,7 @@ name = ""
 
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
-  (0...100).each do |j|
+  (0...300).each do |j|
     prefix = "dataMISS_#{i}#{name}_#{j}"
     prefix = "dataCLAUDE_freegame#{name}_#{j}" if i == -1
     file = "#{prefix}.csv"
@@ -374,5 +375,19 @@ miss.map{|i| i}.each do |i|
     #tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick -1 /testbot #{i} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
     end
 end
-tp.start(50, false, false, false)
-
+# Worker count must not exceed the number of cores.
+#
+# The game seeds its flight-job pool from the wall clock -
+# `qPlayer.Auftraege.Random.SRand(AtGetTime())` (Sim.cpp:809), and AtGetTime() is
+# steady_clock + SDL_GetTicks64() (Misc.cpp:2177) - so a run's seed is decided by
+# millisecond scheduling jitter. Oversubscribing the cores feeds that jitter a common
+# machine-load signal, which correlates every game in a measurement and puts a floor under
+# the noise that more games cannot lift.
+#
+# Measured on 24 cores, three 300-game measurements per pool size (sd of the reported score):
+#   pool 100 -> 36.4M   pool 50 -> 31.9M   pool 24 -> 7.6M   pool 12 -> 5.8M
+# and the runtime is identical from 24 upwards (~443s) because the work is CPU bound; pool 12
+# costs 50% more for nothing. At pool 24 the spread is already at the pure-sampling floor
+# (per-game sd 156M / sqrt(300) = 9.0M), i.e. the correlation is gone and the remaining noise
+# is honest sampling that shrinks with the game count again.
+tp.start([Etc.nprocessors, 24].min, false, false, false)
