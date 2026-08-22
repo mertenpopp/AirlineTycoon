@@ -894,11 +894,15 @@ void Bot::updateRouteInfoOffice() {
         for (auto i : route.planeIds) {
             const auto &qPlane = qPlayer.Planes[i];
 
-            SLONG luxusThisPlane = qPlane.Sitze + qPlane.Essen + qPlane.Tabletts + qPlane.Deco;
-            luxusThisPlane += qPlane.Triebwerk + qPlane.Reifen + qPlane.Elektronik + qPlane.Sicherheit;
+            SLONG luxusForImage = qPlane.Sitze + qPlane.Essen + qPlane.Tabletts + qPlane.Deco;
+            SLONG luxusForFirstClass = qPlane.Triebwerk + qPlane.Reifen + qPlane.Elektronik + qPlane.Sicherheit;
 
-            luxusSumme += luxusThisPlane;
-            route.canUpgrade = (luxusThisPlane < 7 * 2);
+            luxusSumme += (luxusForImage + luxusForFirstClass);
+
+            /* old target: upgrade everything except food */
+            // route.canUpgrade = (luxusThisPlane < 7 * 2);
+            /* target: upgrade image-relevant stuff except food */
+            route.canUpgrade = (qPlane.MaxPassagiereFC > 0) || (luxusForImage < 3);
         }
         luxusSumme /= route.planeIds.size();
 
