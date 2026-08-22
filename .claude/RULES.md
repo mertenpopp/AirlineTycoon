@@ -463,7 +463,7 @@ The action IDs ACTION_BUY_KEROSIN, ACTION_BUY_KEROSIN_TANKS and ACTION_VISITARAB
 
 `bool GameMechanic::buyKerosinTank(PLAYER &qPlayer, SLONG type, SLONG amount)`: Permanently increases the maximum tank capacity. Use `type` to select a tank size from global array `TankSize`. The price is found at the corresponding index in array `TankPrice`. Note that larger tanks are cheaper per volume unit. Multiple tanks can be bought at once using the parameter `amount`.
 
-`SLONG SIM::HoleKerosinPreis(SLONG typ)`: Checks current market price for the different qualities of kerosene. Price for normal quality (`typ == 1`) is stored in `Sim.Kerosin` and may also be accessed directly.
+`SLONG SIM::HoleKerosinPreis(SLONG typ)`: Checks current market price for the different qualities of kerosene. Price for normal quality (`typ == 1`) is stored in `Sim.Kerosin` and may also be accessed directly. Both may be accessed while visiting the Arab and while in the personal office. The price is fixed for the whole day, so ClaudeBot may cache it once at the start of each day and use the cached value anywhere.
 
 ### Kerosene quality
 
@@ -699,6 +699,18 @@ What the agent must never do:
 
 If a global variable or function is not listed here, assume it is forbidden. If you see a bot-side implementation reading or writing a forbidden global, stop and replace it with a legal interface call or a GameMechanic pattern. If you find yourself unable to do so or it comes with a massive cost, ask me if access rights might be granted.
 
+Logging exception
+-----------------
+
+For logging purposes, every read access is permitted. Any variable may be read in any room,
+regardless of the restrictions listed below, as long as the value read is only written to the
+log and nothing else.
+
+The value must not influence what ClaudeBot does: it may not be stored in a member variable,
+cached for later, or used in any condition, calculation or comparison that affects a decision.
+The moment a value is used for anything other than a log message, the normal access rules
+apply to it in full.
+
 Hint: It might be reasonable to cache certain global variables for later use and update the cached value whenever access is permitted.
 
 ### Global Sim instance
@@ -713,7 +725,7 @@ You have read access to:
 - `Sim.StartWeekday`: Get day of the week where game was started.
 - `Sim.Difficulty`: Denotes whether we are in a free game or a mission. Always assume free game `Sim.Difficulty == -1`.
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
-- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Only permitted while visiting the Arab. `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly while visiting the Arab.
+- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and while in the personal office. `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
 - `Sim.HomeAirportId`: City ID of the home airport.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
@@ -731,7 +743,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `AnzAktien`: Total number of shares.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. Only access while in personal office or while you have a access to a laptop.
-- `BilanzWoche`: Weekly balance.
+- `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read while in the personal office and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
@@ -740,11 +752,13 @@ All classifications are read-only except where explicitly shown as read/write.
 - `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
-- `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_GELD) >= 50`.
+- `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
 - `KerosinQuali`: Current kerosene quality level. Only read if `qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30`.
 - `Kooperation`: Cooperation flags with other players.
+- `Kurse`: The last ten share prices of your own airline. May always be read.
 - `LaptopVirus`: Laptop virus status.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted.
+- `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
 - `Money`: Current cash balance.
 - `OfficeState`: Office usability status.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID.
@@ -755,6 +769,8 @@ All classifications are read-only except where explicitly shown as read/write.
 - `RobotActions`: Read and write access permitted. Used to store the planned actions. 
 - `Tank`: Total volume of kerosene tank.
 - `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
+- `TankOpen`: Whether the tanks are released for use. Only read while in the personal office.
+- `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
 - `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
 - `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
@@ -846,7 +862,7 @@ The following may be accessed if the player object is ClaudeBot:
 - `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
 - `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
 - `RoutenAuslastung`: Gives how much the route is being utilized by your airline in percent of the weekly demand. You may only read this while in the personal office or at the route box. `RoutenAuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
-- `Image`: Image of this route. You may only read this while in the personal office or at the route box.
+- `Image`: Image of this route. You may only read this while in the personal office, at the route box or in the advertising room.
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 - `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
 - `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
@@ -974,3 +990,68 @@ Open questions / ambiguities
 ============================
 
 Use this section to list any open questions or ambiguities regarding rules that you need me to clarify.
+
+Raised 2026-08-16 (session 3). All five items from session 2 were answered by commit
+`c93480f` and have been removed; the resolutions are recorded in DECISIONS.md.
+Items marked **NEEDS DECISION** change what the bot may legally do; the rest are
+documentation fixes or traps recorded so they are not rediscovered.
+
+The new fine-grained *CPlane object* section resolved the plane-access problem. Two
+fields the bot needs are missing from it, both for decisions that show up directly in the
+scored operating saldo.
+
+Blocking / needs your decision
+------------------------------
+
+### 1. `CPlane::OhneSitze` is not listed, but refit cost is scored — **NEEDS DECISION**
+
+`Schedule.cpp:781-787`: whenever a plane flies a job whose type differs from its current
+seat configuration, the game flips `OhneSitze` and charges 15,000 under category 2111
+(`FlugzeugUmbau`) — which *is* part of `GetOpSaldo()`. Avoiding needless
+passenger↔freight switches is therefore worth real score, but `OhneSitze` is the only
+field that says which configuration a plane is currently in, and it is absent from the
+*CPlane object* list.
+
+Request: read access to `CPlane::OhneSitze`, gated like `Flugplan` (personal office or
+working laptop). Without it the only legal alternative is to guess the configuration from
+the job types the bot itself scheduled, which desynchronises as soon as a plan is changed.
+
+Merten: The human player also does not have access. This cost can be derived from analyzing the flight plan. This is part of the challenge when the scheduling flights to all planes:
+Not only are there constraints to meet but you also need to minimize automatic flights and this refitting cost.
+Hint: I believe that you worry a bit too much about refitting cost. Automatic flights usually add more cost. BUT: I do not want to prescribe a solution for you. I suggest you monitor the cost of refitting and collect some data and then you decide whether it is worth to try to minimize this cost.
+
+### 2. `CPlane::MaxPassagiere` / `MaxPassagiereFC` are not listed, but they cap route revenue — **NEEDS DECISION**
+
+The *Constraints* section is correct that passenger **jobs** are limited by `ptPassagiere`
+(verified at `Player.cpp:2314`). Route flights are different: `CFlugplanEintrag::CalcPassengers`
+caps the passenger count at `qPlane.MaxPassagiere + qPlane.MaxPassagiere / 2`
+(`Schedule.cpp:320`), i.e. the capacity of the *current seat configuration*, not the plane
+type's nominal capacity. `MaxPassagiereFC` plays the same role for first class.
+
+These are also the fields that make the `SitzeTarget` upgrade pay off, so without them the
+bot cannot evaluate either route profitability or seat upgrades.
+
+Request: read access to `MaxPassagiere`, `MaxPassagiereFC` and their
+`MaxPassagiereTarget` / `MaxPassagiereTargetFC` counterparts, gated like the other
+configuration fields (personal office, or office/laptop).
+
+Merten: Access granted to MaxPassagiere and MaxPassagiereFC. MaxPassagiereTarget and MaxPassagiereTargetFC appear to not be used by the game's code.
+
+Documentation fixes
+-------------------
+
+### 3. `ptAnzPiloten` is described as stewardesses
+
+In the new *CPlane object* section both `ptAnzPiloten` and `ptAnzBegleiter` read "Number
+of stewardesses required for normal operation". `class.h:884` says `ptAnzPiloten` is
+"Piloten und Co-Piloten" — the first one should say pilots (and co-pilots).
+
+Merten: Fixed
+
+### 4. Minor: plane type name fields for logging
+
+The always-readable pt* list omits `ptName`, `ptHersteller` and `ptErstbaujahr`. I would
+like to use `ptName` in log messages so schedules are readable in GameLog.txt. Fine to
+read them? They carry no information a human player could not see at the broker.
+
+Merten: Granted
