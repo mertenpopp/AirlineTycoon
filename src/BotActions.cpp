@@ -268,18 +268,23 @@ void Bot::actionUpgradePlanes() {
         return;
     }
 
-    SLONG upgradeForImage = 1;
+    SLONG upgradeSeats = 1;
+    SLONG upgradeTray = 1;
+    SLONG upgradeDeco = 1;
+    SLONG upgradeFood = 0;
     SLONG upgradeForFirstClass = 0;
     if ((Sim.Difficulty == DIFF_ATFS02) && (mRunToFinalObjective == FinalPhase::TargetRun)) {
         upgradeForFirstClass = 2;
     } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY)) {
-        upgradeForImage = 2;
+        upgradeSeats = 2;
+        upgradeTray = 2;
+        upgradeDeco = 2;
         upgradeForFirstClass = 2;
     }
 
     /* plan new plane ugprades until we run out of money */
     auto randOffset = LocalRandom.Rand(planes.size());
-    for (SLONG upgradeWhat = 0; upgradeWhat < 7; upgradeWhat++) {
+    for (SLONG upgradeWhat = 0; upgradeWhat < 8; upgradeWhat++) {
         auto moneyAvailable = getMoneyAvailable() - kMoneyReservePlaneUpgrades;
         if (moneyAvailable < 0) {
             break;
@@ -298,30 +303,36 @@ void Bot::actionUpgradePlanes() {
             SLONG cost = 0;
             switch (upgradeWhat) {
             case 0:
-                cost = ptPassagiere * (SeatCosts[upgradeForImage] - SeatCosts[qPlane.Sitze] / 2);
-                if (qPlane.SitzeTarget < upgradeForImage && cost <= moneyAvailable) {
-                    qPlane.SitzeTarget = upgradeForImage;
-                    mMoneyReservedForUpgrades += cost;
-                    AT_Log("Bot::actionUpgradePlanes(): Upgrading seats in %s.", Helper::getPlaneName(qPlane).c_str());
+                if (qPlane.EssenTarget < upgradeFood) {
+                    qPlane.EssenTarget = upgradeFood;
+                    AT_Log("Bot::actionUpgradePlanes(): Upgrading food in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
             case 1:
-                cost = ptPassagiere * (TrayCosts[upgradeForImage] - TrayCosts[qPlane.Tabletts] / 2);
-                if (qPlane.TablettsTarget < upgradeForImage && cost <= moneyAvailable) {
-                    qPlane.TablettsTarget = upgradeForImage;
+                cost = ptPassagiere * (TrayCosts[upgradeTray] - TrayCosts[qPlane.Tabletts] / 2);
+                if (qPlane.TablettsTarget < upgradeTray && cost <= moneyAvailable) {
+                    qPlane.TablettsTarget = upgradeTray;
                     mMoneyReservedForUpgrades += cost;
                     AT_Log("Bot::actionUpgradePlanes(): Upgrading tabletts in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
             case 2:
-                cost = ptPassagiere * (DecoCosts[upgradeForImage] - DecoCosts[qPlane.Deco] / 2);
-                if (qPlane.DecoTarget < upgradeForImage && cost <= moneyAvailable) {
-                    qPlane.DecoTarget = upgradeForImage;
+                cost = ptPassagiere * (DecoCosts[upgradeDeco] - DecoCosts[qPlane.Deco] / 2);
+                if (qPlane.DecoTarget < upgradeDeco && cost <= moneyAvailable) {
+                    qPlane.DecoTarget = upgradeDeco;
                     mMoneyReservedForUpgrades += cost;
                     AT_Log("Bot::actionUpgradePlanes(): Upgrading deco in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
             case 3:
+                cost = ptPassagiere * (SeatCosts[upgradeSeats] - SeatCosts[qPlane.Sitze] / 2);
+                if (qPlane.SitzeTarget < upgradeSeats && cost <= moneyAvailable) {
+                    qPlane.SitzeTarget = upgradeSeats;
+                    mMoneyReservedForUpgrades += cost;
+                    AT_Log("Bot::actionUpgradePlanes(): Upgrading seats in %s.", Helper::getPlaneName(qPlane).c_str());
+                }
+                break;
+            case 4:
                 cost = (ReifenCosts[upgradeForFirstClass] - ReifenCosts[qPlane.Reifen] / 2);
                 if (qPlane.ReifenTarget < upgradeForFirstClass && cost <= moneyAvailable) {
                     qPlane.ReifenTarget = upgradeForFirstClass;
@@ -329,7 +340,7 @@ void Bot::actionUpgradePlanes() {
                     AT_Log("Bot::actionUpgradePlanes(): Upgrading tires in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
-            case 4:
+            case 5:
                 cost = (TriebwerkCosts[upgradeForFirstClass] - TriebwerkCosts[qPlane.Triebwerk] / 2);
                 if (qPlane.TriebwerkTarget < upgradeForFirstClass && cost <= moneyAvailable) {
                     qPlane.TriebwerkTarget = upgradeForFirstClass;
@@ -337,7 +348,7 @@ void Bot::actionUpgradePlanes() {
                     AT_Log("Bot::actionUpgradePlanes(): Upgrading engines in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
-            case 5:
+            case 6:
                 cost = (SicherheitCosts[upgradeForFirstClass] - SicherheitCosts[qPlane.Sicherheit] / 2);
                 if (qPlane.SicherheitTarget < upgradeForFirstClass && cost <= moneyAvailable) {
                     qPlane.SicherheitTarget = upgradeForFirstClass;
@@ -345,7 +356,7 @@ void Bot::actionUpgradePlanes() {
                     AT_Log("Bot::actionUpgradePlanes(): Upgrading safety in %s.", Helper::getPlaneName(qPlane).c_str());
                 }
                 break;
-            case 6:
+            case 7:
                 cost = (ElektronikCosts[upgradeForFirstClass] - ElektronikCosts[qPlane.Elektronik] / 2);
                 if (qPlane.ElektronikTarget < upgradeForFirstClass && cost <= moneyAvailable) {
                     qPlane.ElektronikTarget = upgradeForFirstClass;
