@@ -1060,36 +1060,57 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         }
     }
 
+    /* find route with low image */
+    SLONG routeWithLowImage = -1;
+    SLONG lowestImage = kRouteMaxImage;
+    for (auto i : mRoutesSortedByOwnUtilization) {
+        if (mRoutes[i].image < lowestImage) {
+            routeWithLowImage = i;
+            lowestImage = mRoutes[i].image;
+        }
+    }
+
+    /* find route with pending plane upgrades */
+    SLONG routeWithPendingPlaneUpgrades = -1;
+    for (auto i : mRoutesSortedByOwnUtilization) {
+        if (mRoutes[i].canUpgrade) {
+            routeWithPendingPlaneUpgrades = i;
+            break;
+        }
+    }
+
     /* Step 1: Is the default, at the bottom */
 
+    /* Step 2: Buy first plane for underutilized route */
     if (routeToImprove != -1) {
         const auto &qRoute = mRoutes[routeToImprove];
-
-        /* Step 2: Buy first plane for underutilized route */
         if (qRoute.planeIds.empty()) {
             return {RoutesNextStep::BuyMorePlanes, routeToImprove};
         }
+    }
 
-        /* Step 3: Increase route image if planes underutilized */
-        if (calcRouteImageNeeded(qRoute) > 0 && qRoute.planeUtilization < kMaximumPlaneUtilization) {
-            return {RoutesNextStep::BuyAdsForRoute, routeToImprove};
-        }
+    /* Step 3: Increase route image if planes underutilized */
+    if (routeWithLowImage != -1) {
+        // const auto &qRoute = mRoutes[routeWithLowImage];
+        // if (calcRouteImageDeltaNeeded(qRoute) > 0) {
+        return {RoutesNextStep::BuyAdsForRoute, routeWithLowImage};
+        //}
+    }
 
-        /* Step 4: Buy enough planes to not loose route */
-        if (qRoute.routeOwnUtilization < kMinimumOwnRouteUtilization) {
-            return {RoutesNextStep::BuyMorePlanes, routeToImprove};
-        }
+    /* Step 4: Now we can upgrade the plane for first class passengers */
+    if (routeWithPendingPlaneUpgrades != -1) {
+        const auto &qRoute = mRoutes[routeWithPendingPlaneUpgrades];
+        (void)qRoute;
+        assert(qRoute.canUpgrade);
+        return {RoutesNextStep::UpgradePlanes, routeToImprove};
+    }
 
-        /* Step 5: Now we can upgrade the plane for first class passengers */
-        if (qRoute.canUpgrade) {
-            return {RoutesNextStep::UpgradePlanes, routeToImprove};
-        }
-
-        /* Step 6: Planes are all upgraded, buy next one */
+    /* Step 5: Planes are all upgraded, buy next one */
+    if (routeToImprove != -1) {
         return {RoutesNextStep::BuyMorePlanes, routeToImprove};
     }
 
-    /* Step 7: Improve airline image when we have one fully utilized route */
+    /* Step 6: Improve airline image when we have one fully utilized route */
     if (!mRoutes.empty() && getImage() < 800) {
         return {RoutesNextStep::ImproveAirlineImage, -1};
     }
@@ -1451,26 +1472,20 @@ void Bot::planRoutes() {
 
         SLONG priceOld = getRentRoute(qRoute).Ticketpreis;
         DOUBLE factorOld = qRoute.ticketCostFactor;
-        SLONG costs = CalculateFlightCost(getRoute(qRoute).VonCity, getRoute(qRoute).NachCity, 800, 800, -1) * 3 / 180 * 2;
-        if (qRoute.planeUtilization > kMaximumPlaneUtilization) {
-            qRoute.ticketCostFactor += 0.1;
-        } else {
-            /* planes are not fully utilized */
-            assert(qRoute.routeUtilization >= 0);
-            if (qRoute.routeUtilization < mOptions.kMaximumRouteUtilization) {
-                /* decrease one time per each 25% missing */
-                SLONG numDecreases = ceil_div(kMaximumPlaneUtilization - qRoute.planeUtilization, 25);
-                qRoute.ticketCostFactor -= (0.1 * numDecreases);
-            }
-        }
+        SLONG cost = CalculateFlightCost(getRoute(qRoute).VonCity, getRoute(qRoute).NachCity, 800, 800, -1) * 3 / 180 * 2;
+        SLONG highCost = 3 * cost;
+        SLONG maxCostImage = (highCost + highCost / 2); /* allow only the first tier of image reduction */
+
+        qRoute.ticketCostFactor = std::round(1.0 * maxCostImage / cost);
+        double fff = qRoute.ticketCostFactor;
         Limit(0.5, qRoute.ticketCostFactor, mOptions.kMaxTicketPriceFactor);
 
-        SLONG priceNew = costs * qRoute.ticketCostFactor;
+        SLONG priceNew = static_cast<SLONG>(std::ceil(cost * qRoute.ticketCostFactor));
         priceNew = priceNew / 10 * 10;
         if (std::abs(factorOld - qRoute.ticketCostFactor) > 0.05) {
             GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.routeId, priceNew, priceNew * 2);
-            AT_Log("Bot::planRoutes(): Changing ticket price factor for route %s: %.2f => %.2f (%d => %d)", Helper::getRouteName(getRoute(qRoute)).c_str(),
-                   factorOld, qRoute.ticketCostFactor, priceOld, priceNew);
+            AT_Log("Bot::planRoutes(): Changing ticket price factor for route %s: %.2f => %.2f (%d => %d) %d %.2f",
+                   Helper::getRouteName(getRoute(qRoute)).c_str(), factorOld, qRoute.ticketCostFactor, priceOld, priceNew, maxCostImage, fff);
         }
     }
 }

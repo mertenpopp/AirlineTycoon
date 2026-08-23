@@ -268,10 +268,10 @@ void Bot::actionUpgradePlanes() {
         return;
     }
 
-    SLONG upgradeSeats = 1;
-    SLONG upgradeTray = 1;
-    SLONG upgradeDeco = 1;
-    SLONG upgradeFood = 0;
+    SLONG upgradeSeats = 2;
+    SLONG upgradeTray = 2;
+    SLONG upgradeDeco = 2;
+    SLONG upgradeFood = 2;
     SLONG upgradeForFirstClass = 0;
     if ((Sim.Difficulty == DIFF_ATFS02) && (mRunToFinalObjective == FinalPhase::TargetRun)) {
         upgradeForFirstClass = 2;
@@ -1290,32 +1290,32 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
         return;
     }
 
+    SLONG adCampaignSize = 4;
+    SLONG cost = gWerbePrice[1 * 6 + adCampaignSize];
+    if (cost > moneyAvailable) {
+        AT_Error("Bot::actionBuyAdsForRoutes(): Not enough money.");
+        return;
+    }
+
     assert(mImproveRouteId != -1);
     auto &qRoute = mRoutes[mImproveRouteId];
+    auto &qRentedRoute = getRentRoute(qRoute);
+    if (qRentedRoute.Image >= kRouteMaxImage) {
+        AT_Error("Bot::actionBuyAdsForRoutes(): Image already maximum.");
+        return;
+    }
 
-    const SLONG largestAdCampaign = 5;
-
-    SLONG cost = 0;
-    SLONG adCampaignSize = kSmallestAdCampaign;
-    for (; adCampaignSize <= largestAdCampaign; adCampaignSize++) {
-        cost = gWerbePrice[1 * 6 + adCampaignSize];
-        SLONG imageDelta = (cost / 30000);
+    SLONG oldImage = qRentedRoute.Image;
+    while (qRentedRoute.Image < kRouteMaxImage) {
         if (cost > moneyAvailable) {
-            adCampaignSize -= 1;
             break;
         }
-        if (getRentRoute(qRoute).Image + imageDelta > 100) {
+        if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
             break;
         }
+        moneyAvailable = getMoneyAvailable();
     }
-    if (adCampaignSize < kSmallestAdCampaign) {
-        return; /* not enough money */
-    }
-    adCampaignSize = std::min(adCampaignSize, largestAdCampaign);
-
-    SLONG oldImage = getRentRoute(qRoute).Image;
-    GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId);
-    SLONG newImage = getRentRoute(qRoute).Image;
+    SLONG newImage = qRentedRoute.Image;
     AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)", Helper::getRouteName(getRoute(qRoute)).c_str(),
            cost, oldImage, newImage);
 

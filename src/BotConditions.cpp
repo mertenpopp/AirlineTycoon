@@ -1063,8 +1063,13 @@ Bot::Prio Bot::condBuyAdsForRoutes(__int64 &moneyAvailable) {
     if (!haveDiscount()) {
         return Prio::None;
     }
-
     if (mRunToFinalObjective > FinalPhase::No) {
+        return Prio::None;
+    }
+
+    SLONG adCampaignSize = 4;
+    SLONG cost = gWerbePrice[1 * 6 + adCampaignSize];
+    if (cost > moneyAvailable) {
         return Prio::None;
     }
 
