@@ -37,9 +37,10 @@ const SLONG kCheckFreightDepotEveryXMinutes = 60;
 
 const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -4;
+const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
 const SLONG kMaximumPlaneUtilization = 70;
-const DOUBLE kDefaultTicketPriceFactor = 3.5;
+const DOUBLE kDefaultTicketPriceFactor = 5.7;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 70;
 const SLONG kPlaneMinimumZustand = 90;

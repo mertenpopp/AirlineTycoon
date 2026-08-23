@@ -22,6 +22,7 @@ extern const SLONG kCheckFreightDepotEveryXMinutes;
 
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
+extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
 extern const SLONG kMaximumPlaneUtilization;
@@ -131,7 +132,7 @@ class Bot {
         SLONG kSwitchToRoutesNumPlanesMin{2};
         SLONG kSwitchToRoutesNumPlanesMax{4};
         SLONG kMaximumRouteUtilization{90};
-        DOUBLE kMaxTicketPriceFactor{3.0};
+        DOUBLE kMaxTicketPriceFactor{5.7};
         DOUBLE kMaxKerosinQualiZiel{1.2};
         SLONG kOwnStockPosessionRatio{51};
     };
@@ -267,7 +268,7 @@ class Bot {
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
-    SLONG calcRouteImageNeeded(const RouteInfo &routeInfo) const;
+    SLONG calcRouteImageDeltaNeeded(const RouteInfo &routeInfo) const;
     void removePlaneFromRoute(SLONG planeId);
     bool checkPlaneLists();
     void findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned);

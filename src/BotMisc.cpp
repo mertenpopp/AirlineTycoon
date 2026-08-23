@@ -335,7 +335,7 @@ SLONG Bot::calcCurrentGainFromJobs() const {
     return gain;
 }
 
-SLONG Bot::calcRouteImageNeeded(const Bot::RouteInfo &routeInfo) const {
+SLONG Bot::calcRouteImageDeltaNeeded(const Bot::RouteInfo &routeInfo) const {
     auto routeImageTarget = std::min(100, (800 - getImage()) / 4);
     return (routeImageTarget - routeInfo.image);
 }
