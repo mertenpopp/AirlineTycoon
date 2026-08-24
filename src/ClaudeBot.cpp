@@ -1876,15 +1876,22 @@ void ClaudeBot::executeAds() {
         if (qPlayer.RentRouten.RentRouten[qRoute.id].Image >= 90) {
             continue;
         }
-        /* Sizes below 3 buy less than a full point (cost / 30000 truncates to zero). */
-        SLONG size = affordableSize(1, 3);
-        if (size < 0) {
-            break;
+        /* Size 4 only, bought repeatedly until the route reaches the target.
+         *
+         * 120,000 buys exactly 4 points (cost / 30000), which is 30,000 a point. Size 3 pays
+         * 56,000 for one point because 56000/30000 truncates from 1.87 to 1 - 87% worse - and
+         * size 5 buys 46 points at a time for 1,400,000, the same 30,435 a point but in a
+         * granularity that overshoots a clamp at 100. Looping the small one costs the same per
+         * point and stops exactly on target. */
+        while (qPlayer.RentRouten.RentRouten[qRoute.id].Image < 90) {
+            if (qPlayer.Money - gWerbePrice[1 * 6 + 4] < kAdCashBuffer) {
+                break;
+            }
+            if (!GameMechanic::buyAdvertisement(qPlayer, 1, 4, qRoute.id)) {
+                break;
+            }
         }
-        if (GameMechanic::buyAdvertisement(qPlayer, 1, size, qRoute.id)) {
-            AT_Log("ClaudeBot::executeAds(): Route campaign size %ld for route %ld, image now %ld.", size, qRoute.id,
-                   static_cast<SLONG>(qPlayer.RentRouten.RentRouten[qRoute.id].Image));
-        }
+        AT_Log("ClaudeBot::executeAds(): Route %ld image now %ld.", qRoute.id, static_cast<SLONG>(qPlayer.RentRouten.RentRouten[qRoute.id].Image));
     }
 
     /* How much erosion the campaign we are about to buy has to survive. */
