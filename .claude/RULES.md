@@ -20,7 +20,7 @@ Technical details:
 Target
 ------
 
-The goal is to maximize the airline's weekly "operative saldo" which can be queried with `qPlayer.BilanzWoche.Hole().GetOpSaldo()`.
+The goal is to maximize the airline's cumulative "operative saldo" which can be queried with `qPlayer.BilanzGesamt.GetOpSaldo()`.
 
 "Operative" means that the saldo only includes money gained from airline operations (flight jobs and routes, both passenger and freight). From the gains, the money spent to facilitate these flights are deducted: 
 - Kerosene

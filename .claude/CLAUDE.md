@@ -8,7 +8,7 @@ The full source code is available in this repository. Source code builds only th
 Goal
 ----
 
-Build a new computer player called 'ClaudeBot' for this game that follows all the rules and can beat even experienced human players. We want to maximize one specific metric: Weekly averaged operative saldo after 100 days.
+Build a new computer player called 'ClaudeBot' for this game that follows all the rules and can beat even experienced human players. We want to maximize one specific metric: Cumulative operative saldo after 99 full days.
 
 Work independently. Only stop and ask me if you can't get a passing build after 2 attempts, found a rule that's genuinely ambiguous in code or performance regresses and you can't determine why after 2 tries.
 
@@ -66,9 +66,13 @@ How to measure performance of bot
 In top-level directory, run the command:
 - `./scripts/run_measurement.sh`
 
-This commands runs 50 game instances in parallel and waits until all have terminated. The CSV data from the runs is then combined and a performance score is computed: Weekly averaged operative saldo after 100 days.
+This commands runs 300 game instances in parallel and waits until all have terminated. The CSV data from the runs is then combined and a performance score is computed: Cumulative operative saldo after 99 full days.
 
-Last line of output shall look like this: `Day 99 / Airline HA:  -49091.0`
+Last line of output shall look like this:
+```
+Day 99 / SaldoGesamt / Airline HA:  7228674337.883333
+Day 99 / Firmenwert / Airline HA:  6512003341.083333
+```
 
 Persistent progress log
 -----------------------
