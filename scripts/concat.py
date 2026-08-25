@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     filepattern = 'data_*.csv'
     airlines = ['HA']
-    columns = ['Saldo']
+    columns = ['SaldoGesamt', 'Firmenwert']
     if len(sys.argv) > 1:
         filepattern = sys.argv[1]
     if len(sys.argv) > 2:
@@ -99,7 +99,8 @@ if __name__ == '__main__':
     data = (overall.groupby(['Tag', 'Airline', 'Param']).agg(agg))
     data.reset_index(inplace=True)
     data.set_index('Tag', inplace=True)
-    print("Day 99 / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['Saldo'].to_list()[0])
+    print("Day 99 / SaldoGesamt / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
+    print("Day 99 / Firmenwert / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
 
 #    for c in columns:
 #        ax = None
