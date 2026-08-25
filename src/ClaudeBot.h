@@ -109,10 +109,9 @@ class ClaudeBot {
     void executeMuseum();
     void executeKerosinTanks();
     void executeBuyKerosin();
-    /* The end-game fuel manoeuvre: how many units the tank should hold today, and whether
-     * we are still inside the window in which buying them is free of the score. */
-    bool inFuelPrepayWindow() const;
-    SLONG fuelPrepayTarget() const;
+    /* Fuel arbitrage: how much capacity to hold, and whether today is cheap enough to fill it. */
+    SLONG fuelTankTarget() const;
+    bool fuelIsCheap() const;
     /* Forms the burn estimate the Arab and the broker work from. Office only: it reads
      * qPlayer.BilanzGestern, which RULES.md gates on the office and a financial advisor. */
     void cacheFuelBurn();

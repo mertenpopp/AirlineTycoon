@@ -135,57 +135,49 @@ static const AdvisorWanted kAdvisors[] = {
  * wear elevenfold (faktorKerosin = 1 + 10 * (quali - 1)^2, Schedule.cpp:1017). */
 static const SLONG kKerosinGrade = 1;
 
-/* Whether to run the tank at all. */
-/* Off. Buying kerosene ahead of burning it turns unscored capital into a scored cost early,
- * and both halves of that trade have moved against it. The stock is scored the day it is
- * bought (`KerosinVorrat`), the fleet it is meant to feed now burns 2,983 litres an hour
- * instead of 11,000, and the cash it ties up is the very thing the aeroplane budget is
- * short of - executeBuyPlane() spends whole days logging "saving for A 300". The tank was
- * costing 78.1M of scored kerosene stock against 25.5M actually burnt in flight.
- * Measured over two runs each: on -> 253.8M, capped at 5,000 units -> 277.8M,
- * off -> 287.0M. */
-static const bool kUseKerosinTank = false;
 
-/* The horizon the airline is scored over.
+/* Kerosene is now bought when it is cheap, not when the calendar says so.
  *
- * `printStatisticsLine` reports `BilanzWoche.Hole()`, the sum of the last seven daily
- * balances, and the measurement reads the row printed at the top of day 99 - which holds
- * the balances of days 92 to 98. Everything the game charges outside those seven days is
- * invisible to the score, and one cost line can be moved across that boundary at will:
- * kerosene taken from our own tank is charged to `CPlane::Salden` only, while `Bilanz
- * ::KerosinFlug` gets what was bought at the gate (`CFlugplanEintrag::BookFlight`,
- * Schedule.cpp:729-751). Fuel bought on day 91 and burnt on day 95 therefore costs the
- * score nothing at all, and the last week burns 165 million of it. */
-static const SLONG kGameLengthDays = 100;
-/* First balance day inside the scored week. */
-static const SLONG kScoredWeekFirstDay = kGameLengthDays - 8;
-/* Last day on which a purchase still lands outside it. */
-static const SLONG kLastUnscoredDay = kScoredWeekFirstDay - 1;
-/* When to start turning cash into fuel. Seven days of buying, so that a shut agency or a
- * thin day of cash cannot cost the whole manoeuvre - and no more, because the fleet stops
- * growing while the tank is being filled: a ten day window measured 1,566.0M and a five day
- * one 1,604.9M against 1,620.7M for seven. */
-static const SLONG kFuelPrepayStartDay = kLastUnscoredDay - 6;
-/* Margin on the estimated burn, which is measured off yesterday and has to cover a fleet
- * that grows by a tenth a day through the scored week. Too little and the tank runs dry
- * inside the scored week at full gate prices; too much and executeBuyPlane() stands down for
- * days it could have been growing the fleet.
+ * Under the seven-day objective the whole point of the tank was that `KerosinVorrat` landed
+ * on a day the score never read, so fuel burnt in the scored week was free. That trick is
+ * gone: the objective cumulates every day, so stock is charged wherever it is bought.
  *
- * The old sweep (fleet cap 170, and the noisy harness) read 125 -> 1,578.1M, 145 -> 1,604.5M,
- * 175 -> 1,620.7M, 220 -> 1,592.8M and settled on 175. Re-measured once the gates were bought
- * and the harness cleaned up: 140 is worth 59M over 175. The fleet is bigger and hungrier for
- * cash than it was, so an over-provisioned tank costs more than a dry one. */
-static const SLONG kFuelPrepayMarginPercent = 140;
-
-/* The bounds SIM::NewDay() clamps the price walk to. The stock we hold is scaled by where
- * the spot price sits between them. */
+ * What is left is genuine arbitrage, and it is bigger than the trick was. `Sim.Kerosin` is a
+ * random walk clamped to [300, 700] (SIM::NewDay, Sim.cpp:2330-2344), the airline burns 671
+ * million of fuel over a game, and the tank itself is *not* scored - `ExpansionTanks` is
+ * capital, outside GetOpVerlust(). So every unit bought below the price it would otherwise
+ * have been burnt at is score, and the container is free.
+ *
+ * The rule is therefore: hold capacity for a few days of flying, fill it whenever the spot
+ * price is in the lower part of the band, and burn out of it when the price is high. */
 static const SLONG kKerosinPriceMin = 300;
 static const SLONG kKerosinPriceMax = 700;
 
-/* Tank capacity to aim for, in the units CalculateFlightKerosin() returns. A two-plane
- * fleet burns roughly 700 a day, so this is about two weeks of flying - long enough to sit
- * out a high phase of the walk. */
-static const SLONG kTankTargetUnits = 20000;
+/* Stock up when the spot price is at or below this percentage of its running mean.
+ *
+ * Measured rather than assumed, and the assumption was wrong: `Sim.Kerosin` is clamped to
+ * [300, 700] but a game never visits the lower half of that. It opens at 500 (Sim.cpp:590)
+ * and drifts up - over 99 days, min 500, max 700, mean 603, with only 2% of days at or below
+ * 500 and 16% at or below 550. A fixed threshold picked from the clamp bounds never fires at
+ * all, which is exactly what the first version did.
+ *
+ * So the trigger is relative to what the price has actually been doing. */
+static const SLONG kKerosinBuyBelowPercent = 95;
+
+/* Whether to run the tank at all. Off - see the arithmetic in DECISIONS.md session 18.
+ *
+ * TankPrice/TankSize make capacity cost 600 a unit at the cheapest tank, which is about what
+ * one unit of kerosene costs: **the container costs a full fill of itself**. The trigger above
+ * captures roughly 5% of the price, so breaking even needs about twenty cycles of the tank,
+ * and seven days of capacity over a hundred days gives at most fourteen - before counting that
+ * the cash would otherwise have bought aeroplanes, which is what the objective actually pays
+ * for. Measured: a 270.6M tank that then sat 99.7% empty, and fifteen fewer aeroplanes. */
+static const bool kUseFuelArbitrage = false;
+
+/* Tank capacity to hold, in days of yesterday's burn. Capacity is free of the score but not
+ * of cash, and cash is what buys aeroplanes - so this is deliberately a few days of cover,
+ * not a strategic reserve. */
+static const SLONG kTankDaysOfBurn = 7;
 
 /* Smallest top-up worth a trip to the Arab.
  *
@@ -283,7 +275,7 @@ static const SLONG kMaxRoutes = 200;
  * airline was buying aeroplanes nobody could fly. Once executePersonal() started hiring
  * every applicant it moved out to 170: 110 -> 1,488M, 170 -> 1,578.1M, 260 -> 1,575.9M.
  * The plateau past 170 is cash: the airline finishes with 145 aeroplanes either way. */
-static const SLONG kMaxPlanes = 260;
+static const SLONG kMaxPlanes = 200;
 
 /* Days of flying the aeroplane ranking charges an aircraft's fuel over, alongside its
  * price. */
@@ -307,8 +299,15 @@ static const SLONG kPoolCaptureSharePercent = 67;
 /* How close to the best pair an aeroplane can reach another pair has to be, in percent,
  * before that plane is allowed to fly it - see scheduleRouteFlights(). Guards the
  * demand-weighted spreading against a pair that is only in the network for a plane that
- * cannot reach anything better. */
-static const SLONG kMinRouteValueShare = 80;
+ * cannot reach anything better.
+ *
+ * Swept again on the cumulative objective: 60 -> -114.9M, 80 was the old setting, 90 ->
+ * +165.9M (and Firmenwert +333M). Tightening keeps paying, which is the same story the route
+ * network tells - concentration beats spread now that the fleet is large. The two are a pair:
+ * `kRoutePairsPerHundredPlanes` at 38 only works because this gate is tight enough to stop an
+ * aeroplane wandering onto the weakest pair it can reach. Session 15 recorded a cliff at 95,
+ * measured on a much smaller airline under the seven-day objective - worth retesting. */
+static const SLONG kMinRouteValueShare = 90;
 
 /* Economy passengers the plane valuation credits a route flight with.
  *
@@ -470,11 +469,17 @@ static const SLONG kFillerActions[] = {ACTION_VISITKIOSK, ACTION_VISITRICK, ACTI
  * stands only until the first office or Arab visit of the game. */
 static SLONG gKerosinPrice = 500;
 static SLONG gKerosinPriceDay = -1;
+/* Running mean of the daily price, x100 to keep a fraction. Seeded at the opening price. */
+static SLONG gKerosinAvgX100 = 500 * 100;
 
 /* Only legal in the personal office or at the Arab. */
 static void cacheKerosinPrice() {
     const SLONG price = Sim.HoleKerosinPreis(1);
     if (price > 0) {
+        if (gKerosinPriceDay != Sim.Date) {
+            /* One sample a day, exponentially weighted over about a fortnight. */
+            gKerosinAvgX100 += (price * 100 - gKerosinAvgX100) / 14;
+        }
         gKerosinPrice = price;
         gKerosinPriceDay = Sim.Date;
     }
@@ -631,10 +636,12 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     /* 5) Turn spare cash into flying capacity and image. Neither plane purchases nor
      *    advertising are part of the operating result, so this is free score as long as
      *    the cash is not needed elsewhere. */
-    if (inFuelPrepayWindow() && !mVisitedTanksToday && canUseAction(ACTION_BUY_KEROSIN_TANKS)) {
+    /* The Arab is only worth a walk on a cheap day: capacity is useless without stock, and
+     * stock is only worth buying below kKerosinBuyBelow. */
+    if (kUseFuelArbitrage && fuelIsCheap() && qPlayer.Tank < fuelTankTarget() && !mVisitedTanksToday && canUseAction(ACTION_BUY_KEROSIN_TANKS)) {
         out.push_back(ACTION_BUY_KEROSIN_TANKS);
     }
-    if (inFuelPrepayWindow() && !mVisitedKerosinToday && qPlayer.Tank > 0 && canUseAction(ACTION_BUY_KEROSIN)) {
+    if (kUseFuelArbitrage && fuelIsCheap() && !mVisitedKerosinToday && qPlayer.Tank > 0 && canUseAction(ACTION_BUY_KEROSIN)) {
         out.push_back(ACTION_BUY_KEROSIN);
     }
 
@@ -1525,14 +1532,6 @@ void ClaudeBot::executeBuyPlane() {
         return; /* nothing to fly it on yet */
     }
 
-    /* The fuel comes first while the tank is being filled. Both are bought with cash the
-     * score never sees, but a dollar of prepaid kerosene takes a dollar straight off the
-     * scored week, and the aeroplane it would otherwise buy joins a fleet that already
-     * drains every passenger its routes have to offer. */
-    if (inFuelPrepayWindow() && canReadTankInhalt() && qPlayer.TankInhalt < fuelPrepayTarget()) {
-        return;
-    }
-
     /* Every plane drags scored cost behind it - kerosene, wages, maintenance, and via
      * wantRoutes another route pair's rent - while the cash that buys it is not scored.
      * Uncapped growth funded by share issues measured -914,252 against +1,472,113 for the
@@ -2270,31 +2269,13 @@ void ClaudeBot::executeCheckAgent3() {
 // The kerosene price may be read here and in the personal office (RULES.md), and holds for
 // the whole day - cacheKerosinPrice() seeds gKerosinPrice from whichever comes first.
 //--------------------------------------------------------------------------------------------
-/* Kerosene bought now is charged to a day the score never looks at, and burnt out of the
- * tank it costs the scored week nothing. So from kFuelPrepayStartDay the airline stops
- * buying aeroplanes and buys fuel instead - which is the better trade by a wide margin:
- * a dollar of prepaid fuel is a dollar of score, while the forty-fifth aeroplane flies
- * routes whose passenger pool the fleet already drains. */
-bool ClaudeBot::inFuelPrepayWindow() const { return Sim.Date >= kFuelPrepayStartDay && Sim.Date <= kLastUnscoredDay; }
-
-/* Units the tank has to hold to carry the fleet from today to the last scored day.
- *
- * Measured off yesterday rather than derived from the flight plans, which may only be read
- * in the office: `KerosinGespart` is the value of what came out of the tank and
- * `KerosinFlug` what was bought at the gate, so the two together are the day's burn
- * (BookFlight, Schedule.cpp:743-751). */
-SLONG ClaudeBot::fuelPrepayTarget() const {
-    const SLONG daysToCover = std::max<SLONG>(0, (kGameLengthDays - 2) - Sim.Date + 1);
-    return static_cast<SLONG>(static_cast<__int64>(mFuelUnitsPerDay) * daysToCover * kFuelPrepayMarginPercent / 100);
-}
-
 /* Measures the day's burn off yesterday's balance and caches it for the Arab and the broker,
  * neither of which may read it.
  *
- * `BilanzGestern` is legal in the personal office and only with a financial advisor
- * employed, and the kerosene price is legal here too - so this is the one room where the
- * estimate can be formed at all. `KerosinGespart` is the value of what came out of the tank
- * and `KerosinFlug` what was bought at the gate, so the two together are the day's burn
+ * `BilanzGestern` is legal in the personal office and only with a financial advisor employed,
+ * and the kerosene price is legal there too - so this is the one room where the estimate can
+ * be formed at all. `KerosinGespart` is the value of what came out of the tank and
+ * `KerosinFlug` what was bought at the gate, so the two together are the day's burn
  * (BookFlight, Schedule.cpp:743-751). */
 void ClaudeBot::cacheFuelBurn() {
     if (qPlayer.HasBerater(BERATERTYP_GELD) <= 0) {
@@ -2310,32 +2291,34 @@ void ClaudeBot::cacheFuelBurn() {
 /* RULES.md gates `qPlayer.TankInhalt` behind a kerosene advisor above talent 30. */
 bool ClaudeBot::canReadTankInhalt() const { return qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30; }
 
+/* Capacity we want: a few days of flying, so a cheap phase of the price walk can be stocked
+ * against and a dear one sat out. Zero until the office has measured a day's burn. */
+SLONG ClaudeBot::fuelTankTarget() const { return mFuelUnitsPerDay * kTankDaysOfBurn; }
+
+/* Whether today is a day to stock up. The price is cached once a day in the office or at the
+ * Arab (RULES.md permits it in both and fixes it for the day), so this may be asked anywhere
+ * - including from RobotPlan(), which decides whether the walk to the Arab is worth it. */
+bool ClaudeBot::fuelIsCheap() const { return gKerosinPrice > 0 && gKerosinPrice * 100 * 100 <= gKerosinAvgX100 * kKerosinBuyBelowPercent; }
+
 void ClaudeBot::executeKerosinTanks() {
     mVisitedTanksToday = true;
 
     cacheKerosinPrice();
 
-    if (!inFuelPrepayWindow()) {
-        return;
-    }
-
-    /* Planes only draw from the tank while it is open; a closed tank is dead capital, and
-     * a tank filled with the valve shut would make the airline pay for the same fuel twice
-     * over the days it is being filled. */
-    /* Set unconditionally rather than checked first: `TankOpen` may only be read in the
-     * personal office (RULES.md), and the call is idempotent. */
+    /* Planes only draw from the tank while it is open, and a closed tank is dead capital.
+     * Set unconditionally: `TankOpen` may only be *read* in the personal office (RULES.md),
+     * and the call is idempotent. */
     GameMechanic::setKerosinTankOpen(qPlayer, TRUE);
 
-    const SLONG target = fuelPrepayTarget();
+    const SLONG target = fuelTankTarget();
     if (qPlayer.Tank >= target) {
         return;
     }
 
-    /* Capacity is worthless without the cash to fill it, so a tank is only bought out of
-     * the surplus left after a full load at the high end of the price range. Larger tanks
-     * are cheaper per unit; take the biggest one that still fits inside what is missing,
-     * and keep going until the capacity is there - the depot opens once a day and there
-     * are only six days in which the fuel is free of the score. */
+    /* Capacity is worthless without the cash to fill it, so a tank is only bought out of the
+     * surplus left after a full load at the top of the price band. Larger tanks are much
+     * cheaper per unit (1000 / 800 / 700 / 600), so take the biggest that still fits inside
+     * what is missing. */
     while (qPlayer.Tank < target) {
         SLONG bought = -1;
         for (SLONG type = static_cast<SLONG>(TankSize.size()) - 1; type >= 0; type--) {
@@ -2366,22 +2349,19 @@ void ClaudeBot::executeBuyKerosin() {
 
     cacheKerosinPrice();
 
-    /* Only ever outside the scored week: a purchase made inside it is `KerosinVorrat`,
-     * which GetOpVerlust() counts exactly like the gate purchase it was meant to replace. */
-    if (!inFuelPrepayWindow() || qPlayer.Tank <= 0) {
+    if (qPlayer.Tank <= 0) {
         return;
     }
 
     const SLONG price = Sim.HoleKerosinPreis(kKerosinGrade);
-    if (price <= 0) {
-        return;
+    if (price <= 0 || !fuelIsCheap()) {
+        return; /* dear today - burn what is in the tank, or buy at the gate */
     }
 
-    /* Fill to whatever the tank can hold of what the last week will burn. The spot price
-     * is deliberately ignored: what is bought here is charged to a day the score does not
-     * read, so a cheap day and an expensive day are worth the same, and there are only six
-     * days in which to buy. */
-    const SLONG want = std::min<SLONG>(qPlayer.Tank, fuelPrepayTarget());
+    /* Fill the tank. Every unit bought here at a low price replaces one that would have been
+     * bought at the gate at the price of the day it is burnt, and both land in the same
+     * cumulated saldo, so the whole spread is score. */
+    const SLONG want = qPlayer.Tank;
     /* Without a kerosene advisor the tank content may not be read, so assume it is empty and
      * let GameMechanic::buyKerosin() clamp the purchase to the free capacity. */
     SLONG amount = want - (canReadTankInhalt() ? static_cast<SLONG>(qPlayer.TankInhalt) : 0);
@@ -2399,8 +2379,8 @@ void ClaudeBot::executeBuyKerosin() {
     }
 
     if (GameMechanic::buyKerosin(qPlayer, kKerosinGrade, amount)) {
-        AT_Log("ClaudeBot::executeBuyKerosin(): Bought %ld units at %ld, tank now %ld/%ld (want %ld) at an average of %.0f.", amount, price,
-               static_cast<SLONG>(qPlayer.TankInhalt), static_cast<SLONG>(qPlayer.Tank), want, qPlayer.TankPreis);
+        AT_Log("ClaudeBot::executeBuyKerosin(): Bought %ld units at %ld (running mean %ld), tank now %ld/%ld at an average of %.0f.", amount, price,
+               gKerosinAvgX100 / 100, static_cast<SLONG>(qPlayer.TankInhalt), static_cast<SLONG>(qPlayer.Tank), qPlayer.TankPreis);
     }
 }
 
@@ -3000,7 +2980,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 106;
+    SLONG savegameVersion = 107;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -3013,6 +2993,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     /* The cached kerosene price is bot state even though it lives at file scope. */
     File << gKerosinPrice;
     File << gKerosinPriceDay;
+    File << gKerosinAvgX100;
 
     /* Routes we rent, cached at the route box. Without these the bot would not advertise,
      * buy an aeroplane or schedule a route leg until its next route box visit. */
@@ -3078,6 +3059,7 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
 
     File >> gKerosinPrice;
     File >> gKerosinPriceDay;
+    File >> gKerosinAvgX100;
 
     SLONG numRoutes = 0;
     File >> numRoutes;
