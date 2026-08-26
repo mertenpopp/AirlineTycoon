@@ -352,7 +352,7 @@ tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
   (0...300).each do |j|
     prefix = "dataMISS_#{i}#{name}_#{j}"
-    prefix = "dataCLAUDE_freegame#{name}_#{j}" if i == -1
+    prefix = "dataBOT_freegame#{name}_#{j}" if i == -1
     file = "#{prefix}.csv"
     log = "#{prefix}.txt"
 

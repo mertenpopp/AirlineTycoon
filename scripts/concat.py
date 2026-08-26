@@ -99,18 +99,19 @@ if __name__ == '__main__':
     data = (overall.groupby(['Tag', 'Airline', 'Param']).agg(agg))
     data.reset_index(inplace=True)
     data.set_index('Tag', inplace=True)
+    print(data)
     print("Day 99 / SaldoGesamt / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
     print("Day 99 / Firmenwert / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
 
-#    for c in columns:
-#        ax = None
-#
-#        for p in data['Param'].unique():
-#            df1 = data.loc[data['Param'] == p]
-#            for a in airlines:
-#                df2 = df1.loc[df1['Airline'] == a]
-#                name = '_'.join([a,p])
-#                ax = df2[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
-#
-#    plt.show()
+    for c in columns:
+        ax = None
+
+        for p in data['Param'].unique():
+            df1 = data.loc[data['Param'] == p]
+            for a in airlines:
+                df2 = df1.loc[df1['Airline'] == a]
+                name = '_'.join([a,p])
+                ax = df2[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
+
+    plt.show()
 
