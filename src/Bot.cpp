@@ -36,7 +36,8 @@ const SLONG kCheckLastMinuteEveryXMinutes = 60;
 const SLONG kCheckFreightDepotEveryXMinutes = 60;
 
 const SLONG kSmallestAdCampaign = 4;
-const SLONG kMinimumImage = -4;
+const SLONG kMinimumImage = -100;
+const SLONG kImageRefillTarget = 1000;
 const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
 const SLONG kMaximumPlaneUtilization = 70;

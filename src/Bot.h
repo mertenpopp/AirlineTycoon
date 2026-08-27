@@ -22,6 +22,7 @@ extern const SLONG kCheckFreightDepotEveryXMinutes;
 
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
+extern const SLONG kImageRefillTarget;
 extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
@@ -241,6 +242,7 @@ class Bot {
     void checkRentedRoutes();
     void updateRouteInfoOffice();
     void updateRouteInfoBoard();
+    SLONG calcRequiredImageForAirline();
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
