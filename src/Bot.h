@@ -38,6 +38,8 @@ extern const SLONG kStockEmissionMode;
 extern const bool kReduceDividend;
 extern const SLONG kMaxSabotageHints;
 
+extern const bool kUseMaxCredit;
+extern const bool kBuySharesWhileLeveraged;
 extern const SLONG kMoneyEmergencyFund;
 extern const SLONG kMoneyReserveRepairs;
 extern const SLONG kMoneyReservePlaneUpgrades;
