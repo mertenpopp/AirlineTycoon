@@ -390,19 +390,6 @@ std::vector<SLONG> Bot::findBestAvailablePlaneType(bool forRoutes, bool canRefre
         bestList.push_back(bestType);
     }
 
-    /* exception: Have atleast one gulfstream for jobs */
-    SLONG numGulfstream = 0;
-    SLONG gulfstreamType = 119 + 0x10000000;
-    for (SLONG i = 0; i < qPlayer.Planes.AnzEntries(); i++) {
-        if (qPlayer.Planes.IsInAlbum(i) && qPlayer.Planes[i].TypeId == gulfstreamType) {
-            numGulfstream++;
-        }
-    }
-    if (numGulfstream == 0 && !mDoRoutes) {
-        AT_Log("Bot::findBestAvailablePlaneType(): Forcing best plane type to be %s", PlaneTypes[gulfstreamType].Name.c_str());
-        bestList.push_back(gulfstreamType);
-    }
-
     for (const auto &i : scores) {
         AT_Log("Bot::findBestAvailablePlaneType(): Plane type %s has score %.2e", PlaneTypes[i.first].Name.c_str(), i.second);
         bestList.push_back(i.first);
