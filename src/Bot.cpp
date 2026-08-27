@@ -54,7 +54,7 @@ const SLONG kMaxSabotageHints = 99;
 
 const bool kUseMaxCredit = true;
 const bool kBuySharesWhileLeveraged = true;
-const SLONG kMoneyEmergencyFund = 100000;
+const SLONG kMoneyEmergencyFund = 0; /* we can go into debt */
 const SLONG kMoneyReserveRepairs = 0;
 const SLONG kMoneyReservePlaneUpgrades = 2500 * 1000;
 const SLONG kMoneyReserveBuyTanks = 200 * 1000;
