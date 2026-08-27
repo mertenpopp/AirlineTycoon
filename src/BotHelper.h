@@ -291,6 +291,12 @@ const char *getItemName(SLONG item);
 void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool printHeader);
 void printStatisticsLineForAllPlayers(const CString &prefix, bool printHeader);
 
+inline SLONG getRequiredImageBasedOnLowestRoute(SLONG lowestImage) {
+    // ImageTotal in CFlugplanEintrag::CalcPassengers() is capped at 1000
+    SLONG howMuchImageDoWeNeed = 1000 - 200 - 4 * lowestImage;
+    return howMuchImageDoWeNeed;
+}
+
 inline void calcCostAndDuration(int startCity, int destCity, const CPlaneType &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
     assert(startCity >= 0 && startCity < Cities.AnzEntries());
     assert(destCity >= 0 && destCity < Cities.AnzEntries());

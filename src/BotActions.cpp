@@ -1327,24 +1327,27 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
 void Bot::actionBuyAds(__int64 moneyAvailable) {
     actionVisitAds();
 
+    SLONG targetImage = std::max(kMinimumImage, calcRequiredImageForAirline());
+    if (getImage() >= targetImage) {
+        AT_Error("Bot::actionBuyAds(): Image already maximum.");
+        return;
+    }
+
+    const SLONG refillImage = std::max(targetImage, kImageRefillTarget);
+
     assert(kSmallestAdCampaign >= 1);
+    SLONG oldImage = qPlayer.Image;
     for (SLONG adCampaignSize = 5; adCampaignSize >= kSmallestAdCampaign; adCampaignSize--) {
         SLONG cost = gWerbePrice[0 * 6 + adCampaignSize];
-        SLONG cost2 = gWerbePrice[0 * 6 + (adCampaignSize - 1)];
-        SLONG imageDelta2 = cost2 / 10000 * ((adCampaignSize - 1) + 6) / 55;
+        SLONG imageDelta = cost / 10000 * (adCampaignSize + 6) / 55;
 
-        while (moneyAvailable > cost && qPlayer.Image < 1000 && (qPlayer.Image + imageDelta2 < 1000)) {
-            SLONG oldImage = qPlayer.Image;
-            AT_Log("Bot::actionBuyAds(): Buying advertisement for airline for %d $", cost);
+        while (moneyAvailable > cost && (qPlayer.Image < refillImage) &&
+               ((qPlayer.Image + imageDelta < refillImage) || (adCampaignSize == kSmallestAdCampaign))) {
             GameMechanic::buyAdvertisement(qPlayer, 0, adCampaignSize);
             moneyAvailable = getMoneyAvailable();
-
-            AT_Log("Bot::actionBuyAds(): Airline image improved (%d => %d)", oldImage, qPlayer.Image);
-            if (!qPlayer.RobotUse(ROBOT_USE_WERBUNG)) {
-                return;
-            }
         }
     }
+    AT_Log("Bot::actionBuyAds(): Airline image improved (%d => %d, trigger: %d, refill: %d)", oldImage, qPlayer.Image, targetImage, refillImage);
 
     if (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage) {
         mRoutesNextStep = RoutesNextStep::None;

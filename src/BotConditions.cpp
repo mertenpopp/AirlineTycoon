@@ -1089,21 +1089,9 @@ Bot::Prio Bot::condBuyAds(__int64 &moneyAvailable) {
         return Prio::None;
     }
 
-    bool nearEnd = (mRunToFinalObjective > FinalPhase::No);
-    if (qPlayer.RobotUse(ROBOT_USE_MUCHWERBUNG) && nearEnd) { /* mission where we need to buy ads */
-        if (mRunToFinalObjective == FinalPhase::SaveMoney) {
-            return Prio::None;
-        }
-    } else {
-        if (nearEnd) {
-            return Prio::None;
-        }
-        if (!haveDiscount()) {
-            return Prio::None;
-        }
-        if (mRoutesNextStep != RoutesNextStep::ImproveAirlineImage) {
-            return Prio::None;
-        }
+    SLONG targetImage = std::max(kMinimumImage, calcRequiredImageForAirline());
+    if (getImage() >= targetImage) {
+        return Prio::None;
     }
 
     Prio prio = Prio::None;
@@ -1112,13 +1100,10 @@ Bot::Prio Bot::condBuyAds(__int64 &moneyAvailable) {
         if ((mRunToFinalObjective == FinalPhase::TargetRun) && qPlayer.RobotUse(ROBOT_USE_MUCHWERBUNG)) {
             prio = std::max(prio, Prio::High);
         }
-        if (getImage() < kMinimumImage || (mDoRoutes && getImage() < 300)) {
+        if ((getImage() < kMinimumImage) || mDoRoutes) {
             prio = std::max(prio, Prio::Medium);
         }
-        auto imageDelta = minCost / 10000 * (kSmallestAdCampaign + 6) / 55;
-        if (mDoRoutes && getImage() < (1000 - imageDelta)) {
-            prio = std::max(prio, Prio::Low);
-        }
+        prio = std::max(prio, Prio::Low);
     }
     return prio;
 }

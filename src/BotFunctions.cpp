@@ -1004,6 +1004,21 @@ void Bot::updateRouteInfoBoard() {
     routesRecalcNextStep();
 }
 
+SLONG Bot::calcRequiredImageForAirline() {
+    bool nearEnd = (mRunToFinalObjective > FinalPhase::No);
+    SLONG targetImage = kMinimumImage;
+    if (qPlayer.RobotUse(ROBOT_USE_MUCHWERBUNG) && nearEnd) { /* mission where we need to buy ads */
+        if (mRunToFinalObjective == FinalPhase::TargetRun) {
+            targetImage = 1000;
+        }
+    } else {
+        if (!nearEnd && haveDiscount() && (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage)) {
+            targetImage = Helper::getRequiredImageBasedOnLowestRoute(mRoutes[mImproveRouteId].image);
+        }
+    }
+    return targetImage;
+}
+
 void Bot::routesRecalcNextStep() {
     mRoutesNextStep = RoutesNextStep::None;
     if (!mRoutesUpdated || !mRoutesUtilizationUpdated) {
@@ -1062,13 +1077,14 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
 
     /* find route with low image */
     SLONG routeWithLowImage = -1;
-    SLONG lowestImage = kRouteMaxImage;
+    SLONG lowestImage = 9999;
     for (auto i : mRoutesSortedByOwnUtilization) {
         if (mRoutes[i].image < lowestImage) {
             routeWithLowImage = i;
             lowestImage = mRoutes[i].image;
         }
     }
+    SLONG howMuchImageDoWeNeed = Helper::getRequiredImageBasedOnLowestRoute(lowestImage);
 
     /* find route with pending plane upgrades */
     SLONG routeWithPendingPlaneUpgrades = -1;
@@ -1090,11 +1106,8 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 3: Increase route image if planes underutilized */
-    if (routeWithLowImage != -1) {
-        // const auto &qRoute = mRoutes[routeWithLowImage];
-        // if (calcRouteImageDeltaNeeded(qRoute) > 0) {
+    if ((routeWithLowImage != -1) && (mRoutes[routeWithLowImage].image < kRouteMaxImage)) {
         return {RoutesNextStep::BuyAdsForRoute, routeWithLowImage};
-        //}
     }
 
     /* Step 4: Now we can upgrade the plane for first class passengers */
@@ -1111,8 +1124,8 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 6: Improve airline image when we have one fully utilized route */
-    if (!mRoutes.empty() && getImage() < 800) {
-        return {RoutesNextStep::ImproveAirlineImage, -1};
+    if (!mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
+        return {RoutesNextStep::ImproveAirlineImage, routeWithLowImage};
     }
 
     /* Step 1: No routes underutilized, rent new route */
