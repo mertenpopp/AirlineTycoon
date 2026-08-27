@@ -607,7 +607,7 @@ Bot::Prio Bot::condTakeOutLoan() {
     if (!hoursPassed(ACTION_RAISEMONEY, 1)) {
         return Prio::None;
     }
-    bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+    bool maxCredit = (kUseMaxCredit || mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
     if (howMuchMoneyToRaise(maxCredit) <= 0) {
         return Prio::None;
     }
@@ -617,7 +617,7 @@ Bot::Prio Bot::condTakeOutLoan() {
     if (res.first == HowToGetMoney::IncreaseCredit) {
         prio = std::max(prio, res.second);
     }
-    if (mDoRoutesMaxCredit) {
+    if (kUseMaxCredit || mDoRoutesMaxCredit) {
         prio = std::max(prio, Prio::High);
     }
     return prio;
@@ -631,8 +631,8 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    if (mDoRoutesMaxCredit) {
-        return Prio::None;
+    if (kUseMaxCredit || mDoRoutesMaxCredit) {
+        return Prio::None; /* we deliberately keep the line drawn */
     }
 
     if (moneyAvailable >= 1000 && qPlayer.Credit > 0 && getWeeklyOpSaldo() > 1000 * 1000LL) {
@@ -675,7 +675,7 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     if (qPlayer.RobotUse(ROBOT_USE_DONTBUYANYSHARES)) {
         return Prio::None;
     }
-    if ((moneyAvailable < 0) || (qPlayer.Credit != 0)) {
+    if ((moneyAvailable < 0) || (qPlayer.Credit != 0 && !kBuySharesWhileLeveraged)) {
         return Prio::None;
     }
     if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
@@ -712,7 +712,7 @@ Bot::Prio Bot::condBuyOwnShares(__int64 &moneyAvailable) {
         }
     }
 
-    if ((moneyAvailable >= 0) && (qPlayer.Credit == 0)) {
+    if ((moneyAvailable >= 0) && (qPlayer.Credit == 0 || kBuySharesWhileLeveraged)) {
         return Prio::Low;
     }
     return Prio::None;

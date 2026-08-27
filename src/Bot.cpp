@@ -52,6 +52,8 @@ const SLONG kStockEmissionMode = 2;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
+const bool kUseMaxCredit = true;
+const bool kBuySharesWhileLeveraged = true;
 const SLONG kMoneyEmergencyFund = 100000;
 const SLONG kMoneyReserveRepairs = 0;
 const SLONG kMoneyReservePlaneUpgrades = 2500 * 1000;
@@ -467,7 +469,7 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_RAISEMONEY: {
-        bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+        bool maxCredit = (kUseMaxCredit || mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
         __int64 m = howMuchMoneyToRaise(maxCredit);
         if (m > 0) {
             AT_Log("Bot::RobotExecuteAction(): Taking loan: %s $", Insert1000erDots64(m).c_str());
