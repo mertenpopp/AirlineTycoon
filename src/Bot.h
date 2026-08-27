@@ -30,6 +30,7 @@ extern const SLONG kMaximumPlaneUtilization;
 extern const DOUBLE kDefaultTicketPriceFactor;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;
+extern const SLONG kTargetEmployeeSkill;
 extern const SLONG kPlaneMinimumZustand;
 extern const SLONG kPlaneTargetZustand;
 extern const SLONG kUsedPlaneMinimumScore;

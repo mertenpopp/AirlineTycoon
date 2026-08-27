@@ -616,8 +616,6 @@ void Bot::actionVisitHR() {
     /* crew */
     SLONG pilotsTarget = 3;     /* sensible default */
     SLONG stewardessTarget = 6; /* sensible default */
-    SLONG numPilotsHired = 0;
-    SLONG numStewardessHired = 0;
     if (mLongTermStrategy) {
         SLONG bestPlaneTypeId = mDoRoutes ? mBuyPlaneForRouteId : mBestPlaneTypeId;
         if (bestPlaneTypeId >= 0) {
@@ -638,36 +636,44 @@ void Bot::actionVisitHR() {
     }
 
     mQualifiedCrewForHire = 0;
-    for (SLONG c : workersSorted) {
-        const auto &qWorker = Workers.Workers[c];
-        if (qWorker.Employer != WORKER_JOBLESS) {
-            continue;
-        }
-        if (qWorker.Talent < kMinimumEmployeeSkill) {
-            continue;
-        }
-        if (qWorker.Typ == WORKER_PILOT) {
-            if (qPlayer.xPiloten < pilotsTarget) {
-                if (GameMechanic::hireWorker(qPlayer, c)) {
-                    mNumEmployees++;
-                    numPilotsHired++;
-                }
-            } else {
-                mQualifiedCrewForHire++;
+    SLONG numPilotsHired = 0;
+    SLONG numStewardessHired = 0;
+    SLONG talentSum = 0;
+    for (SLONG pass = 1; pass <= 2; pass++) {
+        for (SLONG c : workersSorted) {
+            const auto &qWorker = Workers.Workers[c];
+            if (qWorker.Employer != WORKER_JOBLESS) {
+                continue;
             }
-        } else if (qWorker.Typ == WORKER_STEWARDESS) {
-            if (qPlayer.xBegleiter < stewardessTarget) {
-                if (GameMechanic::hireWorker(qPlayer, c)) {
-                    mNumEmployees++;
-                    numStewardessHired++;
+            if (qWorker.Talent < ((pass == 1) ? kTargetEmployeeSkill : kMinimumEmployeeSkill)) {
+                continue;
+            }
+            if (qWorker.Typ == WORKER_PILOT) {
+                if (qPlayer.xPiloten < pilotsTarget) {
+                    if (GameMechanic::hireWorker(qPlayer, c)) {
+                        mNumEmployees++;
+                        numPilotsHired++;
+                        talentSum += qWorker.Talent;
+                    }
+                } else {
+                    mQualifiedCrewForHire++;
                 }
-            } else {
-                mQualifiedCrewForHire++;
+            } else if (qWorker.Typ == WORKER_STEWARDESS) {
+                if (qPlayer.xBegleiter < stewardessTarget) {
+                    if (GameMechanic::hireWorker(qPlayer, c)) {
+                        mNumEmployees++;
+                        numStewardessHired++;
+                        talentSum += qWorker.Talent;
+                    }
+                } else {
+                    mQualifiedCrewForHire++;
+                }
             }
         }
     }
     if (numPilotsHired > 0 || numStewardessHired > 0) {
-        AT_Log("Bot::actionVisitHR(): Hiring %d pilots and %d attendants (%d crew still available)", numPilotsHired, numStewardessHired, mQualifiedCrewForHire);
+        AT_Log("Bot::actionVisitHR(): Hiring %d pilots and %d attendants (average skill: %.1f, still %d crew available)", numPilotsHired, numStewardessHired,
+               static_cast<float>(talentSum) / (numPilotsHired + numStewardessHired), mQualifiedCrewForHire);
     }
 
     /* check whether we lost employees / increase salary for unhappy employees once */
