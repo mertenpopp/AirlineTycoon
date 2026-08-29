@@ -1084,7 +1084,19 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
 
     /* Step 1: Is the default, at the bottom */
 
-    /* Step 2: Buy first plane for underutilized route */
+    /* Step 2: Buy additional plane when we have the money */
+    if (routeToImprove != -1) {
+        __int64 moneyAvailable = getMoneyAvailable();
+        const auto &qRoute = mRoutes[routeToImprove];
+        const auto &qPlaneType = PlaneTypes[qRoute.planeTypeId];
+        bool haveMoney = (moneyAvailable >= qPlaneType.Preis);
+        bool haveCrew = (mExtraPilots < qPlaneType.AnzPiloten) || (mExtraBegleiter < qPlaneType.AnzBegleiter);
+        if (haveMoney && haveCrew) {
+            return {RoutesNextStep::BuyMorePlanes, routeToImprove};
+        }
+    }
+
+    /* Step 3: Buy first plane for underutilized route */
     if (routeToImprove != -1) {
         const auto &qRoute = mRoutes[routeToImprove];
         if (qRoute.planeIds.empty()) {
@@ -1092,12 +1104,12 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         }
     }
 
-    /* Step 3: Increase route image if planes underutilized */
+    /* Step 4: Increase route image if planes underutilized */
     if ((routeWithLowImage != -1) && (mRoutes[routeWithLowImage].image < kRouteMaxImage)) {
         return {RoutesNextStep::BuyAdsForRoute, routeWithLowImage};
     }
 
-    /* Step 4: Now we can upgrade the plane for first class passengers */
+    /* Step 5: Now we can upgrade the plane for first class passengers */
     if (routeWithPendingPlaneUpgrades != -1) {
         const auto &qRoute = mRoutes[routeWithPendingPlaneUpgrades];
         (void)qRoute;
@@ -1105,12 +1117,12 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         return {RoutesNextStep::UpgradePlanes, routeToImprove};
     }
 
-    /* Step 5: Planes are all upgraded, buy next one */
+    /* Step 6: Planes are all upgraded, buy next one */
     if (routeToImprove != -1) {
         return {RoutesNextStep::BuyMorePlanes, routeToImprove};
     }
 
-    /* Step 6: Improve airline image when we have one fully utilized route */
+    /* Step 7: Improve airline image when we have one fully utilized route */
     if (!mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
         return {RoutesNextStep::ImproveAirlineImage, routeWithLowImage};
     }

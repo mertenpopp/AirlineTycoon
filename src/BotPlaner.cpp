@@ -30,7 +30,6 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 #define PRINT_OVERALL 1
 
 const int kAvailTimeExtra = 2;
-const int kDurationExtra = 1;
 const int kScheduleForNextDays = 4;
 const int64_t timeBudgetMS = 100;
 const int kFreightMaxFlights = 4;

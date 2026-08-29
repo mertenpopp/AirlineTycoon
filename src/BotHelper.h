@@ -13,6 +13,8 @@
 #include <optional>
 #include <vector>
 
+extern const int kDurationExtra;
+
 inline constexpr int ceil_div(int a, int b) {
     assert(b != 0);
     return a / b + (a % b != 0);
@@ -295,6 +297,17 @@ inline SLONG getRequiredImageBasedOnLowestRoute(SLONG lowestImage) {
     // ImageTotal in CFlugplanEintrag::CalcPassengers() is capped at 1000
     SLONG howMuchImageDoWeNeed = 1000 - 200 - 4 * lowestImage;
     return howMuchImageDoWeNeed;
+}
+
+inline SLONG getNumberOfPlanesNeededForRoute(const CRoute &qRoute, SLONG planeTypeId, SLONG maxUtilizationPercent) {
+    SLONG duration = kDurationExtra + Cities.CalcFlugdauer(qRoute.VonCity, qRoute.NachCity, PlaneTypes[planeTypeId].Geschwindigkeit);
+    SLONG roundTripDuration = 2 * duration;
+    SLONG numTripsPerWeek = 24 * 7 / roundTripDuration;
+    SLONG maxDailyRegeneration = static_cast<SLONG>(std::floor(qRoute.AnzPassagiere() * 4.27 / 7));
+    SLONG maxWeekyRegeneration = 7 * maxDailyRegeneration;
+    SLONG finalTarget = ceil_div(maxWeekyRegeneration * maxUtilizationPercent, 100);
+    SLONG numPlanesTotal = ceil_div(finalTarget, numTripsPerWeek * PlaneTypes[planeTypeId].Passagiere);
+    return numPlanesTotal;
 }
 
 inline void calcCostAndDuration(int startCity, int destCity, const CPlaneType &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
