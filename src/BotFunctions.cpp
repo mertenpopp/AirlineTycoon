@@ -893,10 +893,9 @@ void Bot::updateRouteInfoOffice() {
         }
         luxusSumme /= route.planeIds.size();
 
-        SLONG planesWanted = Helper::getNumberOfPlanesNeededForRoute(getRoute(route), route.planeTypeId, mOptions.kMaximumRouteUtilization);
         AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d and luxus=%.2f)",
                Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
-               planesWanted, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
+               route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
     }
 
     mRoutesSortedByOwnUtilization.resize(mRoutes.size());
@@ -958,9 +957,9 @@ void Bot::updateRouteInfoBoard() {
                 }
             }
         }
-        AT_Log("Bot::updateRouteInfoBoard(): Route %s has utilization=%d/%d (%d planes with average utilization=%d/%d)",
-               Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(), route.planeUtilization,
-               route.planeUtilizationFC);
+        AT_Log("Bot::updateRouteInfoBoard(): Route %s has utilization=%d/%d (%d/%d planes with average utilization=%d/%d)",
+               Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
+               route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC);
     }
 
     /* find a route to steal even if we have none yet */
@@ -1057,8 +1056,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     /* find route with not enough planes */
     SLONG routeToBuyPlanes = -1;
     for (auto i : mRoutesSortedByOwnUtilization) {
-        if (mRoutes[i].planeIds.size() <
-            Helper::getNumberOfPlanesNeededForRoute(getRoute(mRoutes[i]), mRoutes[i].planeTypeId, mOptions.kMaximumRouteUtilization)) {
+        if (mRoutes[i].planeIds.size() < mRoutes[i].numberOfPlanesTarget) {
             if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
                 routeToBuyPlanes = i;
                 break;
@@ -1086,6 +1084,8 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         }
     }
 
+    bool canBuyAdsToday = qPlayer.RobotUse(ROBOT_USE_WERBUNG) && (Sim.Weekday != 5 && Sim.Weekday != 6);
+
     /* Step 1: Is the default, at the bottom */
 
     /* Step 2: Buy additional plane when we have the money */
@@ -1109,7 +1109,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 4: Increase route image if planes underutilized */
-    if ((routeWithLowImage != -1) && (mRoutes[routeWithLowImage].image < kRouteMaxImage)) {
+    if (canBuyAdsToday && (routeWithLowImage != -1) && (mRoutes[routeWithLowImage].image < kRouteMaxImage)) {
         return {RoutesNextStep::BuyAdsForRoute, routeWithLowImage};
     }
 
@@ -1127,7 +1127,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 7: Improve airline image when we have one fully utilized route */
-    if (!mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
+    if (canBuyAdsToday && !mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
         return {RoutesNextStep::ImproveAirlineImage, routeWithLowImage};
     }
 
@@ -1327,7 +1327,8 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
         return false;
     }
 
-    mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute);
+    SLONG numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
+    mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
     mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
     if (planeTypeForNewRoute != -1) {
         AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),

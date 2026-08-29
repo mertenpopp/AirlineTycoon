@@ -116,10 +116,12 @@ class Bot {
     };
     struct RouteInfo {
         RouteInfo() = default;
-        RouteInfo(SLONG id, SLONG id2, SLONG typeId) : routeId(id), routeReverseId(id2), planeTypeId(typeId) {}
+        RouteInfo(SLONG id, SLONG id2, SLONG typeId, SLONG numPlanes)
+            : routeId(id), routeReverseId(id2), planeTypeId(typeId), numberOfPlanesTarget(numPlanes) {}
         SLONG routeId{-1};
         SLONG routeReverseId{-1};
         SLONG planeTypeId{-1};
+        SLONG numberOfPlanesTarget{1};
         SLONG routeUtilization{};
         SLONG routeOwnUtilization{};
         SLONG image{};
