@@ -893,9 +893,10 @@ void Bot::updateRouteInfoOffice() {
         }
         luxusSumme /= route.planeIds.size();
 
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d planes with average utilization=%d/%d and luxus=%.2f)",
+        SLONG planesWanted = Helper::getNumberOfPlanesNeededForRoute(getRoute(route), route.planeTypeId, mOptions.kMaximumRouteUtilization);
+        AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d and luxus=%.2f)",
                Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
-               route.planeUtilization, route.planeUtilizationFC, luxusSumme);
+               planesWanted, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
     }
 
     mRoutesSortedByOwnUtilization.resize(mRoutes.size());
@@ -1053,12 +1054,15 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     assert(mDoRoutes);
     assert(mRoutesUpdated && mRoutesUtilizationUpdated);
 
-    /* find route with lowest utilization that can be improved */
-    SLONG routeToImprove = -1;
+    /* find route with not enough planes */
+    SLONG routeToBuyPlanes = -1;
     for (auto i : mRoutesSortedByOwnUtilization) {
-        if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
-            routeToImprove = i;
-            break;
+        if (mRoutes[i].planeIds.size() <
+            Helper::getNumberOfPlanesNeededForRoute(getRoute(mRoutes[i]), mRoutes[i].planeTypeId, mOptions.kMaximumRouteUtilization)) {
+            if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
+                routeToBuyPlanes = i;
+                break;
+            }
         }
     }
 
@@ -1085,22 +1089,22 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     /* Step 1: Is the default, at the bottom */
 
     /* Step 2: Buy additional plane when we have the money */
-    if (routeToImprove != -1) {
+    if (routeToBuyPlanes != -1) {
         __int64 moneyAvailable = getMoneyAvailable();
-        const auto &qRoute = mRoutes[routeToImprove];
+        const auto &qRoute = mRoutes[routeToBuyPlanes];
         const auto &qPlaneType = PlaneTypes[qRoute.planeTypeId];
         bool haveMoney = (moneyAvailable >= qPlaneType.Preis);
         bool haveCrew = (mExtraPilots < qPlaneType.AnzPiloten) || (mExtraBegleiter < qPlaneType.AnzBegleiter);
         if (haveMoney && haveCrew) {
-            return {RoutesNextStep::BuyMorePlanes, routeToImprove};
+            return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
         }
     }
 
     /* Step 3: Buy first plane for underutilized route */
-    if (routeToImprove != -1) {
-        const auto &qRoute = mRoutes[routeToImprove];
+    if (routeToBuyPlanes != -1) {
+        const auto &qRoute = mRoutes[routeToBuyPlanes];
         if (qRoute.planeIds.empty()) {
-            return {RoutesNextStep::BuyMorePlanes, routeToImprove};
+            return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
         }
     }
 
@@ -1114,12 +1118,12 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         const auto &qRoute = mRoutes[routeWithPendingPlaneUpgrades];
         (void)qRoute;
         assert(qRoute.canUpgrade);
-        return {RoutesNextStep::UpgradePlanes, routeToImprove};
+        return {RoutesNextStep::UpgradePlanes, routeToBuyPlanes};
     }
 
     /* Step 6: Planes are all upgraded, buy next one */
-    if (routeToImprove != -1) {
-        return {RoutesNextStep::BuyMorePlanes, routeToImprove};
+    if (routeToBuyPlanes != -1) {
+        return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
     }
 
     /* Step 7: Improve airline image when we have one fully utilized route */
