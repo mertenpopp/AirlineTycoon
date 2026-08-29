@@ -713,7 +713,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << static_cast<SLONG>(bot.mRoutes.size());
     for (const auto &i : bot.mRoutes) {
-        File << i.routeId << i.routeReverseId << i.planeTypeId;
+        File << i.routeId << i.routeReverseId << i.planeTypeId << i.numberOfPlanesTarget;
         File << i.routeUtilization << i.routeOwnUtilization << i.image;
         File << i.planeUtilization << i.planeUtilizationFC;
         File << i.ticketCostFactor;
@@ -877,6 +877,12 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
             File >> iter2;
         }
         File >> info.canUpgrade;
+
+        if (savegameVersion < 103) {
+            info.numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[info.routeId], info.planeTypeId, 90);
+        } else {
+            File >> info.numberOfPlanesTarget;
+        }
 
         iter = info;
     }
