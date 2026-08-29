@@ -13,7 +13,6 @@
 #include <vector>
 
 extern const int kAvailTimeExtra;
-extern const int kDurationExtra;
 extern const int kScheduleForNextDays;
 
 extern int kNumToAdd;

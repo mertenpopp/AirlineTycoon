@@ -39,6 +39,8 @@ extern SLONG timeReisClose;
 extern SLONG timeMaklClose;
 extern SLONG timeWerbOpen;
 
+const int kDurationExtra = 1;
+
 // #define PRINT_OVERALL 1
 
 TEAKFILE &operator<<(TEAKFILE &File, const PlaneTime &planeTime) {
