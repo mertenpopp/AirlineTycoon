@@ -17,6 +17,15 @@ Technical details:
 - The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp` and sets bot difficulty in `PLAYER::BotLevel`. The command line argument can be a three digit number. The first digit will set `PLAYER::BotLevel` for the first non-human player and so on. A `BotLevel > 0` indicates that this player is controlled by ClaudeBot.
 - The human player (which always must exist for technical reasons) will be determined by the value `OptionLastPlayer` in the `AT.json` game settings in the game directory. Otherwise, it will be determined by `Sim.Options.OptionLastPlayer`.
 
+Testing the game
+----------------
+
+Test the game **only** by running the scripts in the `scripts/` folder (`./scripts/run_build.sh`, `./scripts/run_test.sh`, `./scripts/run_smoketest.sh`, `./scripts/run_measurement.sh`). Do not invoke the game binary directly and do not set, export or override any environment variables for a test run (for example `SDL_VIDEODRIVER`).
+
+Reason: in a previous session the video driver was switched to `offscreen`, which caused extreme GPU load on the test machine. The scripts contain the configuration that is known to be safe.
+
+If these rules keep you from doing what a task requires, do not work around them: stop and ask the user to change the test harness.
+
 Target
 ------
 
