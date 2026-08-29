@@ -301,7 +301,7 @@ class Bot {
 
     /* action economy */
     std::unordered_map<SLONG, SLONG> mLastTimeInRoom{};
-    SLONG mNumActionsToday{0};
+    std::unordered_map<Prio, SLONG> mActionCounter;
 
     /* planes used for what? */
     std::vector<SLONG> mPlanesForJobs{};

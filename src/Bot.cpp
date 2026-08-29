@@ -203,7 +203,15 @@ void Bot::RobotInit() {
 
     /* action economy */
     mLastTimeInRoom.clear();
-    mNumActionsToday = 0;
+    if (Sim.Date > 1) {
+        AT_Log("Bot::RobotInit(): Executed %d %s, %d %s, %d %s, %d %s, %d %s, %d %s actions", mActionCounter[Prio::Top], getPrioName(Prio::Top),
+               mActionCounter[Prio::Higher], getPrioName(Prio::Higher), mActionCounter[Prio::High], getPrioName(Prio::High), mActionCounter[Prio::Medium],
+               getPrioName(Prio::Medium), mActionCounter[Prio::Low], getPrioName(Prio::Low), mActionCounter[Prio::Lowest], getPrioName(Prio::Lowest));
+        if ((mActionCounter[Prio::Low] == 0) || (mActionCounter[Prio::Lowest] == 0)) {
+            AT_Error("Bot::RobotInit(): Did not run any low prio actions last day, workload problem?");
+        }
+    }
+    mActionCounter.clear();
 
     /* strategy state */
     mBestUsedPlaneIdx = -1;
@@ -355,9 +363,10 @@ void Bot::RobotExecuteAction() {
     auto &qAction = qPlayer.RobotActions[0];
     LocalRandom.Rand(2); // Sicherheitshalber, damit wir immer genau ein Random ausführen
 
-    mNumActionsToday += 1;
+    auto p = static_cast<Bot::Prio>(qAction.Prio);
+    mActionCounter[p]++;
     AT_Info("Bot::RobotExecuteAction() for %s: Executing %s (#%d, %s), current time: %02ld:%02ld, money: %s $ (available: %s $)", qPlayer.Abk.c_str(),
-            Translate_ACTION(qAction.ActionId), mNumActionsToday, getPrioName(qAction.Prio), Sim.GetHour(), Sim.GetMinute(),
+            Translate_ACTION(qAction.ActionId), mActionCounter[p], getPrioName(qAction.Prio), Sim.GetHour(), Sim.GetMinute(),
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(getMoneyAvailable()).c_str());
 
     mOnThePhone = 0;
@@ -659,7 +668,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
         File << i.first << i.second;
     }
 
-    File << bot.mNumActionsToday;
+    File << static_cast<SLONG>(bot.mActionCounter.size());
+    for (const auto &i : bot.mActionCounter) {
+        File << static_cast<SLONG>(i.first) << i.second;
+    }
 
     File << static_cast<SLONG>(bot.mPlanesForJobs.size());
     for (const auto &i : bot.mPlanesForJobs) {
@@ -793,7 +805,17 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
     assert(bot.mLastTimeInRoom.size() == size);
 
-    File >> bot.mNumActionsToday;
+    if (savegameVersion >= 102) {
+        File >> size;
+        bot.mActionCounter.clear();
+        for (SLONG i = 0; i < size; i++) {
+            SLONG key{};
+            SLONG value{};
+            File >> key >> value;
+            bot.mActionCounter[static_cast<Bot::Prio>(key)] = value;
+        }
+        assert(bot.mActionCounter.size() == size);
+    }
 
     File >> size;
     bot.mPlanesForJobs.resize(size);
