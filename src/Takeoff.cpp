@@ -294,12 +294,12 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             gAutoBotDiff = 2;
             gAutoQuitOnDay = 5;
         }
-        if (stricmp(Argument, "/testbot") == 0) {
+        if (stricmp(Argument, "/setbotlevel") == 0) {
             gAutoBotDiff = 3;
 
             i++;
             if (i < argc) {
-                // gAutoBotDiff = atoi(argv[i]);
+                gAutoBotDiff = atoi(argv[i]);
             }
         }
     }
