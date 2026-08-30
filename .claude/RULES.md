@@ -179,7 +179,7 @@ You can pick a freight job using:
 
 Each airline can purchase offices in other cities. They grant access to additional international flight jobs.
 
-You can pick up international flight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL
+You can pick up international flight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL. Calling is only possible if `qPlayer.TelephoneDown == 0` holds.
 
 You can call any number of your international offices to take passenger flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT2 apply.
 
@@ -193,7 +193,7 @@ Only while performing this action and after `canCallInternational()` was checked
 
 The airline offices in other cities also grant access to additional freight jobs.
 
-You can pick up international freight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL
+You can pick up international freight jobs in your personal office. Recommended action ID: ACTION_CALL_INTERNATIONAL. Calling is only possible if `qPlayer.TelephoneDown == 0` holds.
 
 You can call any number of your international offices to take freight flight jobs. They all either start or land in the city you are calling. Otherwise, the same rules as for the jobs picked up by ACTION_CHECKAGENT3 apply.
 
@@ -207,6 +207,8 @@ Only while performing this action and after `canCallInternational()` was checked
 
 ACTION_CALL_INTER_HANDY can be used for a special “no-walk” international-call action; it does not require a location walk and is thus faster.
 The item "phone" is required. Everything else said about ACTION_CALL_INTERNATIONAL also applies here.
+
+Calling via mobile is only possible if `qPlayer.TelephoneDown == 0` and `qPlayer.IsStuck == 0` are holding.
 
 Every time the phone is used, set the existing variable `mOnThePhone` to 30.
 
@@ -530,7 +532,7 @@ Use action ID ACTION_BUYNEWPLANE or ACTION_VISITMAKLER to walk to the plane brok
 
 `bool GameMechanic::checkPlaneTypeAvailable(SLONG planeType)`: Checks if planes with the given type ID can be bought. You may check the global array `PlaneTypes` at index planeType if this function returns true.
 
-`std::vector<SLONG> GameMechanic::getAvailablePlaneTypes()`: Returns a list of plane type IDs for all planes that can be bought. You may check the global array `PlaneTypes` at all indices returned by this function.
+`std::vector<SLONG> GameMechanic::getAvailablePlaneTypes()`: Returns a list of plane type IDs for all planes that can be bought. Some plane types only become available starting at a specific game day. If an ID was returned by this function once, you may assume that this plane type will be available for the rest of the game. You may check the global array `PlaneTypes` at this index at any point in any room.
 
 `std::vector<SLONG> GameMechanic::buyPlane(PLAYER &qPlayer, SLONG planeType, SLONG amount)`: Buys specified amount of planes of the given type.
 
@@ -750,6 +752,7 @@ All classifications are read-only except where explicitly shown as read/write.
 
 - `Abk`: Abbreviation of airline name.
 - `AnzAktien`: Total number of shares.
+- `ArabPlaneSelection`: ID of target plane selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. Only access while in personal office or while you have a access to a laptop.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read while in the personal office and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
@@ -762,9 +765,11 @@ All classifications are read-only except where explicitly shown as read/write.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
 - `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
+- `IsStuck`: Whether player character is currently stuck. Can be read at any time.
 - `KerosinQuali`: Current kerosene quality level. Only read if `qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30`.
 - `Kooperation`: Cooperation flags with other players.
 - `Kurse`: The last ten share prices of your own airline. May always be read.
+- `LaptopQuality`: Check the current quality level of the laptop. May always be read.
 - `LaptopVirus`: Laptop virus status.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted.
 - `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
@@ -774,12 +779,16 @@ All classifications are read-only except where explicitly shown as read/write.
 - `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
 - `PlayerNum`: Player number, used as index in many arrays.
 - `PlayerWalkRandom`: Random number generator.
+- `RentCities`: Rented branch offices. Can be read at any time.
 - `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
 - `RobotActions`: Read and write access permitted. Used to store the planned actions. 
+- `StrikeEndType`: If larger than zero, this gives the method by which the strike was ended. May always be read.
+- `StrikeHours`: Larger than zero if employees are currently striking. Gives number of hours remaining. May always be read.
 - `Tank`: Total volume of kerosene tank.
 - `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
 - `TankOpen`: Whether the tanks are released for use. Only read while in the personal office.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
+- `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
 - `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
 - `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
@@ -881,20 +890,40 @@ The following may be accessed if the player object is a competitor:
 - `RoutenAuslastung`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
+### CWorker object
+
+Familiarize yourself with the data structure:
+- CWorker
+
+This class describes an individual employee.
+
+The following may be accessed while in the HR office:
+- `Name`: Name of employee.
+- `Typ`: Whether employee is pilot, stewardess or advisor.
+- `Gehalt`: Current salary of employee.
+- `OriginalGehalt`: Original salary when hired.
+- `Talent`: Skill level of employee from 0 to 100.
+- `Employer`: Airline ID of current employer (0 to 3) or equal to `WORKER_RESERVE` or `WORKER_JOBLESS`.
+- `PlaneId`: ID of plane where employee is currently working or `-1`.
+- `Happyness`: Happiness of employee, between `-100` and `100`.
+
+The following function may be called:
+- `void Gehaltsaenderung(BOOL Art)`: Increases (Art==true) or decreases (Art==false) salary of employee by 10 percent, affecting happiness.
+
 ### Global read-only helpers and tables
 
 You may also read the following global tables and helpers when the rules permit them:
 
-- `LastMinuteAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT1
-- `ReisebueroAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT2
-- `gFrachten` may only be read while in the room accessed via ACTION_CHECKAGENT3
-- `AuslandsAuftraege[cityId]` may only be if canCallInternational() was checked with the cityId
-- `AuslandsFrachten[cityId]` may only be if canCallInternational() was checked with the cityId
+- `LastMinuteAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT1.
+- `ReisebueroAuftraege` may only be read while in the room accessed via ACTION_CHECKAGENT2.
+- `gFrachten` may only be read while in the room accessed via ACTION_CHECKAGENT3.
+- `AuslandsAuftraege[cityId]` may only be if canCallInternational() was checked with the cityId.
+- `AuslandsFrachten[cityId]` may only be if canCallInternational() was checked with the cityId.
 - `Routen` while at the route box.
-- `PlaneTypes` may only be read while at the plane broker
+- `PlaneTypes[planeTypeId]` may be read any time given that `planeTypeId` was returned at least once by `GameMechanic::getAvailablePlaneTypes()`.
 - `TafelData` may only be read while in the boss office
 - `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` to query informations about cities and flight distances/duration.
-- `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades
+- `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades.
 
 Global functions
 ----------------
