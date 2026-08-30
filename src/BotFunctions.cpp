@@ -928,7 +928,6 @@ void Bot::updateRouteInfoOffice() {
 
     /* generate strategy for routes */
     mRoutesUpdated = true;
-    routesRecalcNextStep();
 }
 
 void Bot::updateRouteInfoBoard() {
@@ -993,7 +992,6 @@ void Bot::updateRouteInfoBoard() {
 
     /* generate strategy for routes */
     mRoutesUtilizationUpdated = true;
-    routesRecalcNextStep();
 }
 
 SLONG Bot::calcRequiredImageForAirline() {
@@ -1019,7 +1017,6 @@ void Bot::routesRecalcNextStep() {
     }
 
     std::tie(mRoutesNextStep, mImproveRouteId) = routesFindNextStep();
-    mWantToRentRouteId = (mRoutesNextStep == RoutesNextStep::RentNewRoute) ? mImproveRouteId : -1;
 
     std::string routeName;
     if (mImproveRouteId != -1) {

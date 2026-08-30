@@ -34,6 +34,7 @@ const SLONG kCallInternationalHandyEveryXMinutes = 5;
 const SLONG kCheckTravelAgencyEveryXMinutes = 15;
 const SLONG kCheckLastMinuteEveryXMinutes = 60;
 const SLONG kCheckFreightDepotEveryXMinutes = 60;
+const SLONG kFrequencyRouteStrategy = 2;
 
 const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -100;
@@ -262,6 +263,8 @@ void Bot::RobotPlan() {
         AT_Log("Bot.cpp: Leaving RobotPlan() (actions already planned)\n");
         return;
     }
+
+    routesRecalcNextStep();
 
     auto &qFirstAction = qRobotActions[1];
     auto &qSecondAction = qRobotActions[2];
