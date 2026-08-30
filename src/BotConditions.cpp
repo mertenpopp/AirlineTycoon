@@ -155,13 +155,8 @@ Bot::Prio Bot::condBuero() {
     if (mNeedToPlanJobs || mNeedToPlanRoutes) {
         prio = std::max(prio, Prio::Top);
     }
-    if (mDoRoutes) {
-        if (!mRoutesUpdated) {
-            prio = std::max(prio, Prio::Medium); /* update cached route info */
-        }
-        if (mRoutesUtilizationUpdated && mRoutesNextStep == RoutesNextStep::None) {
-            prio = std::max(prio, Prio::Medium); /* generate route strategy if other info is already updated */
-        }
+    if (mDoRoutes && !mRoutesUpdated) {
+        prio = std::max(prio, (isLateGame() ? Prio::High : Prio::Medium)); /* update cached route info */
     }
     return prio;
 }
@@ -308,8 +303,8 @@ Bot::Prio Bot::condUpgradePlanes() {
         }
     }
 
-    if (!hoursPassed(ACTION_UPGRADE_PLANES, 24)) {
-        return Prio::None; /* upgrade only once per day */
+    if (!hoursPassed(ACTION_UPGRADE_PLANES, kFrequencyRouteStrategy)) {
+        return Prio::None;
     }
 
     bool shallUpgrade = false;
@@ -317,7 +312,7 @@ Bot::Prio Bot::condUpgradePlanes() {
 
     if (mRunToFinalObjective == FinalPhase::No) {
         prio = std::max(prio, Prio::Medium);
-        if (haveDiscount() && (RoutesNextStep::UpgradePlanes == mRoutesNextStep)) {
+        if (mRoutesNextStep == RoutesNextStep::UpgradePlanes) {
             shallUpgrade = true;
         }
     } else if (mRunToFinalObjective == FinalPhase::TargetRun) {
@@ -343,7 +338,7 @@ Bot::Prio Bot::condUpgradePlanes() {
 
 Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
     moneyAvailable = getMoneyAvailable();
-    if (!hoursPassed(ACTION_BUYNEWPLANE, 2)) {
+    if (!hoursPassed(ACTION_BUYNEWPLANE, kFrequencyRouteStrategy)) {
         return Prio::None;
     }
     if (!qPlayer.RobotUse(ROBOT_USE_MAKLER) || qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY)) {
@@ -367,7 +362,7 @@ Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
         return Prio::None; /* no plane purchase planned */
     }
 
-    if (mDoRoutes && RoutesNextStep::BuyMorePlanes != mRoutesNextStep) {
+    if (mDoRoutes && (mRoutesNextStep != RoutesNextStep::BuyMorePlanes)) {
         return Prio::None;
     }
     for (auto planeId : mPlanesForRoutesUnassigned) {
@@ -444,7 +439,8 @@ Bot::Prio Bot::condVisitHR() {
     if (hoursPassed(ACTION_PERSONAL, 24)) {
         prio = std::max(prio, Prio::Medium); /* hire new crew every day */
     }
-    if (hoursPassed(ACTION_PERSONAL, 2) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0) && (mBuyPlaneForRouteId != -1)) {
+    if (hoursPassed(ACTION_PERSONAL, kFrequencyRouteStrategy) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0) &&
+        (mBuyPlaneForRouteId != -1)) {
         const auto &bestPlaneType = PlaneTypes[mBuyPlaneForRouteId];
         if ((qPlayer.xPiloten < bestPlaneType.AnzPiloten) || (qPlayer.xBegleiter < bestPlaneType.AnzBegleiter)) {
             prio = std::max(prio, Prio::Medium); /* to be able to hire crew more than once per day */
@@ -933,7 +929,9 @@ Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
 }
 
 Bot::Prio Bot::condVisitRouteBoxPlanning() {
-    /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
+    if (!hoursPassed(ACTION_VISITROUTEBOX, kFrequencyRouteStrategy)) {
+        return Prio::None;
+    }
     if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) || !mDoRoutes) {
         return Prio::None;
     }
@@ -948,13 +946,8 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     if (!mRoutesUtilizationUpdated) {
         prio = std::max(prio, Prio::Medium); /* update cached route info */
     }
-    if (mRoutesUpdated && mRoutesNextStep == RoutesNextStep::None) {
-        prio = std::max(prio, Prio::Medium); /* generate route strategy if other info is already updated */
-    }
-    if ((mWantToRentRouteId == -1) && RoutesNextStep::RentNewRoute == mRoutesNextStep) {
-        if (hoursPassed(ACTION_VISITROUTEBOX, 24)) {
-            prio = std::max(prio, Prio::Medium); /* try to find new route once per day */
-        }
+    if ((mWantToRentRouteId == -1) && (mRoutesNextStep == RoutesNextStep::RentNewRoute)) {
+        prio = std::max(prio, Prio::Medium);
     }
     return prio;
 }
@@ -974,13 +967,10 @@ Bot::Prio Bot::condVisitRouteBoxRenting() {
         if (mRunToFinalObjective > FinalPhase::No) {
             shallRentNewRoute = false;
         }
-        if (HowToPlan::None == howToPlanFlights()) {
-            shallRentNewRoute = false;
-        }
         if (mWantToRentRouteId == -1) {
             shallRentNewRoute = false;
         }
-        if (RoutesNextStep::RentNewRoute != mRoutesNextStep) {
+        if (mRoutesNextStep != RoutesNextStep::RentNewRoute) {
             shallRentNewRoute = false;
         }
         if (shallRentNewRoute) {
@@ -1052,7 +1042,9 @@ Bot::Prio Bot::condVisitDesigner(__int64 &moneyAvailable) {
 
 Bot::Prio Bot::condBuyAdsForRoutes(__int64 &moneyAvailable) {
     moneyAvailable = getMoneyAvailable();
-    /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
+    if (!hoursPassed(ACTION_WERBUNG_ROUTES, kFrequencyRouteStrategy)) {
+        return Prio::None;
+    }
 
     if (!qPlayer.RobotUse(ROBOT_USE_WERBUNG)) {
         return Prio::None;
@@ -1063,6 +1055,9 @@ Bot::Prio Bot::condBuyAdsForRoutes(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
+    if (!mDoRoutes || (mRoutesNextStep != RoutesNextStep::BuyAdsForRoute)) {
+        return Prio::None;
+    }
 
     SLONG adCampaignSize = 4;
     SLONG cost = gWerbePrice[1 * 6 + adCampaignSize];
@@ -1070,15 +1065,12 @@ Bot::Prio Bot::condBuyAdsForRoutes(__int64 &moneyAvailable) {
         return Prio::None;
     }
 
-    if (mRoutesNextStep == RoutesNextStep::BuyAdsForRoute) {
-        return (mRoutes[mImproveRouteId].image < 80) ? Prio::High : Prio::Medium;
-    }
-    return Prio::None;
+    return (mRoutes[mImproveRouteId].image < 80) ? Prio::High : Prio::Medium;
 }
 
 Bot::Prio Bot::condBuyAds(__int64 &moneyAvailable) {
     moneyAvailable = getMoneyAvailable();
-    if (!hoursPassed(ACTION_WERBUNG, 4)) {
+    if (!hoursPassed(ACTION_WERBUNG, kFrequencyRouteStrategy)) {
         return Prio::None;
     }
 

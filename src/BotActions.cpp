@@ -371,7 +371,7 @@ void Bot::actionUpgradePlanes() {
     AT_Log("Bot::actionUpgradePlanes(): We are reserving %s $ for plane upgrades, available money: %s $", Insert1000erDots64(mMoneyReservedForUpgrades).c_str(),
            Insert1000erDots64(getMoneyAvailable()).c_str());
 
-    updateRouteInfoOffice(); /* calls routesRecalcNextStep() */
+    updateRouteInfoOffice();
 }
 
 void Bot::updateExtraWorkers() {
@@ -421,11 +421,10 @@ void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
             mPlanesForRoutes.push_back(planeId);
             AT_Log("Bot::actionBuyNewPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
                    Helper::getRouteName(getRoute(qRoute)).c_str());
-            routesRecalcNextStep();
         } else {
             mPlanesForRoutesUnassigned.push_back(planeId);
-            mBuyPlaneForRouteId = -1;
         }
+        mBuyPlaneForRouteId = -1;
         requestPlanRoutes(false);
     } else {
         if (checkPlaneAvailable(planeId, true, false)) {
@@ -532,7 +531,6 @@ void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
             mPlanesForRoutes.push_back(planeId);
             AT_Log("Bot::actionBuyDesignerPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
                    Helper::getRouteName(getRoute(qRoute)).c_str());
-            routesRecalcNextStep();
         } else {
             mPlanesForRoutesUnassigned.push_back(planeId);
         }
@@ -1280,7 +1278,7 @@ void Bot::actionRentRoute() {
     }
     mPlanesForNewRoute.clear();
 
-    updateRouteInfoBoard(); /* calls routesRecalcNextStep() */
+    updateRouteInfoBoard();
 
     requestPlanRoutes(false);
 }
@@ -1326,8 +1324,6 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
         AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)",
                Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, newImage);
         qRoute.image = newImage;
-
-        routesRecalcNextStep();
     }
 }
 
@@ -1356,10 +1352,6 @@ void Bot::actionBuyAds(__int64 moneyAvailable) {
     }
     AT_Log("Bot::actionBuyAds(): Airline image improved (%d => %d, trigger: %d, refill: %d)", oldImage, qPlayer.Image, targetImage, refillImage);
     mCurrentImage = qPlayer.Image;
-
-    if (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage) {
-        routesRecalcNextStep();
-    }
 }
 
 void Bot::actionVisitAds() {

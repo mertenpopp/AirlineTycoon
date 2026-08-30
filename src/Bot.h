@@ -19,6 +19,7 @@ extern const SLONG kCallInternationalHandyEveryXMinutes;
 extern const SLONG kCheckTravelAgencyEveryXMinutes;
 extern const SLONG kCheckLastMinuteEveryXMinutes;
 extern const SLONG kCheckFreightDepotEveryXMinutes;
+extern const SLONG kFrequencyRouteStrategy;
 
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
