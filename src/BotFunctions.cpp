@@ -514,7 +514,9 @@ void Bot::planFlights() {
     for (const auto &id : mPlanesForJobs) {
         count += replaceAutomaticFlights(id);
     }
-    AT_Log("Bot::planFlights(): Replaced %d automatic flights with routes", count);
+    if (count > 0) {
+        AT_Log("Bot::planFlights(): Replaced %d automatic flights with routes", count);
+    }
     Helper::checkFlightJobs(qPlayer, false, true);
 
     /* check whether we will incur any fines */
@@ -862,14 +864,35 @@ void Bot::checkRentedRoutes() {
     }
     std::swap(mRoutes, routesNew);
     std::swap(mPlanesForRoutes, planesForRoutesNew);
+}
 
-    mRoutesUtilizationUpdated = false;
-    mRoutesNextStep = RoutesNextStep::None;
+void Bot::updateRoutesSortedList() {
+    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
+    if (!mRoutes.empty()) {
+        /* sort routes by utilization and find route with lowest image */
+        SLONG lowImage = 0;
+        for (SLONG i = 0; i < mRoutes.size(); i++) {
+            mRoutesSortedByOwnUtilization[i] = i;
+
+            if (mRoutes[i].image < mRoutes[lowImage].image) {
+                lowImage = i;
+            }
+        }
+        std::sort(mRoutesSortedByOwnUtilization.begin(), mRoutesSortedByOwnUtilization.end(),
+                  [&](SLONG a, SLONG b) { return mRoutes[a].routeOwnUtilization < mRoutes[b].routeOwnUtilization; });
+
+        auto lowUtil = mRoutesSortedByOwnUtilization[0];
+        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest image: %d", Helper::getRouteName(getRoute(mRoutes[lowImage])).c_str(),
+               mRoutes[lowImage].image);
+        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest utilization: %d/%d", Helper::getRouteName(getRoute(mRoutes[lowUtil])).c_str(),
+               mRoutes[lowUtil].routeOwnUtilization, mRoutes[lowUtil].routeUtilization);
+    }
 }
 
 void Bot::updateRouteInfoOffice() {
     /* copy most import information from routes
-     * copy information that is available when in office */
+     * updates: image, routeOwnUtilization, planeUtilization(FC), canUpgrade, mPlanesForRoutesUnassigned
+     * does not update: routeUtilization, mRouteToSteal */
     for (auto &route : mRoutes) {
         route.image = getRentRoute(route).Image;
         route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
@@ -896,26 +919,7 @@ void Bot::updateRouteInfoOffice() {
                route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
     }
 
-    mRoutesSortedByOwnUtilization.resize(mRoutes.size());
-    if (!mRoutes.empty()) {
-        /* sort routes by utilization and find route with lowest image */
-        SLONG lowImage = 0;
-        for (SLONG i = 0; i < mRoutes.size(); i++) {
-            mRoutesSortedByOwnUtilization[i] = i;
-
-            if (mRoutes[i].image < mRoutes[lowImage].image) {
-                lowImage = i;
-            }
-        }
-        std::sort(mRoutesSortedByOwnUtilization.begin(), mRoutesSortedByOwnUtilization.end(),
-                  [&](SLONG a, SLONG b) { return mRoutes[a].routeOwnUtilization < mRoutes[b].routeOwnUtilization; });
-
-        auto lowUtil = mRoutesSortedByOwnUtilization[0];
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest image: %d", Helper::getRouteName(getRoute(mRoutes[lowImage])).c_str(),
-               mRoutes[lowImage].image);
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest utilization: %d/%d", Helper::getRouteName(getRoute(mRoutes[lowUtil])).c_str(),
-               mRoutes[lowUtil].routeOwnUtilization, mRoutes[lowUtil].routeUtilization);
-    }
+    updateRoutesSortedList();
 
     /* idle planes? */
     if (!mPlanesForRoutesUnassigned.empty()) {
@@ -929,7 +933,8 @@ void Bot::updateRouteInfoOffice() {
 
 void Bot::updateRouteInfoBoard() {
     /* copy most import information from routes
-     * copy information that is available when visiting the route board */
+     * updates: image, routeOwnUtilization, routeUtilization, mRouteToSteal
+     * does not update: planeUtilization(FC), canUpgrade, mPlanesForRoutesUnassigned*/
     mRouteToSteal = -1;
     SLONG routeToStealUtil = 0;
     for (auto &route : mRoutes) {
@@ -955,10 +960,12 @@ void Bot::updateRouteInfoBoard() {
                 }
             }
         }
-        AT_Log("Bot::updateRouteInfoBoard(): Route %s has utilization=%d/%d (%d/%d planes with average utilization=%d/%d)",
-               Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
+        AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d)",
+               Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
                route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC);
     }
+
+    updateRoutesSortedList();
 
     /* find a route to steal even if we have none yet */
     if (mRouteToSteal == -1) {
@@ -1492,15 +1499,14 @@ void Bot::planRoutes() {
         SLONG maxCostImage = (highCost + highCost / 2); /* allow only the first tier of image reduction */
 
         qRoute.ticketCostFactor = std::round(1.0 * maxCostImage / cost);
-        double fff = qRoute.ticketCostFactor;
         Limit(0.5, qRoute.ticketCostFactor, mOptions.kMaxTicketPriceFactor);
 
         SLONG priceNew = static_cast<SLONG>(std::ceil(cost * qRoute.ticketCostFactor));
         priceNew = priceNew / 10 * 10;
         if (std::abs(factorOld - qRoute.ticketCostFactor) > 0.05) {
             GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.routeId, priceNew, priceNew * 2);
-            AT_Log("Bot::planRoutes(): Changing ticket price factor for route %s: %.2f => %.2f (%d => %d) %d %.2f",
-                   Helper::getRouteName(getRoute(qRoute)).c_str(), factorOld, qRoute.ticketCostFactor, priceOld, priceNew, maxCostImage, fff);
+            AT_Log("Bot::planRoutes(): Changing ticket price factor for route %s: %.2f => %.2f (%d => %d)", Helper::getRouteName(getRoute(qRoute)).c_str(),
+                   factorOld, qRoute.ticketCostFactor, priceOld, priceNew);
         }
     }
 }
