@@ -1,5 +1,6 @@
 #!/bin/bash
 
+./scripts/run_build.sh
 cd "/media/LINUX/GOG Games/Airline Tycoon Deluxe/game/"
 rm -f GameLog.txt
 rm -f ClaudeBot.csv

@@ -4,6 +4,6 @@
 cd "/media/LINUX/GOG Games/Airline Tycoon Deluxe/game/"
 rm -rf dataCLAUDE_*.csv
 rm -rf dataCLAUDE_*.txt
-ruby threadpool.rb 
+ruby threadpool.rb "/setbotlevel 24"
 python concat.py 'dataCLAUDE_*.csv'
 cd -
