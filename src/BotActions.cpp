@@ -371,7 +371,7 @@ void Bot::actionUpgradePlanes() {
     AT_Log("Bot::actionUpgradePlanes(): We are reserving %s $ for plane upgrades, available money: %s $", Insert1000erDots64(mMoneyReservedForUpgrades).c_str(),
            Insert1000erDots64(getMoneyAvailable()).c_str());
 
-    mRoutesNextStep = RoutesNextStep::None;
+    updateRouteInfoOffice(); /* calls routesRecalcNextStep() */
 }
 
 void Bot::updateExtraWorkers() {
@@ -421,12 +421,12 @@ void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
             mPlanesForRoutes.push_back(planeId);
             AT_Log("Bot::actionBuyNewPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
                    Helper::getRouteName(getRoute(qRoute)).c_str());
-            mRoutesNextStep = RoutesNextStep::None;
+            routesRecalcNextStep();
         } else {
             mPlanesForRoutesUnassigned.push_back(planeId);
+            mBuyPlaneForRouteId = -1;
         }
         requestPlanRoutes(false);
-        mBuyPlaneForRouteId = -1;
     } else {
         if (checkPlaneAvailable(planeId, true, false)) {
             mPlanesForJobs.push_back(planeId);
@@ -532,7 +532,7 @@ void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
             mPlanesForRoutes.push_back(planeId);
             AT_Log("Bot::actionBuyDesignerPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
                    Helper::getRouteName(getRoute(qRoute)).c_str());
-            mRoutesNextStep = RoutesNextStep::None;
+            routesRecalcNextStep();
         } else {
             mPlanesForRoutesUnassigned.push_back(planeId);
         }
@@ -1249,7 +1249,7 @@ void Bot::actionRentRoute() {
     }
 
     if (mWantToRentRouteId == -1) {
-        AT_Log("Bot::actionRentRoute(): No route marked for renting.");
+        AT_Error("Bot::actionRentRoute(): No route marked for renting.");
         return;
     }
 
@@ -1280,8 +1280,7 @@ void Bot::actionRentRoute() {
     }
     mPlanesForNewRoute.clear();
 
-    mRoutesNextStep = RoutesNextStep::None;
-    updateRouteInfoBoard();
+    updateRouteInfoBoard(); /* calls routesRecalcNextStep() */
 
     requestPlanRoutes(false);
 }
@@ -1301,31 +1300,35 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
         return;
     }
 
-    assert(mImproveRouteId != -1);
-    auto &qRoute = mRoutes[mImproveRouteId];
-    auto &qRentedRoute = getRentRoute(qRoute);
-    if (qRentedRoute.Image >= kRouteMaxImage) {
-        AT_Error("Bot::actionBuyAdsForRoutes(): Image already maximum.");
-        return;
-    }
-
-    SLONG oldImage = qRentedRoute.Image;
-    while (qRentedRoute.Image < kRouteMaxImage) {
-        if (cost > moneyAvailable) {
+    bool bailout = false;
+    while (!bailout && mRoutesNextStep == RoutesNextStep::BuyAdsForRoute) {
+        assert(mImproveRouteId != -1);
+        auto &qRoute = mRoutes[mImproveRouteId];
+        auto &qRentedRoute = getRentRoute(qRoute);
+        if (qRentedRoute.Image >= kRouteMaxImage) {
+            AT_Error("Bot::actionBuyAdsForRoutes(): Image already maximum.");
             break;
         }
-        if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
-            break;
+
+        SLONG oldImage = qRentedRoute.Image;
+        while (!bailout && qRentedRoute.Image < kRouteMaxImage) {
+            if (cost > moneyAvailable) {
+                bailout = true;
+                break;
+            }
+            if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
+                bailout = true;
+                break;
+            }
+            moneyAvailable = getMoneyAvailable();
         }
-        moneyAvailable = getMoneyAvailable();
+        SLONG newImage = qRentedRoute.Image;
+        AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)",
+               Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, newImage);
+        qRoute.image = newImage;
+
+        routesRecalcNextStep();
     }
-    SLONG newImage = qRentedRoute.Image;
-    AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)", Helper::getRouteName(getRoute(qRoute)).c_str(),
-           cost, oldImage, newImage);
-
-    qRoute.image = newImage;
-
-    mRoutesNextStep = RoutesNextStep::None;
 }
 
 void Bot::actionBuyAds(__int64 moneyAvailable) {
@@ -1352,9 +1355,10 @@ void Bot::actionBuyAds(__int64 moneyAvailable) {
         }
     }
     AT_Log("Bot::actionBuyAds(): Airline image improved (%d => %d, trigger: %d, refill: %d)", oldImage, qPlayer.Image, targetImage, refillImage);
+    mCurrentImage = qPlayer.Image;
 
     if (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage) {
-        mRoutesNextStep = RoutesNextStep::None;
+        routesRecalcNextStep();
     }
 }
 

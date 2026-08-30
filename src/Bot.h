@@ -244,6 +244,7 @@ class Bot {
     /* routes */
     SLONG getNumRentedRoutes() const;
     void checkRentedRoutes();
+    void updateRoutesSortedList();
     void updateRouteInfoOffice();
     void updateRouteInfoBoard();
     SLONG calcRequiredImageForAirline();
