@@ -348,6 +348,12 @@ name = ""
 #miss = [1, 12, 13, 15, 41]
 #name = "_mission_new"
 
+# Additional arguments for ./AT, taken from this script's own command line, e.g.
+#   ruby threadpool.rb "/testbot 3"
+# They are appended after "/quick <param>".
+extra_args = ARGV.join(" ").strip
+extra_args = " #{extra_args}" unless extra_args.empty?
+
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
   (0...300).each do |j|
@@ -371,8 +377,8 @@ miss.map{|i| i}.each do |i|
     #  end
     #end
 
-    tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick #{i} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
-    #tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick -1 /testbot #{i} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
+    tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick #{i}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
+    #tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick -1 /testbot #{i}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
     end
 end
 # Worker count must not exceed the number of cores.

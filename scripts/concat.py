@@ -75,12 +75,14 @@ if __name__ == '__main__':
     filepattern = 'data_*.csv'
     airlines = ['HA']
     columns = ['SaldoGesamt', 'Firmenwert']
+    doPrint = False
     if len(sys.argv) > 1:
         filepattern = sys.argv[1]
     if len(sys.argv) > 2:
         airlines = sys.argv[2].split(',')
     if len(sys.argv) > 3:
         columns = sys.argv[3].split(',')
+        doPrint = True
 
     files = glob.glob(filepattern)
     files = natsorted(files)
@@ -103,15 +105,16 @@ if __name__ == '__main__':
     print("Day 99 / SaldoGesamt / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
     print("Day 99 / Firmenwert / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
 
-    for c in columns:
-        ax = None
+    if doPrint:
+        for c in columns:
+            ax = None
 
-        for p in data['Param'].unique():
-            df1 = data.loc[data['Param'] == p]
-            for a in airlines:
-                df2 = df1.loc[df1['Airline'] == a]
-                name = '_'.join([a,p])
-                ax = df2[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
+            for p in data['Param'].unique():
+                df1 = data.loc[data['Param'] == p]
+                for a in airlines:
+                    df2 = df1.loc[df1['Airline'] == a]
+                    name = '_'.join([a,p])
+                    ax = df2[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
 
-    plt.show()
+        plt.show()
 
