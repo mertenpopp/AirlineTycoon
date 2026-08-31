@@ -754,13 +754,13 @@ All classifications are read-only except where explicitly shown as read/write.
 - `AnzAktien`: Total number of shares.
 - `ArabPlaneSelection`: ID of target plane selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
-- `Auftraege`: List of taken passenger jobs. Only access while in personal office or while you have a access to a laptop.
+- `Auftraege`: List of taken passenger jobs. May always be read.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read while in the personal office and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
-- `Frachten`: List of taken freight jobs. Only access while in personal office or while you have a access to a laptop.
+- `Frachten`: List of taken freight jobs. May always be read.
 - `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
@@ -785,7 +785,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `StrikeEndType`: If larger than zero, this gives the method by which the strike was ended. May always be read.
 - `StrikeHours`: Larger than zero if employees are currently striking. Gives number of hours remaining. May always be read.
 - `Tank`: Total volume of kerosene tank.
-- `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30` or while in personal office.
+- `TankInhalt`: Current amount of kerosene in tank. Only read while in personal office or while having access to a laptop.
 - `TankOpen`: Whether the tanks are released for use. Only read while in the personal office.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
@@ -824,9 +824,9 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 
 - `Name`: Individual name of the plane.
 - `TypeId`: Gives the plane type ID (index for the global array `PlaneTypes`).
-- `Flugplan`: Flight plan, only access while in personal office or while you have a access to a laptop.
+- `Flugplan`: Flight plan, may always be read.
 - `WorstZustand`: Low point of plane's condition given as percentage. Access permitted only while visiting the mechanic.
-- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic or while in personal office.
+- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic, while in personal office or while having access to a laptop.
 - `TargetZustand`: Target condition given as percentage. Access always permitted.
 - `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office or while having access to a laptop. Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `Baujahr`: Access permitted only while visiting the mechanic, while in personal office or while you have a access to a laptop.
@@ -886,7 +886,7 @@ The following may be accessed if the player object is ClaudeBot:
 - `RoutenAuslastung`: Gives how much the route is being utilized by your airline in percent of the weekly demand. You may only read this while in the personal office or at the route box. `RoutenAuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
 - `Image`: Image of this route. You may only read this while in the personal office, at the route box or in the advertising room.
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
-- `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
+- `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office or while having access to a laptop. Change via `GameMechanic`.
 - `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
 
 The following may be accessed if the player object is a competitor:
