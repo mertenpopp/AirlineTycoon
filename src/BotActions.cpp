@@ -560,7 +560,10 @@ void Bot::actionVisitHR() {
     std::vector<SLONG> workersSorted;
     workersSorted.reserve(Workers.Workers.AnzEntries());
     for (SLONG c = 0; c < Workers.Workers.AnzEntries(); c++) {
-        workersSorted.push_back(c);
+        const auto &qWorker = Workers.Workers[c];
+        if ((qWorker.Employer == qPlayer.PlayerNum) || (qWorker.Employer == WORKER_JOBLESS)) {
+            workersSorted.push_back(c);
+        }
     }
     std::sort(workersSorted.begin(), workersSorted.end(), [&](SLONG a, SLONG b) { return Workers.Workers[a].Gehalt < Workers.Workers[b].Gehalt; });
 
