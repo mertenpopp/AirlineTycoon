@@ -2232,8 +2232,9 @@ class PLAYER {
     void DelayFlightsIfNecessary(void);
     void DoBodyguardRabatt(SLONG Money);
     void EnterRoom(SLONG RoomNum, bool bDontBroadcast = false);
-    void AddRocketPart(SLONG rocketPart, SLONG price);
-    void AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price);
+    BOOL CheckRocketPart(SLONG rocketPart) const { return (RocketFlags & (1 << rocketPart)) != 0; }
+    void AddRocketPart(SLONG rocketPart);
+    void AddSpaceStationPart(SLONG rocketPart, SLONG textId);
     UWORD GetRoom(void);                           // Gibt den aktuellen Raum zurück
     SLONG GetMissionRating(bool bAnderer = false); // Gibt aktuellen Missionserfolg als Zahl zurück
     SLONG HasBerater(SLONG Berater) const;

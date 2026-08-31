@@ -656,10 +656,13 @@ void PLAYER::EnterRoom(SLONG RoomNum, bool bDontBroadcast) {
 //--------------------------------------------------------------------------------------------
 // Adds a new part to a rocket
 //--------------------------------------------------------------------------------------------
-void PLAYER::AddRocketPart(SLONG rocketPart, SLONG price) {
-    RocketFlags |= rocketPart;
+void PLAYER::AddRocketPart(SLONG rocketPart) {
+    SLONG price = RocketPrices[rocketPart];
     this->ChangeMoney(-price, 3400, "");
     SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, 3400);
+
+    PlayFanfare();
+    RocketFlags |= (1 << rocketPart);
 
     // Synchronize to other players
     NetSynchronizeFlags();
@@ -668,10 +671,13 @@ void PLAYER::AddRocketPart(SLONG rocketPart, SLONG price) {
 //--------------------------------------------------------------------------------------------
 // Adds a new part to a space station
 //--------------------------------------------------------------------------------------------
-void PLAYER::AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price) {
-    RocketFlags |= flag;
-    this->ChangeMoney(-price, rocketPart, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, rocketPart);
+void PLAYER::AddSpaceStationPart(SLONG rocketPart, SLONG textId) {
+    SLONG price = StationPrices[rocketPart];
+    this->ChangeMoney(-price, textId, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, textId);
+
+    PlayFanfare();
+    RocketFlags |= (1 << rocketPart);
 
     // Synchronize to other players
     NetSynchronizeFlags();
@@ -4886,25 +4892,15 @@ void PLAYER::RobotExecuteAction() {
 
     case ACTION_VISITNASA:
         for (c = 0; c < 10; c++) {
-            if ((RocketFlags & (1 << c)) == 0) {
+            if (!CheckRocketPart(c)) {
                 if (Sim.Difficulty == DIFF_FINAL) {
                     if (RocketPrices[c] < Money) {
-                        ChangeMoney(-RocketPrices[c], 3400, "");
-                        SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -RocketPrices[c], 3400);
-
-                        PlayFanfare();
-                        RocketFlags |= (1 << c);
-
+                        AddRocketPart(c);
                         SavesForRocket = FALSE;
                     }
                 } else if (Sim.Difficulty == DIFF_ADDON10) {
                     if (StationPrices[c] < Money) {
-                        ChangeMoney(-StationPrices[c], 3400, "");
-                        SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -StationPrices[c], 3400);
-
-                        PlayFanfare();
-                        RocketFlags |= (1 << c);
-
+                        AddSpaceStationPart(c, 3400);
                         SavesForRocket = FALSE;
                     }
                 }

@@ -528,11 +528,12 @@ void Bot::RobotExecuteAction() {
     case ACTION_VISITNASA: {
         const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
         for (SLONG i = 0; i < qPrices.size(); i++) {
-            if ((qPlayer.RocketFlags & (1 << i)) == 0 && moneyAvailable >= qPrices[i]) {
-                qPlayer.ChangeMoney(-qPrices[i], 3400, "");
-                SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -qPrices[i], 3400);
-                PlayFanfare();
-                qPlayer.RocketFlags |= (1 << i);
+            if (!qPlayer.CheckRocketPart(i) && moneyAvailable >= qPrices[i]) {
+                if (Sim.Difficulty == DIFF_FINAL) {
+                    qPlayer.AddRocketPart(i);
+                } else {
+                    qPlayer.AddSpaceStationPart(i, 3400);
+                }
             }
             moneyAvailable = getMoneyAvailable();
         }
