@@ -77,7 +77,7 @@ __int64 Bot::getNemesisScore(SLONG p) const {
             const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
             auto nParts = qPrices.size();
             for (SLONG i = 0; i < nParts; i++) {
-                if ((qTarget.RocketFlags & (1 << i)) != 0) {
+                if (qTarget.CheckRocketPart(i)) {
                     score += qPrices[i];
                 }
             }
@@ -169,7 +169,7 @@ void Bot::switchToFinalTarget() {
         auto nParts = qPrices.size();
         SLONG numRequired = 0;
         for (SLONG i = 0; i < nParts; i++) {
-            if ((qPlayer.RocketFlags & (1 << i)) == 0) {
+            if (!qPlayer.CheckRocketPart(i)) {
                 requiredMoney += qPrices[i];
                 numRequired++;
             }
@@ -1329,7 +1329,10 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
         return false;
     }
 
-    SLONG numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
+    SLONG numberOfPlanesTarget = 0;
+    if (planeTypeForNewRoute != -1) {
+        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
+    }
     mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
     mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
     if (planeTypeForNewRoute != -1) {

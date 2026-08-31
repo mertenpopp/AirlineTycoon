@@ -793,7 +793,7 @@ Bot::Prio Bot::condVisitNasa(__int64 &moneyAvailable) {
     const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
     auto nRocketParts = qPrices.size();
     for (SLONG i = 0; i < nRocketParts; i++) {
-        if ((qPlayer.RocketFlags & (1 << i)) == 0 && moneyAvailable >= qPrices[i]) {
+        if (!qPlayer.CheckRocketPart(i) && moneyAvailable >= qPrices[i]) {
             prio = std::max(prio, Prio::High);
         }
     }

@@ -835,18 +835,10 @@ END_NAME_MAP
 #define AMBIENT_JET_FIELD 2   // Man ist draußen auf dem Airfield
 
 // Die Flags für die Raktenbauteile:
-#define ROCKET_BASE 1     // Die Standbasis
-#define ROCKET_TOWER 2    // Das Haltegerüst
-#define ROCKET_ARM 4      // Der Arm am Haltegerüst
-#define ROCKET_PART_ONE 7 // Der erste Teil
-
+#define ROCKET_BASE 1         // Die Standbasis
+#define ROCKET_PART_ONE 7     // Der erste Teil
 #define ROCKET_AIRFRAME 8     // Der Rahmen
 #define ROCKET_WINGS 16       // Flügel
-#define ROCKET_CAPSULE 32     // Die Passagierkapsel
-#define ROCKET_PROP 64        // Seitliche Antriebe
-#define ROCKET_MAINPROP 128   // Hauptantrieb
-#define ROCKET_HECK 256       // Das Heck
-#define ROCKET_COCKPIT 512    // Die Steuerkanzel
 #define ROCKET_PART_TWO_A 127 // Der zweite Teil halb (für die Zeitungsmeldung)
 #define ROCKET_ALL 1023       // Die gesammte Rakete
 

@@ -5136,19 +5136,18 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 }
                 break;
             case 5000:
-                if ((qPlayer.RocketFlags & ROCKET_BASE) != 0) {
+                if (qPlayer.CheckRocketPart(0)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if (qPlayer.Money < RocketPrices[0]) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_BASE, RocketPrices[0]);
+                    qPlayer.AddRocketPart(0);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5001:
-                if ((qPlayer.RocketFlags & ROCKET_TOWER) != 0) {
+                if (qPlayer.CheckRocketPart(1)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_BASE) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5096, pFontPartner);
@@ -5156,38 +5155,35 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_TOWER, RocketPrices[1]);
+                    qPlayer.AddRocketPart(1);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5002:
-                if ((qPlayer.RocketFlags & ROCKET_TOWER) == 0) {
+                if (qPlayer.CheckRocketPart(2)) {
                     MakeSayWindow(0, TOKEN_NASA, 5097, pFontPartner);
                 } else if (qPlayer.Money < RocketPrices[2]) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_ARM, RocketPrices[2]);
+                    qPlayer.AddRocketPart(2);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
 
             case 5100: // Parts Level II
-                if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) != 0) {
+                if (qPlayer.CheckRocketPart(3)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if (qPlayer.Money < RocketPrices[3]) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_AIRFRAME, RocketPrices[3]);
+                    qPlayer.AddRocketPart(3);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5101:
-                if ((qPlayer.RocketFlags & ROCKET_WINGS) != 0) {
+                if (qPlayer.CheckRocketPart(4)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5195,13 +5191,12 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_WINGS, RocketPrices[4]);
+                    qPlayer.AddRocketPart(4);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5102:
-                if ((qPlayer.RocketFlags & ROCKET_CAPSULE) != 0) {
+                if (qPlayer.CheckRocketPart(5)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5209,13 +5204,12 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_CAPSULE, RocketPrices[5]);
+                    qPlayer.AddRocketPart(5);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5103:
-                if ((qPlayer.RocketFlags & ROCKET_HECK) != 0) {
+                if (qPlayer.CheckRocketPart(6)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5223,13 +5217,12 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_HECK, RocketPrices[6]);
+                    qPlayer.AddRocketPart(6);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5104:
-                if ((qPlayer.RocketFlags & ROCKET_PROP) != 0) {
+                if (qPlayer.CheckRocketPart(7)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5239,13 +5232,12 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_PROP, RocketPrices[7]);
+                    qPlayer.AddRocketPart(7);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5105:
-                if ((qPlayer.RocketFlags & ROCKET_MAINPROP) != 0) {
+                if (qPlayer.CheckRocketPart(8)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5253,13 +5245,12 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_MAINPROP, RocketPrices[8]);
+                    qPlayer.AddRocketPart(8);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
             case 5106:
-                if ((qPlayer.RocketFlags & ROCKET_COCKPIT) != 0) {
+                if (qPlayer.CheckRocketPart(9)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if ((qPlayer.RocketFlags & ROCKET_AIRFRAME) == 0) {
                     MakeSayWindow(0, TOKEN_NASA, 5196, pFontPartner);
@@ -5267,9 +5258,8 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddRocketPart(ROCKET_COCKPIT, RocketPrices[9]);
+                    qPlayer.AddRocketPart(9);
                     MakeSayWindow(0, TOKEN_NASA, 5099, pFontPartner);
-                    PlayFanfare();
                 }
                 break;
 
@@ -5302,7 +5292,6 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
             case 8104:
             case 8200:
             case 8201: {
-                SLONG Flag = 0;
                 SLONG Index = 0;
 
                 if (id >= 8000 && id <= 8002) {
@@ -5314,17 +5303,15 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 if (id >= 8200 && id <= 8201) {
                     Index = id - 8200 + 8;
                 }
-                Flag = 1 << Index;
 
-                if ((qPlayer.RocketFlags & Flag) != 0) {
+                if (qPlayer.CheckRocketPart(Index)) {
                     MakeSayWindow(0, TOKEN_NASA, 8301, pFontPartner);
                 } else if (qPlayer.Money < StationPrices[Index]) {
                     MakeSayWindow(0, TOKEN_NASA, 8300, pFontPartner);
                 } else {
                     (dynamic_cast<CNasa *>((qPlayer.DialogWin) != nullptr ? qPlayer.DialogWin : this))->KommVarTippNow = 12;
-                    qPlayer.AddSpaceStationPart(Flag, id, StationPrices[Index]);
+                    qPlayer.AddSpaceStationPart(Index, id);
                     MakeSayWindow(0, TOKEN_NASA, 8302, pFontPartner);
-                    PlayFanfare();
                 }
             } break;
 
