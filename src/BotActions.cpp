@@ -803,7 +803,7 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
             /* pick the larger out of two random planes */
             SLONG planeA = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
             SLONG planeB = qNemesisPlanes.GetRandomUsedIndex(&LocalRandom);
-            qPlayer.ArabPlaneSelection = (qNemesisPlanes[planeA].MaxPassagiere > qNemesisPlanes[planeB].MaxPassagiere) ? planeA : planeB;
+            qPlayer.ArabPlaneSelection = (qNemesisPlanes[planeA].ptPassagiere > qNemesisPlanes[planeB].ptPassagiere) ? planeA : planeB;
             AT_Log("Bot::actionSabotage(): Selecting plane %s", Helper::getPlaneName(qNemesisPlanes[qPlayer.ArabPlaneSelection]).c_str());
         }
 

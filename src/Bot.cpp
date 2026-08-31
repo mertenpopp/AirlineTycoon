@@ -380,8 +380,6 @@ void Bot::RobotExecuteAction() {
         qAction.ActionId = ACTION_NONE;
     }
 
-    qPlayer.WorkCountdown = 20 * 5;
-
     switch (qAction.ActionId) {
     case ACTION_NONE:
         qPlayer.WorkCountdown = 2;
@@ -411,17 +409,14 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_CHECKAGENT1:
         actionCheckLastMinute();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_CHECKAGENT2:
         actionCheckTravelAgency();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_CHECKAGENT3:
         actionCheckFreightDepot();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_UPGRADE_PLANES:
@@ -499,12 +494,10 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_EMITSHARES:
         actionEmitShares();
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_SELLSHARES:
         actionSellShares(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_BUYSHARES: {
@@ -518,7 +511,6 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_OVERTAKE_AIRLINE:
         actionOvertakeAirline();
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_VISITMECH:
@@ -571,7 +563,7 @@ void Bot::RobotExecuteAction() {
                 mItemAntiStrike = 4;
             }
         }
-        if (qPlayer.StrikeHours > 0 && qPlayer.StrikeEndType == 0 && mItemAntiStrike == 4) {
+        if ((qPlayer.StrikeHours > 0) && (qPlayer.StrikeEndType == 0) && (qPlayer.TrinkerTrust == 1)) {
             AT_Log("Bot::RobotExecuteAction(): Ended strike using drunk guy");
             GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Drunk);
         }
@@ -588,7 +580,6 @@ void Bot::RobotExecuteAction() {
     case ACTION_EXPANDAIRPORT:
         AT_Log("Bot::RobotExecuteAction(): Expanding Airport");
         GameMechanic::expandAirport(qPlayer);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITROUTEBOX:
@@ -597,12 +588,10 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_VISITROUTEBOX2:
         actionRentRoute();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITSECURITY:
         actionVisitSecurity(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITSECURITY2:
@@ -613,27 +602,22 @@ void Bot::RobotExecuteAction() {
         }
         mNeedToShutdownSecurity = false;
         mLastTimeInRoom.erase(ACTION_SABOTAGE); /* allow sabotage again */
-        qPlayer.WorkCountdown = 20 * 1;
         break;
 
     case ACTION_VISITDESIGNER:
         actionBuyDesignerPlane(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_WERBUNG_ROUTES:
         actionBuyAdsForRoutes(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_WERBUNG:
         actionBuyAds(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITADS:
         actionVisitAds();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     default:
@@ -642,16 +626,6 @@ void Bot::RobotExecuteAction() {
     }
 
     mLastTimeInRoom[qAction.ActionId] = Sim.Time;
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK_2) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
-    }
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKVERYQUICK) && qPlayer.WorkCountdown > 4) {
-        qPlayer.WorkCountdown /= 4;
-    } else if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
-    }
 
     AT_Log("");
 }
