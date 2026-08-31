@@ -411,7 +411,6 @@ void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
 
     auto planeId = list[0];
     auto &qPlane = qPlayer.Planes[planeId];
-    qPlane.MaxBegleiter = qPlane.ptAnzBegleiter;
     AT_Log("Bot::actionBuyNewPlane(): Bought plane %s", Helper::getPlaneName(qPlane).c_str());
     if (mDoRoutes) {
         if (mRoutesNextStep == RoutesNextStep::BuyMorePlanes) {
@@ -453,7 +452,6 @@ void Bot::actionBuyUsedPlane(__int64 /*moneyAvailable*/) {
     assert(planeId >= 0x1000000);
 
     auto &qPlane = qPlayer.Planes[planeId];
-    qPlane.MaxBegleiter = qPlane.ptAnzBegleiter;
     AT_Log("Bot::actionBuyUsedPlane(): Bought used plane %s", Helper::getPlaneName(qPlane).c_str());
     AT_Log("Bot::actionBuyUsedPlane(): Passengers = %d, fuel = %d, year = %d", qPlane.ptPassagiere, qPlane.ptVerbrauch, qPlane.Baujahr);
     SLONG improvementNeeded = std::max(0, 80 - qPlane.WorstZustand);
@@ -521,7 +519,6 @@ void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
 
     auto planeId = list[0];
     auto &qPlane = qPlayer.Planes[planeId];
-    qPlane.MaxBegleiter = qPlane.ptAnzBegleiter;
     AT_Log("Bot::actionBuyDesignerPlane(): Bought plane %s", Helper::getPlaneName(qPlane).c_str());
     if (mDoRoutes) {
         if (mRoutesNextStep == RoutesNextStep::BuyMorePlanes) {

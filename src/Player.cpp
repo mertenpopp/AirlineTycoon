@@ -165,6 +165,10 @@ ULONG PLAYER::BuyPlane(ULONG PlaneTypeId, TEAKRAND *pRnd) {
     }
     // if (Planes[Id].MaxBegleiter>PlaneTypes[Planes[Id].TypeId].AnzBegleiter*2) Planes[Id].MaxBegleiter=PlaneTypes[Planes[Id].TypeId].AnzBegleiter*2;
 
+    if (IsSuperBot()) {
+        Planes[Id].MaxBegleiter = Planes[Id].ptAnzBegleiter;
+    }
+
     ChangeMoney(-PlaneTypes[PlaneTypeId + 0x10000000].Preis,
                 2010, // Kauf des Flugzeuges
                 Planes[Id].Name);
@@ -214,6 +218,10 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     }
     if (p.MaxBegleiter > p.ptAnzBegleiter * 2) {
         p.MaxBegleiter = p.ptAnzBegleiter * 2;
+    }
+
+    if (IsSuperBot()) {
+        Planes[Id].MaxBegleiter = Planes[Id].ptAnzBegleiter;
     }
 
     p.XPlane = plane;
