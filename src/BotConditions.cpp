@@ -621,6 +621,9 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_DROPMONEY, 24)) {
         return Prio::None;
     }
+    if (qPlayer.Credit == 0) {
+        return Prio::None;
+    }
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
@@ -628,7 +631,7 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
         return Prio::None; /* we deliberately keep the line drawn */
     }
 
-    if (moneyAvailable >= 1000 && qPlayer.Credit > 0 && getWeeklyOpSaldo() > 1000 * 1000LL) {
+    if (moneyAvailable >= 1000 && getWeeklyOpSaldo() > 1000 * 1000LL) {
         return Prio::Medium;
     }
     return Prio::None;

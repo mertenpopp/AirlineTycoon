@@ -785,7 +785,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `StrikeEndType`: If larger than zero, this gives the method by which the strike was ended. May always be read.
 - `StrikeHours`: Larger than zero if employees are currently striking. Gives number of hours remaining. May always be read.
 - `Tank`: Total volume of kerosene tank.
-- `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30`.
+- `TankInhalt`: Current amount of kerosene in tank. Only read when `qPlayer.HasBerater(BERATERTYP_KEROSIN) > 30` or while in personal office.
 - `TankOpen`: Whether the tanks are released for use. Only read while in the personal office.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
@@ -826,8 +826,8 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 - `TypeId`: Gives the plane type ID (index for the global array `PlaneTypes`).
 - `Flugplan`: Flight plan, only access while in personal office or while you have a access to a laptop.
 - `WorstZustand`: Low point of plane's condition given as percentage. Access permitted only while visiting the mechanic.
-- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic.
-- `TargetZustand`: Target condition given as percentage. Access permitted only while visiting the mechanic.
+- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic or while in personal office.
+- `TargetZustand`: Target condition given as percentage. Access always permitted.
 - `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office or while having access to a laptop. Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `Baujahr`: Access permitted only while visiting the mechanic, while in personal office or while you have a access to a laptop.
 - `AnzPiloten`: Current number of pilots assigned to this plane. Only access while in personal office, HR office or while having access to a laptop.

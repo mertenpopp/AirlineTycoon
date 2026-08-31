@@ -543,11 +543,9 @@ const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { ret
 
 const CRoute &Bot::getRoute(const Bot::RouteInfo &routeInfo) const { return Routen[routeInfo.routeId]; }
 
-__int64 Bot::getDailyOpSaldo() const { return qPlayer.BilanzGestern.GetOpSaldo(); }
+__int64 Bot::getWeeklyOpSaldo() const { return (qPlayer.HasBerater(BERATERTYP_GELD) > 0) ? qPlayer.BilanzWoche.Hole().GetOpSaldo() : 0; }
 
-__int64 Bot::getWeeklyOpSaldo() const { return qPlayer.BilanzWoche.Hole().GetOpSaldo(); }
-
-bool Bot::isLateGame() const { return (getWeeklyOpSaldo() > 1e8); }
+bool Bot::isLateGame() const { return (getWeeklyOpSaldo() > 1e8) || (mPlanesForRoutes.size() >= 10); }
 
 SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) ? mCurrentImage : qPlayer.Image; }
 
