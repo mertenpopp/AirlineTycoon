@@ -787,8 +787,6 @@ void ClaudeBot::RobotExecuteAction() {
 
     mOnThePhone = 0;
 
-    qPlayer.WorkCountdown = 20 * 5;
-
     /* The room check RULES.md asks for. It warns and performs the action anyway, as required.
      *
      * In the headless runs the whole game plays with Sim.CallItADay set, and
@@ -888,16 +886,6 @@ void ClaudeBot::RobotExecuteAction() {
     default:
         AT_Error("ClaudeBot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
         DebugBreak();
-    }
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK_2) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
-    }
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKVERYQUICK) && qPlayer.WorkCountdown > 4) {
-        qPlayer.WorkCountdown /= 4;
-    } else if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
     }
 
     AT_Log("");

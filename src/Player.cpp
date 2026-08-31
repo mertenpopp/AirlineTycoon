@@ -4017,10 +4017,22 @@ void PLAYER::RobotExecuteAction() {
     }
 
     if (IsSuperBot()) {
+        WorkCountdown = 20 * 5;
+
         if (IsMertenBot()) {
             mBot->RobotExecuteAction();
         } else if (IsClaudeBot()) {
             mClaudeBot->RobotExecuteAction();
+        }
+
+        if (RobotUse(ROBOT_USE_WORKQUICK_2) && WorkCountdown > 2) {
+            WorkCountdown /= 2;
+        }
+
+        if (RobotUse(ROBOT_USE_WORKVERYQUICK) && WorkCountdown > 4) {
+            WorkCountdown /= 4;
+        } else if (RobotUse(ROBOT_USE_WORKQUICK) && WorkCountdown > 2) {
+            WorkCountdown /= 2;
         }
 
         Sim.Players.CheckFlighplans();

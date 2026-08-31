@@ -775,7 +775,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
 - `Money`: Current cash balance.
 - `OfficeState`: Office usability status.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
 - `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
 - `PlayerNum`: Player number, used as index in many arrays.
 - `PlayerWalkRandom`: Random number generator.
@@ -790,6 +790,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
+- `WorkCountdown`: Shall be set to `2` in `RobotExecuteAction()` if no action is performed. Otherwise, no access is permitted.
 - `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
 - `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
 
@@ -797,20 +798,23 @@ All classifications are read-only except where explicitly shown as read/write.
 
 You can read some fields in the PLAYER class instance that refer to a competitor.
 
-Some values may only be read if the spy has been hired and has sufficient skill level. Current skill level can be queried using `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
+Some values may only be read if the spy has been hired and has sufficient skill level. Current skill level can be queried using `qPlayer.HasBerater(BERATERTYP_INFO)`.
 
 All classifications are read-only.
 
 - `Abk`: Abbreviation of airline name.
-- `AnzAktien`: Total number of shares. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
+- `AnzAktien`: Total number of shares. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
 - `BilanzWoche`: Weekly balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Credit`: Current loan amount. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
-- `MaxAktien`: Maximum number of shares including those that can still be emitted.
+- `IsOut`: Check if the player is still in the game. May always be read.
+- `Kurse`: The last ten share prices of your own airline. May always be read.
+- `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
-- `OfficeState`: Office usability status.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID. Only read for at index referring to own airline when `qPlayer.HasBerater(BERATERTYP_GELD) > 0`. Only read at other indices when `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
-- `PlayerNum`: Player number, used as index in many arrays.
+- `OfficeState`: Office usability status. May always be read.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
+- `PlayerNum`: Player number, used as index in many arrays. May always be read.
+- `Statistiken[STAT_NIEDERLASSUNGEN]` and `Statistiken[STAT_ROUTEN]`: Number of international offices and rented routes. May be read while at the saboteur.
 
 ### CPlane object
 
@@ -842,7 +846,7 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 - `Sponsored`: Denotes a starting plane. Can only be sold for 10% of the usual value.
 - `Problem`: If larger than zero, plane has technical problem and cannot be used. Only access while in personal office or while you have a access to a laptop.
 
-The following member variables are copied over from the corresponding CPlaneType and can always be read:
+The following member variables are copied over from the corresponding CPlaneType and can always be read, even for competitor planes:
 - `ptHersteller`: String containing manufactorer name.
 - `ptName`: String containing type name.
 - `ptErstbaujahr`: First year where this type entered the market.
@@ -866,7 +870,7 @@ The following member function may be called:
 - `CPlane::CalculatePrice`: Current value of the plane. Call allowed while in museum.
 - `CPlane::CanBeSold`: Checks if plane has flights scheduled. Call allowed while in museum.
 
-### RentRouten object
+### RentRouten objects
 
 Located in each `PLAYER` object at `qPlayer.RentRouten.RentRouten`. Contains an instance of type `CRentRoute` for every instance of `CRoute` in the global array `Routen` at the same index. `CRentRoute` describes whether `qPlayer` rents and flies the corresponding route.
 
@@ -887,7 +891,7 @@ The following may be accessed if the player object is ClaudeBot:
 
 The following may be accessed if the player object is a competitor:
 - `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
-- `RoutenAuslastung`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `RoutenAuslastung` and `RoutenAuslastungBot`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
 ### CWorker object
@@ -961,6 +965,17 @@ Further restrictions apply:
 ### Restrictions for allowed functions
 
 Note that even for allowed functions there are usage restrictions (player character almost always must be in the correct room) which are listed in this document together with the explanation for the given function.
+
+Functions and variables for missions
+------------------------------------
+
+The following shall only be used when implementing ClaudeBot for missions instead of the free game.
+
+- `BOOL PLAYER::CheckRocketPart(SLONG rocketPart)`: Check if a specific rocket or space station part has already been bought.
+- `void PLAYER::AddRocketPart(SLONG rocketPart)`: Buy a rocket part.
+- `void PLAYER::AddSpaceStationPart(SLONG rocketPart, SLONG textId)`: Buy a space station part. Always use `textId==3400`.
+- `bool RobotUse(SLONG FeatureId)`: Check specific configurations of the bot which are mainly relevant for missions.
+- `Sim.MissionCities`: Array of cities relevant for a specific mission.
 
 Notes regarding code base
 =========================
