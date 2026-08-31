@@ -348,17 +348,28 @@ name = ""
 #miss = [1, 12, 13, 15, 41]
 #name = "_mission_new"
 
+# File prefix for the per-run CSV/log files of the free game, "dataBOT" by default.
+# Override with "--prefix NAME" or "--prefix=NAME" on this script's own command line, e.g.
+#   ruby threadpool.rb --prefix dataCLAUDE
+argv = ARGV.dup
+bot_prefix = "dataBOT"
+if (idx = argv.index { |a| a == "--prefix" || a.start_with?("--prefix=") })
+    arg = argv.delete_at(idx)
+    bot_prefix = arg.start_with?("--prefix=") ? arg.split("=", 2)[1] : argv.delete_at(idx)
+    abort("--prefix requires a value") if bot_prefix.nil? || bot_prefix.empty?
+end
+
 # Additional arguments for ./AT, taken from this script's own command line, e.g.
 #   ruby threadpool.rb "/testbot 3"
 # They are appended after "/quick <param>".
-extra_args = ARGV.join(" ").strip
+extra_args = argv.join(" ").strip
 extra_args = " #{extra_args}" unless extra_args.empty?
 
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
   (0...300).each do |j|
     prefix = "dataMISS_#{i}#{name}_#{j}"
-    prefix = "dataBOT_freegame#{name}_#{j}" if i == -1
+    prefix = "#{bot_prefix}_freegame#{name}_#{j}" if i == -1
     file = "#{prefix}.csv"
     log = "#{prefix}.txt"
 
