@@ -54,7 +54,6 @@ const SLONG kStockEmissionMode = 2;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
-const bool kBuySharesWhileLeveraged = true;
 const SLONG kMoneyEmergencyFund = 0; /* we can go into debt */
 const SLONG kMoneyReserveRepairs = 0;
 const SLONG kMoneyReservePlaneUpgrades = 2500 * 1000;
