@@ -1002,6 +1002,7 @@ The following shall only be used when implementing ClaudeBot for missions instea
 - `void PLAYER::AddSpaceStationPart(SLONG rocketPart, SLONG textId)`: Buy a space station part. Always use `textId==3400`.
 - `bool RobotUse(SLONG FeatureId)`: Check specific configurations of the bot which are mainly relevant for missions.
 - `Sim.MissionCities`: Array of cities relevant for a specific mission.
+- `RocketPrices` and `StationPrices`: Array listing prices for various rocket and space station parts.
 
 Notes regarding code base
 =========================

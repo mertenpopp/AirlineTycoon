@@ -463,7 +463,7 @@ Bot::Prio Bot::condBuyKerosine(__int64 &moneyAvailable) {
     if (qPlayer.Tank <= 0) {
         return Prio::None;
     }
-    if (qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30) {
+    if (qPlayer.HasBerater(BERATERTYP_KEROSIN) < 30) {
         return Prio::None;
     }
 
