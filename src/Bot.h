@@ -284,7 +284,6 @@ class Bot {
     bool checkPlaneAvailable(SLONG planeId, bool printIfAvailable, bool areWeInOffice);
     const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
     const CRoute &getRoute(const RouteInfo &routeInfo) const;
-    __int64 getWeeklyOpSaldo() const;
     bool isLateGame() const;
     SLONG getImage() const;
     void forceReplanning();

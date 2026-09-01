@@ -492,7 +492,7 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_DROPMONEY: {
-        __int64 m = std::min({qPlayer.Credit, moneyAvailable, getWeeklyOpSaldo()});
+        __int64 m = std::min(qPlayer.Credit, moneyAvailable);
         AT_Log("Bot::RobotExecuteAction(): Paying back loan: %s $", Insert1000erDots64(m).c_str());
         GameMechanic::payBackCredit(qPlayer, m);
         moneyAvailable = getMoneyAvailable();
