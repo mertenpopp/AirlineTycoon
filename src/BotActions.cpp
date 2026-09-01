@@ -1298,13 +1298,8 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
 
     SLONG adCampaignSize = 4;
     SLONG cost = gWerbePrice[1 * 6 + adCampaignSize];
-    if (cost > moneyAvailable) {
-        AT_Error("Bot::actionBuyAdsForRoutes(): Not enough money.");
-        return;
-    }
 
-    bool bailout = false;
-    while (!bailout && mRoutesNextStep == RoutesNextStep::BuyAdsForRoute) {
+    while ((mRoutesNextStep == RoutesNextStep::BuyAdsForRoute) && (cost <= moneyAvailable)) {
         assert(mImproveRouteId != -1);
         auto &qRoute = mRoutes[mImproveRouteId];
         auto &qRentedRoute = getRentRoute(qRoute);
@@ -1314,21 +1309,17 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
         }
 
         SLONG oldImage = qRentedRoute.Image;
-        while (!bailout && qRentedRoute.Image < kRouteMaxImage) {
-            if (cost > moneyAvailable) {
-                bailout = true;
-                break;
-            }
+        while ((qRentedRoute.Image < kRouteMaxImage) && (cost <= moneyAvailable)) {
             if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
-                bailout = true;
                 break;
             }
             moneyAvailable = getMoneyAvailable();
         }
-        SLONG newImage = qRentedRoute.Image;
         AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)",
-               Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, newImage);
-        qRoute.image = newImage;
+               Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, qRentedRoute.Image);
+        qRoute.image = qRentedRoute.Image;
+
+        routesRecalcNextStep();
     }
 }
 
