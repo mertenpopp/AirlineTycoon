@@ -487,7 +487,7 @@ static void cacheKerosinPrice() {
 
 ClaudeBot::ClaudeBot(PLAYER &player) : qPlayer(player) {}
 
-void ClaudeBot::RobotInit() {
+void ClaudeBot::RobotInit(SLONG randomSeed) {
     auto balance = qPlayer.BilanzWoche.Hole();
     AT_Info("ClaudeBot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
@@ -506,7 +506,7 @@ void ClaudeBot::RobotInit() {
         AT_Log("ClaudeBot::RobotInit(): First run.");
 
         /* random source */
-        LocalRandom.SRand(qPlayer.WaitWorkTill);
+        LocalRandom.SRand(randomSeed);
 
         /* bot level */
         AT_Log("ClaudeBot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
@@ -687,7 +687,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
 void ClaudeBot::RobotPlan() {
     if (mFirstRun) {
         AT_Error("ClaudeBot::RobotPlan(): ClaudeBot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("ClaudeBot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
     }
@@ -763,7 +763,7 @@ void ClaudeBot::RobotPlan() {
 void ClaudeBot::RobotExecuteAction() {
     if (mFirstRun) {
         AT_Error("ClaudeBot::RobotExecuteAction(): ClaudeBot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("ClaudeBot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
         return;
     }

@@ -16,7 +16,7 @@ class ClaudeBot {
   public:
     explicit ClaudeBot(PLAYER &player);
 
-    void RobotInit();
+    void RobotInit(SLONG randomSeed);
     void RobotPlan();
     void RobotExecuteAction();
 
