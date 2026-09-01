@@ -317,6 +317,9 @@ class Bot {
     bool mLongTermStrategy{true};
     SLONG mBestPlaneTypeId{-1};
     SLONG mBestUsedPlaneIdx{-1};
+    SLONG mBestUsedPlanePilots{};
+    SLONG mBestUsedPlaneCrew{};
+    SLONG mBestUsedPlanePrice{};
     SLONG mBuyPlaneForRouteId{-1};
     SLONG mPlaneTypeForNewRoute{-1};
     std::vector<SLONG> mPlanesForNewRoute{};

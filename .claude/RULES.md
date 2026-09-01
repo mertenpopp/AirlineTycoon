@@ -736,7 +736,7 @@ You have read access to:
 - `Sim.StartWeekday`: Get day of the week where game was started.
 - `Sim.Difficulty`: Denotes whether we are in a free game or a mission. Always assume free game `Sim.Difficulty == -1`.
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
-- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and while in the personal office. `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
+- `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and personal office (or using laptop). `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
 - `Sim.HomeAirportId`: City ID of the home airport.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
@@ -755,7 +755,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `ArabPlaneSelection`: ID of target plane selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. May always be read.
-- `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read while in the personal office and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
+- `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
@@ -785,14 +785,14 @@ All classifications are read-only except where explicitly shown as read/write.
 - `StrikeEndType`: If larger than zero, this gives the method by which the strike was ended. May always be read.
 - `StrikeHours`: Larger than zero if employees are currently striking. Gives number of hours remaining. May always be read.
 - `Tank`: Total volume of kerosene tank.
-- `TankInhalt`: Current amount of kerosene in tank. Only read while in personal office or while having access to a laptop.
+- `TankInhalt`: Current amount of kerosene in tank. Only read while in personal office (or using laptop) or at the Arab.
 - `TankOpen`: Whether the tanks are released for use. Only read while in the personal office.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
 - `WorkCountdown`: Shall be set to `2` in `RobotExecuteAction()` if no action is performed. Otherwise, no access is permitted.
-- `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
-- `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office or while in the HR room.
+- `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office (or using laptop) or while in the HR room.
+- `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office (or using laptop) or while in the HR room.
 
 ### Player objects (competitors)
 
@@ -814,7 +814,8 @@ All classifications are read-only.
 - `OfficeState`: Office usability status. May always be read.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
-- `Statistiken[STAT_NIEDERLASSUNGEN]` and `Statistiken[STAT_ROUTEN]`: Number of international offices and rented routes. May be read while at the saboteur.
+- `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
+- `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
 
 ### CPlane object
 
@@ -826,25 +827,25 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 - `TypeId`: Gives the plane type ID (index for the global array `PlaneTypes`).
 - `Flugplan`: Flight plan, may always be read.
 - `WorstZustand`: Low point of plane's condition given as percentage. Access permitted only while visiting the mechanic.
-- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic, while in personal office or while having access to a laptop.
+- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic, while in personal office (or using laptop).
 - `TargetZustand`: Target condition given as percentage. Access always permitted.
-- `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office or while having access to a laptop. Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
-- `Baujahr`: Access permitted only while visiting the mechanic, while in personal office or while you have a access to a laptop.
-- `AnzPiloten`: Current number of pilots assigned to this plane. Only access while in personal office, HR office or while having access to a laptop.
-- `AnzBegleiter`: Current number of stewardesses assigned to this plane. Only access while in personal office, HR office or while having access to a laptop.
-- `MaxBegleiter`: Target number of stewardesses. Only access while in personal office, HR office or while having access to a laptop. Write access permitted while in personal office (valid range: `ptAnzBegleiter` up to including `ptAnzBegleiter *2`).
+- `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office (or using laptop). Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
+- `Baujahr`: Access permitted only while visiting the mechanic, while in personal office (or using laptop).
+- `AnzPiloten`: Current number of pilots assigned to this plane. Only access while in personal office (or using laptop) or in HR office.
+- `AnzBegleiter`: Current number of stewardesses assigned to this plane. Only access while in personal office (or using laptop) or in HR office.
+- `MaxBegleiter`: Target number of stewardesses. Only access while in personal office (or using laptop) or HR office. Write access permitted while in personal office (valid range: `ptAnzBegleiter` up to including `ptAnzBegleiter *2`).
 - `PersonalQuality`: Average personal skill ranging from 0 to 100. Read access while in HR office.
 - `Wartungskosten`: Amount spent for plane maintenance and repairs on the previous day. Access permitted only while visiting the mechanic.
 - `Sitze`, `Tabletts`, `Deco`, `Reifen`, `Triebwerk`, `Sicherheit`, `Elektronik` and `Essen`: Current plane upgrade levels. Read access while in personal office.
 - `SitzeTarget`, `TablettsTarget`, `DecoTarget`, `ReifenTarget`, `TriebwerkTarget`, `SicherheitTarget`, `ElektronikTarget`, `EssenTarget`: Planned plane upgrade levels. Read and write access while in personal office.
-- `Auslastung`: Gives the average utilization over the previous day in % of seats. Only access while in personal office or while you have a access to a laptop.
-- `AuslastungFC`: Gives the average utilization over the previous day in % of first class seats. Only access while in personal office or while you have a access to a laptop.
-- `Kilometer`: Total number of kilometers flown. Only access while in personal office or while you have a access to a laptop.
-- `SummePassagiere`: Total number of passengers transported. Only access while in personal office or while you have a access to a laptop.
+- `Auslastung`: Gives the average utilization over the previous day in % of seats. Only access while in personal office (or using laptop).
+- `AuslastungFC`: Gives the average utilization over the previous day in % of first class seats. Only access while in personal office (or using laptop).
+- `Kilometer`: Total number of kilometers flown. Only access while in personal office (or using laptop).
+- `SummePassagiere`: Total number of passengers transported. Only access while in personal office (or using laptop).
 - `MaxPassagiere` and `MaxPassagiereFC`: Denotes the current split of seats between regular and first-class passengers (affects utilization and income for route flights).
 - `MaxPassagiereTarget` and `MaxPassagiereTargetFC`: Denotes the target split of seats between regular and first-class passengers (will be applied the next day).
 - `Sponsored`: Denotes a starting plane. Can only be sold for 10% of the usual value.
-- `Problem`: If larger than zero, plane has technical problem and cannot be used. Only access while in personal office or while you have a access to a laptop.
+- `Problem`: If larger than zero, plane has technical problem and cannot be used. Only access while in personal office (or using laptop).
 
 The following member variables are copied over from the corresponding CPlaneType and can always be read, even for competitor planes:
 - `ptHersteller`: String containing manufactorer name.
@@ -880,18 +881,18 @@ Familiarize yourself with the data structure:
 All classifications are read-only.
 
 The following may be accessed if the player object is ClaudeBot:
-- `Rang`: You may always use the expression `Rang != 0` to check if you are currently renting this route. If the value is `> 0`, it gives the position of the player in the ranking of who flies this route the most of all four airlines. The exact value may only be read while at the route box or in the personal office.
-- `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
-- `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office. The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
-- `RoutenAuslastung`: Gives how much the route is being utilized by your airline in percent of the weekly demand. You may only read this while in the personal office or at the route box. `RoutenAuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
-- `Image`: Image of this route. You may only read this while in the personal office, at the route box or in the advertising room.
+- `Rang`: You may always use the expression `Rang != 0` to check if you are currently renting this route. If the value is `> 0`, it gives the position of the player in the ranking of who flies this route the most of all four airlines. The exact value may only be read while at the route box or in the personal office (or using laptop).
+- `Auslastung`: Gives the average utilization in % of seats in planes that fly this route. You may only read this while in the personal office (or using laptop). The value is averaged over the past days. `AuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
+- `AuslastungFC`: Gives the average utilization in %  of first class seats in planes that fly this route. You may only read this while in the personal office (or using laptop). The value is averaged over the past days. `AuslastungFirstClassBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
+- `RoutenAuslastung`: Gives how much the route is being utilized by your airline in percent of the weekly demand. You may only read this while in the personal office (or using laptop) or at the route box. `RoutenAuslastungBot` is the data but filtered using a faster time constant `kRouteAvgDays` which may also be changed.
+- `Image`: Image of this route. You may only read this while in the personal office (or using laptop), at the route box or in the advertising room.
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
-- `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office or while having access to a laptop. Change via `GameMechanic`.
-- `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office, Change via `GameMechanic`.
+- `Ticketpreis`: Price that each passenger has to pay. You may only read this while in the personal office (or using laptop). Change via `GameMechanic`.
+- `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office (or using laptop). Change via `GameMechanic`.
 
 The following may be accessed if the player object is a competitor:
 - `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
-- `RoutenAuslastung` and `RoutenAuslastungBot`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `RoutenAuslastung` and `RoutenAuslastungBot`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office (or using laptop) or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
 ### CWorker object
@@ -914,6 +915,19 @@ The following may be accessed while in the HR office:
 The following function may be called:
 - `void Gehaltsaenderung(BOOL Art)`: Increases (Art==true) or decreases (Art==false) salary of employee by 10 percent, affecting happiness.
 
+### CRoute objects
+
+Familiarize yourself with the data structure:
+- CRoute
+
+This class describes an individual route.
+
+- `ULONG VonCity`: ID of one of the two cities. May always be read.
+- `ULONG NachCity`: ID of one of the two cities. May always be read.
+- `SLONG Miete`: Rent for this route per month. May be read while in personal office and while at route box.
+- `SLONG Bedarf`: How many passengers still want to fly today. May be read while in personal office and while at route box.
+- `AnzPassagiere()`: Used by the game to refresh demand in `CRouten::NewDay()`. Function may be called while at route box.
+
 ### Global read-only helpers and tables
 
 You may also read the following global tables and helpers when the rules permit them:
@@ -923,11 +937,20 @@ You may also read the following global tables and helpers when the rules permit 
 - `gFrachten` may only be read while in the room accessed via ACTION_CHECKAGENT3.
 - `AuslandsAuftraege[cityId]` may only be if canCallInternational() was checked with the cityId.
 - `AuslandsFrachten[cityId]` may only be if canCallInternational() was checked with the cityId.
-- `Routen` while at the route box.
+- `Routen` may or may not be access depending on the field. Check the section "CRoute objects".
 - `PlaneTypes[planeTypeId]` may be read any time given that `planeTypeId` was returned at least once by `GameMechanic::getAvailablePlaneTypes()`.
 - `TafelData` may only be read while in the boss office
-- `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` to query informations about cities and flight distances/duration.
+- `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` always to query informations about cities and flight distances/duration.
 - `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades.
+
+Independently, the following functions of any global array of type `BUFFER_V` or `ALBUM_V` may always be used:
+
+- `SLONG AnzEntries()`: Gives size of data structure
+- `SLONG GetNumFree()`: Gives number of free entries
+- `SLONG GetNumUsed()`: Gives number of used entries
+- `ULONG GetIdFromIndex(SLONG id) `: Converts unique ID into an index
+- `SLONG find(ULONG id)`: Converts index into the unique ID
+- `BOOL IsInAlbum(ULONG id)`: Check if index or unique ID is part of this data structire
 
 Global functions
 ----------------
@@ -1072,39 +1095,3 @@ the job types the bot itself scheduled, which desynchronises as soon as a plan i
 Merten: The human player also does not have access. This cost can be derived from analyzing the flight plan. This is part of the challenge when the scheduling flights to all planes:
 Not only are there constraints to meet but you also need to minimize automatic flights and this refitting cost.
 Hint: I believe that you worry a bit too much about refitting cost. Automatic flights usually add more cost. BUT: I do not want to prescribe a solution for you. I suggest you monitor the cost of refitting and collect some data and then you decide whether it is worth to try to minimize this cost.
-
-### 2. `CPlane::MaxPassagiere` / `MaxPassagiereFC` are not listed, but they cap route revenue — **NEEDS DECISION**
-
-The *Constraints* section is correct that passenger **jobs** are limited by `ptPassagiere`
-(verified at `Player.cpp:2314`). Route flights are different: `CFlugplanEintrag::CalcPassengers`
-caps the passenger count at `qPlane.MaxPassagiere + qPlane.MaxPassagiere / 2`
-(`Schedule.cpp:320`), i.e. the capacity of the *current seat configuration*, not the plane
-type's nominal capacity. `MaxPassagiereFC` plays the same role for first class.
-
-These are also the fields that make the `SitzeTarget` upgrade pay off, so without them the
-bot cannot evaluate either route profitability or seat upgrades.
-
-Request: read access to `MaxPassagiere`, `MaxPassagiereFC` and their
-`MaxPassagiereTarget` / `MaxPassagiereTargetFC` counterparts, gated like the other
-configuration fields (personal office, or office/laptop).
-
-Merten: Access granted to MaxPassagiere and MaxPassagiereFC. MaxPassagiereTarget and MaxPassagiereTargetFC appear to not be used by the game's code.
-
-Documentation fixes
--------------------
-
-### 3. `ptAnzPiloten` is described as stewardesses
-
-In the new *CPlane object* section both `ptAnzPiloten` and `ptAnzBegleiter` read "Number
-of stewardesses required for normal operation". `class.h:884` says `ptAnzPiloten` is
-"Piloten und Co-Piloten" — the first one should say pilots (and co-pilots).
-
-Merten: Fixed
-
-### 4. Minor: plane type name fields for logging
-
-The always-readable pt* list omits `ptName`, `ptHersteller` and `ptErstbaujahr`. I would
-like to use `ptName` in log messages so schedules are readable in GameLog.txt. Fine to
-read them? They carry no information a human player could not see at the broker.
-
-Merten: Granted

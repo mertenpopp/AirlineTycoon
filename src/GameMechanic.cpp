@@ -2179,6 +2179,13 @@ bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId) {
     return false;
 }
 
+void GameMechanic::bookCallCost(PLAYER &qPlayer, SLONG numberOfCitiesCalled, bool areWeInOffice) {
+    SLONG cost = numberOfCitiesCalled;
+    qPlayer.ChangeMoney(-cost, 3204 + (areWeInOffice ? 0 : 1), "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -cost, 3204 + (areWeInOffice ? 0 : 1));
+    qPlayer.History.AddCallCost(cost);
+}
+
 bool GameMechanic::takeInternationalFlightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId) {
     outObjectId = -1;
     if (cityId < 0 || cityId >= AuslandsAuftraege.size()) {

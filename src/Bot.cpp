@@ -678,6 +678,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << bot.mLongTermStrategy;
     File << bot.mBestPlaneTypeId << bot.mBestUsedPlaneIdx;
+    File << bot.mBestUsedPlanePilots << bot.mBestUsedPlaneCrew << bot.mBestUsedPlanePrice;
     File << bot.mBuyPlaneForRouteId << bot.mPlaneTypeForNewRoute;
 
     File << static_cast<SLONG>(bot.mPlanesForNewRoute.size());
@@ -827,6 +828,14 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mLongTermStrategy;
     File >> bot.mBestPlaneTypeId >> bot.mBestUsedPlaneIdx;
+    if (savegameVersion < 103) {
+        bot.mBestUsedPlaneIdx = -1;
+        bot.mBestUsedPlanePilots = 0;
+        bot.mBestUsedPlaneCrew = 0;
+        bot.mBestUsedPlanePrice = 0;
+    } else {
+        File >> bot.mBestUsedPlanePilots >> bot.mBestUsedPlaneCrew >> bot.mBestUsedPlanePrice;
+    }
     File >> bot.mBuyPlaneForRouteId >> bot.mPlaneTypeForNewRoute;
 
     File >> size;

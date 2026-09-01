@@ -401,11 +401,11 @@ Bot::Prio Bot::condBuyUsedPlane(__int64 &moneyAvailable) {
     if (mBestUsedPlaneIdx < 0) {
         return Prio::None; /* no plane selected (ACTION_VISITMUSEUM) */
     }
-    if ((mExtraPilots < Sim.UsedPlanes[mBestUsedPlaneIdx].ptAnzPiloten) || (mExtraBegleiter < Sim.UsedPlanes[mBestUsedPlaneIdx].ptAnzBegleiter)) {
+    if ((mExtraPilots < mBestUsedPlanePilots) || (mExtraBegleiter < mBestUsedPlaneCrew)) {
         return Prio::None; /* not enough crew */
     }
 
-    if (moneyAvailable >= Sim.UsedPlanes[mBestUsedPlaneIdx].CalculatePrice()) {
+    if (moneyAvailable >= mBestUsedPlanePrice) {
         return Prio::High; /* buy the plane (e.g. for a new route) before spending it on something else */
     }
     return Prio::None;
@@ -702,7 +702,7 @@ Bot::Prio Bot::condBuyOwnShares(__int64 &moneyAvailable) {
     if (qPlayer.OwnsAktien[qPlayer.PlayerNum] >= (qPlayer.AnzAktien * mOptions.kOwnStockPosessionRatio / 100)) {
         return Prio::None;
     }
-    if (qPlayer.HasBerater(BERATERTYP_GELD) >= 50) { /* do we know how much stock the enemy holds? */
+    if ((qPlayer.HasBerater(BERATERTYP_GELD) >= 50) && (qPlayer.HasBerater(BERATERTYP_INFO) >= 50)) { /* do we know how much stock the enemy holds? */
         if (calcNumOfFreeShares(qPlayer.PlayerNum) <= 0) {
             return Prio::None;
         }

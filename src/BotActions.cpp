@@ -202,10 +202,7 @@ void Bot::actionCallInternational(bool areWeInOffice) {
         planer.addJobSource(BotPlaner::JobOwner::InternationalFreight, cities);
         grabFlights(planer, areWeInOffice);
 
-        SLONG cost = cities.size();
-        qPlayer.ChangeMoney(-cost, 3204 + (areWeInOffice ? 0 : 1), "");
-        SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -cost, 3204 + (areWeInOffice ? 0 : 1));
-        qPlayer.History.AddCallCost(cost);
+        GameMechanic::bookCallCost(qPlayer, static_cast<SLONG>(cities.size()), areWeInOffice);
     }
 }
 
@@ -497,6 +494,15 @@ void Bot::actionMuseumCheckPlanes() {
         }
     }
     mBestUsedPlaneIdx = bestIdx;
+    if (mBestUsedPlaneIdx >= 0) {
+        mBestUsedPlanePilots = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].ptAnzPiloten;
+        mBestUsedPlaneCrew = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].ptAnzBegleiter;
+        mBestUsedPlanePrice = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].CalculatePrice();
+    } else {
+        mBestUsedPlanePilots = 0;
+        mBestUsedPlaneCrew = 0;
+        mBestUsedPlanePrice = 0;
+    }
 }
 
 void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
@@ -623,9 +629,8 @@ void Bot::actionVisitHR() {
         }
     } else {
         if (mBestUsedPlaneIdx != -1) {
-            const auto &bestPlane = Sim.UsedPlanes[mBestUsedPlaneIdx];
-            pilotsTarget = bestPlane.ptAnzPiloten;
-            stewardessTarget = bestPlane.ptAnzBegleiter;
+            pilotsTarget = mBestUsedPlanePilots;
+            stewardessTarget = mBestUsedPlaneCrew;
         }
     }
     if (!mDesignerPlane.Name.empty()) {
