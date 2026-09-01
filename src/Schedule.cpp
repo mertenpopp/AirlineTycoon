@@ -1050,10 +1050,11 @@ SLONG CFlugplanEintrag::GetEinnahmen(SLONG PlayerNum, const CPlane &qPlane) cons
         break;
 
         // Leerflug:
-    case 3:
-        return (qPlane.ptPassagiere * Cities.CalcDistance(VonCity, NachCity) / 1000 / 40);
+    case 3: {
+        SLONG distance = Cities.CalcDistance(VonCity, NachCity) / 1000;
+        return (qPlane.ptPassagiere * distance / 40);
         break;
-
+    }
         // Frachtauftrag:
     case 4:
         return (Sim.Players.Players[PlayerNum].Frachten[ObjectId].Praemie);
