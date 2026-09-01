@@ -630,8 +630,11 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
     if (mDoRoutesMaxCredit) {
         return Prio::None; /* we deliberately keep the line drawn */
     }
+    if (qPlayer.HasBerater(BERATERTYP_GELD) == 0) {
+        return Prio::None; /* we use getWeeklyOpSaldo() to pay back credit */
+    }
 
-    if (moneyAvailable >= 1000 && getWeeklyOpSaldo() > 1000 * 1000LL) {
+    if (moneyAvailable >= 1000) {
         return Prio::Medium;
     }
     return Prio::None;

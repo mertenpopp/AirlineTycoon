@@ -96,6 +96,10 @@ void Bot::determineNemesis() {
     mNemesis = -1;
     mNemesisScore = INT_MIN;
     auto nemesisSabotaged = std::exchange(mNemesisSabotaged, -1);
+    if (qPlayer.HasBerater(BERATERTYP_GELD) < 50) {
+        AT_Log("Bot::determineNemesis(): Need to hire financial advisor first");
+        return;
+    }
     if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
         AT_Log("Bot::determineNemesis(): Need to hire spy first");
         return;
@@ -1295,7 +1299,7 @@ void Bot::findBestRoute() {
     }
 
     /* pick best route we can afford */
-    __int64 moneyAvailable = qPlayer.Money + getWeeklyOpSaldo();
+    __int64 moneyAvailable = qPlayer.Money;
     for (const auto &candidate : bestRoutes) {
         __int64 planeCost = PlaneTypes[candidate.planeTypeId].Preis;
         if (candidate.numPlanesToBuy * planeCost > moneyAvailable) {

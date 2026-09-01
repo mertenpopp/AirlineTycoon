@@ -755,13 +755,14 @@ All classifications are read-only except where explicitly shown as read/write.
 - `ArabPlaneSelection`: ID of target plane selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. May always be read.
-- `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances, and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
+- `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
 - `Frachten`: List of taken freight jobs. May always be read.
 - `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
+- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_GELD) >= 0`.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
 - `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
@@ -806,16 +807,17 @@ All classifications are read-only.
 - `AnzAktien`: Total number of shares. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
 - `BilanzWoche`: Weekly balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Credit`: Current loan amount. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `IsOut`: Check if the player is still in the game. May always be read.
 - `Kurse`: The last ten share prices of your own airline. May always be read.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `OfficeState`: Office usability status. May always be read.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
-- `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
+- `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
 
 ### CPlane object
 
@@ -942,6 +944,7 @@ You may also read the following global tables and helpers when the rules permit 
 - `TafelData` may only be read while in the boss office
 - `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` always to query informations about cities and flight distances/duration.
 - `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades.
+- `gPlanePartRelations` may only be read while at the airplane designer.
 
 Independently, the following functions of any global array of type `BUFFER_V` or `ALBUM_V` may always be used:
 
