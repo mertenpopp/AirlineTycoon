@@ -810,18 +810,12 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     }
 
 #ifdef PRINT_OVERALL
-    AT_Log("Scheduled %d out of %d existing jobs.", nPreviouslyOwnedScheduled, nPreviouslyOwned);
-    AT_Log("Scheduled %d out of %d new jobs.", nNewJobsScheduled, nNewJobs);
-#endif
-
-#ifdef PRINT_OVERALL
     auto t_end = std::chrono::steady_clock::now();
     auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_begin).count();
-    AT_Log("Elapsed time in total: %lld ms", delta);
+    AT_Log("Scheduled %d/%d existing and %d/%d new jobs (%lld ms)", nPreviouslyOwnedScheduled, nPreviouslyOwned, nNewJobsScheduled, nNewJobs, delta);
 #endif
 
     if (!needToApplySolution) {
-        AT_Log("Do not need to apply, returning empty solution.");
         return SolutionList{0};
     }
 
