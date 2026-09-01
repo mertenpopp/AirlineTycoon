@@ -3288,9 +3288,9 @@ void PLAYER::RobotInit() {
 
     if (IsSuperBot()) {
         if (IsMertenBot()) {
-            mBot->RobotInit();
+            mBot->RobotInit(WaitWorkTill);
         } else if (IsClaudeBot()) {
-            mClaudeBot->RobotInit();
+            mClaudeBot->RobotInit(WaitWorkTill);
         }
     } else {
         RobotActions[1].ActionId = ACTION_STARTDAY;

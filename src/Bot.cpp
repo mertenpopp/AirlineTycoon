@@ -96,7 +96,7 @@ const char *Bot::getPrioName(SLONG prio) { return getPrioName(static_cast<Bot::P
 
 Bot::Bot(PLAYER &player) : qPlayer(player) {}
 
-void Bot::RobotInit() {
+void Bot::RobotInit(SLONG randomSeed) {
     auto balance = qPlayer.BilanzWoche.Hole();
     AT_Info("Bot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
@@ -115,7 +115,7 @@ void Bot::RobotInit() {
         AT_Log("Bot::RobotInit(): First run.");
 
         /* random source */
-        LocalRandom.SRand(qPlayer.WaitWorkTill);
+        LocalRandom.SRand(randomSeed);
         mSabotageSeed = LocalRandom.getRandInt(0, INT32_MAX); /* unsigned, overflow safe */
 
         /* starting planes */
@@ -236,7 +236,7 @@ void Bot::RobotInit() {
 void Bot::RobotPlan() {
     if (mFirstRun) {
         AT_Error("Bot::RobotPlan(): Bot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("Bot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
     }
@@ -342,7 +342,7 @@ void Bot::RobotPlan() {
 void Bot::RobotExecuteAction() {
     if (mFirstRun) {
         AT_Error("Bot::RobotExecuteAction(): Bot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("Bot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
         return;
     }
@@ -470,7 +470,7 @@ void Bot::RobotExecuteAction() {
             targetDividend = 0;
         } else if (qPlayer.RobotUse(ROBOT_USE_HIGHSHAREPRICE)) {
             targetDividend = 25;
-        } else if (LocalRandom.Rand(10) == 0) {
+        } else {
             targetDividend++;
         }
 

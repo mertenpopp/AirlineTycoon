@@ -59,7 +59,7 @@ class Bot {
   public:
     explicit Bot(PLAYER &player);
 
-    void RobotInit();
+    void RobotInit(SLONG randomSeed);
     void RobotPlan();
     void RobotExecuteAction();
 
