@@ -374,6 +374,12 @@ void Bot::RobotExecuteAction() {
 
     mOnThePhone = 0;
 
+    const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
+    if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
+        AT_Warn("Bot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway.", Translate_ACTION(qAction.ActionId),
+                static_cast<SLONG>(qPlayer.GetRoom()), wantRoom);
+    }
+
     __int64 moneyAvailable = getMoneyAvailable();
     if (condAll(qAction.ActionId) == Prio::None) {
         AT_Warn("Bot::RobotExecuteAction(): Conditions not met anymore.");
