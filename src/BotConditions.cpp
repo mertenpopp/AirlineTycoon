@@ -675,7 +675,10 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     if (qPlayer.RobotUse(ROBOT_USE_DONTBUYANYSHARES)) {
         return Prio::None;
     }
-    if ((moneyAvailable < 0) || (qPlayer.Credit != 0 && !kBuySharesWhileLeveraged)) {
+    if (moneyAvailable <= 0) {
+        return Prio::None;
+    }
+    if (!isLateGame()) {
         return Prio::None;
     }
     if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
@@ -712,7 +715,7 @@ Bot::Prio Bot::condBuyOwnShares(__int64 &moneyAvailable) {
         }
     }
 
-    if ((moneyAvailable >= 0) && (qPlayer.Credit == 0 || kBuySharesWhileLeveraged)) {
+    if (moneyAvailable >= 0) {
         return Prio::Low;
     }
     return Prio::None;
