@@ -949,6 +949,10 @@ void Bot::updateRouteInfoBoard() {
             if (qqPlayer.IsOut != 0) {
                 continue;
             }
+            if ((i != qPlayer.PlayerNum) && (qPlayer.HasBerater(BERATERTYP_INFO) == 0)) {
+                continue; /* we do not know the route utilization by competitor */
+            }
+
             const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[route.routeId];
             route.routeUtilization += qRentRoute.RoutenAuslastungBot;
 
@@ -971,7 +975,7 @@ void Bot::updateRouteInfoBoard() {
     updateRoutesSortedList();
 
     /* find a route to steal even if we have none yet */
-    if (mRouteToSteal == -1) {
+    if ((mRouteToSteal == -1) && (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
         for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
             for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
                 const auto &qqPlayer = Sim.Players.Players[i];
@@ -1223,7 +1227,11 @@ void Bot::findBestRoute() {
             const auto &qqPlayer = Sim.Players.Players[i];
             if (qqPlayer.IsOut == 0) {
                 const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[c];
-                routeUtilization += qRentRoute.RoutenAuslastungBot;
+                if ((i == qPlayer.PlayerNum) || (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
+                    routeUtilization += qRentRoute.RoutenAuslastungBot;
+                } else {
+                    routeUtilization += 50;
+                }
             }
         }
         if (routeUtilization > 0) {
