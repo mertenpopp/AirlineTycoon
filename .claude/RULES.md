@@ -776,7 +776,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
 - `Money`: Current cash balance.
 - `OfficeState`: Office usability status.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read.
 - `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
 - `PlayerNum`: Player number, used as index in many arrays.
 - `PlayerWalkRandom`: Random number generator.
@@ -814,7 +814,7 @@ All classifications are read-only.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `OfficeState`: Office usability status. May always be read.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
@@ -829,7 +829,7 @@ The access rights refer to planes owned by ClaudeBot. For competitor planes, you
 - `TypeId`: Gives the plane type ID (index for the global array `PlaneTypes`).
 - `Flugplan`: Flight plan, may always be read.
 - `WorstZustand`: Low point of plane's condition given as percentage. Access permitted only while visiting the mechanic.
-- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic, while in personal office (or using laptop).
+- `Zustand`: Current condition of the plane given as percentage. Access permitted only while visiting the mechanic, while in personal office (or using laptop). `Zustand` of entries in `Sim.UsedPlanes` may be read while in the museum if `qPlayer.HasBerater(BERATERTYP_FLUGZEUG) > 0`.
 - `TargetZustand`: Target condition given as percentage. Access always permitted.
 - `Salden`: Array holding the daily saldo of this plane. Access permitted while in personal office (or using laptop). Needs financial advisor (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `Baujahr`: Access permitted only while visiting the mechanic, while in personal office (or using laptop).
