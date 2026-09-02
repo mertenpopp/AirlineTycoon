@@ -283,7 +283,8 @@ class Bot {
     bool checkPlaneAvailable(SLONG planeId, bool printIfAvailable, bool areWeInOffice);
     const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
     const CRoute &getRoute(const RouteInfo &routeInfo) const;
-    bool isLateGame() const;
+    __int64 refreshWeeklyOpSaldo();
+    bool checkLateGame();
     SLONG getImage() const;
     void forceReplanning();
     void setHardcodedDesignerPlaneLarge();
@@ -340,7 +341,10 @@ class Bot {
     bool mUsingSecurity{false};
     SLONG mNemesisSabotaged{-1};
     SLONG mArabHintsTracker{0};
+
+    /* cached game state */
     SLONG mCurrentImage{0};
+    __int64 mWeeklyOperatingSaldo{0};
 
     /* status boss office */
     SLONG mBossNumCitiesAvailable{-1};

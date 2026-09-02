@@ -543,7 +543,14 @@ const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { ret
 
 const CRoute &Bot::getRoute(const Bot::RouteInfo &routeInfo) const { return Routen[routeInfo.routeId]; }
 
-bool Bot::isLateGame() const { return (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 12; }
+__int64 Bot::refreshWeeklyOpSaldo() {
+    if (checkLaptop() && (qPlayer.HasBerater(BERATERTYP_GELD) > 0)) {
+        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
+    }
+    return mWeeklyOperatingSaldo;
+}
+
+bool Bot::checkLateGame() { return (refreshWeeklyOpSaldo() > 1e8) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 8; }
 
 SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) ? mCurrentImage : qPlayer.Image; }
 
