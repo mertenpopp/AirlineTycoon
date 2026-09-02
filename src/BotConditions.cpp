@@ -678,11 +678,23 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     if (moneyAvailable <= 0) {
         return Prio::None;
     }
-    if (!checkLateGame()) {
-        return Prio::None;
-    }
     if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
         return Prio::None; /* we don't know the number of enemy stock */
+    }
+
+    bool canReachMajority = false;
+    for (SLONG dislike = 0; dislike < 4; dislike++) {
+        auto &qTarget = Sim.Players.Players[dislike];
+        if (dislike == qPlayer.PlayerNum || qTarget.IsOut != 0) {
+            continue;
+        }
+        if (qPlayer.OwnsAktien[dislike] + calcNumOfFreeShares(dislike) >= qTarget.AnzAktien / 2) {
+            canReachMajority = true;
+            break;
+        }
+    }
+    if (!checkLateGame() && !canReachMajority) {
+        return Prio::None;
     }
 
     Prio prio = Prio::None;
