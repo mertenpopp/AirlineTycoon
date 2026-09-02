@@ -1346,7 +1346,6 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
         numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
     }
     mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
-    mRoutes.back().ticketCostFactor = kDefaultTicketPriceFactor;
     if (planeTypeForNewRoute != -1) {
         AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
                PlaneTypes[planeTypeForNewRoute].Name.c_str());
@@ -1505,21 +1504,22 @@ void Bot::planRoutes() {
         }
 
         SLONG priceOld = getRentRoute(qRoute).Ticketpreis;
-        DOUBLE factorOld = qRoute.ticketCostFactor;
         SLONG cost = CalculateFlightCost(getRoute(qRoute).VonCity, getRoute(qRoute).NachCity, 800, 800, -1) * 3 / 180 * 2;
         SLONG highCost = 3 * cost;
-        SLONG maxCostImage = (highCost + highCost / 2); /* allow only the first tier of image reduction */
 
-        qRoute.ticketCostFactor = std::round(1.0 * maxCostImage / cost);
-        Limit(0.5, qRoute.ticketCostFactor, mOptions.kMaxTicketPriceFactor);
+        DOUBLE factor = std::min(kTicketPriceFactor, mOptions.kMaxTicketPriceFactor / 3.0);
+        SLONG priceNew = static_cast<SLONG>(std::round(factor * highCost)) / 10 * 10;
+        SLONG priceNewFC = static_cast<SLONG>(std::round(kTicketPriceFactorFC / kTicketPriceFactor * factor * highCost)) / 10 * 10;
 
-        SLONG priceNew = static_cast<SLONG>(std::ceil(cost * qRoute.ticketCostFactor));
-        priceNew = priceNew / 10 * 10;
-        if (std::abs(factorOld - qRoute.ticketCostFactor) > 0.05) {
-            GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.routeId, priceNew, priceNew * 2);
-            AT_Log("Bot::planRoutes(): Changing ticket price factor for route %s: %.2f => %.2f (%d => %d)", Helper::getRouteName(getRoute(qRoute)).c_str(),
-                   factorOld, qRoute.ticketCostFactor, priceOld, priceNew);
+        /* only touch the price when the old one actually costs us revenue or image */
+        if ((priceOld >= kTicketPriceKeepMin * highCost) && (priceOld <= kTicketPriceKeepMax * highCost)) {
+            continue;
         }
+
+        AT_Log("Bot::planRoutes(): Changing ticket price for route %s: %d (%.2f %%) => %d (%.2f %%), first class: %d => %d",
+               Helper::getRouteName(getRoute(qRoute)).c_str(), priceOld, 100.0f * priceOld / highCost, priceNew, 100.0f * priceNew / highCost,
+               getRentRoute(qRoute).TicketpreisFC, priceNewFC);
+        GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.routeId, priceNew, priceNewFC);
     }
 }
 
