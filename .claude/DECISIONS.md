@@ -135,3 +135,58 @@ routes 4 -> 6 -> 8 at offsets -1/0/+2/+4/+12. A transfer would show a step at of
 Bot re-acquires the freed crew and routes through its normal HR and route-box actions, in
 competition with FL. That is why the timing of `checkLateGame()` matters so much: every day
 earlier adds a day to the re-acquisition runway.
+
+
+### Route ticket pricing for Bot (2026-09-03)
+
+Reworked `Bot::planRoutes()` ticket pricing. Measured with `run_measurement_bot.sh`
+(300 games, mean cumulative operative saldo day 99, HA). Noise floor ~0.1e9: two runs of
+*identical* code gave 11.674e9 and 11.636e9, and the runs are not seed-reproducible
+(pairing run n against run n gives the same SEM as unpaired, wins 152/300).
+
+| config | price target (x highCost) | keep rule | saldo |
+|---|---|---|---|
+| committed `0bc11a38` | ~1.33 / 1.67, effectively frozen | factor rounded to integer | 10.94e9 |
+| recompute daily | 1.90 | none | 8.84e9 |
+| wide band | 1.80 | [1.05, 3.00] | 11.09e9 |
+| wide band, high | 1.90 (clamped) | [0.84, 3.95] | 11.08e9 |
+| pinned to kerosene 700 | 1.90 @ 700, i.e. 2.7-4.4 live | never raises | 10.55e9 |
+| **top of tier 2** | **1.90** | **[1.60, 1.98]** | **11.65e9 / 11.67e9** |
+| top of tier 2, raise sooner | 1.90 | [1.75, 1.98] | 11.36e9 |
+| top of tier 2, raise later | 1.90 | [1.45, 1.98] | 11.55e9 |
+| unclamped target | 1.97 | [1.60, 1.98] | 11.72e9 (t=0.90, not significant) |
+
+Three mechanics drive this, all in the base game:
+
+1. **Raising a price is expensive, lowering is free.** `PLAYER::UpdateTicketpreise`
+   (Player.cpp:6893) calls `FlightChanged()` on every *already scheduled* flight of the route
+   when the new price is higher, which re-stamps `HoursBefore` to the hours left until
+   departure. That flight then loses its advance-booking bonus `tmp * (HoursBefore + 48) / 96`
+   (Schedule.cpp:330) - up to half its passengers. The committed code quantised the factor to an
+   integer multiple of `cost`, so it changed the price 14 times per game; recomputing from the
+   live kerosene price every day changes it 426 times (189 raises) and costs 19% of the score.
+2. **Revenue is flat above ~1.9 * highCost.** Passengers are scaled by
+   `(highCost - 10) / price` above `highCost` (Schedule.cpp:344), which cancels the price
+   exactly. Below that the plane still fills, so revenue grows linearly. The `keepMin` sweep
+   locates the fill point at ~1.6 * highCost. Also note `Gewichte[c] = 10000 / Ticketpreis`
+   (Schedule.cpp:256) uses *our* price for all four players, so price does not affect our
+   demand share at all.
+3. **Image tiers are decided by truncation.** `Add / 10` (Schedule.cpp:992) truncates toward
+   zero and a well kept plane earns `Add = 21` (condition +10, four upgrades +8, crew +3).
+   So per flight: below 1.5 * highCost +1 image, below 2.0 nothing, above 2.0 **-1**. The third
+   and second tier are *not* equal, which is why pricing high bleeds image and forces ad
+   spending: image 725 / ads 0.96e8 at 1.90 vs image 265 / ads 3.08e8 when pinned high.
+
+Optimum is therefore the top of tier 2: highest revenue at no image cost, held stable inside a
+band so the kerosene price rarely forces a raise. Lower freely at >1.98 (free, avoids tier 3),
+raise only below 1.60 (where revenue actually starts dropping).
+
+`mOptions.kMaxTicketPriceFactor` (5.7 = 1.9 * highCost) clamps the target to exactly 1.90.
+Raising it to 5.94 and targeting 1.97 measured +0.5 sigma - not significant - so it was left
+alone, which also keeps the `BotLevel <= 1` handicap (Bot.cpp:189) intact.
+
+Not pursued: first class pricing must stay below 3 * highCost, where the same scaling factor
+kicks in for first class (Schedule.cpp:513) and cuts first class passengers to a third at once.
+`kTicketPriceFactorFC = 2.85` respects this, but it is untested - Bot buys no first class seats
+(one FC seat costs two regular ones), so `MaxPassagiereFC` is 0 on all its planes.
+`RouteInfo::ticketCostFactor` is now unused but still serialised.
