@@ -156,7 +156,7 @@ Bot::Prio Bot::condBuero() {
         prio = std::max(prio, Prio::Top);
     }
     if (mDoRoutes && !mRoutesUpdated) {
-        prio = std::max(prio, (isLateGame() ? Prio::High : Prio::Medium)); /* update cached route info */
+        prio = std::max(prio, (checkLateGame() ? Prio::High : Prio::Medium)); /* update cached route info */
     }
     return prio;
 }
@@ -678,7 +678,7 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     if (moneyAvailable <= 0) {
         return Prio::None;
     }
-    if (!isLateGame()) {
+    if (!checkLateGame()) {
         return Prio::None;
     }
     if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
@@ -1000,7 +1000,7 @@ Bot::Prio Bot::condVisitSecurity(__int64 &moneyAvailable) {
     }
 
     Prio prio = Prio::None;
-    if (isLateGame()) {
+    if (checkLateGame()) {
         prio = std::max(prio, Prio::Medium); /* enable security measures */
     }
     if (mUsingSecurity) {

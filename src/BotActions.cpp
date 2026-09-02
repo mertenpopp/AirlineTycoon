@@ -71,6 +71,11 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     mExtraPilots = -1;
     mExtraBegleiter = -1;
 
+    /* refresh cached info */
+    if (qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
+        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
+    }
+
     mArabHintsTracker -= std::min(3, mArabHintsTracker);
     AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
 
@@ -1366,7 +1371,7 @@ void Bot::actionVisitAds() {
 }
 
 void Bot::actionVisitSecurity(__int64 /*moneyAvailable*/) {
-    bool targetState = isLateGame();
+    bool targetState = checkLateGame();
     GameMechanic::setSecurity(qPlayer, 0, targetState); /* office: spiked coffee, bomb */
     GameMechanic::setSecurity(qPlayer, 1, targetState); /* laptop: virus */
     GameMechanic::setSecurity(qPlayer, 2, targetState); /* HR: strike */
