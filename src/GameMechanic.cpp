@@ -2181,6 +2181,9 @@ bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId) {
 
 void GameMechanic::bookCallCost(PLAYER &qPlayer, SLONG numberOfCitiesCalled, bool areWeInOffice) {
     SLONG cost = numberOfCitiesCalled;
+    if (!areWeInOffice) {
+        cost += numberOfCitiesCalled / 7;
+    }
     qPlayer.ChangeMoney(-cost, 3204 + (areWeInOffice ? 0 : 1), "");
     SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -cost, 3204 + (areWeInOffice ? 0 : 1));
     qPlayer.History.AddCallCost(cost);

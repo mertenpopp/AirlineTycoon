@@ -14,7 +14,9 @@ There are always four competing airlines:
 ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in ClaudeBot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
 
 Technical details:
-- The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp` and sets bot difficulty in `PLAYER::BotLevel`. The command line argument can be a three digit number. The first digit will set `PLAYER::BotLevel` for the first non-human player and so on. A `BotLevel > 0` indicates that this player is controlled by ClaudeBot.
+- The field `PLAYER::BotLevel` determines the type of the computer player. `BotLevel == 4` is used for ClaudeBot. The legacy cheating computer player uses `BotLevel = 0`.
+- The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp`, sets `PLAYER::BotLevel` for player "Honey Airlines" to `4` and enables a "batch mode" where the game runs in a fast-forward mode without waiting for human input at any point.
+- The command line argument "/setbotlevel" can be used with a three digit number. The last digit sets `PLAYER::BotLevel` for the last non-human player, the second-to-last digit for the second-to-last non-human player, and so on. Fewer digits than players leaves the earlier players at 0.
 - The human player (which always must exist for technical reasons) will be determined by the value `OptionLastPlayer` in the `AT.json` game settings in the game directory. Otherwise, it will be determined by `Sim.Options.OptionLastPlayer`.
 
 Testing the game
@@ -211,6 +213,12 @@ The item "phone" is required. Everything else said about ACTION_CALL_INTERNATION
 Calling via mobile is only possible if `qPlayer.TelephoneDown == 0` and `qPlayer.IsStuck == 0` are holding.
 
 Every time the phone is used, set the existing variable `mOnThePhone` to 30.
+
+### Call cost
+
+After each call to an international office, use the following function:
+
+`void GameMechanic::bookCallCost(PLAYER &qPlayer, SLONG numberOfCitiesCalled, bool areWeInOffice)`: Has to be called to deduct the money for calling branch offices. `numberOfCitiesCalled` shall be equal to the number of entries in `AuslandsAuftraege` and `AuslandsFrachten` which have been accessed. Count each city once per call, whichever lists you read. `areWeInOffice` shall be passed truthfully and it is used to determine the actual call cost (call from office landline is cheaper than mobile phone).
 
 ### General rules
 
@@ -756,7 +764,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. May always be read.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
-- `BotLevel`: Either 1, 2 or 3. Can be used to implement different difficulty levels of ClaudeBot. For now, the test harness only uses `BotLevel = 2` and we implement a single strategy only.
+- `BotLevel`: Determines the type of the computer player. ClaudeBot uses `BotLevel = 4`.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
