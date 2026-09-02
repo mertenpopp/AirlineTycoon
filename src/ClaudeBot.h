@@ -106,7 +106,6 @@ class ClaudeBot {
     void executeAds();
     void executeUpgrades();
     void executeBuyPlane();
-    void executeMuseum();
     void executeKerosinTanks();
     void executeBuyKerosin();
     /* Fuel arbitrage: how much capacity to hold, and whether today is cheap enough to fill it. */
@@ -115,8 +114,6 @@ class ClaudeBot {
     /* Forms the burn estimate the Arab and the broker work from. Office only: it reads
      * qPlayer.BilanzGestern, which RULES.md gates on the office and a financial advisor. */
     void cacheFuelBurn();
-    /* Whether qPlayer.TankInhalt may legally be read (kerosene advisor above talent 30). */
-    bool canReadTankInhalt() const;
 
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
@@ -174,9 +171,6 @@ class ClaudeBot {
     bool mVisitedBrokerToday{false};
     bool mVisitedBankToday{false};
     bool mVisitedStockToday{false};
-    bool mVisitedMuseumToday{false};
-    /* the broker had nothing we could afford, so try the museum */
-    bool mWantUsedPlane{false};
     bool mUpgradedToday{false};
     bool mAgencyEmptyToday{false};
     SLONG mAgencyVisitsToday{0};
@@ -210,6 +204,9 @@ class ClaudeBot {
      * mismatches that day has seen. */
     SLONG mWrongRoomDay{-1};
     SLONG mWrongRoomCount{0};
+
+    /* the day the weekly balance was last logged from the office */
+    SLONG mBalanceLoggedDay{-1};
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
