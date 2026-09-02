@@ -75,3 +75,63 @@ route-concentration and job-source items above.
 
 (`src/BotConditions.cpp` was patched temporarily for the A/B and has been restored; build
 re-installed from clean sources.)
+
+### Head-to-head measurement of `c01acd1e` "Bot: Earlier late game condition"
+
+`isLateGame()` (fleet >= 12) became `checkLateGame()` = `weeklyOpSaldo > 1e8 || fleet >= 8`.
+The commit measured solo only (11.008e9, unchanged). Head-to-head, 300 games, lvl 24:
+
+| gate on `condBuyNemesisShares` | trigger day (median) | ClaudeBot taken over | Bot h2h | ClaudeBot h2h |
+|---|---|---|---|---|
+| `fleet >= 8 \|\| saldo > 1e8` (c01acd1e) | **50** | **300/300** @ day 50 | **7.792e9** | 1.773e8 |
+| `fleet >= 12` (16d5116c) | 78 | 281/300 @ day 78 | 2.879e9 | 2.337e9 |
+| no gate (A/B) | ~30 | 300/300 @ day 39 | 1.185e10 | 4.06e7 |
+| nemesis buying disabled (A/B) | never | 0/300 | 1.235e9 | 8.415e9 |
+
+Bot solo for reference: 11.03e9 (11.008e9 with this commit).
+
+**Yes, it triggers earlier and yes, it largely fixes the head-to-head deficit.** Bot goes
+2.879e9 -> 7.792e9 (2.7x), closing 66% of the gap to its solo score. The mechanism is the
+one established earlier: the gate delays Bot's **liquidation** of ClaudeBot, and until then
+Bot is starved of crew (ClaudeBot hires every applicant) and cannot convert cash into
+planes. Firing 28 days earlier gives Bot 28 more days of expansion - fleet 62 -> 108,
+routes 11 -> 21, passengers 5.7e5 -> 1.52e6, flights 2424 -> 5728.
+
+The relationship is monotone in trigger time: the earlier the switch, the better Bot does,
+with no gate at all still the best (1.185e10, *above* its own solo score). Job and freight
+revenue are flat across all four configurations (~2.0e8 / ~9.2e7); the entire difference is
+ticket revenue, i.e. fleet size.
+
+`SecurityKosten` is 0 in every configuration, so the extra `checkLateGame()` call sites
+(`condVisitSecurity`, `actionVisitSecurity`) cost nothing here - `ROBOT_USE_SECURTY_OFFICE`
+returns false for SuperBot outside DIFF_ATFS04/06 (Player.cpp:8007).
+
+Caveat: measured against ClaudeBot, whose 8,000-share self-holding makes it trivially
+takeable. Against an opponent that holds 51% of itself, an earlier `checkLateGame()` would
+buy Bot far less, and could cost it by pulling spend forward into shares it cannot convert
+into control.
+
+
+### Terminology correction: Bot liquidates, it does not take over
+
+`Bot::actionOvertakeAirline` calls `GameMechanic::overtakeAirline(qPlayer, airline, true)` -
+the third argument is `liquidate`, so `Sim.Overtake = 2` (GameMechanic.cpp:966) and the
+**Liquidieren** branch runs. Bot never uses the `Sim.Overtake == 1` (Uebernahme) branch.
+
+Nothing is transferred to Bot. In the liquidation branch the target's planes are *sold*
+(`sellPlane`), gates set to `Miete = -1`, routes and cities set to `Rang = 0`, its
+shareholdings sold, and `Money - Credit` distributed pro rata to shareholders under category
+**3181 "Liquidierung von %s"** (Player.cpp:530). `bankruptPlayer` then calls `SackWorkers()`,
+which returns every employee to the pool as `WORKER_RESERVE` at `OriginalGehalt`
+(Player.cpp:6566).
+
+So the `Takeovers` CSV column is a cash payout on Bot's ~51% stake, not an asset transfer -
+categories 3180 and 3181 both book to `Bilanz.Takeovers`, which makes the column name
+misleading.
+
+Confirmed in the data: aligning all 300 games on the liquidation day, Bot's resources climb
+over about a fortnight instead of jumping - employees 51 -> 58 -> 90 -> 108 -> 167 and
+routes 4 -> 6 -> 8 at offsets -1/0/+2/+4/+12. A transfer would show a step at offset 0.
+Bot re-acquires the freed crew and routes through its normal HR and route-box actions, in
+competition with FL. That is why the timing of `checkLateGame()` matters so much: every day
+earlier adds a day to the re-acquisition runway.

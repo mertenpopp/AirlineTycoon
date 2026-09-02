@@ -822,7 +822,7 @@ All classifications are read-only.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `OfficeState`: Office usability status. May always be read.
-- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
+- `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
