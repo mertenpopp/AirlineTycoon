@@ -55,6 +55,20 @@ SLONG GenericAsyncIdPars[4 * 100] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 //--------------------------------------------------------------------------------------------
+// Player numbers arrive straight from the network and are used to index both
+// Sim.Players.Players (a BUFFER_V, whose operator[] is unchecked in release builds) and
+// several fixed 4-element globals. A desynced or corrupt message could therefore read and
+// write outside those arrays. Validate before use: the exception is caught by
+// PumpNetwork(), which logs and drops the offending message.
+//--------------------------------------------------------------------------------------------
+static SLONG NetCheckPlayerNum(SLONG PlayerNum, ULONG MessageType) {
+    if (PlayerNum < 0 || PlayerNum >= 4) {
+        TeakLibW_Exception(FNL, "Invalid player number %ld in message %s", static_cast<long>(PlayerNum), Translate_ATNET(MessageType));
+    }
+    return PlayerNum;
+}
+
+//--------------------------------------------------------------------------------------------
 // Sets the bitmap for the network to display: (0=none; 1=player in options, 2=player in windows; 3=waiting for player)
 //--------------------------------------------------------------------------------------------
 void SetNetworkBitmap(SLONG Number, SLONG WaitingType) {
@@ -226,13 +240,26 @@ void PumpNetwork() {
     }
 
     bool bReturnAfterThisMessage = false;
+    /* GetMessageCount() reports every packet queued in the transport, including ones
+       Receive() puts back (lobby traffic) or drops. Without a bound this loop spins
+       forever on such a packet, which looks like a hard freeze with no log output. */
+    SLONG MessageBudget = 256;
     while ((gNetwork.GetMessageCount() != 0) && !bReturnAfterThisMessage) {
+        if (--MessageBudget < 0) {
+            AT_Log("PumpNetwork: message budget exhausted, %ld packets still queued", static_cast<long>(gNetwork.GetMessageCount()));
+            break;
+        }
         TEAKFILE Message;
 
         if (SIM::ReceiveMemFile(Message)) {
             ULONG MessageType = 0;
             SLONG Par1 = 0;
             SLONG Par2 = 0;
+
+            /* Any malformed message now throws out of the TEAKFILE reader instead of
+               silently producing garbage. Drop that one message and keep the session
+               alive rather than taking the whole game down. */
+            try {
 
             Message >> MessageType;
             // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
@@ -329,14 +356,24 @@ void PumpNetwork() {
                             nAppsDisabled -= nPlayerAppsDisabled[c];
                             nWaitingForPlayer -= nPlayerWaiting[c];
 
+                            /* These per-player tallies have now been taken out of the global
+                               counters. They must be cleared, otherwise a second disconnect
+                               message for the same slot subtracts them again. */
+                            nPlayerOptionsOpen[c] = 0;
+                            nPlayerAppsDisabled[c] = 0;
+                            nPlayerWaiting[c] = 0;
+
+                            /* The two lower clamps used to reset nOptionsOpen as well, so
+                               nAppsDisabled and nWaitingForPlayer could stay negative. Both
+                               gate the main loop, and a stuck value freezes the game. */
                             if (nOptionsOpen < 0) {
                                 nOptionsOpen = 0;
                             }
                             if (nAppsDisabled < 0) {
-                                nOptionsOpen = 0;
+                                nAppsDisabled = 0;
                             }
                             if (nWaitingForPlayer < 0) {
-                                nOptionsOpen = 0;
+                                nWaitingForPlayer = 0;
                             }
 
                             if (nOptionsOpen == 0 && nAppsDisabled == 0 && Sim.bPause == 0) {
@@ -364,6 +401,7 @@ void PumpNetwork() {
 
             case ATNET_OPTIONS:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
                 SetNetworkBitmap(static_cast<SLONG>(nOptionsOpen > 0) * 1);
@@ -371,6 +409,7 @@ void PumpNetwork() {
 
             case ATNET_ACTIVATEAPP:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nAppsDisabled += Par1;
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
@@ -400,6 +439,7 @@ void PumpNetwork() {
                 SLONG LocalTime = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                 // if (Sim.Players.Players[PlayerNum].Owner!=1) hprintf ("Received Message ATNET_PLAYERPOS (%li)", PlayerNum);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
@@ -454,6 +494,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -473,6 +514,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Message >> Sim.Players.Players[PlayerNum].Koffein;
             } break;
@@ -482,6 +524,7 @@ void PumpNetwork() {
                 SLONG Mode = 0;
 
                 Message >> PlayerNum >> Mode;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
 
@@ -506,6 +549,7 @@ void PumpNetwork() {
                 SLONG Dir = 0;
 
                 Message >> PlayerNum >> Dir;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))].LookAt(Dir);
             } break;
@@ -514,6 +558,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Players.Players[PlayerNum].WalkStopEx();
             } break;
@@ -523,6 +568,7 @@ void PumpNetwork() {
                 SLONG RoomEntered = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -606,6 +652,7 @@ void PumpNetwork() {
                 SLONG RoomLeft = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -662,6 +709,7 @@ void PumpNetwork() {
                 SLONG Cheat = 0;
 
                 Message >> PlayerNum >> Cheat;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -688,6 +736,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -717,6 +766,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -743,6 +793,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -766,6 +817,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -781,6 +833,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 if (PlayerNum == 55) {
                     Message >> Sim.nSecOutDays;
@@ -799,6 +852,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -818,6 +872,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -835,6 +890,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -859,6 +915,8 @@ void PumpNetwork() {
                 SLONG SympathieTarget = 0;
 
                 Message >> PlayerNum >> SympathieTarget >> Anz;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                SympathieTarget = NetCheckPlayerNum(SympathieTarget, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -873,6 +931,7 @@ void PumpNetwork() {
                 SLONG TicketpreisFC = 0;
 
                 Message >> PlayerNum >> RouteId >> Ticketpreis >> TicketpreisFC;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 if (qPlayer.RentRouten.RentRouten[Routen(RouteId)].Ticketpreis != Ticketpreis) {
@@ -893,6 +952,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -951,6 +1011,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum >> Type >> Index >> City;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 switch (Type) {
                 case 1:
@@ -1044,6 +1105,7 @@ void PumpNetwork() {
                 CAuftrag a;
 
                 Message >> PlayerNum >> a;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1059,6 +1121,7 @@ void PumpNetwork() {
                 CFracht a;
 
                 Message >> PlayerNum >> a;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1082,6 +1145,7 @@ void PumpNetwork() {
                 SLONG Route2Id = 0;
 
                 Message >> PlayerNum >> Route1Id >> Route2Id;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1150,6 +1214,7 @@ void PumpNetwork() {
                 SLONG Time = 0;
 
                 Message >> PlayerNum >> PlaneIndex >> Time;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qFromPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1168,6 +1233,7 @@ void PumpNetwork() {
                 SLONG PlaneId = 0;
 
                 Message >> PlayerNum >> PlaneId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1181,6 +1247,7 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> PlayerNum >> Anzahl >> Type;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1198,6 +1265,7 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> PlayerNum >> Anzahl >> plane;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1214,6 +1282,7 @@ void PumpNetwork() {
                 SLONG n = 0;
 
                 Message >> PlayerNum >> m >> n;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
@@ -1246,6 +1315,7 @@ void PumpNetwork() {
                 SLONG PlaneId = 0;
 
                 Message >> PlayerNum >> PlaneId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                 if (PlayerNum > 4) {
                     break;
                 }
@@ -1406,6 +1476,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 qPlayer.IsTalking = TRUE;
@@ -1415,6 +1486,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 qPlayer.IsTalking = FALSE;
@@ -1439,6 +1511,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1450,6 +1523,7 @@ void PumpNetwork() {
                 SLONG Item = 0;
 
                 Message >> PlayerNum >> Item;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Players.Players[PlayerNum].DropItem(UBYTE(Item));
             } break;
@@ -1623,6 +1697,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1632,6 +1707,7 @@ void PumpNetwork() {
 
             case ATNET_WAITFORPLAYER:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nWaitingForPlayer += Par1;
                 nPlayerWaiting[Par2] += Par1;
                 if (nPlayerWaiting[Par2] < 0) {
@@ -1685,6 +1761,7 @@ void PumpNetwork() {
                 SLONG FromPlayer = 0;
 
                 Message >> FromPlayer;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                 Sim.Players.Players[FromPlayer].CallItADay = TRUE;
             } break;
@@ -1693,6 +1770,7 @@ void PumpNetwork() {
                     SLONG FromPlayer = 0;
 
                     Message >> FromPlayer;
+                    FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                     Sim.Players.Players[FromPlayer].CallItADay = FALSE;
                 }
@@ -1747,6 +1825,7 @@ void PumpNetwork() {
                 DWORD UniqueGameId = 0;
 
                 Message >> FromPlayer >> Index >> UniqueGameId;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                 if (Sim.GetSavegameUniqueGameId(Index, true) == UniqueGameId) {
                     SIM::SendSimpleMessage(ATNET_IO_LOADREQUEST_OK, Sim.Players.Players[FromPlayer].NetworkID, Sim.localPlayer, Index);
@@ -1765,6 +1844,7 @@ void PumpNetwork() {
                 SLONG Index = 0;
 
                 Message >> FromPlayer >> Index;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                 Sim.Players.Players[FromPlayer].bReadyForBriefing = 1;
 
@@ -1864,6 +1944,7 @@ void PumpNetwork() {
                 SLONG localPlayer = 0;
 
                 Message >> localPlayer;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
                 Message >> GenericSyncIds[localPlayer];
 
                 bReturnAfterThisMessage = true;
@@ -1873,6 +1954,7 @@ void PumpNetwork() {
                 SLONG localPlayer = 0;
 
                 Message >> localPlayer;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
                 Message >> GenericSyncIds[localPlayer] >> GenericSyncIdPars[localPlayer];
 
                 bReturnAfterThisMessage = true;
@@ -1884,6 +1966,7 @@ void PumpNetwork() {
                 SLONG player = 0;
 
                 Message >> player;
+                player = NetCheckPlayerNum(player, MessageType);
                 Message >> SyncId >> Par;
 
                 bReturnAfterThisMessage = true;
@@ -1899,6 +1982,7 @@ void PumpNetwork() {
                 SLONG delta = 0;
 
                 Message >> localPlayer >> delta;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
 
                 if (localPlayer != Sim.localPlayer) {
                     Sim.Players.Players[localPlayer].ChangeMoney(delta, 3130, "");
@@ -1988,8 +2072,10 @@ void PumpNetwork() {
                 break;
             }
 
-            // if (Message.MemPointer!=Message.MemBufferUsed)
-            //   __asm { int 3 }
+            } catch (TeakLibException &ex) {
+                AT_Log("PumpNetwork: dropping malformed message %s: %s", Translate_ATNET(MessageType), ex.what());
+                ex.caught();
+            }
         }
     }
 }

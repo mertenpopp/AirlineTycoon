@@ -2836,5 +2836,16 @@ bool SIM::ReceiveMemFile(TEAKFILE &file) {
         file.MemBuffer.ReSize(Size, p);
     }
 
+    /* Receive() hands over ownership of a buffer allocated with new[]. It used to be
+       copied into MemBuffer and then leaked - once per received message. */
+    delete[] p;
+
+    if (rc && Size == 0U) {
+        /* A message with no payload cannot be dispatched: MemBuffer stays empty, so the
+           first read would fall through to the (already closed) file handle. */
+        AT_Log_I("NET", "Received empty network message, dropping");
+        return false;
+    }
+
     return (rc);
 }
