@@ -9,6 +9,7 @@
 #include "UDPProxyClient.h"
 
 #include <ctime>
+#include <SDL_timer.h>
 #include <StringCompressor.h>
 
 using namespace RakNet;
@@ -53,6 +54,10 @@ bool DeserializePacket(unsigned char *data, unsigned int length, ATPacket *packe
 }
 
 #define MAX_TIMEOUT 8
+
+/* Upper bound for a single connection attempt. Kept short on purpose: a caller that wants to
+   wait longer should retry, so that a host which is not up yet can still be reached. */
+#define CONNECT_TIMEOUT_MS 3000
 
 bool HandleNetMessages(RakPeerInterface *net, int secondTimeout,
                        const std::function<bool(const Packet *, bool * /*should exit the loop?*/)>
@@ -288,12 +293,53 @@ bool RAKNetNetwork::Connect(const char *host) {
     } else {
         RakNet::SocketDescriptor sd(0, nullptr);
 
-        if (mMaster->Startup(5, &sd, 1) == RAKNET_STARTED) {
+        /* A caller may retry after a failed attempt (the host may not be listening yet), and
+           the peer is then already started - which is not an error. */
+        const StartupResult startup = mMaster->Startup(5, &sd, 1);
+        if (startup == RAKNET_STARTED || startup == RAKNET_ALREADY_STARTED) {
             mMaster->SetMaximumIncomingConnections(4);
-            mMaster->Connect(host, SERVER_PORT, nullptr, 0);
+
+            const ConnectionAttemptResult attempt = mMaster->Connect(host, SERVER_PORT, nullptr, 0);
+            switch (attempt) {
+            case ALREADY_CONNECTED_TO_ENDPOINT: {
+                /* An earlier attempt completed after we had stopped waiting for it, so the
+                   ID_CONNECTION_REQUEST_ACCEPTED that normally triggers the handshake is gone.
+                   Do what CheckConnectionPacket() would have done, otherwise the host never
+                   learns our peer id and we never appear in its player list. */
+                const SystemAddress addr(host, SERVER_PORT);
+                const RakNetGUID guid = mMaster->GetGuidFromSystemAddress(addr);
+                if (guid == UNASSIGNED_RAKNET_GUID) {
+                    AT_Log("Connect(%s:%d): already connected but no GUID yet", host, SERVER_PORT);
+                    return false;
+                }
+
+                if (mHost == nullptr) {
+                    mHost = new RakNet::RakNetGUID(guid);
+                }
+                mState = SBSessionEnum::SBNETWORK_SESSION_CLIENT;
+
+                BitStream data;
+                data.Write((char)SBEventEnum::SBNETWORK_ESTABLISH_CONNECTION);
+                data.Write(mLocalID);
+                mMaster->Send(&data, HIGH_PRIORITY, RELIABLE_ORDERED, 0, addr, false);
+
+                AT_Log("Connect(%s:%d): already connected, sent our ID %d", host, SERVER_PORT, mLocalID);
+                return true;
+            }
+            case CONNECTION_ATTEMPT_STARTED:
+            case CONNECTION_ATTEMPT_ALREADY_IN_PROGRESS:
+                /* Both mean "keep waiting". Retrying while an attempt is still pending used
+                   to be reported as a hard failure, which made every retry after the first
+                   one fail immediately. */
+                break;
+            default:
+                AT_Log("Connect(%s:%d): attempt refused (%d)", host, SERVER_PORT, attempt);
+                return false;
+            }
 
             return AwaitConnection(mMaster);
         }
+        AT_Log("Connect(%s:%d): Startup failed with %d", host, SERVER_PORT, startup);
     }
     return false;
 }
@@ -653,10 +699,18 @@ void RAKNetNetwork::SetMasterServer(const SBStr &masterServer, const int port) {
 }
 
 bool RAKNetNetwork::AwaitConnection(RakPeerInterface *peerInterface) {
-    while (true) {
+    /* This used to be an unbounded "while (true) { Receive(); if (!p) continue; }" spin: it
+       pegged a core while waiting and only ever returned once RakNet got round to reporting
+       a failure. If the remote side is simply not listening yet - a client started before
+       its host - that is a long, hot, silent wait. Bound it and sleep between polls. */
+    const DWORD Deadline = AtGetTime() + CONNECT_TIMEOUT_MS;
+
+    while (AtGetTime() < Deadline) {
         Packet *p = peerInterface->Receive();
-        if (p == nullptr)
+        if (p == nullptr) {
+            SDL_Delay(10);
             continue;
+        }
 
         const int result = CheckConnectionPacket(p, peerInterface, mState == SBSessionEnum::SBNETWORK_SESSION_MASTER || mHost != nullptr);
 
@@ -667,6 +721,9 @@ bool RAKNetNetwork::AwaitConnection(RakPeerInterface *peerInterface) {
             return result == 1;
         }
     }
+
+    AT_Log("AwaitConnection: timed out after %d ms", CONNECT_TIMEOUT_MS);
+    return false;
 }
 
 enum ServerBrowserMessageTypes : unsigned char {
