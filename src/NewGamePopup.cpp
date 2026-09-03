@@ -2841,12 +2841,14 @@ bool SIM::ReceiveMemFile(TEAKFILE &file) {
     file.MemPointer = 0;
 
     if ((p != nullptr) && (Size != 0U)) {
+        /* This overload of ReSize adopts the pointer rather than copying it: MemBuffer now
+           owns p and frees it itself. Freeing it here as well would hand the caller a
+           dangling buffer to parse. */
         file.MemBuffer.ReSize(Size, p);
+    } else {
+        /* Nothing took ownership, so this one really would leak. */
+        delete[] p;
     }
-
-    /* Receive() hands over ownership of a buffer allocated with new[]. It used to be
-       copied into MemBuffer and then leaked - once per received message. */
-    delete[] p;
 
     if (rc && Size == 0U) {
         /* A message with no payload cannot be dispatched: MemBuffer stays empty, so the
