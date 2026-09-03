@@ -64,6 +64,7 @@ add_executable (AT
     Askbrick.cpp
     AtNet.cpp
     Aufsicht.cpp
+    AutoLobby.cpp
     Auftrag.cpp
     Bank.cpp
     Block.cpp

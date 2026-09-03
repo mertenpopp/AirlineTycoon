@@ -116,7 +116,9 @@ void NetTraceFingerprint(const char *When) {
         Fp.Add(qPlayer.Image);
         Fp.Add(qPlayer.AnzAktien);
         Fp.Add(qPlayer.IsOut);
-        Fp.Add(qPlayer.Owner);
+        /* Owner is deliberately not hashed: every peer sees itself as 0 and the others as 2,
+           so including it would make every comparison report a divergence on day 0. It stays
+           in the printed line because it is useful context. */
 
         SLONG Branches = 0;
         for (SLONG d = 0; d < qPlayer.RentCities.RentCities.AnzEntries(); d++) {

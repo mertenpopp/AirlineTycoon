@@ -6,6 +6,7 @@
 #include "NewGamePopup.h" //Fenster zum Wahl der Gegner und der Spielstärke
 
 #include "AtNet.h"
+#include "AutoLobby.h"
 #include "NetTrace.h"
 #include "glstart.h"
 #include "global.h"
@@ -2073,6 +2074,7 @@ void NewGamePopup::CheckNetEvents() {
                 ULONG Par2 = 0;
                 Message >> MessageType;
 
+                NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
                 // AT_Log_I("NET", "Received net event: %s (%x)", Translate_ATNET(MessageType), MessageType);
 
                 switch (MessageType) {
@@ -2437,6 +2439,230 @@ void NewGamePopup::CheckNetEvents() {
 }
 
 //--------------------------------------------------------------------------------------------
+// Drives the multiplayer lobby without a human, for the test harness. See AutoLobby.h.
+//
+// Every step below mirrors the corresponding click handler and, crucially, waits for the same
+// preconditions it does. Starting a step early is what would leave a peer half-joined and the
+// session stuck, so nothing here is bypassed - only clicked.
+//--------------------------------------------------------------------------------------------
+void NewGamePopup::AutoLobbyPump() {
+    if (!AutoLobbyActive()) {
+        return;
+    }
+
+    AutoLobbyStartClock();
+
+    /* Lobby messages are normally consumed by CheckNetEvents() from OnPaint(), so how quickly
+       a join is noticed depends on the repaint cadence. Pump them from the timer as well,
+       which ticks steadily - otherwise the handshake completes or not depending on how often
+       the lobby happens to redraw. */
+    CheckNetEvents();
+
+    /* Nobody is here to dismiss a dialog, so treat one as a hard failure and say which. */
+    if (MenuIsOpen() != 0) {
+        AutoLobbyAbort("a request dialog opened (menu %ld) on page %ld", static_cast<long>(CurrentMenu), static_cast<long>(PageNum));
+    }
+
+    if (AutoLobbyTimedOut()) {
+        AutoLobbyAbort("timed out on page %ld (master=%d, peers=%ld, want %ld humans)", static_cast<long>(PageNum), int(bThisIsSessionMaster),
+                       static_cast<long>(pNetworkPlayers != nullptr ? pNetworkPlayers->GetNumberOfElements() : 0), static_cast<long>(gAutoLobbyHumans));
+    }
+
+    const bool bHost = (gAutoLobbyRole == AutoLobbyRole::HOST);
+
+    switch (PageNum) {
+    case PAGE_TYPE::MAIN_MENU:
+        /* Straight past the menu into the provider page. bNetworkUnderway is what the
+           "Netzwerkspiel" button sets, and SIM::SendMemFile drops every message while it is
+           clear - so skipping it silently disables the whole lobby handshake. */
+        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK;
+        Selection = Sim.Options.OptionLastProvider;
+        bNetworkUnderway = TRUE;
+        pNetworkConnections = gNetwork.GetConnectionList();
+        NetTraceEvent("LOBBY page=provider role=%s", bHost ? "host" : "join");
+        RefreshKlackerField();
+        break;
+
+    case PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK: {
+        /* SetProvider() allocates the network backend, so it must happen exactly once. */
+        if (!gNetwork.IsInitialized()) {
+            gNetwork.SetProvider(bHost ? SBProviderEnum::SBNETWORK_RAKNET_DIRECT_HOST : SBProviderEnum::SBNETWORK_RAKNET_DIRECT_JOIN);
+            gNetwork.SetMasterServer(Sim.Options.OptionMasterServer);
+            Sim.StartTime = time(nullptr);
+            NetTraceEvent("LOBBY provider=%s", bHost ? "direct_host" : "direct_join");
+        }
+
+        if (bHost) {
+            SBNetworkCreation cr;
+            cr.sessionName = SBStr("harness");
+            cr.maxPlayers = 4;
+            cr.flags = SBCreationFlags::SBNETWORK_CREATE_NONE;
+
+            if (!gNetwork.CreateSession(SBStr("harness"), &cr)) {
+                AutoLobbyAbort("CreateSession failed");
+            }
+
+            Sim.bIsHost = TRUE;
+            Sim.SessionName = NetworkSession = SBStr("harness");
+            Sim.UniqueGameId = 0x4841524E; /* fixed, so that peers of one run always agree */
+            bThisIsSessionMaster = true;
+            PlayerReadyAt = 0;
+            NewgameWantsToLoad = 2;
+            gNetworkSavegameLoading = -1;
+
+            for (SLONG d = 0; d < 4; d++) {
+                Sim.Players.Players[d].NetworkID = 0;
+                Sim.Players.Players[d].Owner = 1;
+            }
+            Sim.Players.Players[gAutoLobbySlot].NetworkID = gNetwork.GetLocalPlayerID();
+            Sim.Players.Players[gAutoLobbySlot].Owner = 0;
+
+            NetTraceEvent("LOBBY hosting slot=%ld id=%lx", static_cast<long>(gAutoLobbySlot), static_cast<unsigned long>(gNetwork.GetLocalPlayerID()));
+            PageNum = PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER;
+            RefreshKlackerField();
+            break;
+        }
+
+        /* Client. The host may not be listening yet, so a failed attempt is normal: retry
+           until the watchdog gives up. Connect() is bounded and sleeps, and PageSub throttles
+           us so a host that never appears does not fill the log. */
+        if (PageSub++ % 8 != 0) {
+            break;
+        }
+        if (!gNetwork.Connect(SBStr(), gAutoLobbyHostIP)) {
+            NetTraceEvent("LOBBY connect to %s failed, retrying", gAutoLobbyHostIP.c_str());
+            break;
+        }
+        PageSub = 0;
+
+        NewgameWantsToLoad = FALSE;
+        gNetworkSavegameLoading = -1;
+        bThisIsSessionMaster = false;
+
+        for (SLONG d = 0; d < 4; d++) {
+            Sim.Players.Players[d].NetworkID = 0;
+        }
+        Sim.Players.Players[gAutoLobbySlot].NetworkID = gNetwork.GetLocalPlayerID();
+
+        {
+            TEAKFILE Message;
+            Message.Announce(30);
+            Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << SLONG(gAutoLobbySlot) << CString(VersionString);
+            SIM::SendMemFile(Message);
+        }
+
+        NetTraceEvent("LOBBY joined slot=%ld id=%lx", static_cast<long>(gAutoLobbySlot), static_cast<unsigned long>(gNetwork.GetLocalPlayerID()));
+        PageNum = PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER;
+        RefreshKlackerField();
+    } break;
+
+    case PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER: {
+        /* Only the host drives from here; clients are moved along by ATNET_BOTSELECT. */
+        if (!bThisIsSessionMaster) {
+            break;
+        }
+
+        pNetworkPlayers = gNetwork.GetAllPlayers();
+        const SLONG Peers = (pNetworkPlayers != nullptr) ? pNetworkPlayers->GetNumberOfElements() : 0;
+
+        SLONG Claimed = 0;
+        for (SLONG c = 0; c < 4; c++) {
+            if (Sim.Players.Players[c].Owner == 0 || Sim.Players.Players[c].Owner == 2) {
+                Claimed++;
+            }
+        }
+        CheckNames();
+
+        /* The click handler only requires "more than one peer", which would start a three or
+           four player run as soon as the first client arrived. Wait for all of them. */
+        const bool bReady = (Peers >= gAutoLobbyHumans) && (Claimed >= gAutoLobbyHumans) && (NamesOK != 0) && (PlayerReadyAt <= AtGetTime());
+
+        if (!bReady) {
+            /* Report the blocking condition once a second: a harness that stalls here must
+               say which precondition it is waiting on, not just time out. */
+            if ((PageSub++ % 20) == 0) {
+                NetTraceEvent("LOBBY waiting peers=%ld/%ld claimed=%ld/%ld names=%ld ready_in=%ld owners=%ld%ld%ld%ld", static_cast<long>(Peers),
+                              static_cast<long>(gAutoLobbyHumans), static_cast<long>(Claimed), static_cast<long>(gAutoLobbyHumans),
+                              static_cast<long>(NamesOK), static_cast<long>(SLONG(PlayerReadyAt) - SLONG(AtGetTime())),
+                              static_cast<long>(Sim.Players.Players[0].Owner), static_cast<long>(Sim.Players.Players[1].Owner),
+                              static_cast<long>(Sim.Players.Players[2].Owner), static_cast<long>(Sim.Players.Players[3].Owner));
+            }
+            break;
+        }
+
+        NetTraceEvent("LOBBY all %ld humans present, advancing to bot select", static_cast<long>(gAutoLobbyHumans));
+        PageNum = PAGE_TYPE::SELECT_BOT_NETWORK;
+        PageSub = 0;
+        RefreshKlackerField();
+        SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, -1, 0);
+    } break;
+
+    case PAGE_TYPE::SELECT_BOT_NETWORK: {
+        if (!bThisIsSessionMaster) {
+            break;
+        }
+
+        /* Give the clients a few ticks to receive ATNET_BOTSELECT and follow us onto this
+           page: their ATNET_BEGINGAME handler ignores the message otherwise. The transport is
+           reliable and ordered so this should be guaranteed anyway - the wait is insurance,
+           and the traces will show whether it was ever needed. */
+        if (PageSub++ < 10) {
+            break;
+        }
+
+        if (PlayerReadyAt > AtGetTime()) {
+            break;
+        }
+        for (auto &Unselected : UnselectedNetworkIDs) {
+            if (Unselected != 0U) {
+                return;
+            }
+        }
+
+        /* Bot levels for whatever slots no human claimed, lowest digit for the last slot,
+           matching how /setbotlevel is decoded. */
+        SLONG Digits = gAutoLobbyBots;
+        for (SLONG c = 3; c >= 0; c--) {
+            if (Sim.Players.Players[c].Owner == 1) {
+                Sim.Players.Players[c].BotLevel = (Digits % 10);
+                SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, Sim.Players.Players[c].BotLevel);
+                Digits /= 10;
+            }
+        }
+
+        Sim.Difficulty = DIFF_FREEGAME;
+
+        NetTraceEvent("LOBBY starting game");
+        SIM::SendSimpleMessage(ATNET_BEGINGAME, 0, Sim.bAllowCheating, Sim.StartTime, Sim.HomeAirportId, Sim.Difficulty);
+        SIM::SendSimpleMessage(ATNET_SETGAMESPEED, 0, Sim.GameSpeed, Sim.localPlayer);
+        Sim.ServerGameSpeed = Sim.GameSpeed;
+
+        Sim.bWatchForReady = TRUE;
+        Sim.bNetwork = 1;
+        bNetworkUnderway = 0;
+        for (SLONG c = 0; c < 4; c++) {
+            Sim.Players.Players[c].bReadyForMorning = 0;
+        }
+
+        Routen.ReInit("routen.csv", true);
+        Sim.ChooseStartup();
+
+        Sim.bThisIsSessionMaster = bThisIsSessionMaster;
+        gNetworkSavegameLoading = -1;
+        NewgameWantsToLoad = FALSE;
+
+        PageNum = PAGE_TYPE::MP_LOADING;
+        PageSub = 0;
+        RefreshKlackerField();
+    } break;
+
+    default:
+        /* MP_LOADING and anything else: the normal code path takes it from here. */
+        break;
+    }
+}
+
+//--------------------------------------------------------------------------------------------
 // NewGamePopup::OnTimer
 //--------------------------------------------------------------------------------------------
 void NewGamePopup::OnTimer(UINT nIDEvent) {
@@ -2453,6 +2679,8 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
     if (!bNewGamePopupIsOpen) {
         return;
     }
+
+    AutoLobbyPump();
 
     // Mit 10 FPS die Anzeige rotieren lassen:
     if (nIDEvent == 1) {
