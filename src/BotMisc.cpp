@@ -35,6 +35,10 @@ __int64 Bot::getMoneyAvailable() const {
 
 __int64 Bot::howMuchMoneyToRaise(bool maxCredit) const {
     __int64 limit = qPlayer.CalcCreditLimit();
+    /* smallest allowed new credit is 1000, however, we need a buffer here since credit limit depends on current qPlayer.Money */
+    if (limit < 2000LL) {
+        return 0;
+    }
     __int64 moneyRequired = -getMoneyAvailable();
     __int64 m = std::min(limit, moneyRequired);
     m = std::max(m, 1000LL);
@@ -221,7 +225,7 @@ std::pair<Bot::HowToGetMoney, Bot::Prio> Bot::howToGetMoney() {
     }
 
     /* Step 5: Take out loan */
-    if (qPlayer.CalcCreditLimit() >= 1000) {
+    if (qPlayer.CalcCreditLimit() >= 2000) {
         return {HowToGetMoney::IncreaseCredit, prio};
     }
     return {HowToGetMoney::None, Prio::None};
@@ -278,7 +282,7 @@ __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
 
     __int64 moneyForecast = qPlayer.Money + moneyEmit + moneyStock + moneyStockOwn - kMoneyEmergencyFund;
     __int64 credit = qPlayer.CalcCreditLimit(moneyForecast, qPlayer.Credit);
-    if (credit >= 1000) {
+    if (credit >= 2000) {
         moneyForecast += credit;
         AT_Log("Bot::howMuchMoneyCanWeGet(): Can get %s $ by taking a loan", Insert1000erDots(credit).c_str());
     }
