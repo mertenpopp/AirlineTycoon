@@ -75,15 +75,20 @@ SLONG TEAKFILE::IsOpen() const { return static_cast<SLONG>(Ctx != nullptr); }
 
 void TEAKFILE::Read(unsigned char *buffer, SLONG size) {
     if (MemBuffer.AnzEntries() > 0) {
-        SLONG anz = 0;
-        if (size >= MemBufferUsed - MemPointer) {
-            anz = MemBufferUsed - MemPointer;
-        } else {
-            anz = size;
+        /* MemBufferUsed is unsigned, MemPointer is signed: computing the remaining
+           byte count as (MemBufferUsed - MemPointer) wraps around to a huge value as
+           soon as MemPointer has passed the end, which turned every over-read into a
+           silent out-of-bounds memcpy. Compare in signed space and refuse instead. */
+        const SLONG used = static_cast<SLONG>(MemBufferUsed);
+        if (size < 0 || MemPointer < 0 || MemPointer > used || size > used - MemPointer) {
+            TeakLibW_Exception(nullptr, 0, ExcRead, "memory buffer (read past end)");
         }
-        memcpy(buffer, MemPointer + MemBuffer, anz);
+        memcpy(buffer, MemPointer + MemBuffer, size);
         MemPointer += size;
     } else {
+        if (Ctx == nullptr) {
+            TeakLibW_Exception(nullptr, 0, ExcRead, "closed file");
+        }
         if (SDL_RWread(Ctx, buffer, 1, size) != size) {
             TeakLibW_Exception(nullptr, 0, ExcRead, Path);
         }

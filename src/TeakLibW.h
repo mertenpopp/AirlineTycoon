@@ -22,6 +22,7 @@ extern const char *ExcImpossible;
 extern const char *ExcNotImplemented;
 extern const char *ExcOutOfMem;
 extern const char *ExcStrangeMem;
+extern const char *ExcRead;
 
 #define FNL __FILE__, __LINE__
 
@@ -291,6 +292,29 @@ class TEAKFILE {
     void WriteLine(char *);
     void Announce(SLONG);
 
+    /* Bytes still readable from the in-memory buffer, or -1 when this TEAKFILE is
+       backed by a real file (where the remaining size is not tracked here).
+       Used to sanity-check length prefixes before allocating for them. */
+    SLONG BytesRemaining() const {
+        if (MemBuffer.AnzEntries() <= 0) {
+            return -1;
+        }
+        const SLONG used = static_cast<SLONG>(MemBufferUsed);
+        if (MemPointer < 0 || MemPointer > used) {
+            return 0;
+        }
+        return used - MemPointer;
+    }
+
+    /* Throws when a length prefix cannot possibly be honoured, so that a corrupt or
+       truncated message fails here instead of in a multi-megabyte allocation. */
+    void CheckLengthPrefix(ULONG size) const {
+        const SLONG remaining = BytesRemaining();
+        if (size > 0x7FFFFFFFU || (remaining >= 0 && static_cast<SLONG>(size) > remaining)) {
+            TeakLibW_Exception(nullptr, 0, ExcRead, "memory buffer (implausible length prefix)");
+        }
+    }
+
     SDL_RWops *Ctx;
     char *Path;
     BUFFER<UBYTE> MemBuffer;
@@ -421,8 +445,14 @@ class TEAKFILE {
     friend TEAKFILE &operator>>(TEAKFILE &File, CString &b) {
         ULONG size;
         File >> size;
-        BUFFER_V<BYTE> str(size);
+        /* size comes straight off the wire / off disk. Reject it before allocating,
+           then allocate one extra byte and terminate ourselves, so that neither a zero
+           length (empty vector -> CString from a null pointer) nor a missing
+           terminator can run off the end. */
+        File.CheckLengthPrefix(size);
+        BUFFER_V<BYTE> str(size + 1);
         File.Read(str.getData(), size);
+        str[size] = '\0';
         b = (PCSTR)(BYTE *)str.getData();
         return File;
     }
@@ -440,6 +470,7 @@ class TEAKFILE {
         // File.ReadTrap(4242);
         ULONG size;
         File >> size;
+        File.CheckLengthPrefix(size);
         BUFFER_V<BYTE> str(size+1);
         File.Read(str.getData(), size);
         str[size] = '\0';

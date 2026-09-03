@@ -24,17 +24,32 @@ void SerializePacket(ATPacket *p, BitStream *data) {
     }
 }
 
-void DeserializePacket(unsigned char *data, unsigned int length, ATPacket *packet) {
+/* Returns false and allocates nothing when the packet cannot be parsed. On success the
+   caller owns packet->data and must delete[] it. */
+bool DeserializePacket(unsigned char *data, unsigned int length, ATPacket *packet) {
     BitStream dataStream(data, length, false);
-    dataStream.Read(packet->messageType);
-    dataStream.Read(packet->peerID);
-    dataStream.Read(packet->dataLength);
+    packet->data = nullptr;
+
+    if (!dataStream.Read(packet->messageType) || !dataStream.Read(packet->peerID) || !dataStream.Read(packet->dataLength)) {
+        return false;
+    }
+
+    /* dataLength is attacker/corruption controlled: refuse anything the packet cannot
+       actually contain instead of allocating for it. */
+    if (packet->dataLength == 0 || packet->dataLength > dataStream.GetNumberOfUnreadBits() / 8) {
+        return false;
+    }
 
     packet->data = new UBYTE[packet->dataLength];
 
-    for (int i = 0; i < packet->dataLength; i++) {
-        dataStream.Read(packet->data[i]);
+    for (ULONG i = 0; i < packet->dataLength; i++) {
+        if (!dataStream.Read(packet->data[i])) {
+            delete[] packet->data;
+            packet->data = nullptr;
+            return false;
+        }
     }
+    return true;
 }
 
 #define MAX_TIMEOUT 8
@@ -441,6 +456,7 @@ bool RAKNetNetwork::Receive(UBYTE **buffer, ULONG &size) {
                 }
             }
 
+            bool haveMessage = false;
             if (disconnectedPlayer != nullptr) { // relay information to game
                 DPPacket dp{};
                 dp.messageType = DPSYS_DESTROYPLAYERORGROUP;
@@ -449,6 +465,7 @@ bool RAKNetNetwork::Receive(UBYTE **buffer, ULONG &size) {
                 size = sizeof(DPPacket);
                 *buffer = new UBYTE[size];
                 memcpy(*buffer, &dp, size);
+                haveMessage = true;
 
                 mPlayers.RemoveLastAccessed();
                 delete disconnectedPlayer;
@@ -456,15 +473,23 @@ bool RAKNetNetwork::Receive(UBYTE **buffer, ULONG &size) {
             if (mState != SBSessionEnum::SBNETWORK_SESSION_MASTER && *mHost == p->guid) { // The server disconnected
                 isHostMigrating = true;
             }
-            return true;
+            mMaster->DeallocatePacket(p);
+            /* Only claim a message when one was actually produced. Returning true for an
+               unknown peer left buffer/size untouched, and the caller then parsed an empty
+               TEAKFILE - which reads from a closed file handle. */
+            return haveMessage;
         }
         case SBEventEnum::SBNETWORK_MESSAGE: // Normal packet
         {
             ATPacket packet{};
-            DeserializePacket(p->data, p->length, &packet);
+            if (!DeserializePacket(p->data, p->length, &packet)) {
+                AT_Log("RECEIVED: malformed SBNETWORK_MESSAGE, dropping");
+                break;
+            }
 
             // Check if the package was meant for us. 0 for broadcast
             if (packet.peerID && packet.peerID != mLocalID) {
+                delete[] packet.data; // not ours: DeserializePacket already allocated it
                 break;
             }
 
