@@ -105,6 +105,7 @@ add_executable (AT
     Misc.cpp
     Museum.cpp
     Nasa.cpp
+    NetTrace.cpp
     NewGamePopup.cpp
     Options.cpp
     CVideo.cpp

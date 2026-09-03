@@ -52,6 +52,7 @@
 #include "gltitel.h"
 
 #include "AtNet.h"
+#include "NetTrace.h"
 #include "SbLib.h"
 
 #include <SDL_ttf.h>
@@ -293,6 +294,17 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             gQuickTestRun = 1;
             gAutoBotDiff = 2;
             gAutoQuitOnDay = 5;
+        }
+        // Trace the multiplayer protocol into the game log, see NetTrace.h
+        if (stricmp(Argument, "/nettrace") == 0) {
+            gNetTraceLevel = 1;
+
+            /* Only swallow the next argument when it really is a level, so that a bare
+               "/nettrace" followed by another switch keeps working. */
+            if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+                i++;
+                gNetTraceLevel = atoi(argv[i]);
+            }
         }
         if (stricmp(Argument, "/setbotlevel") == 0) {
             gAutoBotDiff = 3;

@@ -2,6 +2,7 @@
 // Sim.cpp : Routinen zur allgemeinen Simulationsverwaltung:
 //============================================================================================
 #include "AtNet.h"
+#include "NetTrace.h"
 #include "BotHelper.h"
 #include "Checkup.h"
 #include "GameMechanic.h"
@@ -1159,6 +1160,7 @@ void SIM::ChooseStartup() {
     DumpAASeedSum(1002);
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
+    NetTraceFingerprint("daystart");
 }
 
 //----------------------------------------------------------------------------------------
@@ -2532,6 +2534,7 @@ void SIM::NewDay() {
     CallItADay = FALSE;
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
+    NetTraceFingerprint("dayend");
 }
 
 //--------------------------------------------------------------------------------------------
