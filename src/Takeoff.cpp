@@ -52,6 +52,7 @@
 #include "gltitel.h"
 
 #include "AtNet.h"
+#include "AutoLobby.h"
 #include "NetTrace.h"
 #include "SbLib.h"
 
@@ -295,6 +296,40 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             gAutoBotDiff = 2;
             gAutoQuitOnDay = 5;
         }
+        // Unattended multiplayer for the test harness, see AutoLobby.h
+        if (stricmp(Argument, "/mphost") == 0) {
+            gAutoLobbyRole = AutoLobbyRole::HOST;
+            if (i + 1 < argc) {
+                gAutoLobbySlot = atoi(argv[++i]);
+            }
+            if (i + 1 < argc) {
+                gAutoLobbyHumans = atoi(argv[++i]);
+            }
+            /* Bot levels are optional, so only take the next argument when it is one. */
+            if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+                gAutoLobbyBots = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpjoin") == 0) {
+            gAutoLobbyRole = AutoLobbyRole::JOIN;
+            if (i + 1 < argc) {
+                gAutoLobbyHostIP = argv[++i];
+            }
+            if (i + 1 < argc) {
+                gAutoLobbySlot = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpdays") == 0) {
+            if (i + 1 < argc) {
+                gAutoQuitOnDay = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mptimeout") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyTimeout = atoi(argv[++i]);
+            }
+        }
+
         // Trace the multiplayer protocol into the game log, see NetTrace.h
         if (stricmp(Argument, "/nettrace") == 0) {
             gNetTraceLevel = 1;
@@ -397,7 +432,7 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
 
     // Write registry and move on
 
-    if (gQuickTestRun == 0) {
+    if (gQuickTestRun == 0 && !AutoLobbyActive()) {
         reg.WriteFile();
     }
 }
@@ -451,7 +486,8 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
 
     Sim.LoadOptions();
-    if (gQuickTestRun == 0) {
+    AutoLobbyApplyOptions();
+    if (gQuickTestRun == 0 && !AutoLobbyActive()) {
         Sim.SaveOptions();
     }
 

@@ -93,7 +93,10 @@ def report_divergence(peers):
             continue
         day, when, who = key
         print(f"   day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
-        keys = [k for k in rows[0] if not k.startswith("_")]
+        # "owner" is relative to the peer doing the reporting (itself 0, the others 2), so it
+        # differs by design and is not evidence of anything.
+        local_only = {"owner"}
+        keys = [k for k in rows[0] if not k.startswith("_") and k not in local_only]
         for field in keys:
             values = [r.get(field) for r in rows]
             if len(set(values)) > 1:

@@ -2,12 +2,15 @@
 // Aufsicht.cpp : Das Büro der Flugaufsicht
 //============================================================================================
 #include "AtNet.h"
+#include "AutoLobby.h"
 #include "Aufsicht.h"
 #include "ColorFx.h"
 #include "GameMechanic.h"
 #include "glauf.h"
 #include "global.h"
 #include "Proto.h"
+
+#include <unistd.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -697,6 +700,14 @@ void CAufsicht::OnPaint() {
     CStdRaum::PumpToolTips();
 
     if (Sim.Date == gAutoQuitOnDay) {
+        if (AutoLobbyActive()) {
+            /* Same reason as AutoLobbyAbort(): running the static destructors from inside the
+               room code crashes on the way out, and the harness would read that segfault as a
+               failed run even though the game played to the end. */
+            fflush(stdout);
+            fflush(stderr);
+            _exit(0);
+        }
         exit(0);
     }
     if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
