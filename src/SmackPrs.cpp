@@ -213,7 +213,7 @@ BOOL CSmack16::NextSmk(SBBM *pTargetBm) {
             if (SLONG(Width) != pTargetBm->Size.x || SLONG(Height) != pTargetBm->Size.y) {
                 pTargetBm->ReSize(XY(Width, Height), CREATE_INDEXED);
             }
-            SDL_SetPixelFormatPalette(pTargetBm->pBitmap->GetPixelFormat(), PaletteMapper);
+            SDL_SetSurfacePalette(pTargetBm->pBitmap->GetSurface(), PaletteMapper);
             SB_CBitmapKey key(*pTargetBm->pBitmap);
             memcpy(key.Bitmap, smk_get_video(pSmack), key.lPitch * Height);
         }
@@ -233,7 +233,7 @@ BOOL CSmack16::NextFlc(SBBM *pTargetBm) {
             if (SLONG(Width) != pTargetBm->Size.x || SLONG(Height) != pTargetBm->Size.y) {
                 pTargetBm->ReSize(XY(Width, Height), CREATE_INDEXED);
             }
-            SDL_SetPixelFormatPalette(pTargetBm->pBitmap->GetPixelFormat(), PaletteMapper);
+            SDL_SetSurfacePalette(pTargetBm->pBitmap->GetSurface(), PaletteMapper);
             SB_CBitmapKey key(*pTargetBm->pBitmap);
             memcpy(key.Bitmap, pFlc->get_video(), key.lPitch * Height);
         }
@@ -582,7 +582,7 @@ void CSmackerPerson::ForceNextClip() {
 void CSmackerPerson::CopyFrameSmk() {
     CalculatePalettemapper(smk_get_palette(Clips[ActiveClip].pSmack), Clips[ActiveClip].PaletteMapper);
     Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
-    SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
+    SDL_SetSurfacePalette(Bitmap.pBitmap->GetSurface(), Clips[ActiveClip].PaletteMapper);
     {
         SB_CBitmapKey key(*Bitmap.pBitmap);
         memcpy(key.Bitmap, smk_get_video(Clips[ActiveClip].pSmack), key.lPitch * Clips[ActiveClip].Height);
@@ -604,7 +604,7 @@ void CSmackerPerson::DecodeFrameSmk() {
 void CSmackerPerson::CopyFrameFlc() {
     CalculatePalettemapperFlc(Clips[ActiveClip].pFlc->get_palette(), Clips[ActiveClip].PaletteMapper);
     Bitmap.ReSize(XY(Clips[ActiveClip].Width, Clips[ActiveClip].Height), CREATE_INDEXED);
-    SDL_SetPixelFormatPalette(Bitmap.pBitmap->GetPixelFormat(), Clips[ActiveClip].PaletteMapper);
+    SDL_SetSurfacePalette(Bitmap.pBitmap->GetSurface(), Clips[ActiveClip].PaletteMapper);
     {
         SB_CBitmapKey key(*Bitmap.pBitmap);
         memcpy(key.Bitmap, Clips[ActiveClip].pFlc->get_video(), key.lPitch * Clips[ActiveClip].Height);

@@ -405,6 +405,7 @@ void CTakeOffApp::CreateVideo() {
     if (Mix_Init(MIX_INIT_OGG) < 0) {
         printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", TTF_GetError());
     }
+    AT_Log("SDL version: %s", SDL_GetRevision());
     hasVideo = true;
 }
 
