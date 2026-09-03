@@ -6,6 +6,7 @@
 #include "NewGamePopup.h" //Fenster zum Wahl der Gegner und der Spielstärke
 
 #include "AtNet.h"
+#include "NetTrace.h"
 #include "glstart.h"
 #include "global.h"
 #include "helper.h"
@@ -2733,11 +2734,18 @@ void NewGamePopup::PushName(SLONG n) {
 //--------------------------------------------------------------------------------------------
 bool SIM::SendMemFile(TEAKFILE &file, ULONG target, bool useCompression) {
     useCompression = false;
-    // ULONG eventId = (file.MemBuffer[3] << 24) | (file.MemBuffer[2] << 16) | (file.MemBuffer[1] << 8) | (file.MemBuffer[0]);
-    // AT_Log_I("NET", "Send Event: %s (%x) TO: %x", Translate_ATNET(eventId), eventId, target);
 
     if (((Sim.bNetwork != 0) || (bNetworkUnderway != 0)) && gNetwork.IsInSession()) {
-        return gNetwork.Send(file.MemBuffer, file.MemBufferUsed, target, useCompression);
+        const bool Sent = gNetwork.Send(file.MemBuffer, file.MemBufferUsed, target, useCompression);
+
+        /* Traced here rather than on entry, so that the log only contains messages that
+           really went out: SendMemFile is also called plenty of times outside a session. */
+        if (gNetTraceLevel > 0 && file.MemBufferUsed >= sizeof(ULONG)) {
+            const ULONG MessageType =
+                (ULONG(file.MemBuffer[3]) << 24) | (ULONG(file.MemBuffer[2]) << 16) | (ULONG(file.MemBuffer[1]) << 8) | ULONG(file.MemBuffer[0]);
+            NetTraceMessage(Sent ? "SEND" : "SENDFAIL", MessageType, target, static_cast<SLONG>(file.MemBufferUsed), -1);
+        }
+        return Sent;
     }
     return (false);
 }

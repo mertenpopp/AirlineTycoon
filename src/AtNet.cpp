@@ -4,6 +4,7 @@
 // Link: "AtNet.h"
 //============================================================================================
 #include "AtNet.h"
+#include "NetTrace.h"
 
 #include "Buero.h"
 #include "global.h"
@@ -247,6 +248,7 @@ void PumpNetwork() {
     while ((gNetwork.GetMessageCount() != 0) && !bReturnAfterThisMessage) {
         if (--MessageBudget < 0) {
             AT_Log("PumpNetwork: message budget exhausted, %ld packets still queued", static_cast<long>(gNetwork.GetMessageCount()));
+            NetTraceEvent("BUDGET queued=%ld", static_cast<long>(gNetwork.GetMessageCount()));
             break;
         }
         TEAKFILE Message;
@@ -263,6 +265,8 @@ void PumpNetwork() {
 
             Message >> MessageType;
             // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
+
+            NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
 
             switch (MessageType) {
             case ATNET_SETSPEED:
@@ -313,11 +317,13 @@ void PumpNetwork() {
             } break;
 
             case DPSYS_HOST:
+                NetTraceEvent("HOSTMIGRATION we are now host");
                 Sim.bIsHost = TRUE;
                 DisplayBroadcastMessage(StandardTexte.GetS(TOKEN_MISC, 7000));
                 break;
 
             case DPSYS_SESSIONLOST:
+                NetTraceEvent("SESSIONLOST humans=%ld", static_cast<long>(Sim.Players.GetAnzHumanPlayers()));
                 DisplayBroadcastMessage(StandardTexte.GetS(TOKEN_MISC, 7001));
                 for (c = 0; c < 4; c++) {
                     if (Sim.Players.Players[c].Owner == 2) {
@@ -379,6 +385,9 @@ void PumpNetwork() {
                             if (nOptionsOpen == 0 && nAppsDisabled == 0 && Sim.bPause == 0) {
                                 SetNetworkBitmap(0);
                             }
+
+                            NetTraceEvent("PLAYERDROP p=%ld options=%ld apps=%ld waiting=%ld", static_cast<long>(c), static_cast<long>(nOptionsOpen),
+                                          static_cast<long>(nAppsDisabled), static_cast<long>(nWaitingForPlayer));
 
                             Sim.Players.Players[c].Owner = 1;
                             Sim.Players.Players[c].NetworkID = 0;
@@ -1709,6 +1718,8 @@ void PumpNetwork() {
                 Message >> Par1 >> Par2;
                 Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nWaitingForPlayer += Par1;
+                NetTraceEvent("WAITFORPLAYER p=%ld delta=%ld waiting=%ld", static_cast<long>(Par2), static_cast<long>(Par1),
+                              static_cast<long>(nWaitingForPlayer));
                 nPlayerWaiting[Par2] += Par1;
                 if (nPlayerWaiting[Par2] < 0) {
                     nPlayerWaiting[Par2] = 0;
@@ -1762,6 +1773,7 @@ void PumpNetwork() {
 
                 Message >> FromPlayer;
                 FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
+                NetTraceEvent("DAYFINISH from=%ld", static_cast<long>(FromPlayer));
 
                 Sim.Players.Players[FromPlayer].CallItADay = TRUE;
             } break;
@@ -1777,6 +1789,7 @@ void PumpNetwork() {
                 break;
             case ATNET_DAYFINISHALL: {
                 PLAYER &qPlayer = Sim.Players.Players[Sim.localPlayer];
+                NetTraceEvent("DAYFINISHALL");
 
                 if ((Sim.Options.OptionAutosave != 0) && (Sim.bNetwork != 0)) {
                     Sim.SaveGame(11, StandardTexte.GetS(TOKEN_MISC, 5000));
@@ -2072,8 +2085,15 @@ void PumpNetwork() {
                 break;
             }
 
+            /* The original code wanted to break into the debugger when a handler did not
+               consume its message exactly; report it in the trace instead. A non-zero tail
+               means this receiver disagrees with the sender about the message layout, which
+               is how a session silently drifts apart. */
+            NetTraceTail(MessageType, static_cast<SLONG>(Message.MemBufferUsed) - Message.MemPointer);
+
             } catch (TeakLibException &ex) {
                 AT_Log("PumpNetwork: dropping malformed message %s: %s", Translate_ATNET(MessageType), ex.what());
+                NetTraceEvent("DROP name=%s reason=%s", Translate_ATNET(MessageType), ex.what());
                 ex.caught();
             }
         }
