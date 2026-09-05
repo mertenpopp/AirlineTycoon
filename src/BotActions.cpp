@@ -387,7 +387,7 @@ void Bot::updateExtraWorkers() {
     AT_Log("Bot::updateExtraWorkers(): We have %d extra pilots and %d extra attendants", mExtraPilots, mExtraBegleiter);
 }
 
-void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
+void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     if (mItemAntiStrike == 0 && (LocalRandom.Rand() % 2 == 0)) { /* rand() because human player has same chance of item appearing */
         if (pickUpItem(ITEM_BH)) {
             mItemAntiStrike = 1;
@@ -399,41 +399,76 @@ void Bot::actionBuyNewPlane(__int64 /*moneyAvailable*/) {
         AT_Error("Bot::actionBuyNewPlane(): No plane was selected!");
         return;
     }
-    if (qPlayer.xPiloten < PlaneTypes[bestPlaneTypeId].AnzPiloten || qPlayer.xBegleiter < PlaneTypes[bestPlaneTypeId].AnzBegleiter) {
-        AT_Error("Bot::actionBuyNewPlane(): Not enough crew for selected plane!");
+
+    /* determine number to buy */
+    SLONG numToBuy = 0;
+    const auto &qPlaneType = PlaneTypes[bestPlaneTypeId];
+    while (numToBuy < 10) {
+        if (moneyAvailable < (numToBuy * qPlaneType.Preis)) {
+            break;
+        }
+        if (qPlayer.xPiloten < (numToBuy * qPlaneType.AnzPiloten) || qPlayer.xBegleiter < (numToBuy * qPlaneType.AnzBegleiter)) {
+            break;
+        }
+        numToBuy++;
+    }
+    numToBuy--;
+    if (numToBuy < 1) {
+        AT_Error("Bot::actionBuyNewPlane(): Not enough money or crew for selected plane!");
+        return;
     }
 
-    auto list = GameMechanic::buyPlane(qPlayer, bestPlaneTypeId, 1);
+    if (mDoRoutes) {
+        assert(mImproveRouteId != -1);
+        auto &qRoute = mRoutes[mImproveRouteId];
+        numToBuy = std::min(numToBuy, qRoute.numberOfPlanesTarget - static_cast<SLONG>(qRoute.planeIds.size()));
+    } else {
+        numToBuy = 1; /* only buy one plane when not doing routes */
+    }
+
+    auto list = GameMechanic::buyPlane(qPlayer, bestPlaneTypeId, numToBuy);
     if (list.empty()) {
         AT_Error("Bot::actionBuyNewPlane(): Gamemechanic returned error!");
         return;
     }
-    assert(list.size() == 1);
-    assert(list[0] >= 0x1000000);
-
-    auto planeId = list[0];
-    auto &qPlane = qPlayer.Planes[planeId];
-    AT_Log("Bot::actionBuyNewPlane(): Bought plane %s", Helper::getPlaneName(qPlane).c_str());
-    if (mDoRoutes) {
-        if (mRoutesNextStep == RoutesNextStep::BuyMorePlanes) {
-            assert(mImproveRouteId != -1);
-            auto &qRoute = mRoutes[mImproveRouteId];
-            qRoute.planeIds.push_back(planeId);
-            mPlanesForRoutes.push_back(planeId);
-            AT_Log("Bot::actionBuyNewPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
-                   Helper::getRouteName(getRoute(qRoute)).c_str());
-        } else {
-            mPlanesForRoutesUnassigned.push_back(planeId);
+    for (const auto &planeId : list) {
+        if (planeId < 0x1000000) {
+            AT_Error("Bot::actionBuyNewPlane(): Gamemechanic returned invalid plane id %d!", planeId);
+            return;
         }
+    }
+
+    /* assign new planes */
+    for (const auto &planeId : list) {
+        auto &qPlane = qPlayer.Planes[planeId];
+        AT_Log("Bot::actionBuyNewPlane(): Bought plane %s (passengers = %d, fuel = %d)", Helper::getPlaneName(qPlane).c_str(), qPlane.ptPassagiere,
+               qPlane.ptVerbrauch);
+
+        if (mDoRoutes) {
+            if (mRoutesNextStep == RoutesNextStep::BuyMorePlanes) {
+                assert(mImproveRouteId != -1);
+                auto &qRoute = mRoutes[mImproveRouteId];
+                qRoute.planeIds.push_back(planeId);
+                mPlanesForRoutes.push_back(planeId);
+                AT_Log("Bot::actionBuyNewPlane(): Assigning new plane %s to route %s", Helper::getPlaneName(qPlane).c_str(),
+                       Helper::getRouteName(getRoute(qRoute)).c_str());
+            } else {
+                mPlanesForRoutesUnassigned.push_back(planeId);
+            }
+        } else {
+            if (checkPlaneAvailable(planeId, true, false)) {
+                mPlanesForJobs.push_back(planeId);
+            } else {
+                mPlanesForJobsUnassigned.push_back(planeId);
+            }
+        }
+    }
+
+    /* update strategy */
+    if (mDoRoutes) {
         mBuyPlaneForRouteId = -1;
         requestPlanRoutes(false);
     } else {
-        if (checkPlaneAvailable(planeId, true, false)) {
-            mPlanesForJobs.push_back(planeId);
-            grabNewFlights();
-        } else {
-            mPlanesForJobsUnassigned.push_back(planeId);
-        }
         mBestPlaneTypeId = -1;
     }
 
@@ -555,7 +590,7 @@ void Bot::actionBuyDesignerPlane(__int64 /*moneyAvailable*/) {
     updateExtraWorkers();
 }
 
-void Bot::actionVisitHR() {
+void Bot::actionVisitHR(__int64 moneyAvailable) {
     if (mItemPills == 1) {
         if (useItem(ITEM_POSTKARTE)) {
             mItemPills = 2;
@@ -625,23 +660,7 @@ void Bot::actionVisitHR() {
     /* crew */
     SLONG pilotsTarget = 3;     /* sensible default */
     SLONG stewardessTarget = 6; /* sensible default */
-    if (mLongTermStrategy) {
-        SLONG bestPlaneTypeId = mDoRoutes ? mBuyPlaneForRouteId : mBestPlaneTypeId;
-        if (bestPlaneTypeId >= 0) {
-            const auto &bestPlaneType = PlaneTypes[bestPlaneTypeId];
-            pilotsTarget = bestPlaneType.AnzPiloten;
-            stewardessTarget = bestPlaneType.AnzBegleiter;
-        }
-    } else {
-        if (mBestUsedPlaneIdx != -1) {
-            pilotsTarget = mBestUsedPlanePilots;
-            stewardessTarget = mBestUsedPlaneCrew;
-        }
-    }
-    if (!mDesignerPlane.Name.empty()) {
-        pilotsTarget = std::max(pilotsTarget, mDesignerPlane.CalcPiloten());
-        stewardessTarget = std::max(stewardessTarget, mDesignerPlane.CalcBegleiter());
-    }
+    std::tie(pilotsTarget, stewardessTarget) = howMuchCrewToHire(moneyAvailable);
 
     mQualifiedCrewForHire = 0;
     SLONG numPilotsHired = 0;

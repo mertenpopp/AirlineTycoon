@@ -444,7 +444,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_PERSONAL:
-        actionVisitHR();
+        actionVisitHR(moneyAvailable);
         break;
 
     case ACTION_BUY_KEROSIN:

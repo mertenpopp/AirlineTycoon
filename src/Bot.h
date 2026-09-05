@@ -161,7 +161,7 @@ class Bot {
     Prio condBuyNewPlane(__int64 &moneyAvailable);
     Prio condBuyUsedPlane(__int64 &moneyAvailable);
     Prio condVisitMuseum();
-    Prio condVisitHR();
+    Prio condVisitHR(__int64 &moneyAvailable);
     Prio condBuyKerosine(__int64 &moneyAvailable);
     Prio condBuyKerosineTank(__int64 &moneyAvailable);
     Prio condSabotage(__int64 &moneyAvailable);
@@ -207,7 +207,7 @@ class Bot {
     void actionBuyUsedPlane(__int64 moneyAvailable);
     void actionMuseumCheckPlanes();
     void actionBuyDesignerPlane(__int64 moneyAvailable);
-    void actionVisitHR();
+    void actionVisitHR(__int64 moneyAvailable);
     void actionBuyKerosine(__int64 moneyAvailable);
     void actionBuyKerosineTank(__int64 moneyAvailable);
     void actionSabotage(__int64 moneyAvailable);
@@ -261,9 +261,13 @@ class Bot {
     void assignPlanesToRoutes(bool areWeInOffice);
 
     /* misc (in BotMisc.cpp) */
-    __int64 howMuchMoneyToRaise(bool maxCredit) const;
+    const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
+    const CRoute &getRoute(const RouteInfo &routeInfo) const;
+    __int64 refreshWeeklyOpSaldo();
+    bool checkLateGame();
+    SLONG getImage() const;
+    void forceReplanning();
     bool doWeNeedMoreGates(bool print) const;
-    void printRobotFlags() const;
     SLONG numPlanes() const;
     std::vector<SLONG> getAllPlanes() const;
     bool isOfficeUsable() const;
@@ -275,6 +279,7 @@ class Bot {
     HowToPlan howToPlanFlights();
     AreWeBroke areWeBroke() const;
     std::pair<HowToGetMoney, Prio> howToGetMoney();
+    __int64 howMuchMoneyToRaise(bool maxCredit) const;
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
@@ -284,17 +289,13 @@ class Bot {
     void findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned);
     void findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::vector<SLONG> &listAvailable);
     bool checkPlaneAvailable(SLONG planeId, bool printIfAvailable, bool areWeInOffice);
-    const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
-    const CRoute &getRoute(const RouteInfo &routeInfo) const;
-    __int64 refreshWeeklyOpSaldo();
-    bool checkLateGame();
-    SLONG getImage() const;
-    void forceReplanning();
+    std::pair<SLONG, SLONG> howMuchCrewToHire(__int64 moneyAvailable);
     void setHardcodedDesignerPlaneLarge();
     void setHardcodedDesignerPlaneEco();
     void setMoodByActionId(SLONG actionId);
     bool useItem(SLONG item);
     bool pickUpItem(SLONG item);
+    void printRobotFlags() const;
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;

@@ -40,7 +40,7 @@ Bot::Prio Bot::condAll(SLONG actionId) {
     case ACTION_BUERO:
         return condBuero();
     case ACTION_PERSONAL:
-        return condVisitHR();
+        return condVisitHR(moneyAvailable);
     case ACTION_VISITKIOSK:
         return condVisitMisc();
     case ACTION_VISITMECH:
@@ -434,15 +434,17 @@ Bot::Prio Bot::condVisitMuseum() {
     return Prio::None;
 }
 
-Bot::Prio Bot::condVisitHR() {
+Bot::Prio Bot::condVisitHR(__int64 &moneyAvailable) {
+    moneyAvailable = getMoneyAvailable();
     Prio prio = Prio::None;
     if (hoursPassed(ACTION_PERSONAL, 24)) {
         prio = std::max(prio, Prio::Medium); /* hire new crew every day */
     }
-    if (hoursPassed(ACTION_PERSONAL, kFrequencyRouteStrategy) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0) &&
-        (mBuyPlaneForRouteId != -1)) {
-        const auto &bestPlaneType = PlaneTypes[mBuyPlaneForRouteId];
-        if ((qPlayer.xPiloten < bestPlaneType.AnzPiloten) || (qPlayer.xBegleiter < bestPlaneType.AnzBegleiter)) {
+    if (hoursPassed(ACTION_PERSONAL, kFrequencyRouteStrategy) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0)) {
+        SLONG pilotsTarget = 3;     /* sensible default */
+        SLONG stewardessTarget = 6; /* sensible default */
+        std::tie(pilotsTarget, stewardessTarget) = howMuchCrewToHire(moneyAvailable);
+        if ((qPlayer.xPiloten < pilotsTarget) || (qPlayer.xBegleiter < stewardessTarget)) {
             prio = std::max(prio, Prio::Medium); /* to be able to hire crew more than once per day */
         }
     }

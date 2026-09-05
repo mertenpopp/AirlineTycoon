@@ -33,20 +33,22 @@ __int64 Bot::getMoneyAvailable() const {
     return m;
 }
 
-__int64 Bot::howMuchMoneyToRaise(bool maxCredit) const {
-    __int64 limit = qPlayer.CalcCreditLimit();
-    /* smallest allowed new credit is 1000, however, we need a buffer here since credit limit depends on current qPlayer.Money */
-    if (limit < 2000LL) {
-        return 0;
+const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { return qPlayer.RentRouten.RentRouten[routeInfo.routeId]; }
+
+const CRoute &Bot::getRoute(const Bot::RouteInfo &routeInfo) const { return Routen[routeInfo.routeId]; }
+
+__int64 Bot::refreshWeeklyOpSaldo() {
+    if (checkLaptop() && (qPlayer.HasBerater(BERATERTYP_GELD) > 0)) {
+        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
     }
-    __int64 moneyRequired = -getMoneyAvailable();
-    __int64 m = std::min(limit, moneyRequired);
-    m = std::max(m, 1000LL);
-    if (maxCredit) {
-        m = limit;
-    }
-    return m;
+    return mWeeklyOperatingSaldo;
 }
+
+bool Bot::checkLateGame() { return (refreshWeeklyOpSaldo() > 1e8) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 8; }
+
+SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) ? mCurrentImage : qPlayer.Image; }
+
+void Bot::forceReplanning() { qPlayer.RobotActions[1].ActionId = ACTION_NONE; }
 
 bool Bot::doWeNeedMoreGates(bool print) const {
     DOUBLE gateUtilization = 0;
@@ -60,29 +62,6 @@ bool Bot::doWeNeedMoreGates(bool print) const {
                (needMoreGates ? "YES" : "NO"));
     }
     return needMoreGates;
-}
-
-void Bot::printRobotFlags() const {
-    const std::array<std::pair<SLONG, bool>, 29> list = {
-        {{ROBOT_USE_FRACHT, true},          {ROBOT_USE_WERBUNG, true},        {ROBOT_USE_NASA, false},
-         {ROBOT_USE_ROUTES, true},          {ROBOT_USE_FORCEROUTES, false},   {ROBOT_USE_ROUTEMISSION, false},
-         {ROBOT_USE_MUCHWERBUNG, false},    {ROBOT_USE_ROUTEBOX, true},       {ROBOT_USE_ABROAD, true},
-         {ROBOT_USE_MUCH_SABOTAGE, false},  {ROBOT_USE_MUCH_FRACHT, false},   {ROBOT_USE_FREE_FRACHT, false},
-         {ROBOT_USE_LUXERY, false},         {ROBOT_USE_HIGHSHAREPRICE, true}, {ROBOT_USE_WORKQUICK, false},
-         {ROBOT_USE_GROSSESKONTO, false},   {ROBOT_USE_WORKVERYQUICK, false}, {ROBOT_USE_DONTBUYANYSHARES, false},
-         {ROBOT_USE_NOCHITCHAT, false},     {ROBOT_USE_SHORTFLIGHTS, false},  {ROBOT_USE_EXTREME_SABOTAGE, false},
-         {ROBOT_USE_SECURTY_OFFICE, false}, {ROBOT_USE_MAKLER, true},         {ROBOT_USE_PETROLAIR, true},
-         {ROBOT_USE_MAX20PERCENT, false},   {ROBOT_USE_TANKS, true},          {ROBOT_USE_DESIGNER, true},
-         {ROBOT_USE_DESIGNER_BUY, false},   {ROBOT_USE_WORKQUICK_2, true}}};
-
-    for (const auto &i : list) {
-        bool robotUses = qPlayer.RobotUse(i.first);
-        if (robotUses == i.second) {
-            AT_Info("Bot::printRobotFlags(): %s is %s (default)", Translate_ROBOT_USE(i.first), (robotUses ? "SET" : "UNSET"));
-        } else {
-            AT_Warn("Bot::printRobotFlags(): %s is %s (mission specialization)", Translate_ROBOT_USE(i.first), (robotUses ? "SET" : "UNSET"));
-        }
-    }
 }
 
 SLONG Bot::numPlanes() const { return mPlanesForJobs.size() + mPlanesForJobsUnassigned.size() + mPlanesForRoutes.size() + mPlanesForRoutesUnassigned.size(); }
@@ -229,6 +208,21 @@ std::pair<Bot::HowToGetMoney, Bot::Prio> Bot::howToGetMoney() {
         return {HowToGetMoney::IncreaseCredit, prio};
     }
     return {HowToGetMoney::None, Prio::None};
+}
+
+__int64 Bot::howMuchMoneyToRaise(bool maxCredit) const {
+    __int64 limit = qPlayer.CalcCreditLimit();
+    /* smallest allowed new credit is 1000, however, we need a buffer here since credit limit depends on current qPlayer.Money */
+    if (limit < 2000LL) {
+        return 0;
+    }
+    __int64 moneyRequired = -getMoneyAvailable();
+    __int64 m = std::min(limit, moneyRequired);
+    m = std::max(m, 1000LL);
+    if (maxCredit) {
+        m = limit;
+    }
+    return m;
 }
 
 __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
@@ -543,22 +537,36 @@ void Bot::findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::
     std::swap(listUnassigned, newUnassigned);
 }
 
-const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { return qPlayer.RentRouten.RentRouten[routeInfo.routeId]; }
-
-const CRoute &Bot::getRoute(const Bot::RouteInfo &routeInfo) const { return Routen[routeInfo.routeId]; }
-
-__int64 Bot::refreshWeeklyOpSaldo() {
-    if (checkLaptop() && (qPlayer.HasBerater(BERATERTYP_GELD) > 0)) {
-        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
+std::pair<SLONG, SLONG> Bot::howMuchCrewToHire(__int64 moneyAvailable) {
+    SLONG pilotsTarget = 3;     /* sensible default */
+    SLONG stewardessTarget = 6; /* sensible default */
+    SLONG planePrice = 56e6;
+    if (mLongTermStrategy) {
+        SLONG bestPlaneTypeId = mDoRoutes ? mBuyPlaneForRouteId : mBestPlaneTypeId;
+        if (bestPlaneTypeId >= 0) {
+            const auto &bestPlaneType = PlaneTypes[bestPlaneTypeId];
+            pilotsTarget = bestPlaneType.AnzPiloten;
+            stewardessTarget = bestPlaneType.AnzBegleiter;
+            planePrice = bestPlaneType.Preis;
+        }
+    } else {
+        if (mBestUsedPlaneIdx != -1) {
+            pilotsTarget = mBestUsedPlanePilots;
+            stewardessTarget = mBestUsedPlaneCrew;
+            planePrice = mBestUsedPlanePrice;
+        }
     }
-    return mWeeklyOperatingSaldo;
+    if (!mDesignerPlane.Name.empty()) {
+        pilotsTarget = std::max(pilotsTarget, mDesignerPlane.CalcPiloten());
+        stewardessTarget = std::max(stewardessTarget, mDesignerPlane.CalcBegleiter());
+        planePrice = mDesignerPlane.CalcCost();
+    }
+    if (moneyAvailable > planePrice) {
+        pilotsTarget *= ceil_div(moneyAvailable, planePrice);
+        stewardessTarget *= ceil_div(moneyAvailable, planePrice);
+    }
+    return std::make_pair(pilotsTarget, stewardessTarget);
 }
-
-bool Bot::checkLateGame() { return (refreshWeeklyOpSaldo() > 1e8) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 8; }
-
-SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) ? mCurrentImage : qPlayer.Image; }
-
-void Bot::forceReplanning() { qPlayer.RobotActions[1].ActionId = ACTION_NONE; }
 
 void Bot::setHardcodedDesignerPlaneLarge() {
     mDesignerPlane.Name = "Bot Beluga";
@@ -817,4 +825,27 @@ bool Bot::pickUpItem(SLONG item) {
     }
     AT_Log("Bot::pickUpItem(): Picked up item: %s", Helper::getItemName(item));
     return true;
+}
+
+void Bot::printRobotFlags() const {
+    const std::array<std::pair<SLONG, bool>, 29> list = {
+        {{ROBOT_USE_FRACHT, true},          {ROBOT_USE_WERBUNG, true},        {ROBOT_USE_NASA, false},
+         {ROBOT_USE_ROUTES, true},          {ROBOT_USE_FORCEROUTES, false},   {ROBOT_USE_ROUTEMISSION, false},
+         {ROBOT_USE_MUCHWERBUNG, false},    {ROBOT_USE_ROUTEBOX, true},       {ROBOT_USE_ABROAD, true},
+         {ROBOT_USE_MUCH_SABOTAGE, false},  {ROBOT_USE_MUCH_FRACHT, false},   {ROBOT_USE_FREE_FRACHT, false},
+         {ROBOT_USE_LUXERY, false},         {ROBOT_USE_HIGHSHAREPRICE, true}, {ROBOT_USE_WORKQUICK, false},
+         {ROBOT_USE_GROSSESKONTO, false},   {ROBOT_USE_WORKVERYQUICK, false}, {ROBOT_USE_DONTBUYANYSHARES, false},
+         {ROBOT_USE_NOCHITCHAT, false},     {ROBOT_USE_SHORTFLIGHTS, false},  {ROBOT_USE_EXTREME_SABOTAGE, false},
+         {ROBOT_USE_SECURTY_OFFICE, false}, {ROBOT_USE_MAKLER, true},         {ROBOT_USE_PETROLAIR, true},
+         {ROBOT_USE_MAX20PERCENT, false},   {ROBOT_USE_TANKS, true},          {ROBOT_USE_DESIGNER, true},
+         {ROBOT_USE_DESIGNER_BUY, false},   {ROBOT_USE_WORKQUICK_2, true}}};
+
+    for (const auto &i : list) {
+        bool robotUses = qPlayer.RobotUse(i.first);
+        if (robotUses == i.second) {
+            AT_Info("Bot::printRobotFlags(): %s is %s (default)", Translate_ROBOT_USE(i.first), (robotUses ? "SET" : "UNSET"));
+        } else {
+            AT_Warn("Bot::printRobotFlags(): %s is %s (mission specialization)", Translate_ROBOT_USE(i.first), (robotUses ? "SET" : "UNSET"));
+        }
+    }
 }
