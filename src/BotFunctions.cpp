@@ -1203,16 +1203,15 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     }
 
     /* calculate how many planes would be need to get desired route utilization */
-    SLONG numTripsPerWeek = 24 * 7 / duration;
-    SLONG maxWeekyRegeneration = qRoute.AnzPassagiere() * 427 / 100;
-    SLONG minWeeklyTarget = ceil_div(maxWeekyRegeneration * 10, 100); /* to not loose the route */
-    SLONG finalWeeklyTarget = ceil_div(maxWeekyRegeneration * targetSharePercent, 100);
-    SLONG numPlanesMin = ceil_div(minWeeklyTarget, numTripsPerWeek * qPlaneType.Passagiere);
-    SLONG numPlanesTarget = ceil_div(finalWeeklyTarget, numTripsPerWeek * qPlaneType.Passagiere);
+    SLONG numPlanesMin = Helper::getNumberOfPlanesNeededForRoute(qRoute, planeTypeId, 10);
+    SLONG numPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(qRoute, planeTypeId, targetSharePercent);
+    numPlanesTarget *= 2; /* for each route leg */
+    /* numPlanesMin stays since each flight is booked for both directions for required minimum utilization */
 
     /* estimate revenue */
     __int64 baseCost = getRouteBaseCost(qRoute);
     __int64 revenue = qPlaneType.Passagiere * baseCost * mOptions.kMaxTicketPriceFactor;
+    SLONG numTripsPerWeek = 24 * 7 / duration;
     __int64 profitPerWeek = (revenue - cost) * numTripsPerWeek * numPlanesTarget - (qRoute.Miete / 30 * 2 * 7);
 
     /* account for the fact that we already have suitable planes */
@@ -1225,7 +1224,7 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
             auto missionCity = static_cast<ULONG>(Sim.MissionCities[d]);
             if ((qRoute.VonCity == homeAirport && qRoute.NachCity == missionCity) || (qRoute.NachCity == homeAirport && qRoute.VonCity == missionCity)) {
 
-                AT_Log("Bot::actionFindBestRoute(): Route %s is important for mission, increasing score.", Helper::getRouteName(qRoute).c_str());
+                AT_Log("Bot::calcRouteScore(): Route %s is important for mission, increasing score.", Helper::getRouteName(qRoute).c_str());
                 profitPerWeek *= 10;
             }
         }
@@ -1274,11 +1273,11 @@ void Bot::findBestRoute() {
 
     for (const auto &candidate : bestRoutes) {
         if (!candidate.planeId.empty()) {
-            AT_Log("Bot::actionFindBestRoute(): Estimated weekly revenue of route %s (using %d existing planes, need %d) is: %s $",
+            AT_Log("Bot::findBestRoute(): Estimated weekly revenue of route %s (using %d existing planes, need %d) is: %s $",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), candidate.planeId.size(), candidate.numPlanesToBuy,
                    Insert1000erDots64(candidate.score).c_str());
         } else {
-            AT_Log("Bot::actionFindBestRoute(): Estimated weekly revenue of route %s (using plane type %s, need %d) is: %s $",
+            AT_Log("Bot::findBestRoute(): Estimated weekly revenue of route %s (using plane type %s, need %d) is: %s $",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), PlaneTypes[candidate.planeTypeId].Name.c_str(), candidate.numPlanesToBuy,
                    Insert1000erDots64(candidate.score).c_str());
         }
@@ -1289,11 +1288,11 @@ void Bot::findBestRoute() {
     for (const auto &candidate : bestRoutes) {
         __int64 planeCost = PlaneTypes[candidate.planeTypeId].Preis;
         if (candidate.numPlanesToBuy * planeCost > moneyAvailable) {
-            AT_Log("Bot::actionFindBestRoute(): We cannot afford route %s (plane costs %lld, need %d), our available money is %lld",
+            AT_Log("Bot::findBestRoute(): We cannot afford route %s (plane costs %lld, need %d), our available money is %lld",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), planeCost, candidate.numPlanesToBuy, moneyAvailable);
             continue;
         }
-        AT_Log("Bot::actionFindBestRoute(): Best route (using plane type %s) is: ", PlaneTypes[candidate.planeTypeId].Name.c_str());
+        AT_Log("Bot::findBestRoute(): Best route (using plane type %s) is: ", PlaneTypes[candidate.planeTypeId].Name.c_str());
         Helper::printRoute(Routen[candidate.routeId]);
 
         mWantToRentRouteId = candidate.routeId;
@@ -1302,7 +1301,7 @@ void Bot::findBestRoute() {
         return;
     }
 
-    AT_Log("Bot::actionFindBestRoute(): No routes match criteria.");
+    AT_Log("Bot::findBestRoute(): No routes match criteria.");
 }
 
 bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
@@ -1322,6 +1321,7 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
     SLONG numberOfPlanesTarget = 0;
     if (planeTypeForNewRoute != -1) {
         numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
+        numberOfPlanesTarget *= 2; /* for each route leg */
     }
     mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
     if (planeTypeForNewRoute != -1) {
