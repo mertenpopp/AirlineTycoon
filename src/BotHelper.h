@@ -301,10 +301,8 @@ inline SLONG getRequiredImageBasedOnLowestRoute(SLONG lowestImage) {
 
 inline SLONG getNumberOfPlanesNeededForRoute(const CRoute &qRoute, SLONG planeTypeId, SLONG maxUtilizationPercent) {
     SLONG duration = kDurationExtra + Cities.CalcFlugdauer(qRoute.VonCity, qRoute.NachCity, PlaneTypes[planeTypeId].Geschwindigkeit);
-    SLONG roundTripDuration = 2 * duration;
-    SLONG numTripsPerWeek = 24 * 7 / roundTripDuration;
-    SLONG maxDailyRegeneration = static_cast<SLONG>(std::floor(qRoute.AnzPassagiere() * 4.27 / 7));
-    SLONG maxWeekyRegeneration = 7 * maxDailyRegeneration;
+    SLONG numTripsPerWeek = 24 * 7 / duration;
+    SLONG maxWeekyRegeneration = qRoute.AnzPassagiere() * 427 / 100;
     SLONG finalTarget = ceil_div(maxWeekyRegeneration * maxUtilizationPercent, 100);
     SLONG numPlanesTotal = ceil_div(finalTarget, numTripsPerWeek * PlaneTypes[planeTypeId].Passagiere);
     return numPlanesTotal;
