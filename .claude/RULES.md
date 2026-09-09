@@ -953,6 +953,7 @@ You may also read the following global tables and helpers when the rules permit 
 - `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` always to query informations about cities and flight distances/duration.
 - `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades.
 - `gPlanePartRelations` may only be read while at the airplane designer.
+- `gWerbePrice` may always be read.
 
 Independently, the following functions of any global array of type `BUFFER_V` or `ALBUM_V` may always be used:
 
