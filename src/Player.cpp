@@ -3105,6 +3105,74 @@ class RobotPlanePropsWatch {
     SLONG MechModeBefore{};
     std::map<SLONG, Targets> Before;
 };
+
+//--------------------------------------------------------------------------------------------
+// Replicates the flight plan changes a bot makes without telling anyone.
+//
+// Most bot code plans flights through GameMechanic, which broadcasts the new plan - but the
+// classic bot then calls DelayFlightsIfNecessary(), which pushes flights back hour by hour
+// until a gate is free, and that part never left the host. The clients kept the undelayed
+// flight, landed it at the home airport without a gate, and docked the bot image the host
+// never docked (and the passengers, the fees ...). As with the plane settings: compare each
+// plane's plan before and after the bot acted, and broadcast every plan that changed. Gates
+// are left out, every peer plans those itself when it receives the plan.
+//--------------------------------------------------------------------------------------------
+class RobotFlightplanWatch {
+  public:
+    explicit RobotFlightplanWatch(PLAYER &qPlayer) : Player(qPlayer), bActive((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
+        if (bActive) {
+            Before = Snapshot();
+        }
+    }
+    ~RobotFlightplanWatch() {
+        if (!bActive) {
+            return;
+        }
+        for (const auto &Plane : Snapshot()) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                Player.NetUpdateFlightplan(Plane.first);
+            }
+        }
+    }
+    RobotFlightplanWatch(const RobotFlightplanWatch &) = delete;
+    RobotFlightplanWatch &operator=(const RobotFlightplanWatch &) = delete;
+
+  private:
+    std::map<SLONG, unsigned long long> Snapshot() const {
+        std::map<SLONG, unsigned long long> Result;
+        for (SLONG c = 0; c < Player.Planes.AnzEntries(); c++) {
+            if (Player.Planes.IsInAlbum(c) == 0) {
+                continue;
+            }
+            unsigned long long Hash = 14695981039346656037ULL;
+            auto Add = [&Hash](long long Value) {
+                Hash ^= static_cast<unsigned long long>(Value);
+                Hash *= 1099511628211ULL;
+            };
+            const CFlugplan &qPlan = Player.Planes[c].Flugplan;
+            for (SLONG e = 0; e < qPlan.Flug.AnzEntries(); e++) {
+                const CFlugplanEintrag &qFlight = qPlan.Flug[e];
+                Add(qFlight.ObjectType);
+                Add(qFlight.ObjectId);
+                Add(qFlight.VonCity);
+                Add(qFlight.NachCity);
+                Add(qFlight.Startdate);
+                Add(qFlight.Startzeit);
+                Add(qFlight.Landedate);
+                Add(qFlight.Landezeit);
+                Add(qFlight.Ticketpreis);
+                Add(qFlight.TicketpreisFC);
+            }
+            Result[c] = Hash;
+        }
+        return Result;
+    }
+
+    PLAYER &Player;
+    const bool bActive;
+    std::map<SLONG, unsigned long long> Before;
+};
 } // namespace
 
 void PLAYER::RobotPump() {
@@ -3415,6 +3483,7 @@ void PLAYER::RobotPlan() {
     }
 
     RobotPlanePropsWatch PlaneWatch(*this);
+    RobotFlightplanWatch FlightplanWatch(*this);
 
     if (IsSuperBot()) {
         if (IsMertenBot()) {
@@ -4034,6 +4103,7 @@ void PLAYER::RobotExecuteAction() {
     }
 
     RobotPlanePropsWatch PlaneWatch(*this);
+    RobotFlightplanWatch FlightplanWatch(*this);
 
     // NetGenericSync (100, LocalRandom.GetSeed());
     // NetGenericSync (101, PlayerNum);

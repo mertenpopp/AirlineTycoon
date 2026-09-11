@@ -2080,6 +2080,7 @@ void SIM::DoTimeStep() {
                                                                  (LPCTSTR)Cities[qPlane.Flugplan.Flug[qPlane.Flugplan.NextFlight].VonCity].Name));
                                     Players.Players[c].Image -= 2;
                                     Limit(SLONG(-1000), Players.Players[c].Image, SLONG(1000));
+                                    NetTraceEvent("NOGATE p=%ld plane=%s departure", static_cast<long>(c), qPlane.Name.c_str());
                                     // log: hprintf ("Player[%li].Image! now = %li", c, (LPCTSTR)Players.Players[c].Image);
                                 }
                             }
