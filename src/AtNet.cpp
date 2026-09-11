@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <vector>
 
 #define AT_Log(...) AT_Log_I("AtNet", __VA_ARGS__)
@@ -38,6 +39,7 @@ SLONG rChkGeneric, CheckGeneric = 0;
 SLONG rChkActionId[5 * 4];
 
 SLONG GenericSyncIds[4] = {0, 0, 0, 0};
+static std::deque<SLONG> GenericSyncReceived[4]; // ATNET_GENERICSYNC ids per player, not yet waited for
 SLONG GenericSyncIdPars[4] = {0, 0, 0, 0};
 SLONG GenericAsyncIds[4 * 100] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2063,6 +2065,7 @@ void PumpNetwork() {
                 Message >> localPlayer;
                 localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
                 Message >> GenericSyncIds[localPlayer];
+                GenericSyncReceived[localPlayer].push_back(GenericSyncIds[localPlayer]);
 
                 bReturnAfterThisMessage = true;
             } break;
@@ -2248,19 +2251,42 @@ void NetGenericSync(SLONG SyncId) {
 
     GenericSyncIds[Sim.localPlayer] = SyncId;
 
+    /* Wait for SyncId in what every other human has sent us, not merely in the last thing
+       they sent. The morning briefing syncs twice in a row (0x4211014, then 0x4211015), and
+       with three or more humans a peer that got through the first one can send the second
+       before another peer has received the last human's first: that peer then saw
+       0x4211015 where it waited for 0x4211014 and waited forever - and everyone else with it
+       at the second sync. A resent packet on the internet is enough to open that window. */
     while (true) {
-        SLONG c = 0;
-        for (c = 0; c < 4; c++) {
-            if (Sim.Players.Players[c].Owner != 1 && GenericSyncIds[c] != SyncId && (Sim.Players.Players[c].IsOut == 0)) {
+        bool bAllThere = true;
+        for (SLONG c = 0; c < 4; c++) {
+            if (c == Sim.localPlayer || Sim.Players.Players[c].Owner == 1 || (Sim.Players.Players[c].IsOut != 0)) {
+                continue;
+            }
+            const auto &Received = GenericSyncReceived[c];
+            if (std::find(Received.begin(), Received.end(), SyncId) == Received.end()) {
+                bAllThere = false;
                 break;
             }
         }
 
-        if (c == 4) {
+        if (bAllThere) {
+            for (auto &Received : GenericSyncReceived) {
+                const auto Hit = std::find(Received.begin(), Received.end(), SyncId);
+                if (Hit != Received.end()) {
+                    Received.erase(Received.begin(), Hit + 1);
+                }
+            }
             return;
         }
 
         PumpNetwork();
+    }
+}
+
+void NetResetGenericSync() {
+    for (auto &Received : GenericSyncReceived) {
+        Received.clear();
     }
 }
 

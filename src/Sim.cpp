@@ -373,6 +373,7 @@ void SIM::ChooseStartup() {
     for (c = 0; c < 4; c++) {
         GenericSyncIds[c] = GenericSyncIdPars[c] = 0;
     }
+    NetResetGenericSync();
     for (c = 0; c < 4 * 100; c++) {
         GenericAsyncIds[c] = GenericAsyncIdPars[c] = 0;
     }
