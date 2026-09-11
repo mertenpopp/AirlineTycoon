@@ -98,7 +98,7 @@ def report_divergence(peers):
         # authoritative on that human's own peer and resynchronised every morning, so they are
         # not hashed either; listing them would bury the field that actually caused the mismatch.
         local_only = {"owner"}
-        if any(r.get("owner") in ("0", "2") for r in rows):
+        if when != "briefing" and any(r.get("owner") in ("0", "2") for r in rows):
             local_only |= {"money", "credit"}
         keys = [k for k in rows[0] if not k.startswith("_") and k not in local_only]
         for field in keys:
