@@ -87,12 +87,33 @@ def report_divergence(peers):
         day = key[0]
         return (int(day) if day and day.lstrip("-").isdigit() else 0, key[1], str(key[2]))
 
+    # Each peer reports its own human as owner 0 and the other humans as 2, so only the
+    # human/computer split is comparable - and it must agree, or the peers are playing
+    # different games. It is not part of the hash.
+    def role(row):
+        owner = row.get("owner")
+        return "human" if owner in ("0", "2") else ("computer" if owner == "1" else owner)
+
+    for peer, table in zip(peers, tables):
+        groups = defaultdict(list)
+        for (day, when, who), entry in table.items():
+            if who != "pool":
+                groups[(day, when)].append(entry)
+        for (day, when) in sorted(groups, key=lambda k: order((k[0], k[1], ""))):
+            local = sum(1 for entry in groups[(day, when)] if entry.get("owner") == "0")
+            if local != 1:
+                print(f"   {peer['path']} controls {local} players at day={day} {when} (expected exactly 1)")
+                break
+
     for key in sorted(common, key=order):
         rows = [table[key] for table in tables]
-        if len({r.get("hash") for r in rows}) == 1:
+        if len({r.get("hash") for r in rows}) == 1 and len({role(r) for r in rows}) == 1:
             continue
         day, when, who = key
         print(f"   day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
+        if len({role(r) for r in rows}) > 1:
+            for peer, r in zip(peers, rows):
+                print(f"      {'role':<10} {role(r):<24} {peer['path']}")
         # "owner" is relative to the peer doing the reporting (itself 0, the others 2), so it
         # differs by design and is not evidence of anything. A human's money and credit are only
         # authoritative on that human's own peer and resynchronised every morning, so they are
