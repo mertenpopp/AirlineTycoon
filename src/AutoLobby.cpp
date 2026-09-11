@@ -27,6 +27,7 @@ SLONG gAutoLobbyTimeout = 120;
 
 namespace {
 DWORD gStartedAt = 0;
+DWORD gQuitAt = 0;
 } // namespace
 
 void AutoLobbyApplyOptions() {
@@ -97,4 +98,22 @@ void AutoLobbyAbort(const char *Reason, ...) {
        and running the static destructors from here crashes on the way out, which would turn a
        clean "harness gave up" into a segfault the harness has to interpret. */
     _exit(1);
+}
+
+void AutoLobbyScheduleQuit(DWORD DelayMs) {
+    if (AutoLobbyActive() && gQuitAt == 0) {
+        gQuitAt = AtGetTime() + DelayMs;
+        AT_Log("Run complete, quitting in %lu ms", static_cast<unsigned long>(DelayMs));
+    }
+}
+
+void AutoLobbyPollQuit() {
+    if (gQuitAt == 0 || AtGetTime() < gQuitAt) {
+        return;
+    }
+    /* _exit for the same reason as in AutoLobbyAbort(): the static destructors crash when
+       run from here, and the harness would read that as a failed run. */
+    fflush(stdout);
+    fflush(stderr);
+    _exit(0);
 }

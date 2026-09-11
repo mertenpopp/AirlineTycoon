@@ -53,6 +53,12 @@ void AutoLobbyApplyOptions();
 void AutoLobbyStartClock();
 bool AutoLobbyTimedOut();
 
+/* Ends a harness run cleanly once the last day's morning briefing barrier has passed. The quit
+   is deferred by DelayMs so that RakNet - which sends from its own thread - gets this peer's
+   last messages out; AutoLobbyPollQuit() from the main loop then terminates. */
+void AutoLobbyScheduleQuit(DWORD DelayMs);
+void AutoLobbyPollQuit();
+
 /* Logs why we are stuck and terminates with a non-zero exit code. There is nobody to read a
    message box, so a harness run must fail loudly rather than hang. */
 void AutoLobbyAbort(const char *Reason, ...);
