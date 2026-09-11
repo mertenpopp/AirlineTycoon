@@ -848,11 +848,22 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
-                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
+                /* 55 is not a player: it is how sabotageSecurityOffice() says "the security
+                   office is out", so it has to be recognised before the range check drops it.
+                   The sabotage also switches off everybody's security measures, but the
+                   saboteur's peer can only broadcast the flags of the players it owns - every
+                   other peer has to clear its own, or its next flag sync turns them back on. */
                 if (PlayerNum == 55) {
                     Message >> Sim.nSecOutDays;
+
+                    for (c = 0; c < 4; c++) {
+                        if (Sim.Players.Players[c].IsOut == 0) {
+                            Sim.Players.Players[c].SecurityFlags = 0;
+                        }
+                    }
                 } else {
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                     Message >> qPlayer.OfficeState;
