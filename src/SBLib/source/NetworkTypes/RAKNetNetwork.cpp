@@ -167,13 +167,11 @@ void RAKNetNetwork::InitPlayerList() {
 }
 
 RAKNetNetwork::RAKNetNetwork() {
-    TEAKRAND rand;
-    rand.SRandTime();
 
     mMasterServerAddress = new SBStr("master.open-airlinetycoon.com");
     mMasterServerPort = 61013;
 
-    mLocalID = rand.Rand();
+    mLocalID = GenerateLocalPeerID();
 
     isHostMigrating = false;
 
