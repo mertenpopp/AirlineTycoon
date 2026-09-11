@@ -9,6 +9,7 @@
 #include "UDPProxyClient.h"
 
 #include <ctime>
+#include <vector>
 #include <SDL_timer.h>
 #include <StringCompressor.h>
 
@@ -59,10 +60,23 @@ bool DeserializePacket(unsigned char *data, unsigned int length, ATPacket *packe
    wait longer should retry, so that a host which is not up yet can still be reached. */
 #define CONNECT_TIMEOUT_MS 3000
 
+/* Hands back to RakNet the packets a wait loop took out of the queue but could not use, in the
+   order they arrived and ahead of anything that arrived since. The loops used to put each one
+   back at the tail (or at the head, one by one), which rotated or reversed the queue: game
+   messages sent RELIABLE_ORDERED were then processed out of order. In the lobby a stale
+   ATNET_PUSHNAMES overtook a newer one, so a peer that was dialling a newly joined player at
+   that moment saw that player's slot as a computer player and started a different game. */
+static void RequeueInOrder(RakPeerInterface *net, std::vector<Packet *> &packets) {
+    for (auto it = packets.rbegin(); it != packets.rend(); ++it) {
+        net->PushBackPacket(*it, true);
+    }
+    packets.clear();
+}
+
 bool HandleNetMessages(RakPeerInterface *net, int secondTimeout,
                        const std::function<bool(const Packet *, bool * /*should exit the loop?*/)>
                            & /*->bool - whether we consumed the packet or if it should be queued*/ callback) {
-    SBList<Packet *> queuedMessages;
+    std::vector<Packet *> queuedMessages;
     time_t begin, current;
     time(&begin);
     const time_t end = begin + secondTimeout;
@@ -83,7 +97,7 @@ bool HandleNetMessages(RakPeerInterface *net, int secondTimeout,
         const bool isPacketConsumed = callback(p, &shouldExit);
 
         if (!isPacketConsumed) {
-            queuedMessages.Add(p);
+            queuedMessages.push_back(p);
         }
 
         if (shouldExit && !isPacketConsumed) {
@@ -97,10 +111,7 @@ bool HandleNetMessages(RakPeerInterface *net, int secondTimeout,
             break;
     }
 
-    if (queuedMessages.GetNumberOfElements() == 0)
-        return !failed;
-
-    FOREACH_SB(Packet, p, queuedMessages) { net->PushBackPacket(p, true); }
+    RequeueInOrder(net, queuedMessages);
 
     return !failed;
 }
@@ -156,6 +167,27 @@ class UDPCallbacks : public UDPProxyClientResultHandler {
 
     explicit UDPCallbacks(RAKNetNetwork *parentNetwork) : parent(parentNetwork) {}
 };
+
+/* Registers a peer, or refreshes its GUID if it is already known. Two clients that learn about
+   each other at the same moment both dial: each then hears of the other twice, once from the
+   host (SBNETWORK_JOINED) and once from the other client (SBNETWORK_ESTABLISH_CONNECTION). A
+   second entry outlived the peer's disconnect, since only one gets removed, and the ghost could
+   then be elected as the new host. */
+static RAKNetworkPlayer *AddPlayer(SBList<SBNetworkPlayer *> &players, ULONG id, const RakNetGUID &guid) {
+    for (players.GetFirst(); !players.IsLast(); players.GetNext()) {
+        auto *known = static_cast<RAKNetworkPlayer *>(players.GetLastAccessed());
+        if (known->ID == id) {
+            known->peer = guid;
+            return known;
+        }
+    }
+
+    auto *player = new RAKNetworkPlayer();
+    player->ID = id;
+    player->peer = guid;
+    players.Add(player);
+    return player;
+}
 
 void RAKNetNetwork::InitPlayerList() {
     mPlayers.Clear();
@@ -544,12 +576,11 @@ bool RAKNetNetwork::Receive(UBYTE **buffer, ULONG &size) {
             return true;
         }
         case SBEventEnum::SBNETWORK_ESTABLISH_CONNECTION: { // New Connection to master peer
-            RAKNetworkPlayer *player = new RAKNetworkPlayer();
+            ULONG id = 0;
             BitStream b(p->data, p->length, true);
             b.IgnoreBytes(1); // Net event ID
-            b.Read(player->ID);
-            player->peer = p->guid; // mMaster->GetGuidFromSystemAddress(p->systemAddress);
-            mPlayers.Add(player);
+            b.Read(id);
+            RAKNetworkPlayer *player = AddPlayer(mPlayers, id, p->guid); // mMaster->GetGuidFromSystemAddress(p->systemAddress);
 
             if (mState == SBSessionEnum::SBNETWORK_SESSION_MASTER) {
                 AT_Log("RECEIVED: SBNETWORK_ESTABLISH_CONNECTION - Broadcast new ID: %d", player->ID);
@@ -574,10 +605,7 @@ bool RAKNetNetwork::Receive(UBYTE **buffer, ULONG &size) {
         case SBEventEnum::SBNETWORK_JOINED: // We joined the server, or someone else joined the master server
             if (mState == SBSessionEnum::SBNETWORK_SESSION_CLIENT) {
                 auto *nPeer = reinterpret_cast<RAKNetworkPeer *>(p->data);
-                RAKNetworkPlayer *player = new RAKNetworkPlayer();
-                player->ID = nPeer->ID;
-                player->peer = nPeer->guid;
-                mPlayers.Add(player);
+                AddPlayer(mPlayers, nPeer->ID, nPeer->guid);
 
                 if (nPeer->guid == *mHost) {
                     AT_Log("RECEIVED: SBNETWORK_JOINED - Server acknowledged us!");
@@ -702,6 +730,7 @@ bool RAKNetNetwork::AwaitConnection(RakPeerInterface *peerInterface) {
        a failure. If the remote side is simply not listening yet - a client started before
        its host - that is a long, hot, silent wait. Bound it and sleep between polls. */
     const DWORD Deadline = AtGetTime() + CONNECT_TIMEOUT_MS;
+    std::vector<Packet *> setAside;
 
     while (AtGetTime() < Deadline) {
         Packet *p = peerInterface->Receive();
@@ -713,13 +742,15 @@ bool RAKNetNetwork::AwaitConnection(RakPeerInterface *peerInterface) {
         const int result = CheckConnectionPacket(p, peerInterface, mState == SBSessionEnum::SBNETWORK_SESSION_MASTER || mHost != nullptr);
 
         if (result == 2) {
-            peerInterface->PushBackPacket(p, false);
+            setAside.push_back(p);
         } else {
             peerInterface->DeallocatePacket(p);
+            RequeueInOrder(peerInterface, setAside);
             return result == 1;
         }
     }
 
+    RequeueInOrder(peerInterface, setAside);
     AT_Log("AwaitConnection: timed out after %d ms", CONNECT_TIMEOUT_MS);
     return false;
 }
@@ -789,6 +820,7 @@ bool RAKNetNetwork::ConnectToMasterServer() {
     RakNet::ConnectionAttemptResult car = mServerBrowserPeer->Connect(mMasterServerAddress->c_str(), mMasterServerPort, nullptr, 0);
 
     if (car == CONNECTION_ATTEMPT_STARTED) {
+        std::vector<Packet *> setAside;
         while (true) {
             Packet *packet = mServerBrowserPeer->Receive();
             if (packet == nullptr)
@@ -799,6 +831,7 @@ bool RAKNetNetwork::ConnectToMasterServer() {
                 AT_Log("Connected to master server!");
                 LoginMasterServer();
                 mServerBrowserPeer->DeallocatePacket(packet);
+                RequeueInOrder(mServerBrowserPeer, setAside);
                 mIsConnectingToMaster = false;
                 return true;
             case ID_CONNECTION_ATTEMPT_FAILED:
@@ -814,12 +847,13 @@ bool RAKNetNetwork::ConnectToMasterServer() {
                 AT_Log("Connect to master server failed! Reason: %d", packet->data[0]);
                 DisplayBroadcastMessage("Connect to master server failed!");
                 mServerBrowserPeer->DeallocatePacket(packet);
+                RequeueInOrder(mServerBrowserPeer, setAside);
                 CloseSession();
                 Initialize();
                 return false;
             default:
                 AT_Log("Unknown packet in master server connection phase! ID: %d", packet->data[0]);
-                mServerBrowserPeer->PushBackPacket(packet, false);
+                setAside.push_back(packet);
                 continue;
             }
         }
