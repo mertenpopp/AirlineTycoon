@@ -1192,6 +1192,7 @@ void NewGamePopup::OnPaint() {
     /* Driven from here, not from OnTimer: CStdRaum::TimerFunc calls OnTimer on SDL's timer
        thread, and the lobby driver consumes network messages and builds the game world. */
     AutoLobbyPump();
+    PumpLobbyNetwork();
     CheckNetEvents();
 }
 
@@ -2682,7 +2683,6 @@ void NewGamePopup::AutoLobbyPump() {
 void NewGamePopup::OnTimer(UINT nIDEvent) {
     SLONG c = 0;
     SLONG l = 0;
-    static SLONG counter = 0;
 
     if (!bNewGamePopupIsOpen) {
         return;
@@ -2711,6 +2711,20 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
             }
         }
     }
+
+    BlinkState++;
+}
+
+//--------------------------------------------------------------------------------------------
+// NewGamePopup::PumpLobbyNetwork
+//--------------------------------------------------------------------------------------------
+/* Called from OnPaint on the main thread. This used to be part of OnTimer, which SDL calls on
+   its timer thread: joining a host by IP (Connect and ATNET_WANNAJOIN) and refreshing the
+   connection, session and player lists then ran concurrently with CheckNetEvents(), which
+   consumes the same network layer's packets and rebuilds those lists on the main thread. The
+   list refresh keeps its old pace of every 16th timer tick. */
+void NewGamePopup::PumpLobbyNetwork() {
+    static DWORD NextListRefresh = 0;
 
     if (PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK) {
         if (gHostIP != ".") {
@@ -2770,7 +2784,8 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
         }
     }
 
-    if (((counter++) & 15) == 0) {
+    if (AtGetTime() >= NextListRefresh) {
+        NextListRefresh = AtGetTime() + 800;
         if (PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK) {
             pNetworkConnections = gNetwork.GetConnectionList();
         } else if (PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_SESSION) {
@@ -2788,8 +2803,6 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
             RefreshKlackerField();
         }
     }
-
-    BlinkState++;
 }
 
 //--------------------------------------------------------------------------------------------
