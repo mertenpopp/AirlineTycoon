@@ -99,7 +99,8 @@ void NetTraceEvent(const char *Format, ...) {
     vsnprintf(Text, sizeof(Text), Format, Args);
     va_end(Args);
 
-    AT_Log("EVT day=%ld t=%ld lp=%ld %s", static_cast<long>(Sim.Date), static_cast<long>(Sim.Time), static_cast<long>(Sim.localPlayer), Text);
+    AT_Log("EVT day=%ld t=%ld lp=%ld wall=%lu %s", static_cast<long>(Sim.Date), static_cast<long>(Sim.Time), static_cast<long>(Sim.localPlayer),
+           static_cast<unsigned long>(AtGetTime()), Text);
 }
 
 void NetTraceFingerprint(const char *When) {

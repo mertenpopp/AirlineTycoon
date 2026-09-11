@@ -148,7 +148,9 @@ def report_events(peers):
     for peer in peers:
         for e in peer["evts"]:
             raw = e["_raw"]
-            if raw.split()[3:4] and raw.split()[3].startswith(("DROP", "BUDGET", "SESSIONLOST", "HOSTMIGRATION", "PLAYERDROP")):
+            # the event keyword is the first token that is not a key=value field
+            keyword = next((tok for tok in raw.split() if "=" not in tok), "")
+            if keyword.startswith(("DROP", "BUDGET", "SESSIONLOST", "HOSTMIGRATION", "PLAYERDROP", "LOBBYABORT")):
                 print(f"   {peer['path']}: {raw}")
                 any_shown = True
     if not any_shown:
