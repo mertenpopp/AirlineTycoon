@@ -14,7 +14,9 @@
 #include "Proto.h"
 #include "SbLib.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 #define AT_Log(...) AT_Log_I("AtNet", __VA_ARGS__)
 
@@ -1967,11 +1969,43 @@ void PumpNetwork() {
                                           static_cast<unsigned long>(rAA[FirstCity]), static_cast<unsigned long>(rChkAA[FirstCity]));
                         }
 
-                        for (c = 0; c < 20; c++) {
-                            if (rActionId[c] != rChkActionId[c]) {
-                                NetTraceEvent("DESYNC what=RobotAction player=%ld slot=%ld theirs=%s mine=%s", static_cast<long>(c / 5), static_cast<long>(c % 5),
-                                              Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c]));
+                        /* Bot action queues are not comparable slot by slot. Bots run on the host
+                           only: it broadcasts a freshly planned queue, then shifts it locally as
+                           each action starts, while clients keep the broadcast copy and only catch
+                           up when the action executes (see the "Manchmal kommen wir als Client hier
+                           an" shift in PLAYER::RobotExecuteAction). So between two broadcasts the
+                           client legitimately still holds actions the host has already consumed.
+                           That lag is exactly "the host's pending actions are a suffix of the
+                           client's" once empty slots are ignored; anything else is a real
+                           disagreement about what a bot is going to do. */
+                        for (SLONG p = 0; p < 4; p++) {
+                            const SLONG *Host = (Sim.bIsHost != 0) ? &rChkActionId[p * 5] : &rActionId[p * 5];
+                            const SLONG *Client = (Sim.bIsHost != 0) ? &rActionId[p * 5] : &rChkActionId[p * 5];
+
+                            std::vector<SLONG> HostPending;
+                            std::vector<SLONG> ClientPending;
+                            for (SLONG d = 0; d < 5; d++) {
+                                if (Host[d] != ACTION_NONE) {
+                                    HostPending.push_back(Host[d]);
+                                }
+                                if (Client[d] != ACTION_NONE) {
+                                    ClientPending.push_back(Client[d]);
+                                }
                             }
+
+                            const bool bLagOnly = HostPending.size() <= ClientPending.size() &&
+                                                  std::equal(HostPending.begin(), HostPending.end(), ClientPending.end() - HostPending.size());
+                            if (bLagOnly) {
+                                continue;
+                            }
+
+                            CString HostText;
+                            CString ClientText;
+                            for (SLONG d = 0; d < 5; d++) {
+                                HostText += CString(d > 0 ? "," : "") + (Host[d] == ACTION_NONE ? "-" : Translate_ACTION(Host[d]));
+                                ClientText += CString(d > 0 ? "," : "") + (Client[d] == ACTION_NONE ? "-" : Translate_ACTION(Client[d]));
+                            }
+                            NetTraceEvent("DESYNC what=RobotQueue player=%ld host=%s client=%s", static_cast<long>(p), HostText.c_str(), ClientText.c_str());
                         }
                     }
                 }
