@@ -157,6 +157,8 @@ void NetTraceFingerprint(const char *When) {
             Fp.Add(qRoute.Rang);
             Fp.Add(qRoute.Auslastung);
             Fp.Add(qRoute.RoutenAuslastung);
+            Fp.Add(qRoute.Ticketpreis);
+            Fp.Add(qRoute.TicketpreisFC);
             if (qRoute.Rang > 0) {
                 Routes++;
             }
@@ -168,8 +170,9 @@ void NetTraceFingerprint(const char *When) {
         }
 
         /* Equipment and its targets decide each plane's refit and how many passengers it
-           carries; a disagreement here only shows up as money a day later. Condition is left
-           out, it wears continuously. */
+           carries, and WorstZustand the nightly repair bill; a disagreement here only shows
+           up as money a day later. The current condition is left out, it wears
+           continuously. */
         for (SLONG d = 0; d < qPlayer.Planes.AnzEntries(); d++) {
             if (qPlayer.Planes.IsInAlbum(d) == 0) {
                 continue;
@@ -197,6 +200,64 @@ void NetTraceFingerprint(const char *When) {
             Fp.Add(qPlane.MaxPassagiereTarget);
             Fp.Add(qPlane.MaxPassagiereTargetFC);
             Fp.Add(qPlane.TargetZustand);
+            Fp.Add(qPlane.WorstZustand);
+
+            /* The flight plan and the gate each flight got: a flight that finds no gate at the
+               home airport costs image, so peers that planned gates differently diverge. */
+            const CFlugplan &qPlan = qPlane.Flugplan;
+            for (SLONG e = 0; e < qPlan.Flug.AnzEntries(); e++) {
+                const CFlugplanEintrag &qFlight = qPlan.Flug[e];
+                if (qFlight.ObjectType == 0) {
+                    continue;
+                }
+                Fp.Add(e);
+                Fp.Add(qFlight.ObjectType);
+                Fp.Add(qFlight.ObjectId);
+                Fp.Add(qFlight.Startdate);
+                Fp.Add(qFlight.Startzeit);
+                Fp.Add(qFlight.Gate);
+            }
+        }
+
+        /* The player's own contracts: which orders and freight it holds, how far each is
+           planned and done. The daily penalty and bonus bookings follow from these. */
+        for (SLONG d = 0; d < qPlayer.Auftraege.AnzEntries(); d++) {
+            if (qPlayer.Auftraege.IsInAlbum(d) == 0) {
+                continue;
+            }
+            const CAuftrag &qOrder = qPlayer.Auftraege[d];
+            Fp.Add(d);
+            Fp.Add(qOrder.VonCity);
+            Fp.Add(qOrder.NachCity);
+            Fp.Add(qOrder.Date);
+            Fp.Add(qOrder.BisDate);
+            Fp.Add(qOrder.InPlan);
+            Fp.Add(qOrder.Okay);
+            Fp.Add(qOrder.Praemie);
+            Fp.Add(qOrder.Strafe);
+        }
+        for (SLONG d = 0; d < qPlayer.Frachten.AnzEntries(); d++) {
+            if (qPlayer.Frachten.IsInAlbum(d) == 0) {
+                continue;
+            }
+            const CFracht &qFreight = qPlayer.Frachten[d];
+            Fp.Add(d);
+            Fp.Add(qFreight.VonCity);
+            Fp.Add(qFreight.NachCity);
+            Fp.Add(qFreight.Tons);
+            Fp.Add(qFreight.TonsOpen);
+            Fp.Add(qFreight.TonsLeft);
+            Fp.Add(qFreight.Praemie);
+        }
+
+        Fp.Add(qPlayer.Tank);
+        Fp.Add(qPlayer.TankInhalt);
+        Fp.Add(qPlayer.TankOpen);
+        Fp.Add(qPlayer.KerosinKind);
+
+        Fp.Add(qPlayer.Gates.NumRented);
+        for (SLONG d = 0; d < qPlayer.Gates.Gates.AnzEntries(); d++) {
+            Fp.Add(qPlayer.Gates.Gates[d].Nummer);
         }
 
         /* Staff drives the salary booked every night, so a disagreement about who works for
@@ -218,20 +279,73 @@ void NetTraceFingerprint(const char *When) {
                static_cast<long>(Staff), static_cast<unsigned long>(Fp.Get()));
     }
 
-    /* The shared order pools are the other thing every peer must agree on: a divergence here
-       is what makes one peer index an order the others do not have. */
+    /* The shared pools are the other thing every peer must agree on: a divergence here is what
+       makes one peer index an order the others do not have, or hand an auction or a used
+       plane to different players. Hash what is in them, not just how big they are. */
     Fingerprint Pool;
-    Pool.Add(LastMinuteAuftraege.AnzEntries());
-    Pool.Add(ReisebueroAuftraege.AnzEntries());
-    Pool.Add(gFrachten.AnzEntries());
-    for (SLONG c = 0; c < SLONG(AuslandsAuftraege.size()); c++) {
-        Pool.Add(AuslandsAuftraege[c].AnzEntries());
+    auto AddOrders = [&Pool](CAuftraege &Orders) {
+        Pool.Add(Orders.Random.GetSeed());
+        for (SLONG d = 0; d < Orders.AnzEntries(); d++) {
+            if (Orders.IsInAlbum(d) == 0) {
+                continue;
+            }
+            const CAuftrag &qOrder = Orders[d];
+            Pool.Add(d);
+            Pool.Add(qOrder.VonCity);
+            Pool.Add(qOrder.NachCity);
+            Pool.Add(qOrder.Personen);
+            Pool.Add(qOrder.Date);
+            Pool.Add(qOrder.BisDate);
+            Pool.Add(qOrder.Praemie);
+            Pool.Add(qOrder.Strafe);
+        }
+    };
+    AddOrders(LastMinuteAuftraege);
+    AddOrders(ReisebueroAuftraege);
+    for (auto &Orders : AuslandsAuftraege) {
+        AddOrders(Orders);
     }
 
-    AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
-           static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.AnzEntries()), static_cast<long>(ReisebueroAuftraege.AnzEntries()),
-           static_cast<long>(gFrachten.AnzEntries()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(Sim.ExpandAirport),
-           static_cast<unsigned long>(Pool.Get()));
+    Pool.Add(gFrachten.Random.GetSeed());
+    for (SLONG d = 0; d < gFrachten.AnzEntries(); d++) {
+        if (gFrachten.IsInAlbum(d) == 0) {
+            continue;
+        }
+        const CFracht &qFreight = gFrachten[d];
+        Pool.Add(d);
+        Pool.Add(qFreight.VonCity);
+        Pool.Add(qFreight.NachCity);
+        Pool.Add(qFreight.Tons);
+        Pool.Add(qFreight.Praemie);
+        Pool.Add(qFreight.Strafe);
+    }
+
+    for (const auto *Board : {&TafelData.Route, &TafelData.City, &TafelData.Gate}) {
+        for (const auto &qNote : *Board) {
+            Pool.Add(qNote.ZettelId);
+            Pool.Add(qNote.Player);
+            Pool.Add(qNote.Preis);
+            Pool.Add(qNote.Rang);
+        }
+    }
+
+    SLONG UsedPlanes = 0;
+    for (SLONG d = 0; d < Sim.UsedPlanes.AnzEntries(); d++) {
+        if (Sim.UsedPlanes.IsInAlbum(d) == 0 || Sim.UsedPlanes[d].Name.empty()) {
+            continue;
+        }
+        const CPlane &qPlane = Sim.UsedPlanes[d];
+        Pool.Add(d);
+        Pool.Add(qPlane.TypeId);
+        Pool.Add(qPlane.Baujahr);
+        Pool.Add(qPlane.Zustand);
+        UsedPlanes++;
+    }
+
+    AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
+           static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
+           static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(UsedPlanes),
+           static_cast<long>(Sim.ExpandAirport), static_cast<unsigned long>(Pool.Get()));
 }
 
 void NetTraceSetMainThread() { gMainThread = SDL_ThreadID(); }
