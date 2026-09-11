@@ -1931,6 +1931,51 @@ void PumpNetwork() {
                     Message >> rActionId[c];
                 }
 
+                /* The comparison below is the game's own desync detector, but it only exists in
+                   debug builds. Report the same comparison through the trace, so that a release
+                   build under the multiplayer harness sees it too. Both sides capture at the same
+                   game minute; if the minutes differ the peers are several minutes apart, which
+                   is worth knowing but makes the seeds incomparable. */
+                if (gNetTraceLevel > 0) {
+                    if (rTime != rChkTime) {
+                        NetTraceEvent("RANDSKEW theirs_minute=%ld mine_minute=%ld", static_cast<long>(rTime), static_cast<long>(rChkTime));
+                    } else {
+                        auto Report = [&](const char *What, ULONG Theirs, ULONG Mine) {
+                            if (Theirs != Mine) {
+                                NetTraceEvent("DESYNC what=%s theirs=%lu mine=%lu", What, static_cast<unsigned long>(Theirs), static_cast<unsigned long>(Mine));
+                            }
+                        };
+                        Report("PersonRandCreate", rPersonRandCreate, rChkPersonRandCreate);
+                        Report("PersonRandMisc", rPersonRandMisc, rChkPersonRandMisc);
+                        Report("HeadlineRand", rHeadlineRand, rChkHeadlineRand);
+                        Report("LastMinute", rLMA, rChkLMA);
+                        Report("Reisebuero", rRBA, rChkRBA);
+                        Report("Fracht", rFrachen, rChkFrachen);
+
+                        SLONG CitiesOff = 0;
+                        SLONG FirstCity = -1;
+                        for (c = 0; c < MAX_CITIES; c++) {
+                            if (rAA[c] != rChkAA[c]) {
+                                if (FirstCity < 0) {
+                                    FirstCity = c;
+                                }
+                                CitiesOff++;
+                            }
+                        }
+                        if (CitiesOff > 0) {
+                            NetTraceEvent("DESYNC what=Ausland cities=%ld first=%ld theirs=%lu mine=%lu", static_cast<long>(CitiesOff), static_cast<long>(FirstCity),
+                                          static_cast<unsigned long>(rAA[FirstCity]), static_cast<unsigned long>(rChkAA[FirstCity]));
+                        }
+
+                        for (c = 0; c < 20; c++) {
+                            if (rActionId[c] != rChkActionId[c]) {
+                                NetTraceEvent("DESYNC what=RobotAction player=%ld slot=%ld theirs=%s mine=%s", static_cast<long>(c / 5), static_cast<long>(c % 5),
+                                              Translate_ACTION(rActionId[c]), Translate_ACTION(rChkActionId[c]));
+                            }
+                        }
+                    }
+                }
+
 #ifdef _DEBUG
                 if (rTime != rChkTime)
                     DisplayBroadcastMessage(bprintf("rTime: %li vs %li\n", rTime, rChkTime));

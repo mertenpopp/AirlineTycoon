@@ -94,8 +94,12 @@ def report_divergence(peers):
         day, when, who = key
         print(f"   day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
         # "owner" is relative to the peer doing the reporting (itself 0, the others 2), so it
-        # differs by design and is not evidence of anything.
+        # differs by design and is not evidence of anything. A human's money and credit are only
+        # authoritative on that human's own peer and resynchronised every morning, so they are
+        # not hashed either; listing them would bury the field that actually caused the mismatch.
         local_only = {"owner"}
+        if any(r.get("owner") in ("0", "2") for r in rows):
+            local_only |= {"money", "credit"}
         keys = [k for k in rows[0] if not k.startswith("_") and k not in local_only]
         for field in keys:
             values = [r.get(field) for r in rows]
@@ -150,7 +154,7 @@ def report_events(peers):
             raw = e["_raw"]
             # the event keyword is the first token that is not a key=value field
             keyword = next((tok for tok in raw.split() if "=" not in tok), "")
-            if keyword.startswith(("DROP", "BUDGET", "SESSIONLOST", "HOSTMIGRATION", "PLAYERDROP", "LOBBYABORT")):
+            if keyword.startswith(("DESYNC", "RANDSKEW", "DROP", "BUDGET", "SESSIONLOST", "HOSTMIGRATION", "PLAYERDROP", "LOBBYABORT")):
                 print(f"   {peer['path']}: {raw}")
                 any_shown = True
     if not any_shown:

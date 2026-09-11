@@ -112,8 +112,16 @@ void NetTraceFingerprint(const char *When) {
         const PLAYER &qPlayer = Sim.Players.Players[c];
 
         Fingerprint Fp;
-        Fp.Add(qPlayer.Money);
-        Fp.Add(qPlayer.Credit);
+        /* A human's money is authoritative only on that human's own peer. The others do not book
+           its salaries (PLAYER::BookSalary skips Owner 2) and get the real figure from
+           ATNET_SYNC_MONEY when that human leaves the morning briefing. Between those syncs the
+           copies differ by design, so hashing them would report a desync every single day.
+           Bots are Owner 1 on every peer and booked identically everywhere, so their money is
+           hashed. Both are still printed. */
+        if (qPlayer.Owner == 1) {
+            Fp.Add(qPlayer.Money);
+            Fp.Add(qPlayer.Credit);
+        }
         Fp.Add(qPlayer.Image);
         Fp.Add(qPlayer.AnzAktien);
         Fp.Add(qPlayer.IsOut);
@@ -148,13 +156,23 @@ void NetTraceFingerprint(const char *When) {
             Fp.Add(qPlayer.Sympathie[d]);
         }
 
+        /* Staff drives the salary booked every night, so a disagreement about who works for
+           whom surfaces as money a day later - better to see it directly. */
+        SLONG Staff = 0;
+        for (SLONG d = 0; d < SLONG(Workers.Workers.AnzEntries()); d++) {
+            if (Workers.Workers[d].Employer == c) {
+                Fp.Add(d);
+                Staff++;
+            }
+        }
+
         AT_Log("FP  %s day=%ld t=%ld p=%ld owner=%ld out=%ld money=%lld credit=%lld image=%ld planes=%ld branches=%ld routes=%ld orders=%ld gates=%ld "
-               "shares=%ld hash=%08lx",
+               "shares=%ld staff=%ld hash=%08lx",
                When, static_cast<long>(Sim.Date), static_cast<long>(Sim.Time), static_cast<long>(c), static_cast<long>(qPlayer.Owner),
                static_cast<long>(qPlayer.IsOut), static_cast<long long>(qPlayer.Money), static_cast<long long>(qPlayer.Credit),
                static_cast<long>(qPlayer.Image), static_cast<long>(qPlayer.Planes.AnzEntries()), static_cast<long>(Branches), static_cast<long>(Routes),
                static_cast<long>(qPlayer.Auftraege.AnzEntries()), static_cast<long>(qPlayer.Gates.Gates.AnzEntries()), static_cast<long>(qPlayer.AnzAktien),
-               static_cast<unsigned long>(Fp.Get()));
+               static_cast<long>(Staff), static_cast<unsigned long>(Fp.Get()));
     }
 
     /* The shared order pools are the other thing every peer must agree on: a divergence here
