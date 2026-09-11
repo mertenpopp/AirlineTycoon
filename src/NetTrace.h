@@ -46,3 +46,10 @@ void NetTraceEvent(const char *Format, ...);
 /* Compact fingerprint of everything the peers must agree on, one line per player plus one
    for the shared pools. Diff two peers' FP lines to locate a divergence. */
 void NetTraceFingerprint(const char *When);
+
+/* The network queue and the game state it updates are only safe to touch from the main thread.
+   SDL timer callbacks (CStdRaum::TimerFunc -> OnTimer) run on a thread of their own, which is
+   easy to forget. Record the main thread once at startup, then call NetTraceCheckThread() at
+   the network entry points: any call from another thread is reported as a THREAD event. */
+void NetTraceSetMainThread();
+void NetTraceCheckThread(const char *Where);
