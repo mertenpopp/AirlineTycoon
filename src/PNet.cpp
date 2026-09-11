@@ -376,9 +376,15 @@ void PLAYER::NetUpdateWorkers() {
         return;
     }
 
-    Message.Announce(128);
-
+    /* Callers rely on this side effect whether or not anything gets sent - also in single
+       player - so it stays ahead of the ownership check. */
     UpdateStatistics();
+
+    if (!NetIsAuthoritative()) {
+        return;
+    }
+
+    Message.Announce(128);
 
     Message << ATNET_PERSONNEL;
 
@@ -436,12 +442,19 @@ void PLAYER::NetSave(DWORD UniqueGameId, SLONG CursorY, const CString &Name) {
 //--------------------------------------------------------------------------------------------
 // Broadcasts a plane's properties:
 //--------------------------------------------------------------------------------------------
+/* Only the peer that owns a player may broadcast its state: its own human's machine, or the
+   host for the bots. MapWorkers() broadcasts plane properties and staff for all of a player's
+   planes, and it also runs when a peer merely applies a hire it received from the network - so
+   without this check a client echoed a bot's plane settings back to the host from its own,
+   possibly older copy, and could revert a refit the bot had just ordered. */
+bool PLAYER::NetIsAuthoritative() const { return (Sim.bNetwork != 0) && (Owner == 0 || (Owner == 1 && Sim.bIsHost != 0)); }
+
 void PLAYER::NetUpdatePlaneProps(SLONG PlaneId) {
     TEAKFILE Message;
 
     Message.Announce(128);
 
-    if (bgIsLoadingSavegame) {
+    if (bgIsLoadingSavegame || !NetIsAuthoritative()) {
         return;
     }
 
