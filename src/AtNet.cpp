@@ -1171,6 +1171,7 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> Art >> From >> Generic1;
+                From = NetCheckPlayerNum(From, MessageType);
 
                 PLAYER &qFromPlayer = Sim.Players.Players[From];
 
@@ -1362,6 +1363,7 @@ void PumpNetwork() {
                     qPlayer.IsTalking = TRUE;
 
                     Message >> qPerson.Phase >> RequestingPlayer >> qPerson.Position.x >> qPerson.Position.y;
+                    RequestingPlayer = NetCheckPlayerNum(RequestingPlayer, MessageType);
 
                     qPerson.Dir = 8;
                     qPerson.LookDir = 8;
@@ -1373,6 +1375,7 @@ void PumpNetwork() {
                     XY Dummy2;
 
                     Message >> Dummy >> RequestingPlayer >> Dummy2.x >> Dummy2.y;
+                    RequestingPlayer = NetCheckPlayerNum(RequestingPlayer, MessageType);
 
                     // Nein! Keine Interviews!
                     SIM::SendSimpleMessage(ATNET_DIALOG_NO, Sim.Players.Players[RequestingPlayer].NetworkID);
@@ -1385,6 +1388,7 @@ void PumpNetwork() {
                 SLONG Phase = 0;
 
                 Message >> TargetPlayer >> Phase;
+                TargetPlayer = NetCheckPlayerNum(TargetPlayer, MessageType);
 
                 Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(TargetPlayer))].Phase = UBYTE(Phase);
 
@@ -1400,6 +1404,7 @@ void PumpNetwork() {
                 auto *pRaum = qPlayer.LocationWin;
 
                 Message >> OtherPlayerNum;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 // Erneute Abfrage: Ist Spieler bereit, einen Dialog zu beginnen?
                 if (qPlayer.GetRoom() == ROOM_AIRPORT && (qPlayer.IsStuck == 0) && (pRaum != nullptr) && pRaum->MenuIsOpen() == FALSE &&
@@ -1547,6 +1552,7 @@ void PumpNetwork() {
                 SLONG bHandy = 0;
 
                 Message >> OtherPlayerNum >> bHandy;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 if (qPlayer.LocationWin != nullptr) {
                     CStdRaum &qRoom = *(qPlayer.LocationWin);
@@ -1590,6 +1596,7 @@ void PumpNetwork() {
                 SLONG bHandy = 0;
 
                 Message >> OtherPlayerNum >> bHandy;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 if (qPlayer.LocationWin != nullptr) {
                     (qPlayer.LocationWin)->StartDialog(TALKER_COMPETITOR, MEDIUM_HANDY, OtherPlayerNum, 0);
@@ -2010,7 +2017,9 @@ void PumpNetwork() {
 
                 Message >> Par1 >> Par2 >> Par3;
 
-                SLONG playerId = static_cast<SLONG>(Par1);
+                /* Par1 travels as 64 bit: range check before narrowing, or 0x100000001 would
+                   narrow to a perfectly valid-looking 1. */
+                SLONG playerId = NetCheckPlayerNum((Par1 < 0 || Par1 > 3) ? SLONG(-1) : static_cast<SLONG>(Par1), MessageType);
                 SLONG statistikid = static_cast<SLONG>(Par3);
 
                 Sim.Players.Players[playerId].ChangeMoney(Par2, statistikid, "");
@@ -2026,6 +2035,7 @@ void PumpNetwork() {
                 DOUBLE TankPreis = NAN;
 
                 Message >> playerId >> Tank >> TankOpen >> TankInhalt >> KerosinQuali >> KerosinKind >> TankPreis;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
                 if (playerId != Sim.localPlayer) {
                     PLAYER &qPlayer = Sim.Players.Players[playerId];
@@ -2063,6 +2073,7 @@ void PumpNetwork() {
                 SLONG gehalt = 0;
 
                 Message >> playerId >> gehalt;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
                 Sim.Players.Players[playerId].Statistiken[STAT_GEHALT].SetAtPastDay(gehalt);
             } break;
@@ -2074,6 +2085,7 @@ void PumpNetwork() {
                 SLONG fracht = 0;
 
                 Message >> playerId >> auftrag >> lm >> fracht;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
                 Sim.Players.Players[playerId].Statistiken[STAT_AUFTRAEGE].SetAtPastDay(auftrag);
                 Sim.Players.Players[playerId].Statistiken[STAT_LMAUFTRAEGE].SetAtPastDay(lm);
