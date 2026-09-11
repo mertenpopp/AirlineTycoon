@@ -1512,14 +1512,22 @@ void SIM::DoTimeStep() {
         if (Minute < OldMinute) {
             // Streik vorbereiten?
             if (GetHour() == 10) {
-                PLAYER &qPlayer = qLocalPlayer;
+                /* Only humans go on strike. In a network game every peer decides this for every
+                   human rather than each for its own: the strike delays that player's
+                   departures on all peers, and the workers' happiness it depends on is the same
+                   everywhere, so they all start it in the same hour. */
+                for (c = 0; c < 4; c++) {
+                    PLAYER &qPlayer = Players.Players[c];
 
-                if (qPlayer.StrikeHours == 0 && qPlayer.StrikePlanned == 0) {
-                    if ((Workers.GetAverageHappyness(localPlayer) - static_cast<SLONG>(Workers.GetMinHappyness(localPlayer) < 0) * 10 < 20 &&
-                         qPlayer.DaysWithoutStrike > 7) ||
-                        (Workers.GetAverageHappyness(localPlayer) - static_cast<SLONG>(Workers.GetMinHappyness(localPlayer) < 0) * 10 < 0 &&
-                         qPlayer.DaysWithoutStrike > 3)) {
-                        GameMechanic::planStrike(qPlayer);
+                    if (c != localPlayer && (bNetwork == 0 || qPlayer.Owner == 1 || qPlayer.IsOut != 0)) {
+                        continue;
+                    }
+
+                    if (qPlayer.StrikeHours == 0 && qPlayer.StrikePlanned == 0) {
+                        if ((Workers.GetAverageHappyness(c) - static_cast<SLONG>(Workers.GetMinHappyness(c) < 0) * 10 < 20 && qPlayer.DaysWithoutStrike > 7) ||
+                            (Workers.GetAverageHappyness(c) - static_cast<SLONG>(Workers.GetMinHappyness(c) < 0) * 10 < 0 && qPlayer.DaysWithoutStrike > 3)) {
+                            GameMechanic::planStrike(qPlayer);
+                        }
                     }
                 }
             }
@@ -1563,11 +1571,21 @@ void SIM::DoTimeStep() {
                             qPlayer.StrikeEndCountdown = 0;
                             qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
 
+                            /* How the last strike ended is only cleared once its owner has been
+                               told, on the owner's peer - but endStrike() refuses to end a strike
+                               while it is set. So every peer clears it here. */
+                            if (bNetwork != 0) {
+                                qPlayer.StrikeEndType = 0;
+                            }
+
                             TEAKRAND LocalRand(Date + GetHour());
 
+                            /* Single player judges by the human's staff even when a bot strikes
+                               (after a sabotage); a network game must not use localPlayer, which
+                               differs from peer to peer, so it judges by the striking player's. */
                             if (qPlayer.DaysWithoutStrike > 10) {
                                 qPlayer.StrikeHours = 2;
-                            } else if (Workers.GetAverageHappyness(localPlayer) < -10) {
+                            } else if (Workers.GetAverageHappyness(bNetwork != 0 ? qPlayer.PlayerNum : localPlayer) < -10) {
                                 qPlayer.StrikeHours = 72;
                             } else {
                                 qPlayer.StrikeHours = 4 + LocalRand.Rand(20);
@@ -1583,7 +1601,9 @@ void SIM::DoTimeStep() {
                     } else if (qPlayer.StrikeHours != 0) {
                         qPlayer.StrikeHours--;
 
-                        if (qPlayer.StrikeHours == 0 && (qPlayer.Owner == 0 || (qPlayer.Owner == 1 && !qPlayer.RobotUse(ROBOT_USE_FAKE_PERSONAL)))) {
+                        /* Every peer ends every human's strike itself (Owner 2 is a human on
+                           another peer), just as every peer started it. */
+                        if (qPlayer.StrikeHours == 0 && (qPlayer.Owner != 1 || !qPlayer.RobotUse(ROBOT_USE_FAKE_PERSONAL))) {
                             GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Waiting);
                         }
                     }

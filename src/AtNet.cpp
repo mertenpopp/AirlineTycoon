@@ -2207,6 +2207,23 @@ void PumpNetwork() {
                 }
             } break;
 
+            case ATNET_STRIKE: {
+                SLONG PlayerNum = 0;
+                SLONG Event = 0;
+                SLONG Par = 0;
+
+                Message >> PlayerNum >> Event >> Par;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                if (Event == 0 && Par >= static_cast<SLONG>(GameMechanic::EndStrikeMode::Salary) &&
+                    Par <= static_cast<SLONG>(GameMechanic::EndStrikeMode::Drunk)) {
+                    GameMechanic::endStrike(qPlayer, static_cast<GameMechanic::EndStrikeMode>(Par), true);
+                } else if (Event == 1) {
+                    qPlayer.StrikeHours = Par;
+                }
+            } break;
+
             case ATNET_SYNCGEHALT: {
                 SLONG playerId = 0;
                 SLONG gehalt = 0;
