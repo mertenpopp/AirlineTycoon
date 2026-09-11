@@ -329,6 +329,11 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gAutoLobbyTimeout = atoi(argv[++i]);
             }
         }
+        if (stricmp(Argument, "/mpgohome") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyGoHome = atoi(argv[++i]);
+            }
+        }
 
         // Trace the multiplayer protocol into the game log, see NetTrace.h
         if (stricmp(Argument, "/nettrace") == 0) {
@@ -986,6 +991,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
     while (bLeaveGameLoop == 0) {
         AutoLobbyPollQuit();
+        AutoLobbyPumpDay();
         Time = SDL_GetTicks();
 
         if (LastTime == 0xffffffff || (bgJustDidLotsOfWork != 0) || bActive == FALSE) {
