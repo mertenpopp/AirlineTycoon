@@ -7,6 +7,7 @@
 
 #include "AtNet.h"
 #include "class.h"
+#include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
 #include "NetTrace.h"
@@ -27,6 +28,7 @@ SLONG gAutoLobbyBots = 0;
 CString gAutoLobbyHostIP = "127.0.0.1";
 SLONG gAutoLobbyTimeout = 120;
 SLONG gAutoLobbyGoHome = 0;
+SLONG gAutoLobbyCutSalaries = 0;
 
 namespace {
 DWORD gStartedAt = 0;
@@ -65,10 +67,10 @@ void AutoLobbyApplyOptions() {
         gNetTraceLevel = 1;
     }
 
-    AT_Log("Role=%s slot=%ld humans=%ld bots=%ld host=%s timeout=%lds gohome=%ld trace=%ld",
+    AT_Log("Role=%s slot=%ld humans=%ld bots=%ld host=%s timeout=%lds gohome=%ld cutsalaries=%ld trace=%ld",
            gAutoLobbyRole == AutoLobbyRole::HOST ? "HOST" : "JOIN", static_cast<long>(gAutoLobbySlot), static_cast<long>(gAutoLobbyHumans),
            static_cast<long>(gAutoLobbyBots), gAutoLobbyHostIP.c_str(), static_cast<long>(gAutoLobbyTimeout), static_cast<long>(gAutoLobbyGoHome),
-           static_cast<long>(gNetTraceLevel));
+           static_cast<long>(gAutoLobbyCutSalaries), static_cast<long>(gNetTraceLevel));
 }
 
 void AutoLobbyStartClock() {
@@ -148,6 +150,18 @@ void AutoLobbyPumpDay() {
     }
 
     WentHomeOnDay = Sim.Date;
+
+    /* Once per game, before the first time going home: cut everybody's salary, as the
+       personnel manager's dialog does. The staff's happiness drops by 25 per cut, which
+       (at 4 cuts) makes them strike the next morning - to exercise the strike on every peer. */
+    static bool bCutSalaries = false;
+    if (!bCutSalaries && gAutoLobbyCutSalaries > 0) {
+        bCutSalaries = true;
+        NetTraceEvent("CUTSALARIES x%ld", static_cast<long>(gAutoLobbyCutSalaries));
+        for (SLONG c = 0; c < gAutoLobbyCutSalaries; c++) {
+            GameMechanic::decreaseAllSalaries(qPlayer);
+        }
+    }
 
     /* Exactly what answering "yes" to the call-it-a-day request does in a network game
        (CStdRaum::OnLButtonDown, MENU_REQUEST_CALLITADAY). The auto-skip already set the local
