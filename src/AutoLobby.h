@@ -26,6 +26,8 @@
 //   [botlevels]  bot levels for the remaining slots, same digit encoding as /setbotlevel.
 //
 //   /mptimeout <seconds>  give up if the game has not started by then (default 120)
+//   /mpgohome <hour>      call it a day at that hour, like a player clicking "go home";
+//                         0 (default) stays until the game closes the day at 18:00
 //
 // Both roles imply CheatAutoSkip, a free game, no autosave (a networked game autosaves 12 MB
 // per in-game day, and peers sharing a directory would fight over the file), and protocol
@@ -43,6 +45,7 @@ extern SLONG gAutoLobbyHumans;   // host: number of human peers to wait for, inc
 extern SLONG gAutoLobbyBots;     // host: bot level digits for the remaining slots
 extern CString gAutoLobbyHostIP; // client: address of the host
 extern SLONG gAutoLobbyTimeout;  // seconds before the run is declared stuck
+extern SLONG gAutoLobbyGoHome;   // hour at which the idle human calls it a day, 0 = never
 
 inline bool AutoLobbyActive() { return gAutoLobbyRole != AutoLobbyRole::NONE; }
 
@@ -57,6 +60,9 @@ bool AutoLobbyTimedOut();
    is deferred by DelayMs so that RakNet - which sends from its own thread - gets this peer's
    last messages out; AutoLobbyPollQuit() from the main loop then terminates. */
 void AutoLobbyScheduleQuit(DWORD DelayMs);
+
+/* Lets the idle human end the day at /mpgohome's hour. Called from the main loop. */
+void AutoLobbyPumpDay();
 void AutoLobbyPollQuit();
 
 /* Logs why we are stuck and terminates with a non-zero exit code. There is nobody to read a
