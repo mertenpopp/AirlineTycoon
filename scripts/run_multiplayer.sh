@@ -1,7 +1,16 @@
 #!/bin/bash
 # Runs an unattended multiplayer session with N peers on this machine and diffs their traces.
 #
-#   ./scripts/run_multiplayer.sh [humans] [days] [botlevels]
+#   ./scripts/run_multiplayer.sh [--debug] [humans] [days] [botlevels]
+#
+# --debug builds the same optimised Release configuration with debug symbols added (-g) into
+# build-debug/ and runs the peers on that binary, so that a crash leaves a core with source
+# lines. It deliberately does not use CMAKE_BUILD_TYPE=Debug: that defines _DEBUG, which
+# switches on extra code paths and changes timing, and can make a race disappear. The installed
+# game binary is not touched.
+#
+# days=0 quits as soon as the players reach the boss's office on the first morning - enough to
+# exercise the lobby and the start of the game in well under a minute.
 #
 # Each peer gets its own directory so that they cannot fight over AT.json, debug.txt or the
 # savegame slot. The bulk of the game data is symlinked, so a peer directory costs a few MB.
@@ -11,6 +20,12 @@
 
 set -u
 
+DEBUG=0
+if [ "${1:-}" = "--debug" ]; then
+    DEBUG=1
+    shift
+fi
+
 HUMANS=${1:-2}
 DAYS=${2:-10}
 BOTS=${3:-44}
@@ -19,7 +34,15 @@ GAME="/media/LINUX/GOG Games/Airline Tycoon Deluxe/game"
 RUN="$GAME/mprun"
 TIMEOUT=120
 
-./scripts/run_build.sh >/dev/null || { echo "build failed"; exit 1; }
+if [ "$DEBUG" = 1 ]; then
+    cmake -B build-debug -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer" \
+        -DPROJECT_INSTALL_DIR="$GAME" >/dev/null || { echo "cmake failed"; exit 1; }
+    ninja -C build-debug AT >/dev/null || { echo "build failed"; exit 1; }
+    BINARY="$PWD/build-debug/Release/AT"
+else
+    ./scripts/run_build.sh >/dev/null || { echo "build failed"; exit 1; }
+    BINARY="$GAME/AT"
+fi
 
 rm -rf "$RUN"
 mkdir -p "$RUN"
@@ -37,7 +60,7 @@ for ((i = 0; i < HUMANS; i++)); do
         ln -sfn "$entry" "$peer/$name"
     done
 
-    cp "$GAME/AT" "$peer/AT"
+    cp "$BINARY" "$peer/AT"
     [ -f "$GAME/AT.json" ] && cp "$GAME/AT.json" "$peer/AT.json"
 done
 
