@@ -2620,7 +2620,7 @@ bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
     return true;
 }
 
-bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {
+bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork) {
     if (workerId < 0 || workerId >= Workers.Workers.size()) {
         AT_Error("GameMechanic::hireWorker(%s): Invalid worker id (%ld).", qPlayer.AirlineX.c_str(), workerId);
         return false;
@@ -2635,10 +2635,18 @@ bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {
     qWorker.PlaneId = -1;
     qPlayer.MapWorkers(TRUE);
 
+    /* The worker pool is shared world state, but hiring only ever ran on the peer that did it:
+       bot actions execute on the host alone, a human hires on their own machine. The other peers
+       kept the worker as unemployed, booked a different salary for the player every night, and
+       offered someone already taken. Tell them. */
+    if ((Sim.bNetwork != 0) && !fromNetwork) {
+        SIM::SendSimpleMessage(ATNET_WORKER_HIRE, 0, qPlayer.PlayerNum, workerId);
+    }
+
     return true;
 }
 
-bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId) {
+bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork) {
     if (workerId < 0 || workerId >= Workers.Workers.size()) {
         AT_Error("GameMechanic::fireWorker(%s): Invalid worker id (%ld).", qPlayer.AirlineX.c_str(), workerId);
         return false;
@@ -2655,6 +2663,11 @@ bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId) {
         qWorker.TimeInPool = 0;
     }
     qPlayer.MapWorkers(TRUE);
+
+    /* See hireWorker(). */
+    if ((Sim.bNetwork != 0) && !fromNetwork) {
+        SIM::SendSimpleMessage(ATNET_WORKER_FIRE, 0, qPlayer.PlayerNum, workerId);
+    }
 
     return true;
 }

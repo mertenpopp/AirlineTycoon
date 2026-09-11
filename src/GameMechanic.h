@@ -139,8 +139,10 @@ class GameMechanic {
     static bool decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId);
 
     /* Crew */
-    static bool hireWorker(PLAYER &qPlayer, SLONG workerId);
-    static bool fireWorker(PLAYER &qPlayer, SLONG workerId);
+    /* fromNetwork: the change arrived from the peer that made it and must not be broadcast
+       again. Everybody else leaves it at false. */
+    static bool hireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork = false);
+    static bool fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork = false);
 
     /* Routes */
     static bool killCity(PLAYER &qPlayer, SLONG cityID);
