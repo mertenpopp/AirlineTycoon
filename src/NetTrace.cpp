@@ -360,6 +360,9 @@ void NetTraceFingerprint(const char *When) {
        security measures work. */
     Pool.Add(Sim.nSecOutDays);
 
+    /* The weekday decides which rooms are closed. */
+    Pool.Add(Sim.Weekday);
+
     AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
            static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
            static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(UsedPlanes),
