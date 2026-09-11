@@ -1165,6 +1165,16 @@ void PumpNetwork() {
                 }
             } break;
 
+            case ATNET_KILL_CITY: {
+                SLONG PlayerNum = 0;
+                SLONG CityId = 0;
+
+                Message >> PlayerNum >> CityId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                GameMechanic::killCity(Sim.Players.Players[PlayerNum], CityId, true);
+            } break;
+
             case ATNET_TAKE_ROUTE: {
                 SLONG PlayerNum = 0;
                 SLONG Route1Id = 0;

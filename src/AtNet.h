@@ -25,6 +25,7 @@ static const ULONG ATNET_BEGINGAMELOADING = 0xadaa0010; // Server: Okay, start t
 static const ULONG ATNET_WANNAJOIN2NO =
     0xadaa0011; // Server: Oops, now that I look at it: your savegame is not right! You're the wrong person. We can't accept you.
 static const ULONG ATNET_SORRYVERSION = 0xadaa0012; // Server: You don't have the right version to join the game
+static const ULONG ATNET_GAMERULES = 0xadaa0013;    // Server: This game runs with these settings (sent right before the start)
 
 // Messages for maintaining the game
 static const ULONG ATNET_ALIVE = 0xadaa0100;         // Hello all, I'm still with you
@@ -158,6 +159,7 @@ static const ULONG ATNET_WORKER_HIRE = 0xadaa1806;     // Hello all, player x ju
 static const ULONG ATNET_WORKER_FIRE = 0xadaa1807;     // Hello all, player x just fired worker y
 static const ULONG ATNET_WORKER_SALARY = 0xadaa1808;   // Hello all, player x just changed the salary of worker y (-1 = all)
 static const ULONG ATNET_STRIKE = 0xadaa1809;          // Hello all, the strike at player x ended (0) or its hours were set (1)
+static const ULONG ATNET_KILL_CITY = 0xadaa180a;       // Hello all, player x just gave up the branch in city y
 
 static const ULONG ATNET_BOTSELECT = 0xadab0000;
 
@@ -175,6 +177,7 @@ DEFINE_NAME_ENTRY(ATNET_WANNAJOIN2, )
 DEFINE_NAME_ENTRY(ATNET_BEGINGAMELOADING, )
 DEFINE_NAME_ENTRY(ATNET_WANNAJOIN2NO, )
 DEFINE_NAME_ENTRY(ATNET_SORRYVERSION, )
+DEFINE_NAME_ENTRY(ATNET_GAMERULES, "This game runs with these settings")
 DEFINE_NAME_ENTRY(ATNET_ALIVE, )
 DEFINE_NAME_ENTRY(ATNET_PLAYERDROPOUT, )
 DEFINE_NAME_ENTRY(ATNET_DAYFINISH, )
@@ -272,5 +275,6 @@ DEFINE_NAME_ENTRY(ATNET_WORKER_HIRE, "Player x just hired worker y")
 DEFINE_NAME_ENTRY(ATNET_WORKER_FIRE, "Player x just fired worker y")
 DEFINE_NAME_ENTRY(ATNET_WORKER_SALARY, "Player x just changed the salary of worker y")
 DEFINE_NAME_ENTRY(ATNET_STRIKE, "The strike at player x ended")
+DEFINE_NAME_ENTRY(ATNET_KILL_CITY, "Player x just gave up the branch in city y")
 DEFINE_NAME_ENTRY(ATNET_BOTSELECT, "I've chosen bot difficulty")
 END_NAME_MAP

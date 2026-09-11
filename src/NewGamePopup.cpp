@@ -40,6 +40,14 @@ SLONG bNetworkUnderway = 0;
 
 static bool bNewGamePopupIsOpen = false;
 
+/* Game settings that each machine reads from its own options, but that decide shared state:
+   the clients must play with the host's. Sent right before ATNET_BEGINGAME(LOADING), which
+   reaches them after this (messages from one sender arrive in order). */
+static void SendGameRules() {
+    SIM::SendSimpleMessage(ATNET_GAMERULES, 0, static_cast<SLONG>(Sim.Options.OptionRentOfficeTriggerPercent),
+                           static_cast<SLONG>(Sim.Options.OptionRentOfficeMinAvailable), static_cast<SLONG>(Sim.Options.OptionRentOfficeMaxAvailable));
+}
+
 const SLONG MissionValues[] = {
     DIFF_FREEGAME, DIFF_FIRST, DIFF_EASY, DIFF_NORMAL, DIFF_HARD, DIFF_FINAL,
 };
@@ -1512,6 +1520,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
 
                         Sim.Difficulty = MissionValues[SessionMissionID];
 
+                        SendGameRules();
                         if (gNetworkSavegameLoading == -1) {
                             SIM::SendSimpleMessage(ATNET_BEGINGAME, 0, Sim.bAllowCheating, Sim.StartTime, Sim.HomeAirportId, Sim.Difficulty);
                         } else {
@@ -2293,6 +2302,16 @@ void NewGamePopup::CheckNetEvents() {
                     }
                     break;
 
+                case ATNET_GAMERULES: {
+                    SLONG TriggerPercent = 0;
+                    SLONG MinAvailable = 0;
+                    SLONG MaxAvailable = 0;
+
+                    Message >> TriggerPercent >> MinAvailable >> MaxAvailable;
+                    Sim.HostRentOffice = {static_cast<ULONG>(TriggerPercent), static_cast<ULONG>(MinAvailable), static_cast<ULONG>(MaxAvailable)};
+                    Sim.bHasHostRentOffice = true;
+                } break;
+
                 case ATNET_BEGINGAME:
                     if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
                         SLONG Time = 0;
@@ -2648,6 +2667,7 @@ void NewGamePopup::AutoLobbyPump() {
         Sim.Difficulty = DIFF_FREEGAME;
 
         NetTraceEvent("LOBBY starting game");
+        SendGameRules();
         SIM::SendSimpleMessage(ATNET_BEGINGAME, 0, Sim.bAllowCheating, Sim.StartTime, Sim.HomeAirportId, Sim.Difficulty);
         SIM::SendSimpleMessage(ATNET_SETGAMESPEED, 0, Sim.GameSpeed, Sim.localPlayer);
         Sim.ServerGameSpeed = Sim.GameSpeed;
