@@ -50,6 +50,12 @@ static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                      
 
 static SLONG MonthLength[] = {31, 28, 31, 30, 31, 30, 30, 31, 30, 31, 30, 31};
 
+/* Turns a point in game time (StartTime plus days) into a calendar date. localtime() depends on
+   the machine's time zone, and the host sends StartTime as seconds since 1970 - for a random
+   start day that is midnight UTC, so a peer west of UTC got the day before. The weekday decides
+   which rooms are closed, so all peers of a network game read the calendar in UTC. */
+static struct tm *GameCalendar(const time_t *Time) { return (Sim.bNetwork != 0) ? gmtime(Time) : localtime(Time); }
+
 char chRegKey[] = R"(Software\Spellbound Software\Airline Tycoon Deluxe\1.0)";
 // char chRegKeyOld[] = R"(Software\Spellbound Software\Airline Tycoon Evolution\1.0)";
 // char chRegKeyOld[] = "Software\\Spellbound Software\\Airline Tycoon FirstClass\\1.0";
@@ -447,7 +453,7 @@ void SIM::ChooseStartup() {
     MoneyInBankTrash = static_cast<SLONG>((LocalRand.Rand(100)) > 75);
     FocusPerson = -1;
 
-    struct tm *pTimeStruct = localtime(&StartTime);
+    struct tm *pTimeStruct = GameCalendar(&StartTime);
     StartWeekday = ((pTimeStruct->tm_wday + 6) % 7);
 
     LastExpansionDate = 0;
@@ -2135,7 +2141,7 @@ SLONG SIM::GetHour() const { return (Time / 60000); }
 //--------------------------------------------------------------------------------------------
 SLONG SIM::GetSeason() const {
     time_t Time = StartTime + Date * 60 * 60 * 24;
-    struct tm *pTimeStruct = localtime(&Time);
+    struct tm *pTimeStruct = GameCalendar(&Time);
 
     SLONG MonthDay = pTimeStruct->tm_mday;
     SLONG Month = pTimeStruct->tm_mon + 1;
@@ -2238,7 +2244,7 @@ void SIM::NewDay() {
     // Wochentag für die Öffnungszeiten:
     {
         time_t Time = StartTime + Date * 60 * 60 * 24;
-        struct tm *pTimeStruct = localtime(&Time);
+        struct tm *pTimeStruct = GameCalendar(&Time);
         Weekday = pTimeStruct->tm_wday;
     }
 
