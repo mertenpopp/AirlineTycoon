@@ -6,6 +6,7 @@
 #include "defines.h"
 
 void NetGenericSync(SLONG SyncId);
+void NetResetGenericSync();
 void NetGenericSync(SLONG SyncId, SLONG Par);
 void NetGenericAsync(SLONG SyncId, SLONG Par, SLONG player = -1);
 
