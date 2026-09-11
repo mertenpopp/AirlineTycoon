@@ -28,6 +28,8 @@
 //   /mptimeout <seconds>  give up if the game has not started by then (default 120)
 //   /mpgohome <hour>      call it a day at that hour, like a player clicking "go home";
 //                         0 (default) stays until the game closes the day at 18:00
+//   /mpcutsalaries <n>    before going home the first time, cut all salaries n times, as the
+//                         personnel dialog does (needs /mpgohome); 4 provokes a strike
 //
 // Both roles imply CheatAutoSkip, a free game, no autosave (a networked game autosaves 12 MB
 // per in-game day, and peers sharing a directory would fight over the file), and protocol
@@ -46,6 +48,7 @@ extern SLONG gAutoLobbyBots;     // host: bot level digits for the remaining slo
 extern CString gAutoLobbyHostIP; // client: address of the host
 extern SLONG gAutoLobbyTimeout;  // seconds before the run is declared stuck
 extern SLONG gAutoLobbyGoHome;   // hour at which the idle human calls it a day, 0 = never
+extern SLONG gAutoLobbyCutSalaries; // times the idle human cuts all salaries once, before first going home
 
 inline bool AutoLobbyActive() { return gAutoLobbyRole != AutoLobbyRole::NONE; }
 

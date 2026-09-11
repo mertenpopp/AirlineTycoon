@@ -334,6 +334,11 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gAutoLobbyGoHome = atoi(argv[++i]);
             }
         }
+        if (stricmp(Argument, "/mpcutsalaries") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyCutSalaries = atoi(argv[++i]);
+            }
+        }
 
         // Trace the multiplayer protocol into the game log, see NetTrace.h
         if (stricmp(Argument, "/nettrace") == 0) {
