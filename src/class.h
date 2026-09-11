@@ -1732,7 +1732,8 @@ class /**/ CWorker {
     }
 
   public:
-    void Gehaltsaenderung(BOOL Art);
+    /* bFromNetwork: the change was ordered by another peer, so don't broadcast it again. */
+    void Gehaltsaenderung(BOOL Art, bool bFromNetwork = false);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CWorker &Worker);
     friend TEAKFILE &operator>>(TEAKFILE &File, CWorker &Worker);
@@ -1754,7 +1755,7 @@ class /**/ CWorkers {
     void CheckShortageAndSort(void);
     void ReInit(const CString &TabFilename, const CString &TabFilename2);
     void NewDay(void);
-    void Gehaltsaenderung(BOOL Art, SLONG PlayerNum);
+    void Gehaltsaenderung(BOOL Art, SLONG PlayerNum, bool bFromNetwork = false);
     SLONG GetQualityRatio(SLONG prs);
     SLONG GetAverageHappyness(SLONG PlayerNum);
     SLONG GetMaxHappyness(SLONG PlayerNum);

@@ -1216,8 +1216,14 @@ SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode) {
     return gRepairPrice[qPlayer.MechMode] * qPlayer.Planes.GetNumUsed() / 30;
 }
 
-void GameMechanic::increaseAllSalaries(PLAYER &qPlayer) {
-    Workers.Gehaltsaenderung(1, qPlayer.PlayerNum);
+void GameMechanic::increaseAllSalaries(PLAYER &qPlayer, bool bFromNetwork) {
+    /* The other peers repeat all of this, the happiness top-up included (Art 2), rather
+       than just the raise Workers.Gehaltsaenderung() would announce. */
+    if (!bFromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, qPlayer.PlayerNum, -1, 2);
+    }
+
+    Workers.Gehaltsaenderung(1, qPlayer.PlayerNum, true);
     qPlayer.StrikePlanned = FALSE;
 
     while ((Workers.GetAverageHappyness(qPlayer.PlayerNum) - static_cast<SLONG>(Workers.GetMinHappyness(qPlayer.PlayerNum) < 0) * 10 < 20) ||

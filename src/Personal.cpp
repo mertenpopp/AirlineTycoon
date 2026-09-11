@@ -5,6 +5,7 @@
 //============================================================================================
 #include "Personal.h"
 
+#include "AtNet.h"
 #include "global.h"
 #include "glpers.h"
 #include "helper.h"
@@ -473,20 +474,22 @@ void CWorkers::NewDay() {
             auto &qPlayer = Sim.Players.Players[Workers[c].Employer];
 
             // Worker u.U. mehrfach um 1%-Punkt unglücklicher machen
-            if (qPlayer.Owner != 2) {
-                if (qPlayer.Image < 500) {
-                    Workers[c].Happyness--;
-                }
-                if (qPlayer.Image < 0) {
-                    Workers[c].Happyness--;
-                }
-                if (qPlayer.Image < -500) {
-                    Workers[c].Happyness--;
-                }
+            /* For every employer, humans on other peers (Owner 2) included: this used to skip
+               them, so their staff's happiness drifted apart between the peers - and with it
+               who quits below and whether a strike starts. Nothing synchronizes happiness, but
+               every peer knows the image. */
+            if (qPlayer.Image < 500) {
+                Workers[c].Happyness--;
+            }
+            if (qPlayer.Image < 0) {
+                Workers[c].Happyness--;
+            }
+            if (qPlayer.Image < -500) {
+                Workers[c].Happyness--;
+            }
 
-                if (qPlayer.Image >= 750) {
-                    Workers[c].Happyness++;
-                }
+            if (qPlayer.Image >= 750) {
+                Workers[c].Happyness++;
             }
 
             // Happyness verändert sich nach Gehalt
@@ -593,9 +596,17 @@ void CWorkers::NewDay() {
 //--------------------------------------------------------------------------------------------
 // Erhöht oder erniedrigt einer Personen das Gehalt
 //--------------------------------------------------------------------------------------------
-void CWorker::Gehaltsaenderung(BOOL Art) {
+void CWorker::Gehaltsaenderung(BOOL Art, bool bFromNetwork) {
     if (Employer == WORKER_RESERVE || Employer == WORKER_JOBLESS || Employer == WORKER_EXPIRED) {
         return;
+    }
+
+    /* Every peer books a bot's salaries itself each night, and a worker's happiness - which
+       decides whether he quits - follows his salary. So the peer that owns the employer
+       tells the others, who repeat the same change. Taken before the change: a cut can make
+       the worker quit, and then he no longer has an employer. */
+    if (!bFromNetwork && Sim.Players.Players[Employer].NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, Employer, static_cast<SLONG>(this - &Workers.Workers[0]), Art);
     }
 
     if (Art != 0) {
@@ -786,10 +797,15 @@ void CWorkers::CheckShortageAndSort() {
 //--------------------------------------------------------------------------------------------
 // Erhöht oder erniedrigt allen Personen das Gehalt
 //--------------------------------------------------------------------------------------------
-void CWorkers::Gehaltsaenderung(BOOL Art, SLONG PlayerNum) {
+void CWorkers::Gehaltsaenderung(BOOL Art, SLONG PlayerNum, bool bFromNetwork) {
+    /* One message for the whole staff rather than one per worker. */
+    if (!bFromNetwork && Sim.Players.Players[PlayerNum].NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, PlayerNum, -1, Art);
+    }
+
     for (SLONG c = 0; c < Workers.AnzEntries(); c++) {
         if (Workers[c].Employer == PlayerNum) {
-            Workers[c].Gehaltsaenderung(Art);
+            Workers[c].Gehaltsaenderung(Art, true);
         }
     }
 }
