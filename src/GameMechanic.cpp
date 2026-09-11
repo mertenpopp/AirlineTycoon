@@ -2611,6 +2611,7 @@ bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
 
     qPlane.MaxPassagiereTarget = newMaxPassagiere;
     qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    qPlayer.NetUpdatePlaneProps(planeId); // the refit to the new seating happens on every peer
     return true;
 }
 
@@ -2630,6 +2631,7 @@ bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
 
     qPlane.MaxPassagiereTarget = newMaxPassagiere;
     qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    qPlayer.NetUpdatePlaneProps(planeId); // the refit to the new seating happens on every peer
     return true;
 }
 
