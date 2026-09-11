@@ -1238,6 +1238,11 @@ void PumpNetwork() {
                     qFromPlayer.Planes.ReSize(qFromPlayer.Planes.AnzEntries() + 10);
                 }
 
+                /* Prepare the plane exactly as the buyer did (GameMechanic::buyUsedPlane) before
+                   taking it over. WorstZustand decides the nightly repair bill, so a copy that
+                   skipped this charged the new owner differently on every other peer. */
+                Sim.UsedPlanes[PlaneIndex].WorstZustand = static_cast<UBYTE>(Sim.UsedPlanes[PlaneIndex].Zustand - 20);
+                Sim.UsedPlanes[PlaneIndex].GlobeAngle = 0;
                 qFromPlayer.Planes += Sim.UsedPlanes[PlaneIndex];
 
                 Sim.UsedPlanes[PlaneIndex].Name.Empty();
