@@ -11,8 +11,6 @@
 #include "global.h"
 #include "Proto.h"
 
-#include <unistd.h>
-
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
@@ -717,14 +715,19 @@ void CAufsicht::OnPaint() {
 
     if (Sim.Date == gAutoQuitOnDay) {
         if (AutoLobbyActive()) {
-            /* Same reason as AutoLobbyAbort(): running the static destructors from inside the
-               room code crashes on the way out, and the harness would read that segfault as a
-               failed run even though the game played to the end. */
-            fflush(stdout);
-            fflush(stderr);
-            _exit(0);
+            /* Only once the briefing barrier has passed, so that the morning money sync of the
+               last day - and the "briefing" fingerprint that checks it - have happened on
+               every peer. Then linger two more seconds: RakNet sends from its own thread, and
+               quitting on the very next frame lost this peer's own SYNC_MONEY and
+               READYFORBRIEFING, leaving the other peer waiting for a connection timeout. */
+            /* The main loop carries out the quit: the auto-skip makes the player leave this
+               room right after the barrier, so it may never be painted again. */
+            if (bOkayToAct != 0) {
+                AutoLobbyScheduleQuit(2000);
+            }
+        } else {
+            exit(0);
         }
-        exit(0);
     }
     if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
         OnRButtonDown(0, CPoint());

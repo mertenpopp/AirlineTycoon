@@ -985,6 +985,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
     Sim.TimeSlice = 0;
 
     while (bLeaveGameLoop == 0) {
+        AutoLobbyPollQuit();
         Time = SDL_GetTicks();
 
         if (LastTime == 0xffffffff || (bgJustDidLotsOfWork != 0) || bActive == FALSE) {
