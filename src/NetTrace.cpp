@@ -260,6 +260,12 @@ void NetTraceFingerprint(const char *When) {
         Fp.Add(qPlayer.OfficeState);
         Fp.Add(qPlayer.SecurityFlags);
 
+        /* A strike delays the player's departures on every peer. How it ended is left out: its
+           owner's peer clears that once the player has been told. */
+        Fp.Add(qPlayer.StrikeHours);
+        Fp.Add(qPlayer.StrikePlanned);
+        Fp.Add(qPlayer.StrikeEndCountdown);
+
         Fp.Add(qPlayer.Gates.NumRented);
         for (SLONG d = 0; d < qPlayer.Gates.Gates.AnzEntries(); d++) {
             Fp.Add(qPlayer.Gates.Gates[d].Nummer);

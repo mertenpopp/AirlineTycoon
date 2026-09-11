@@ -99,7 +99,7 @@ class GameMechanic {
     static void decreaseAllSalaries(PLAYER &qPlayer);
     static void planStrike(PLAYER &qPlayer);
     enum class EndStrikeMode { Salary, Threat, Drunk, Waiting };
-    static void endStrike(PLAYER &qPlayer, EndStrikeMode mode);
+    static void endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork = false);
 
     /* Ads */
     static bool buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG adCampaignSize, SLONG routeA = -1);

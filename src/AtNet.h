@@ -157,6 +157,7 @@ static const ULONG ATNET_SYNCROUTECHANGE = 0xadaa1805; // Hello all, I've just c
 static const ULONG ATNET_WORKER_HIRE = 0xadaa1806;     // Hello all, player x just hired worker y
 static const ULONG ATNET_WORKER_FIRE = 0xadaa1807;     // Hello all, player x just fired worker y
 static const ULONG ATNET_WORKER_SALARY = 0xadaa1808;   // Hello all, player x just changed the salary of worker y (-1 = all)
+static const ULONG ATNET_STRIKE = 0xadaa1809;          // Hello all, the strike at player x ended (0) or its hours were set (1)
 
 static const ULONG ATNET_BOTSELECT = 0xadab0000;
 
@@ -270,5 +271,6 @@ DEFINE_NAME_ENTRY(ATNET_SYNCROUTECHANGE, "I've just change my route paramters")
 DEFINE_NAME_ENTRY(ATNET_WORKER_HIRE, "Player x just hired worker y")
 DEFINE_NAME_ENTRY(ATNET_WORKER_FIRE, "Player x just fired worker y")
 DEFINE_NAME_ENTRY(ATNET_WORKER_SALARY, "Player x just changed the salary of worker y")
+DEFINE_NAME_ENTRY(ATNET_STRIKE, "The strike at player x ended")
 DEFINE_NAME_ENTRY(ATNET_BOTSELECT, "I've chosen bot difficulty")
 END_NAME_MAP

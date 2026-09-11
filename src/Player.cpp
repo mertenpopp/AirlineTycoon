@@ -4587,6 +4587,11 @@ void PLAYER::RobotExecuteAction() {
         }
         if ((StrikeHours != 0) && LocalRandom.Rand(6) == 0 && RobotUse(ROBOT_USE_MISC_CHEATS)) {
             Sim.Players.Players[PlayerNum].StrikeHours = 0;
+
+            /* Bots only act on the host, but the strike delays their departures on every peer. */
+            if (NetIsAuthoritative()) {
+                SIM::SendSimpleMessage(ATNET_STRIKE, 0, PlayerNum, 1, 0);
+            }
         }
 
         if (RobotUse(ROBOT_USE_LUXERY) && Planes.GetNumUsed() > 0 && Money > 200000 && (bHasPlanesUpgradedToday == 0)) {

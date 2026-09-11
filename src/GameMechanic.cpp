@@ -1240,7 +1240,7 @@ void GameMechanic::planStrike(PLAYER &qPlayer) {
     qPlayer.StrikeEndType = 0;
 }
 
-void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
+void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork) {
     if (qPlayer.StrikeEndType != 0) {
         AT_Error("GameMechanic::endStrike(%s): Strike already ended.", qPlayer.AirlineX.c_str());
         return;
@@ -1249,7 +1249,7 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
     if (mode == EndStrikeMode::Salary) {
         qPlayer.StrikeEndType = 2; // Streik beendet durch Gehaltserhöhung
         qPlayer.StrikeEndCountdown = 2;
-        increaseAllSalaries(qPlayer);
+        increaseAllSalaries(qPlayer, true); // the other peers repeat it as part of the ATNET_STRIKE below
         AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via salary increase.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
     } else if (mode == EndStrikeMode::Threat) {
         qPlayer.StrikeEndType = 1; // Streik beendet durch Drohung
@@ -1257,7 +1257,7 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
         Workers.AddHappiness(qPlayer.PlayerNum, -20);
         AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via threat.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
     } else if (mode == EndStrikeMode::Drunk) {
-        if (qPlayer.TrinkerTrust == TRUE) {
+        if (qPlayer.TrinkerTrust == TRUE || bFromNetwork) {
             qPlayer.StrikeEndType = 3; // Streik beendet durch Trinker
             qPlayer.StrikeEndCountdown = 4;
             AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via help from the drunk.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
@@ -1277,6 +1277,13 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
         }
     } else {
         AT_Error("GameMechanic::endStrike: Invalid EndStrikeMode (%ld).", qPlayer.AirlineX.c_str(), mode);
+    }
+
+    /* A strike runs on every peer, since it delays the player's departures everywhere. Waiting
+       it out ends it on every peer by itself; a dialog or a bot ends it only where it happens,
+       so that has to be announced. StrikeEndType is only set if it actually ended. */
+    if (!bFromNetwork && mode != EndStrikeMode::Waiting && qPlayer.StrikeEndType != 0 && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 0, static_cast<SLONG>(mode));
     }
 }
 
