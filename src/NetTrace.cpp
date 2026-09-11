@@ -167,6 +167,38 @@ void NetTraceFingerprint(const char *When) {
             Fp.Add(qPlayer.Sympathie[d]);
         }
 
+        /* Equipment and its targets decide each plane's refit and how many passengers it
+           carries; a disagreement here only shows up as money a day later. Condition is left
+           out, it wears continuously. */
+        for (SLONG d = 0; d < qPlayer.Planes.AnzEntries(); d++) {
+            if (qPlayer.Planes.IsInAlbum(d) == 0) {
+                continue;
+            }
+            const CPlane &qPlane = qPlayer.Planes[d];
+            Fp.Add(d);
+            Fp.Add(qPlane.Sitze);
+            Fp.Add(qPlane.SitzeTarget);
+            Fp.Add(qPlane.Essen);
+            Fp.Add(qPlane.EssenTarget);
+            Fp.Add(qPlane.Tabletts);
+            Fp.Add(qPlane.TablettsTarget);
+            Fp.Add(qPlane.Deco);
+            Fp.Add(qPlane.DecoTarget);
+            Fp.Add(qPlane.Triebwerk);
+            Fp.Add(qPlane.TriebwerkTarget);
+            Fp.Add(qPlane.Reifen);
+            Fp.Add(qPlane.ReifenTarget);
+            Fp.Add(qPlane.Elektronik);
+            Fp.Add(qPlane.ElektronikTarget);
+            Fp.Add(qPlane.Sicherheit);
+            Fp.Add(qPlane.SicherheitTarget);
+            Fp.Add(qPlane.MaxPassagiere);
+            Fp.Add(qPlane.MaxPassagiereFC);
+            Fp.Add(qPlane.MaxPassagiereTarget);
+            Fp.Add(qPlane.MaxPassagiereTargetFC);
+            Fp.Add(qPlane.TargetZustand);
+        }
+
         /* Staff drives the salary booked every night, so a disagreement about who works for
            whom surfaces as money a day later - better to see it directly. */
         SLONG Staff = 0;

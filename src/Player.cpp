@@ -11,6 +11,9 @@
 #include "helper.h"
 #include "Proto.h"
 
+#include <array>
+#include <map>
+
 #define forall(c, object) for ((c) = 0; (c) < SLONG((object).AnzEntries()); (c)++)
 
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Player", __VA_ARGS__)
@@ -3033,6 +3036,77 @@ void PLAYER::UpdateWaypointWalkingDirection() {
 //--------------------------------------------------------------------------------------------
 // Erledigt Dinge für den Roboter:
 //--------------------------------------------------------------------------------------------
+namespace {
+//--------------------------------------------------------------------------------------------
+// Replicates the plane settings a bot changes.
+//
+// Bots run on the host only (clients return early in RobotPlan and RobotExecuteAction), and
+// they set a plane's equipment targets - seats, catering, trays, decor, engines, tyres,
+// electronics, safety, first class ratio, target condition - by writing them straight into
+// the plane, bypassing any function that could tell the other peers. The refit itself is done
+// by CPlane::DoOneStep on every peer and is deterministic given the targets, so the clients
+// never refitted, never booked the cost, and from then on carried a different load on every
+// flight. The human plane screen already broadcasts its changes; this covers every bot, with
+// no bot having to remember to do it: snapshot the targets before the bot acts and broadcast
+// each plane whose targets differ afterwards. The snapshot is taken before the next
+// DoOneStep, so the message carries the old configuration and the new targets, and each
+// client refits and books the cost itself.
+//--------------------------------------------------------------------------------------------
+class RobotPlanePropsWatch {
+  public:
+    explicit RobotPlanePropsWatch(PLAYER &qPlayer) : Player(qPlayer), bActive((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
+        if (bActive) {
+            MechModeBefore = Player.MechMode;
+            Before = Snapshot();
+        }
+    }
+    ~RobotPlanePropsWatch() {
+        if (!bActive) {
+            return;
+        }
+        const auto After = Snapshot();
+        bool bAnySent = false;
+        for (const auto &Plane : After) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                Player.NetUpdatePlaneProps(Plane.first);
+                bAnySent = true;
+            }
+        }
+        /* Every plane message carries MechMode as well; only send it on its own if nothing
+           else went out. */
+        if (!bAnySent && Player.MechMode != MechModeBefore) {
+            Player.NetUpdatePlaneProps(-1);
+        }
+    }
+    RobotPlanePropsWatch(const RobotPlanePropsWatch &) = delete;
+    RobotPlanePropsWatch &operator=(const RobotPlanePropsWatch &) = delete;
+
+  private:
+    using Targets = std::array<SLONG, 11>;
+
+    std::map<SLONG, Targets> Snapshot() const {
+        std::map<SLONG, Targets> Result;
+        for (SLONG c = 0; c < Player.Planes.AnzEntries(); c++) {
+            if (Player.Planes.IsInAlbum(c) == 0) {
+                continue;
+            }
+            const CPlane &qPlane = Player.Planes[c];
+            Result[c] = Targets{SLONG(qPlane.SitzeTarget),       SLONG(qPlane.EssenTarget),     SLONG(qPlane.TablettsTarget),
+                                SLONG(qPlane.DecoTarget),        SLONG(qPlane.TriebwerkTarget), SLONG(qPlane.ReifenTarget),
+                                SLONG(qPlane.ElektronikTarget),  SLONG(qPlane.SicherheitTarget), qPlane.MaxPassagiereTarget,
+                                qPlane.MaxPassagiereTargetFC,    SLONG(qPlane.TargetZustand)};
+        }
+        return Result;
+    }
+
+    PLAYER &Player;
+    const bool bActive;
+    SLONG MechModeBefore{};
+    std::map<SLONG, Targets> Before;
+};
+} // namespace
+
 void PLAYER::RobotPump() {
     SLONG c = 0;
     PERSON *pPerson = nullptr;
@@ -3339,6 +3413,8 @@ void PLAYER::RobotPlan() {
     if ((Owner != 1) || (IsOut != 0) || (Sim.bNetwork != 0 && Sim.bIsHost == 0)) {
         return; // War Irtum, kein Computerspieler
     }
+
+    RobotPlanePropsWatch PlaneWatch(*this);
 
     if (IsSuperBot()) {
         if (IsMertenBot()) {
@@ -3956,6 +4032,8 @@ void PLAYER::RobotExecuteAction() {
         WaitWorkTill = -1;
         return;
     }
+
+    RobotPlanePropsWatch PlaneWatch(*this);
 
     // NetGenericSync (100, LocalRandom.GetSeed());
     // NetGenericSync (101, PlayerNum);
