@@ -2,6 +2,7 @@
 // Sim.cpp : Routinen zur allgemeinen Simulationsverwaltung:
 //============================================================================================
 #include "AtNet.h"
+#include "AutoLobby.h"
 #include "NetTrace.h"
 #include "BotHelper.h"
 #include "Checkup.h"
@@ -4118,6 +4119,13 @@ void COptions::ReadOptions() {
 // Schreibt die Optionen in die Registry:
 //--------------------------------------------------------------------------------------------
 void COptions::WriteOptions() {
+    /* Harness peers run with overridden options (slot, autosave, window mode). Persisting them
+       would leak one run's harness settings into the next normal game. */
+    if (AutoLobbyActive()) {
+        AT_Log("Not writing game options (multiplayer harness)");
+        return;
+    }
+
     AT_Log("Writing game options");
 
     SLONG tmp = Sim.MaxDifficulty;
