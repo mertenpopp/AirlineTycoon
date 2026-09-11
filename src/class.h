@@ -2295,6 +2295,7 @@ class PLAYER {
     void NetRouteUpdateTicketpreise(SLONG RouteId, SLONG Ticketpreis, SLONG TicketpreisFC) const;
     void NetUpdateFlightplan(SLONG Plane);
     void NetUpdateOrder(const CAuftrag &auftrag) const;
+    bool NetIsAuthoritative() const;
     void NetUpdatePlaneProps(SLONG Plane = -1);
     void NetUpdateFreightOrder(const CFracht &auftrag) const;
     void NetUpdateTook(SLONG Type, SLONG Index, SLONG City = 0) const;
