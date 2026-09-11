@@ -3,6 +3,7 @@
 //============================================================================================
 #include "AtNet.h"
 #include "AutoLobby.h"
+#include "NetTrace.h"
 #include "Aufsicht.h"
 #include "ColorFx.h"
 #include "GameMechanic.h"
@@ -58,6 +59,18 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
     }
     if (bOkayToAct == 0) {
         SetNetworkBitmap(3, 2); // Waitung for Players
+    }
+
+    /* The boss judges every player's bankruptcy in each peer's own briefing, from that peer's
+       copy of the player. For anyone but the local human (and, on the host, the bots) that copy
+       used to be refreshed only when the owner LEFT the briefing - after the others had already
+       judged - so peers could disagree about who is bankrupt (issue #21). Send the authoritative
+       money and image now, before READYFORBRIEFING: messages from one sender arrive in order,
+       and no boss can start before every human's READYFORBRIEFING is in (bOkayToAct), so every
+       peer judges from the owners' current figures and reaches the same verdict. */
+    if ((Sim.bNetwork != 0) && bIsMorning) {
+        PLAYER::NetSynchronizeMoney();
+        PLAYER::NetSynchronizeImage();
     }
 
     Sim.Players.Players[Sim.localPlayer].bReadyForBriefing = 1;
@@ -547,6 +560,9 @@ void CAufsicht::OnPaint() {
 
         if (bOkayToAct != 0) {
             SetNetworkBitmap(0);
+            /* The moment the boss may start judging: every peer must hold identical figures
+               for every player here, humans included. */
+            NetTraceFingerprint("briefing");
         }
     }
 

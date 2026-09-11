@@ -17,6 +17,7 @@
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
 #define AT_Log(...) AT_Log_I("NetTrace", __VA_ARGS__)
 
@@ -114,6 +115,10 @@ void NetTraceFingerprint(const char *When) {
         return;
     }
 
+    /* At the start of the morning briefing every peer has just received every owner's money
+       and must agree on it - that is what the bankruptcy verdict is computed from. */
+    const bool bHashHumanMoney = (strcmp(When, "briefing") == 0);
+
     for (SLONG c = 0; c < Sim.Players.Players.AnzEntries() && c < 4; c++) {
         const PLAYER &qPlayer = Sim.Players.Players[c];
 
@@ -124,7 +129,7 @@ void NetTraceFingerprint(const char *When) {
            copies differ by design, so hashing them would report a desync every single day.
            Bots are Owner 1 on every peer and booked identically everywhere, so their money is
            hashed. Both are still printed. */
-        if (qPlayer.Owner == 1) {
+        if (qPlayer.Owner == 1 || bHashHumanMoney) {
             Fp.Add(qPlayer.Money);
             Fp.Add(qPlayer.Credit);
         }
