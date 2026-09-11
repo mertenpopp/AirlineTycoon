@@ -4086,7 +4086,11 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
             pMenuLib1 = nullptr;
         }
 
-        OnscreenBitmap.ReSize(MenuBms[0].Size);
+        /* Without network3.gli (the GOG data has none) this only works because the request
+           menu that leads here left its bitmaps loaded; never index an empty list. */
+        if (MenuBms.AnzEntries() > 0) {
+            OnscreenBitmap.ReSize(MenuBms[0].Size);
+        }
         break;
 
     default:
