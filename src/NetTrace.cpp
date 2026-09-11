@@ -255,6 +255,11 @@ void NetTraceFingerprint(const char *When) {
         Fp.Add(qPlayer.TankOpen);
         Fp.Add(qPlayer.KerosinKind);
 
+        /* Sabotage state: a sabotaged office and the security measures decide what the next
+           saboteur gets away with. */
+        Fp.Add(qPlayer.OfficeState);
+        Fp.Add(qPlayer.SecurityFlags);
+
         Fp.Add(qPlayer.Gates.NumRented);
         for (SLONG d = 0; d < qPlayer.Gates.Gates.AnzEntries(); d++) {
             Fp.Add(qPlayer.Gates.Gates[d].Nummer);
@@ -341,6 +346,10 @@ void NetTraceFingerprint(const char *When) {
         Pool.Add(qPlane.Zustand);
         UsedPlanes++;
     }
+
+    /* Days the security office stays switched off after a sabotage; while it is off nobody's
+       security measures work. */
+    Pool.Add(Sim.nSecOutDays);
 
     AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
            static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
