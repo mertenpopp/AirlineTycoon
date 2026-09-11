@@ -5,6 +5,7 @@
 #include "class.h"
 #include "global.h"
 #include "helper.h"
+#include "NetTrace.h"
 #include "Proto.h"
 
 // Preise verstehen sich pro Sitzplatz:
@@ -348,6 +349,9 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                     }
                     qPlayer.Image -= 2;
                     Limit(SLONG(-1000), qPlayer.Image, SLONG(1000));
+                    NetTraceEvent("NOGATE p=%ld plane=%s landing start=%ld/%ld land=%ld/%ld", static_cast<long>(PlayerNum), Name.c_str(),
+                                  static_cast<long>(fpe->Startdate), static_cast<long>(fpe->Startzeit), static_cast<long>(fpe->Landedate),
+                                  static_cast<long>(fpe->Landezeit));
 
                     if ((pRoute != nullptr) && (qPlayer.Image) % 10 == 0) {
                         if (pRoute->Image > 1) {
