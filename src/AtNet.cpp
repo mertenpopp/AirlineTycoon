@@ -233,6 +233,7 @@ void PumpNetwork() {
     if (Sim.bNetwork == 0) {
         return;
     }
+    NetTraceCheckThread("PumpNetwork");
 
     if (Sim.bThisIsSessionMaster && Sim.Time > 9 * 60000 && Sim.Time < 18 * 60000 && (Sim.CallItADay == 0) && (Sim.CallItADayAt == 0)) {
         static DWORD LastTime = 0;

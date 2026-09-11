@@ -486,6 +486,7 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
 
     Sim.LoadOptions();
+    NetTraceSetMainThread();
     AutoLobbyApplyOptions();
     if (gQuickTestRun == 0 && !AutoLobbyActive()) {
         Sim.SaveOptions();

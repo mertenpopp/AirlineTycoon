@@ -1189,6 +1189,9 @@ void NewGamePopup::OnPaint() {
         PrimaryBm.BlitFrom(OnscreenBitmap, MenuPos);
     }
 
+    /* Driven from here, not from OnTimer: CStdRaum::TimerFunc calls OnTimer on SDL's timer
+       thread, and the lobby driver consumes network messages and builds the game world. */
+    AutoLobbyPump();
     CheckNetEvents();
 }
 
@@ -2063,6 +2066,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
 }
 
 void NewGamePopup::CheckNetEvents() {
+    NetTraceCheckThread("CheckNetEvents");
     if (PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_NETWORK || PageNum == PAGE_TYPE::MULTIPLAYER_SELECT_SESSION ||
         PageNum == PAGE_TYPE::MULTIPLAYER_CREATE_SESSION || PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER || PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
         if (gNetwork.IsInitialized() && (gNetwork.GetMessageCount() != 0)) {
@@ -2450,13 +2454,23 @@ void NewGamePopup::AutoLobbyPump() {
         return;
     }
 
-    AutoLobbyStartClock();
+    /* Called from OnPaint on the main thread. It used to run from OnTimer, which SDL calls on
+       its timer thread: the driver then consumed network messages and ran ChooseStartup()
+       concurrently with the main loop's PumpNetwork(), which applied the host's first messages
+       to a half-built world and crashed, or split the lobby handshake between two readers and
+       hung. Keep the 20 Hz pace the counters below were written for. */
+    static bool bInPump = false;
+    static DWORD NextTick = 0;
+    if (bInPump || AtGetTime() < NextTick) {
+        return;
+    }
+    NextTick = AtGetTime() + 50;
+    bInPump = true;
+    struct ResetGuard {
+        ~ResetGuard() { bInPump = false; }
+    } Guard;
 
-    /* Lobby messages are normally consumed by CheckNetEvents() from OnPaint(), so how quickly
-       a join is noticed depends on the repaint cadence. Pump them from the timer as well,
-       which ticks steadily - otherwise the handshake completes or not depending on how often
-       the lobby happens to redraw. */
-    CheckNetEvents();
+    AutoLobbyStartClock();
 
     /* Nobody is here to dismiss a dialog, so treat one as a hard failure and say which. */
     if (MenuIsOpen() != 0) {
@@ -2679,8 +2693,6 @@ void NewGamePopup::OnTimer(UINT nIDEvent) {
     if (!bNewGamePopupIsOpen) {
         return;
     }
-
-    AutoLobbyPump();
 
     // Mit 10 FPS die Anzeige rotieren lassen:
     if (nIDEvent == 1) {
@@ -2962,6 +2974,7 @@ void NewGamePopup::PushName(SLONG n) {
 //--------------------------------------------------------------------------------------------
 bool SIM::SendMemFile(TEAKFILE &file, ULONG target, bool useCompression) {
     useCompression = false;
+    NetTraceCheckThread("SendMemFile");
 
     if (((Sim.bNetwork != 0) || (bNetworkUnderway != 0)) && gNetwork.IsInSession()) {
         const bool Sent = gNetwork.Send(file.MemBuffer, file.MemBufferUsed, target, useCompression);
@@ -3057,6 +3070,7 @@ bool SIM::SendSimpleMessage64(ULONG MessageId, ULONG target, __int64 Par1, __int
 //
 //--------------------------------------------------------------------------------------------
 bool SIM::ReceiveMemFile(TEAKFILE &file) {
+    NetTraceCheckThread("ReceiveMemFile");
     ULONG Size = 0;
     UBYTE *p = nullptr;
 

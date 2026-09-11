@@ -12,6 +12,9 @@
 #include "Proto.h"
 #include "TeakLibW.h"
 
+#include <SDL_thread.h>
+
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 
@@ -20,6 +23,9 @@
 SLONG gNetTraceLevel = 0;
 
 namespace {
+
+SDL_threadID gMainThread = 0;
+std::atomic<SLONG> gThreadViolations{0};
 
 /* Ordinal of the next traced message. Lets a reader tell "the message never arrived" from
    "the messages arrived in a different order" when comparing two logs. */
@@ -189,4 +195,21 @@ void NetTraceFingerprint(const char *When) {
            static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.AnzEntries()), static_cast<long>(ReisebueroAuftraege.AnzEntries()),
            static_cast<long>(gFrachten.AnzEntries()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(Sim.ExpandAirport),
            static_cast<unsigned long>(Pool.Get()));
+}
+
+void NetTraceSetMainThread() { gMainThread = SDL_ThreadID(); }
+
+void NetTraceCheckThread(const char *Where) {
+    if (gNetTraceLevel <= 0 || gMainThread == 0) {
+        return;
+    }
+    const SDL_threadID Current = SDL_ThreadID();
+    if (Current == gMainThread) {
+        return;
+    }
+    /* Capped: a path that runs off-thread usually does so on every timer tick. */
+    if (gThreadViolations.fetch_add(1) < 200) {
+        NetTraceEvent("THREAD where=%s thread=%lu main=%lu - network or game state touched off the main thread", Where,
+                      static_cast<unsigned long>(Current), static_cast<unsigned long>(gMainThread));
+    }
 }
