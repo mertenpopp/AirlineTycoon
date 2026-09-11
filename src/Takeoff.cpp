@@ -1099,7 +1099,12 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         Sim.IsTutorial = FALSE;
                         // Sim.bNoTime = FALSE;
                         // Sim.DayState = 2;
-                        Sim.Players.Players[Sim.localPlayer].GameSpeed = 5;
+                        /* 5 is outside GameSpeed's 0..3 range, a fast-forward for the unattended
+                           single player runs. A network game draws gClockBms[GameSpeed + 8] in the
+                           status line, and gClockBms only holds 12 bitmaps, so 5 read past its end
+                           and crashed every peer on the first paint of the airport. The effective
+                           network speed is the minimum over all humans anyway, so 3 costs nothing. */
+                        Sim.Players.Players[Sim.localPlayer].GameSpeed = (Sim.bNetwork != 0) ? 3 : 5;
                     } else {
                         if (Sim.Difficulty == DIFF_TUTORIAL) {
                             for (c = 0; c < Sim.Players.AnzPlayers; c++) {

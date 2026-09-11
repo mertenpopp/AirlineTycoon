@@ -847,6 +847,13 @@ void CAufsicht::OnRButtonDown(UINT nFlags, CPoint point) {
 //--------------------------------------------------------------------------------------------
 void CAufsicht::TryLeaveAufsicht() {
     if ((Sim.bNetwork != 0) && bIsMorning) {
+        /* Already asked to leave; everything below has been done. Repeating it is not only
+           redundant: the Invalidate() further down repaints synchronously, and when the leave
+           request came from OnPaint itself (CheatAutoSkip's synthetic right-click) that
+           re-entered OnPaint -> OnRButtonDown -> here, until the stack overflowed. */
+        if (bExitASAP) {
+            return;
+        }
         bExitASAP = true;
         Sim.bWatchForReady = TRUE;
         SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
