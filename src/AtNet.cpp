@@ -1976,8 +1976,13 @@ void PumpNetwork() {
                            up when the action executes (see the "Manchmal kommen wir als Client hier
                            an" shift in PLAYER::RobotExecuteAction). So between two broadcasts the
                            client legitimately still holds actions the host has already consumed.
-                           That lag is exactly "the host's pending actions are a suffix of the
-                           client's" once empty slots are ignored; anything else is a real
+                           Also only on the host, a bot that finds its room occupied puts the
+                           current action behind the secondary one and fills an empty secondary slot
+                           with ACTION_BUERO or ACTION_PERSONAL (PERSON::DoOnePlayerStep, "Raum schon
+                           besetzt?"). NetSyncRobot() hands the clients the host's whole queue again
+                           before the next action executes, so neither is a disagreement: accept
+                           when every pending host action, apart from at most one such filler, is
+                           still pending on the client, in any order. Anything else is a real
                            disagreement about what a bot is going to do. */
                         for (SLONG p = 0; p < 4; p++) {
                             const SLONG *Host = (Sim.bIsHost != 0) ? &rChkActionId[p * 5] : &rActionId[p * 5];
@@ -1994,8 +1999,19 @@ void PumpNetwork() {
                                 }
                             }
 
-                            const bool bLagOnly = HostPending.size() <= ClientPending.size() &&
-                                                  std::equal(HostPending.begin(), HostPending.end(), ClientPending.end() - HostPending.size());
+                            bool bLagOnly = true;
+                            bool bFillerSeen = false;
+                            for (const SLONG ActionId : HostPending) {
+                                const auto Match = std::find(ClientPending.begin(), ClientPending.end(), ActionId);
+                                if (Match != ClientPending.end()) {
+                                    ClientPending.erase(Match);
+                                } else if (!bFillerSeen && (ActionId == ACTION_BUERO || ActionId == ACTION_PERSONAL)) {
+                                    bFillerSeen = true;
+                                } else {
+                                    bLagOnly = false;
+                                    break;
+                                }
+                            }
                             if (bLagOnly) {
                                 continue;
                             }
