@@ -122,7 +122,16 @@ void NetTraceFingerprint(const char *When) {
     for (SLONG c = 0; c < Sim.Players.Players.AnzEntries() && c < 4; c++) {
         const PLAYER &qPlayer = Sim.Players.Players[c];
 
+        /* One hash per part as well as the whole, so that the trace diff names the part that
+           differs rather than just the player. */
         Fingerprint Fp;
+        Fingerprint FpCity;
+        Fingerprint FpRoute;
+        Fingerprint FpStock;
+        Fingerprint FpPlane;
+        Fingerprint FpOrder;
+        Fingerprint FpMisc;
+        Fingerprint FpStaff;
         /* A human's money is authoritative only on that human's own peer. The others do not book
            its salaries (PLAYER::BookSalary skips Owner 2) and get the real figure from
            ATNET_SYNC_MONEY when that human leaves the morning briefing. Between those syncs the
@@ -143,9 +152,9 @@ void NetTraceFingerprint(const char *When) {
         SLONG Branches = 0;
         for (SLONG d = 0; d < qPlayer.RentCities.RentCities.AnzEntries(); d++) {
             const CRentCity &qCity = qPlayer.RentCities.RentCities[d];
-            Fp.Add(qCity.Rang);
-            Fp.Add(qCity.Image);
-            Fp.Add(qCity.Miete);
+            FpCity.Add(qCity.Rang);
+            FpCity.Add(qCity.Image);
+            FpCity.Add(qCity.Miete);
             if (qCity.Rang > 0) {
                 Branches++;
             }
@@ -154,19 +163,19 @@ void NetTraceFingerprint(const char *When) {
         SLONG Routes = 0;
         for (SLONG d = 0; d < qPlayer.RentRouten.RentRouten.AnzEntries(); d++) {
             const CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
-            Fp.Add(qRoute.Rang);
-            Fp.Add(qRoute.Auslastung);
-            Fp.Add(qRoute.RoutenAuslastung);
-            Fp.Add(qRoute.Ticketpreis);
-            Fp.Add(qRoute.TicketpreisFC);
+            FpRoute.Add(qRoute.Rang);
+            FpRoute.Add(qRoute.Auslastung);
+            FpRoute.Add(qRoute.RoutenAuslastung);
+            FpRoute.Add(qRoute.Ticketpreis);
+            FpRoute.Add(qRoute.TicketpreisFC);
             if (qRoute.Rang > 0) {
                 Routes++;
             }
         }
 
         for (SLONG d = 0; d < 4; d++) {
-            Fp.Add(qPlayer.OwnsAktien[d]);
-            Fp.Add(qPlayer.Sympathie[d]);
+            FpStock.Add(qPlayer.OwnsAktien[d]);
+            FpStock.Add(qPlayer.Sympathie[d]);
         }
 
         /* Equipment and its targets decide each plane's refit and how many passengers it
@@ -178,29 +187,29 @@ void NetTraceFingerprint(const char *When) {
                 continue;
             }
             const CPlane &qPlane = qPlayer.Planes[d];
-            Fp.Add(d);
-            Fp.Add(qPlane.Sitze);
-            Fp.Add(qPlane.SitzeTarget);
-            Fp.Add(qPlane.Essen);
-            Fp.Add(qPlane.EssenTarget);
-            Fp.Add(qPlane.Tabletts);
-            Fp.Add(qPlane.TablettsTarget);
-            Fp.Add(qPlane.Deco);
-            Fp.Add(qPlane.DecoTarget);
-            Fp.Add(qPlane.Triebwerk);
-            Fp.Add(qPlane.TriebwerkTarget);
-            Fp.Add(qPlane.Reifen);
-            Fp.Add(qPlane.ReifenTarget);
-            Fp.Add(qPlane.Elektronik);
-            Fp.Add(qPlane.ElektronikTarget);
-            Fp.Add(qPlane.Sicherheit);
-            Fp.Add(qPlane.SicherheitTarget);
-            Fp.Add(qPlane.MaxPassagiere);
-            Fp.Add(qPlane.MaxPassagiereFC);
-            Fp.Add(qPlane.MaxPassagiereTarget);
-            Fp.Add(qPlane.MaxPassagiereTargetFC);
-            Fp.Add(qPlane.TargetZustand);
-            Fp.Add(qPlane.WorstZustand);
+            FpPlane.Add(d);
+            FpPlane.Add(qPlane.Sitze);
+            FpPlane.Add(qPlane.SitzeTarget);
+            FpPlane.Add(qPlane.Essen);
+            FpPlane.Add(qPlane.EssenTarget);
+            FpPlane.Add(qPlane.Tabletts);
+            FpPlane.Add(qPlane.TablettsTarget);
+            FpPlane.Add(qPlane.Deco);
+            FpPlane.Add(qPlane.DecoTarget);
+            FpPlane.Add(qPlane.Triebwerk);
+            FpPlane.Add(qPlane.TriebwerkTarget);
+            FpPlane.Add(qPlane.Reifen);
+            FpPlane.Add(qPlane.ReifenTarget);
+            FpPlane.Add(qPlane.Elektronik);
+            FpPlane.Add(qPlane.ElektronikTarget);
+            FpPlane.Add(qPlane.Sicherheit);
+            FpPlane.Add(qPlane.SicherheitTarget);
+            FpPlane.Add(qPlane.MaxPassagiere);
+            FpPlane.Add(qPlane.MaxPassagiereFC);
+            FpPlane.Add(qPlane.MaxPassagiereTarget);
+            FpPlane.Add(qPlane.MaxPassagiereTargetFC);
+            FpPlane.Add(qPlane.TargetZustand);
+            FpPlane.Add(qPlane.WorstZustand);
 
             /* The flight plan and the gate each flight got: a flight that finds no gate at the
                home airport costs image, so peers that planned gates differently diverge. */
@@ -210,12 +219,12 @@ void NetTraceFingerprint(const char *When) {
                 if (qFlight.ObjectType == 0) {
                     continue;
                 }
-                Fp.Add(e);
-                Fp.Add(qFlight.ObjectType);
-                Fp.Add(qFlight.ObjectId);
-                Fp.Add(qFlight.Startdate);
-                Fp.Add(qFlight.Startzeit);
-                Fp.Add(qFlight.Gate);
+                FpPlane.Add(e);
+                FpPlane.Add(qFlight.ObjectType);
+                FpPlane.Add(qFlight.ObjectId);
+                FpPlane.Add(qFlight.Startdate);
+                FpPlane.Add(qFlight.Startzeit);
+                FpPlane.Add(qFlight.Gate);
             }
         }
 
@@ -226,49 +235,49 @@ void NetTraceFingerprint(const char *When) {
                 continue;
             }
             const CAuftrag &qOrder = qPlayer.Auftraege[d];
-            Fp.Add(d);
-            Fp.Add(qOrder.VonCity);
-            Fp.Add(qOrder.NachCity);
-            Fp.Add(qOrder.Date);
-            Fp.Add(qOrder.BisDate);
-            Fp.Add(qOrder.InPlan);
-            Fp.Add(qOrder.Okay);
-            Fp.Add(qOrder.Praemie);
-            Fp.Add(qOrder.Strafe);
+            FpOrder.Add(d);
+            FpOrder.Add(qOrder.VonCity);
+            FpOrder.Add(qOrder.NachCity);
+            FpOrder.Add(qOrder.Date);
+            FpOrder.Add(qOrder.BisDate);
+            FpOrder.Add(qOrder.InPlan);
+            FpOrder.Add(qOrder.Okay);
+            FpOrder.Add(qOrder.Praemie);
+            FpOrder.Add(qOrder.Strafe);
         }
         for (SLONG d = 0; d < qPlayer.Frachten.AnzEntries(); d++) {
             if (qPlayer.Frachten.IsInAlbum(d) == 0) {
                 continue;
             }
             const CFracht &qFreight = qPlayer.Frachten[d];
-            Fp.Add(d);
-            Fp.Add(qFreight.VonCity);
-            Fp.Add(qFreight.NachCity);
-            Fp.Add(qFreight.Tons);
-            Fp.Add(qFreight.TonsOpen);
-            Fp.Add(qFreight.TonsLeft);
-            Fp.Add(qFreight.Praemie);
+            FpOrder.Add(d);
+            FpOrder.Add(qFreight.VonCity);
+            FpOrder.Add(qFreight.NachCity);
+            FpOrder.Add(qFreight.Tons);
+            FpOrder.Add(qFreight.TonsOpen);
+            FpOrder.Add(qFreight.TonsLeft);
+            FpOrder.Add(qFreight.Praemie);
         }
 
-        Fp.Add(qPlayer.Tank);
-        Fp.Add(qPlayer.TankInhalt);
-        Fp.Add(qPlayer.TankOpen);
-        Fp.Add(qPlayer.KerosinKind);
+        FpMisc.Add(qPlayer.Tank);
+        FpMisc.Add(qPlayer.TankInhalt);
+        FpMisc.Add(qPlayer.TankOpen);
+        FpMisc.Add(qPlayer.KerosinKind);
 
         /* Sabotage state: a sabotaged office and the security measures decide what the next
            saboteur gets away with. */
-        Fp.Add(qPlayer.OfficeState);
-        Fp.Add(qPlayer.SecurityFlags);
+        FpMisc.Add(qPlayer.OfficeState);
+        FpMisc.Add(qPlayer.SecurityFlags);
 
         /* A strike delays the player's departures on every peer. How it ended is left out: its
            owner's peer clears that once the player has been told. */
-        Fp.Add(qPlayer.StrikeHours);
-        Fp.Add(qPlayer.StrikePlanned);
-        Fp.Add(qPlayer.StrikeEndCountdown);
+        FpMisc.Add(qPlayer.StrikeHours);
+        FpMisc.Add(qPlayer.StrikePlanned);
+        FpMisc.Add(qPlayer.StrikeEndCountdown);
 
-        Fp.Add(qPlayer.Gates.NumRented);
+        FpMisc.Add(qPlayer.Gates.NumRented);
         for (SLONG d = 0; d < qPlayer.Gates.Gates.AnzEntries(); d++) {
-            Fp.Add(qPlayer.Gates.Gates[d].Nummer);
+            FpMisc.Add(qPlayer.Gates.Gates[d].Nummer);
         }
 
         /* Staff drives the salary booked every night, so a disagreement about who works for
@@ -277,20 +286,26 @@ void NetTraceFingerprint(const char *When) {
         SLONG Staff = 0;
         for (SLONG d = 0; d < SLONG(Workers.Workers.AnzEntries()); d++) {
             if (Workers.Workers[d].Employer == c) {
-                Fp.Add(d);
-                Fp.Add(Workers.Workers[d].Gehalt);
-                Fp.Add(Workers.Workers[d].Happyness);
+                FpStaff.Add(d);
+                FpStaff.Add(Workers.Workers[d].Gehalt);
+                FpStaff.Add(Workers.Workers[d].Happyness);
                 Staff++;
             }
         }
 
+        for (const Fingerprint *Part : {&FpCity, &FpRoute, &FpStock, &FpPlane, &FpOrder, &FpMisc, &FpStaff}) {
+            Fp.Add(Part->Get());
+        }
+
         AT_Log("FP  %s day=%ld t=%ld p=%ld owner=%ld out=%ld money=%lld credit=%lld image=%ld planes=%ld branches=%ld routes=%ld orders=%ld gates=%ld "
-               "shares=%ld staff=%ld hash=%08lx",
+               "shares=%ld staff=%ld hcity=%08lx hroute=%08lx hstock=%08lx hplane=%08lx horder=%08lx hmisc=%08lx hstaff=%08lx hash=%08lx",
                When, static_cast<long>(Sim.Date), static_cast<long>(Sim.Time), static_cast<long>(c), static_cast<long>(qPlayer.Owner),
                static_cast<long>(qPlayer.IsOut), static_cast<long long>(qPlayer.Money), static_cast<long long>(qPlayer.Credit),
                static_cast<long>(qPlayer.Image), static_cast<long>(qPlayer.Planes.AnzEntries()), static_cast<long>(Branches), static_cast<long>(Routes),
                static_cast<long>(qPlayer.Auftraege.AnzEntries()), static_cast<long>(qPlayer.Gates.Gates.AnzEntries()), static_cast<long>(qPlayer.AnzAktien),
-               static_cast<long>(Staff), static_cast<unsigned long>(Fp.Get()));
+               static_cast<long>(Staff), static_cast<unsigned long>(FpCity.Get()), static_cast<unsigned long>(FpRoute.Get()),
+               static_cast<unsigned long>(FpStock.Get()), static_cast<unsigned long>(FpPlane.Get()), static_cast<unsigned long>(FpOrder.Get()),
+               static_cast<unsigned long>(FpMisc.Get()), static_cast<unsigned long>(FpStaff.Get()), static_cast<unsigned long>(Fp.Get()));
     }
 
     /* The shared pools are the other thing every peer must agree on: a divergence here is what
