@@ -2685,10 +2685,16 @@ bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork)
     return true;
 }
 
-bool GameMechanic::killCity(PLAYER &qPlayer, SLONG cityID) {
+bool GameMechanic::killCity(PLAYER &qPlayer, SLONG cityID, bool fromNetwork) {
     if (cityID < 0 || cityID >= qPlayer.RentCities.RentCities.size()) {
         AT_Error("GameMechanic::killCity(%s): Invalid cityID (%ld).", qPlayer.AirlineX.c_str(), cityID);
         return false;
+    }
+
+    /* Nothing else carries a branch's rank to the other peers: without this they keep the
+       branch for good, and with it its rent and its effect on the player's flights. */
+    if (!fromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_KILL_CITY, 0, qPlayer.PlayerNum, cityID);
     }
 
     BLOCKS &qBlocks = qPlayer.Blocks;

@@ -355,7 +355,7 @@ void CTafelData::Randomize(SLONG Day) {
     TEAKRAND localRand(Sim.Date + Sim.StartTime);
 
     if (GlobalUse(USE_TRAVELHOLDING)) {
-        ULONG maxCities = Sim.Options.OptionRentOfficeMaxAvailable;
+        ULONG maxCities = Sim.RentOfficeMaxAvailable();
         if (Sim.Difficulty == DIFF_NORMAL && maxCities < 4) {
             maxCities = 4;
         }
@@ -370,7 +370,7 @@ void CTafelData::Randomize(SLONG Day) {
 
         ULONG citiesToPick = 0;
         for (c = 0; c < numTries; c++) {
-            BOOL shouldRun = localRand.Rand(100) < Sim.Options.OptionRentOfficeTriggerPercent;
+            BOOL shouldRun = localRand.Rand(100) < Sim.RentOfficeTriggerPercent();
             // Should we consider adding a city to the board through pseudo-RNG ?
             if (!shouldRun || citiesToPick >= availableCities.size() || citiesToPick >= maxCities) {
                 continue;
@@ -380,7 +380,7 @@ void CTafelData::Randomize(SLONG Day) {
         }
 
         // Players might set a min value
-        citiesToPick = std::max(citiesToPick, Sim.Options.OptionRentOfficeMinAvailable);
+        citiesToPick = std::max(citiesToPick, Sim.RentOfficeMinAvailable());
         // Also, we don't want to set more than the availableCities or more than 7 (because UI doesn't manage it yet).
         citiesToPick = std::min({citiesToPick, (ULONG)availableCities.size(), (ULONG)7U});
 

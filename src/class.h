@@ -2535,6 +2535,17 @@ class SIM // Die Simulationswelt; alles was zur aktuellen Partie gehört
     BOOL bIsHost{};      // Is this computer the network-host?
     CString SessionName; // The name of the current Session
 
+    /* The host's OptionRentOffice* (trigger percent, min, max), received at the start of a
+       network game: the branches on the board are shared state, so a client picks them with
+       the host's settings instead of its own. */
+    std::array<ULONG, 3> HostRentOffice{};
+    bool bHasHostRentOffice{};
+
+    ULONG RentOfficeTriggerPercent() const { return UseHostRentOffice() ? HostRentOffice[0] : Options.OptionRentOfficeTriggerPercent; }
+    ULONG RentOfficeMinAvailable() const { return UseHostRentOffice() ? HostRentOffice[1] : Options.OptionRentOfficeMinAvailable; }
+    ULONG RentOfficeMaxAvailable() const { return UseHostRentOffice() ? HostRentOffice[2] : Options.OptionRentOfficeMaxAvailable; }
+    bool UseHostRentOffice() const { return bNetwork != 0 && bIsHost == 0 && bHasHostRentOffice; }
+
     BOOL bCheatedSession{};      // Wenn der Spieler cheatet, gibt's keine Highscore
     BOOL bReloadAirport;         // Reload the Airport over night because of the update
     BOOL bWatchForReady{};       // Auf die ReadyForMorning Flags achten?

@@ -145,7 +145,7 @@ class GameMechanic {
     static bool fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork = false);
 
     /* Routes */
-    static bool killCity(PLAYER &qPlayer, SLONG cityID);
+    static bool killCity(PLAYER &qPlayer, SLONG cityID, bool fromNetwork = false);
     static BUFFER_V<BOOL> getBuyableRoutes(PLAYER &qPlayer);
     static bool killRoute(PLAYER &qPlayer, SLONG routeA);
     static bool rentRoute(PLAYER &qPlayer, SLONG routeA);
