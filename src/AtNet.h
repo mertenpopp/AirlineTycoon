@@ -153,6 +153,8 @@ static const ULONG ATNET_SYNCKEROSIN = 0xadaa1802;     // Hello all, I here's my
 static const ULONG ATNET_SYNCGEHALT = 0xadaa1803;      // Hello all, I'm paying this much for workers
 static const ULONG ATNET_SYNCNUMFLUEGE = 0xadaa1804;   // Hello all, I've accepted this many flights
 static const ULONG ATNET_SYNCROUTECHANGE = 0xadaa1805; // Hello all, I've just change my route paramters
+static const ULONG ATNET_WORKER_HIRE = 0xadaa1806;     // Hello all, player x just hired worker y
+static const ULONG ATNET_WORKER_FIRE = 0xadaa1807;     // Hello all, player x just fired worker y
 
 static const ULONG ATNET_BOTSELECT = 0xadab0000;
 
@@ -263,5 +265,7 @@ DEFINE_NAME_ENTRY(ATNET_SYNCKEROSIN, "I here's my kerosine state")
 DEFINE_NAME_ENTRY(ATNET_SYNCGEHALT, "I'm paying this much for workers")
 DEFINE_NAME_ENTRY(ATNET_SYNCNUMFLUEGE, "I've accepted this many flights")
 DEFINE_NAME_ENTRY(ATNET_SYNCROUTECHANGE, "I've just change my route paramters")
+DEFINE_NAME_ENTRY(ATNET_WORKER_HIRE, "Player x just hired worker y")
+DEFINE_NAME_ENTRY(ATNET_WORKER_FIRE, "Player x just fired worker y")
 DEFINE_NAME_ENTRY(ATNET_BOTSELECT, "I've chosen bot difficulty")
 END_NAME_MAP

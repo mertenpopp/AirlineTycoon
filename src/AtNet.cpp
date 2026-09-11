@@ -7,6 +7,7 @@
 #include "NetTrace.h"
 
 #include "Buero.h"
+#include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
 #include "network.h"
@@ -2035,6 +2036,25 @@ void PumpNetwork() {
                     qPlayer.KerosinQuali = KerosinQuali;
                     qPlayer.KerosinKind = KerosinKind;
                     qPlayer.TankPreis = TankPreis;
+                }
+            } break;
+
+            case ATNET_WORKER_HIRE:
+            case ATNET_WORKER_FIRE: {
+                SLONG PlayerNum = 0;
+                SLONG WorkerId = 0;
+
+                Message >> PlayerNum >> WorkerId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                /* Same validation as a local hire or fire: if this peer's worker pool already
+                   disagreed, it logs an error instead of silently hiring the wrong person. */
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                const bool ok = (MessageType == ATNET_WORKER_HIRE) ? GameMechanic::hireWorker(qPlayer, WorkerId, true)
+                                                                   : GameMechanic::fireWorker(qPlayer, WorkerId, true);
+                if (!ok) {
+                    NetTraceEvent("WORKERSYNC failed name=%s p=%ld worker=%ld", Translate_ATNET(MessageType), static_cast<long>(PlayerNum),
+                                  static_cast<long>(WorkerId));
                 }
             } break;
 
