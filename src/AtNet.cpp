@@ -2183,6 +2183,30 @@ void PumpNetwork() {
                 }
             } break;
 
+            case ATNET_WORKER_SALARY: {
+                SLONG PlayerNum = 0;
+                SLONG WorkerId = 0;
+                SLONG Art = 0;
+
+                Message >> PlayerNum >> WorkerId >> Art;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                /* Repeat the owner's change rather than copying its result, so that a worker
+                   the cut drives out of the job leaves on this peer too. */
+                if (WorkerId == -1) {
+                    if (Art == 2) {
+                        GameMechanic::increaseAllSalaries(Sim.Players.Players[PlayerNum], true);
+                    } else {
+                        Workers.Gehaltsaenderung(Art, PlayerNum, true);
+                    }
+                } else if (WorkerId >= 0 && WorkerId < Workers.Workers.AnzEntries() && Workers.Workers[WorkerId].Employer == PlayerNum) {
+                    Workers.Workers[WorkerId].Gehaltsaenderung(Art, true);
+                } else {
+                    NetTraceEvent("WORKERSYNC failed name=%s p=%ld worker=%ld", Translate_ATNET(MessageType), static_cast<long>(PlayerNum),
+                                  static_cast<long>(WorkerId));
+                }
+            } break;
+
             case ATNET_SYNCGEHALT: {
                 SLONG playerId = 0;
                 SLONG gehalt = 0;

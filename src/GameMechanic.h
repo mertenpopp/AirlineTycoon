@@ -95,7 +95,7 @@ class GameMechanic {
     static SLONG setMechMode(PLAYER &qPlayer, SLONG mode);
 
     /* HR */
-    static void increaseAllSalaries(PLAYER &qPlayer);
+    static void increaseAllSalaries(PLAYER &qPlayer, bool bFromNetwork = false);
     static void decreaseAllSalaries(PLAYER &qPlayer);
     static void planStrike(PLAYER &qPlayer);
     enum class EndStrikeMode { Salary, Threat, Drunk, Waiting };

@@ -266,11 +266,14 @@ void NetTraceFingerprint(const char *When) {
         }
 
         /* Staff drives the salary booked every night, so a disagreement about who works for
-           whom surfaces as money a day later - better to see it directly. */
+           whom, or for how much, surfaces as money a day later - better to see it directly.
+           Happiness decides who quits during the night. */
         SLONG Staff = 0;
         for (SLONG d = 0; d < SLONG(Workers.Workers.AnzEntries()); d++) {
             if (Workers.Workers[d].Employer == c) {
                 Fp.Add(d);
+                Fp.Add(Workers.Workers[d].Gehalt);
+                Fp.Add(Workers.Workers[d].Happyness);
                 Staff++;
             }
         }
