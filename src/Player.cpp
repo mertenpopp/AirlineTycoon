@@ -6269,9 +6269,9 @@ bool PLAYER::DropItem(UBYTE Item) {
             ReformIcons();
 
             /* What a player carries is shown to everybody and decides what a saboteur may do, and
-               this is the one place where an item is used up - the tool a sabotage consumes, the
-               laptop a virus eats. Nothing told the other peers, so they went on believing the
-               item was still there. */
+               this is the one place where an item leaves a player's hands - the tool a sabotage
+               consumes, the laptop handed in for repair. Nothing told the other peers, so they
+               went on believing the item was still there. */
             if (Sim.bNetwork != 0) {
                 NetSynchronizeItems();
             }

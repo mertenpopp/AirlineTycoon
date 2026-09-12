@@ -4600,7 +4600,9 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
             case 2001: {
                 qPlayer.LaptopVirus = 2;
 
-                /* Through DropItem, so that the other peers hear that the laptop is gone. */
+                /* The player hands the laptop in for repair, so it does leave the inventory here -
+                   the virus itself (LaptopVirus) only disables it and is cured with the disk.
+                   Through DropItem, so that the other peers hear that it is gone. */
                 qPlayer.DropItem(ITEM_LAPTOP);
             }
                 StopDialog();
