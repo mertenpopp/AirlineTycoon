@@ -537,6 +537,24 @@ void PLAYER::NetUpdatePlaneProps(SLONG PlaneId) {
 }
 
 //--------------------------------------------------------------------------------------------
+// Resends the kerosine state of this peer's players:
+//--------------------------------------------------------------------------------------------
+/* The tank drains with every flight, and every peer works that out for itself; the state is only
+   broadcast when somebody buys a tank, buys kerosine or opens it. So a single flight that went
+   differently for a moment left the tanks apart for the rest of the game - and what is in the
+   tank decides what the next flight costs. The owner resends it every hour, as it does money,
+   image, routes and staff. */
+void PLAYER::NetSynchronizeKerosin() {
+    for (SLONG c = 0; c < 4; c++) {
+        PLAYER &qPlayer = Sim.Players.Players[c];
+
+        if (needToSyncPlayer(qPlayer, false)) {
+            qPlayer.NetUpdateKerosin();
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------
 // Broadcasts a players kerosine state:
 //--------------------------------------------------------------------------------------------
 void PLAYER::NetUpdateKerosin() const {
