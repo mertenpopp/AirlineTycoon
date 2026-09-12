@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs an unattended multiplayer session with N peers on this machine and diffs their traces.
 #
-#   ./scripts/run_multiplayer.sh [--debug] [humans] [days] [botlevels] [gohome] [cutsalaries]
+#   ./scripts/run_multiplayer.sh [--debug] [humans] [days] [botlevels] [gohome] [cutsalaries] [tracelevel]
 #
 # --debug builds the same optimised Release configuration with debug symbols added (-g) into
 # build-debug/ and runs the peers on that binary, so that a crash leaves a core with source
@@ -16,6 +16,10 @@
 # cutsalaries makes each idle human cut all salaries that many times before going home the
 # first time, as the personnel dialog does; 4 makes their staff strike the next morning. Needs
 # gohome.
+#
+# tracelevel is what /nettrace gets: 1 (default) logs the protocol and the fingerprints, 2 adds
+# the high frequency messages and spells out each player's staff, for tracking a differing
+# fingerprint down to the field.
 #
 # days=0 quits as soon as the players reach the boss's office on the first morning - enough to
 # exercise the lobby and the start of the game in well under a minute.
@@ -39,6 +43,7 @@ DAYS=${2:-10}
 BOTS=${3:-44}
 GOHOME=${4:-0}
 CUTSALARIES=${5:-0}
+TRACELEVEL=${6:-1}
 
 GAME="/media/LINUX/GOG Games/Airline Tycoon Deluxe/game"
 RUN="$GAME/mprun"
@@ -74,13 +79,13 @@ for ((i = 0; i < HUMANS; i++)); do
     [ -f "$GAME/AT.json" ] && cp "$GAME/AT.json" "$peer/AT.json"
 done
 
-echo "Starting $HUMANS peers for $DAYS days (bots=$BOTS, gohome=$GOHOME, cutsalaries=$CUTSALARIES)..."
+echo "Starting $HUMANS peers for $DAYS days (bots=$BOTS, gohome=$GOHOME, cutsalaries=$CUTSALARIES, trace=$TRACELEVEL)..."
 
 pids=()
 # Host first, so that the clients have something to connect to. They retry anyway.
 (
     cd "$RUN/peer0" || exit 1
-    ./AT /mphost 0 "$HUMANS" "$BOTS" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mptimeout "$TIMEOUT" /nettrace 1 \
+    ./AT /mphost 0 "$HUMANS" "$BOTS" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
         >"$RUN/peer0.log" 2>&1
 ) &
 pids+=($!)
@@ -88,7 +93,7 @@ pids+=($!)
 for ((i = 1; i < HUMANS; i++)); do
     (
         cd "$RUN/peer$i" || exit 1
-        ./AT /mpjoin 127.0.0.1 "$i" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mptimeout "$TIMEOUT" /nettrace 1 \
+        ./AT /mpjoin 127.0.0.1 "$i" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
             >"$RUN/peer$i.log" 2>&1
     ) &
     pids+=($!)
