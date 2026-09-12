@@ -1435,6 +1435,9 @@ void SIM::DoTimeStep() {
             if (Minute >= 40 && OldMinute < 40) {
                 PLAYER::NetSynchronizeStaff();
             }
+            if (Minute >= 50 && OldMinute < 50) {
+                PLAYER::NetSynchronizeKerosin();
+            }
             if (Minute >= 30 && OldMinute < 30) {
                 PLAYER::NetSynchronizeRoutes();
             }
