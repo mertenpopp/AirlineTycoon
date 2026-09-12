@@ -105,10 +105,38 @@ def report_divergence(peers):
                 print(f"   {peer['path']} controls {local} players at day={day} {when} (expected exactly 1)")
                 break
 
-    for key in sorted(common, key=order):
+    keys = sorted(common, key=order)
+
+    def agrees(key):
         rows = [table[key] for table in tables]
-        if len({r.get("hash") for r in rows}) == 1 and len({role(r) for r in rows}) == 1:
+        return len({r.get("hash") for r in rows}) == 1 and len({role(r) for r in rows}) == 1
+
+    # A divergence the next sync repairs is a different animal from one that stays. The owner
+    # resends money, image, routes and staff every hour and at the morning briefing, so a
+    # message that crossed a nightly computation shows up once and is gone - worth listing,
+    # but not worth stopping at while a lasting one may follow.
+    def heals_later(key):
+        who = key[2]
+        seen = False
+        for other in keys:
+            if other == key:
+                seen = True
+                continue
+            if seen and other[2] == who:
+                return agrees(other)
+        return False
+
+    transient = [k for k in keys if not agrees(k) and heals_later(k)]
+    if transient:
+        print("   healed again later (the owner resends its state every hour):")
+        for day, when, who in transient:
+            print(f"      day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
+        print()
+
+    for key in keys:
+        if agrees(key) or key in transient:
             continue
+        rows = [table[key] for table in tables]
         day, when, who = key
         print(f"   day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
         if len({role(r) for r in rows}) > 1:
@@ -130,7 +158,10 @@ def report_divergence(peers):
         print("\n   (everything after this point is downstream of this divergence)\n")
         return
 
-    print("   peers agree on every shared fingerprint\n")
+    if transient:
+        print("   every divergence was healed again - none of them lasted\n")
+    else:
+        print("   peers agree on every shared fingerprint\n")
 
 
 def report_unmatched(peers):
