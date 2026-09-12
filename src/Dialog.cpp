@@ -4600,13 +4600,8 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
             case 2001: {
                 qPlayer.LaptopVirus = 2;
 
-                for (SLONG c = 0; c < 6; c++) {
-                    if (qPlayer.Items[c] == ITEM_LAPTOP) {
-                        qPlayer.Items[c] = 0xff;
-                    }
-                }
-
-                qPlayer.ReformIcons();
+                /* Through DropItem, so that the other peers hear that the laptop is gone. */
+                qPlayer.DropItem(ITEM_LAPTOP);
             }
                 StopDialog();
                 break;
