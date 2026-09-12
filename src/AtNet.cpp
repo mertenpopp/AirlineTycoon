@@ -1025,6 +1025,13 @@ void PumpNetwork() {
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* Routen() looks the route up and throws when it does not know it. */
+                if (Routen.IsInAlbum(RouteId) == 0) {
+                    NetTraceEvent("DROP name=%s reason=route %ld unknown", Translate_ATNET(MessageType), static_cast<long>(RouteId));
+                    break;
+                }
+
                 if (qPlayer.RentRouten.RentRouten[Routen(RouteId)].Ticketpreis != Ticketpreis) {
                     DebugBreak();
                 }
@@ -1068,6 +1075,13 @@ void PumpNetwork() {
 
                 Message >> Type >> City >> Delta >> Time;
 
+                /* City indexes plain vectors below, where out of range is not an error but a
+                   write into whatever happens to lie there. */
+                if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsRefill.size()))) {
+                    NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(MessageType), static_cast<long>(City));
+                    break;
+                }
+
                 switch (Type) {
                 case 1:
                     Sim.TickLastMinuteRefill = Delta;
@@ -1103,6 +1117,43 @@ void PumpNetwork() {
 
                 Message >> PlayerNum >> Type >> Index >> City;
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                /* Which order somebody took, by its place in a shared list. If the lists had
+                   drifted apart the lookup throws (and ends a release build) or, for the foreign
+                   cities, indexes a vector out of range. */
+                if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsFrachten.size()))) {
+                    NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(MessageType), static_cast<long>(City));
+                    break;
+                }
+
+                {
+                    bool bKnown = false;
+                    switch (Type) {
+                    case 1:
+                        bKnown = (LastMinuteAuftraege.IsInAlbum(Index) != 0);
+                        break;
+                    case 2:
+                        bKnown = (ReisebueroAuftraege.IsInAlbum(Index) != 0);
+                        break;
+                    case 3:
+                        bKnown = (gFrachten.IsInAlbum(Index) != 0);
+                        break;
+                    case 4:
+                        bKnown = (AuslandsAuftraege[City].IsInAlbum(Index) != 0);
+                        break;
+                    case 5:
+                        bKnown = (AuslandsFrachten[City].IsInAlbum(Index) != 0);
+                        break;
+                    default:
+                        break;
+                    }
+
+                    if (!bKnown) {
+                        NetTraceEvent("DROP name=%s reason=order %ld of type %ld unknown", Translate_ATNET(MessageType), static_cast<long>(Index),
+                                      static_cast<long>(Type));
+                        break;
+                    }
+                }
 
                 switch (Type) {
                 case 1:
@@ -1269,6 +1320,15 @@ void PumpNetwork() {
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* Both index a plain vector, where out of range writes over whatever lies
+                   there - and a whole CRentRoute is written, not a single field. */
+                if (Route1Id < 0 || Route1Id >= qPlayer.RentRouten.RentRouten.AnzEntries() || Route2Id < 0 ||
+                    Route2Id >= qPlayer.RentRouten.RentRouten.AnzEntries()) {
+                    NetTraceEvent("DROP name=%s reason=routes %ld and %ld out of range", Translate_ATNET(MessageType), static_cast<long>(Route1Id),
+                                  static_cast<long>(Route2Id));
+                    break;
+                }
 
                 Message >> qPlayer.RentRouten.RentRouten[Route1Id];
                 Message >> qPlayer.RentRouten.RentRouten[Route2Id];
