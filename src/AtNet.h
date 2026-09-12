@@ -114,7 +114,7 @@ static const ULONG ATNET_PLAYER_18UHR = 0xadaa1202;  // 18 Uhr, ende der Synchro
 static const ULONG ATNET_FP_UPDATE = 0xadaa1300;      // Broadcasts all flights of one plane when a human player updates his flighplan
 static const ULONG ATNET_TAKE_ORDER = 0xadaa1301;     // Hey all, I just took this order flight
 static const ULONG ATNET_TAKE_FREIGHT = 0xadaa1302;   // Hey all, I just took this freight order flight
-static const ULONG ATNET_TAKE_CITY = 0xadaa1303;      // Hey all, I just bid for a city or a gate
+static const ULONG ATNET_BID = 0xadaa1303;            // Hey all, I just bid this much for the city or gate on note x
 static const ULONG ATNET_TAKE_ROUTE = 0xadaa1304;     // Hey all, I just rented or dropped a route
 static const ULONG ATNET_ADVISOR = 0xadaa1305;        // Hey all, I have just <generic>, maybe your advisors should display that
 static const ULONG ATNET_BUY_USED = 0xadaa1306;       // Hey all, please mark the used plane x as sold
@@ -240,7 +240,7 @@ DEFINE_NAME_ENTRY(ATNET_PLAYER_18UHR, )
 DEFINE_NAME_ENTRY(ATNET_FP_UPDATE, )
 DEFINE_NAME_ENTRY(ATNET_TAKE_ORDER, )
 DEFINE_NAME_ENTRY(ATNET_TAKE_FREIGHT, )
-DEFINE_NAME_ENTRY(ATNET_TAKE_CITY, )
+DEFINE_NAME_ENTRY(ATNET_BID, "I just bid for a city or a gate")
 DEFINE_NAME_ENTRY(ATNET_TAKE_ROUTE, )
 DEFINE_NAME_ENTRY(ATNET_ADVISOR, )
 DEFINE_NAME_ENTRY(ATNET_BUY_USED, )

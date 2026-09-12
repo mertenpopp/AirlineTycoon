@@ -1148,7 +1148,7 @@ bool GameMechanic::bidOnGate(PLAYER &qPlayer, SLONG idx) {
         qGate.WasInterested = TRUE;
     }
 
-    _syncTafelData();
+    _announceBid(qGate);
 
     return true;
 }
@@ -1187,23 +1187,25 @@ bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx) {
         qCity.WasInterested = TRUE;
     }
 
-    _syncTafelData();
+    _announceBid(qCity);
 
     return true;
 }
 
-void GameMechanic::_syncTafelData() {
-    TEAKFILE Message;
-    Message.Announce(1024);
-
-    Message << ATNET_TAKE_CITY;
-
-    for (SLONG c = 0; c < 7; c++) {
-        Message << TafelData.City[c].Player << TafelData.City[c].Preis;
-        Message << TafelData.Gate[c].Player << TafelData.Gate[c].Preis;
+/* Announces one bid rather than the whole board. Two peers can bid in the same moment - the
+   flight supervisor's office holds everybody at 9:00, and the host's bots bid on their own - and
+   a whole-board snapshot then left each peer with whichever snapshot arrived last: they ended up
+   with different holders, and one bid was gone. A single bid can be merged in any order, see the
+   ATNET_BID handler. */
+void GameMechanic::_announceBid(const CTafelZettel &qNote) {
+    const auto &Notes = (qNote.Type == CTafelZettel::Type::CITY) ? TafelData.City : TafelData.Gate;
+    const SLONG Slot = static_cast<SLONG>(&qNote - Notes.data());
+    if (Slot < 0 || Slot >= SLONG(Notes.size())) {
+        AT_Error("GameMechanic::_announceBid: Note is not on the board.");
+        return;
     }
 
-    SIM::SendMemFile(Message);
+    SIM::SendSimpleMessage(ATNET_BID, 0, static_cast<SLONG>(qNote.Type), Slot, qNote.Player, qNote.Preis);
 }
 
 SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode) {

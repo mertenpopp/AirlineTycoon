@@ -1158,10 +1158,30 @@ void PumpNetwork() {
                 qPlayer.Frachten += a;
             } break;
 
-            case ATNET_TAKE_CITY: {
-                for (SLONG c = 0; c < 7; c++) {
-                    Message >> TafelData.City[c].Player >> TafelData.City[c].Preis;
-                    Message >> TafelData.Gate[c].Player >> TafelData.Gate[c].Preis;
+            case ATNET_BID: {
+                SLONG Type = 0;
+                SLONG Slot = 0;
+                SLONG PlayerNum = 0;
+                SLONG Preis = 0;
+
+                Message >> Type >> Slot >> PlayerNum >> Preis;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                if ((Type != CTafelZettel::Type::CITY && Type != CTafelZettel::Type::GATE) || Slot < 0 || Slot >= 7) {
+                    NetTraceEvent("BID out of range type=%ld slot=%ld", static_cast<long>(Type), static_cast<long>(Slot));
+                    break;
+                }
+
+                CTafelZettel &qNote = (Type == CTafelZettel::Type::CITY) ? TafelData.City[Slot] : TafelData.Gate[Slot];
+
+                /* Every bid raises the note's price by a tenth, so the higher price is the later
+                   bid, and two peers that bid in the same moment send the same price. Taking the
+                   higher price, and on equal prices the lower player number, leaves every peer
+                   with the same holder whichever order the bids arrive in - which a whole-board
+                   snapshot did not. */
+                if (Preis > qNote.Preis || (Preis == qNote.Preis && PlayerNum < qNote.Player)) {
+                    qNote.Preis = Preis;
+                    qNote.Player = PlayerNum;
                 }
             } break;
 
