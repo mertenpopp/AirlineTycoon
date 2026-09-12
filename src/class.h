@@ -1751,6 +1751,9 @@ class /**/ CWorkers {
     CWorkers(const CString &TabFilename, const CString &TabFilename2);
 
     CString GetRandomName(BOOL Geschlecht) const;
+    /* Names of new applicants have to match on every peer: the pool is shared, and the hire and
+       fire messages name a worker by his place in it. */
+    CString GetRandomName(BOOL Geschlecht, TEAKRAND &NameRand) const;
 
     void CheckShortageAndSort(void);
     void ReInit(const CString &TabFilename, const CString &TabFilename2);
@@ -1770,9 +1773,9 @@ class /**/ CWorkers {
     friend TEAKFILE &operator>>(TEAKFILE &File, CWorkers &Workers);
 
   private:
-    CWorker createBerater(TEAKRAND &LocalRand, SLONG typ) const;
-    CWorker createPilot(TEAKRAND &LocalRand) const;
-    CWorker createStewardess(TEAKRAND &LocalRand) const;
+    CWorker createBerater(TEAKRAND &LocalRand, TEAKRAND &NameRand, SLONG typ) const;
+    CWorker createPilot(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
+    CWorker createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
     SLONG AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent);
 };
 
