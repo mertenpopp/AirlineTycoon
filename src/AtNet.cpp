@@ -2459,8 +2459,15 @@ void NetGenericSync(SLONG SyncId) {
        before another peer has received the last human's first: that peer then saw
        0x4211015 where it waited for 0x4211014 and waited forever - and everyone else with it
        at the second sync. A resent packet on the internet is enough to open that window. */
+    /* This loop neither draws nor takes input, so a peer that never sends its half looks to the
+       player like a hung game - and left nothing in the log to say so. Name the players still
+       missing every five seconds. */
+    const DWORD WaitingSince = AtGetTime();
+    DWORD LastReported = WaitingSince;
+
     while (true) {
         bool bAllThere = true;
+        SLONG Missing = 0;
         for (SLONG c = 0; c < 4; c++) {
             if (c == Sim.localPlayer || Sim.Players.Players[c].Owner == 1 || (Sim.Players.Players[c].IsOut != 0)) {
                 continue;
@@ -2468,8 +2475,17 @@ void NetGenericSync(SLONG SyncId) {
             const auto &Received = GenericSyncReceived[c];
             if (std::find(Received.begin(), Received.end(), SyncId) == Received.end()) {
                 bAllThere = false;
-                break;
+                Missing |= (1 << c);
             }
+        }
+
+        if (!bAllThere && AtGetTime() - LastReported >= 5000) {
+            LastReported = AtGetTime();
+            AT_Log("Still waiting for sync %lx from players 0x%lx after %lu s (day %ld %02ld:%02ld)", static_cast<unsigned long>(SyncId),
+                   static_cast<unsigned long>(Missing), static_cast<unsigned long>((AtGetTime() - WaitingSince) / 1000), static_cast<long>(Sim.Date),
+                   static_cast<long>(Sim.GetHour()), static_cast<long>(Sim.GetMinute()));
+            NetTraceEvent("STILLSYNCING id=%lx missing=0x%lx seconds=%lu", static_cast<unsigned long>(SyncId), static_cast<unsigned long>(Missing),
+                          static_cast<unsigned long>((AtGetTime() - WaitingSince) / 1000));
         }
 
         if (bAllThere) {
