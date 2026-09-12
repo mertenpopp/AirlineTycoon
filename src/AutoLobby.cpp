@@ -147,6 +147,13 @@ void AutoLobbyPumpDay() {
         return Blocked(bprintf("room %ld without window", static_cast<long>(qPlayer.GetRoom())));
     }
     CStdRaum &qWin = *qPlayer.LocationWin;
+    if (qWin.MenuIsOpen() != 0) {
+        /* A fax the game puts up on its own - the workers are striking, somebody sabotaged us -
+           waits for a click that nobody here gives, and the day then runs to 18:00 at walking
+           pace with everything else waiting on it. Click it away, as a player does. */
+        NetTraceEvent("MENUAWAY");
+        qWin.MenuStop();
+    }
     if (qWin.IsDialogOpen() != 0 || qWin.MenuIsOpen() != 0) {
         return Blocked(bprintf("dialog %ld menu %ld", static_cast<long>(qWin.IsDialogOpen()), static_cast<long>(qWin.MenuIsOpen())));
     }
