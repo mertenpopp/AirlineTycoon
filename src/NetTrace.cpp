@@ -380,6 +380,9 @@ void NetTraceFingerprint(const char *When) {
     /* The weekday decides which rooms are closed. */
     Pool.Add(Sim.Weekday);
 
+    /* Today's kerosine price: it goes into the cost of every flight. */
+    Pool.Add(Sim.Kerosin);
+
     /* The applicants waiting for work: the pool is shared, and a hire names a worker by his
        place in it, so the peers must agree on who stands where - names included, or two
        players cannot talk about the same person. Each employer's own staff is hashed with the
