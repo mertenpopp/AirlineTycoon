@@ -64,6 +64,12 @@ else
     BINARY="$GAME/AT"
 fi
 
+# Peers of an earlier run that was interrupted would fight this one for the session, and the
+# lobby then times out. Only harness instances are matched, never a game started by hand.
+pkill -9 -f "AT /mphost" 2>/dev/null
+pkill -9 -f "AT /mpjoin" 2>/dev/null
+sleep 1
+
 rm -rf "$RUN"
 mkdir -p "$RUN"
 
