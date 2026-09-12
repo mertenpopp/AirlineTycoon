@@ -1432,6 +1432,9 @@ void SIM::DoTimeStep() {
             if (Minute >= 20 && OldMinute < 20) {
                 PLAYER::NetSynchronizeImage();
             }
+            if (Minute >= 40 && OldMinute < 40) {
+                PLAYER::NetSynchronizeStaff();
+            }
             if (Minute >= 30 && OldMinute < 30) {
                 PLAYER::NetSynchronizeRoutes();
             }

@@ -364,6 +364,45 @@ void PLAYER::NetSynchronizeKooperation() const {
 }
 
 //--------------------------------------------------------------------------------------------
+// Sends what this peer's people earn and how they feel:
+//--------------------------------------------------------------------------------------------
+/* Salaries and happiness are changed by every peer alike - at night, and when a salary change or
+   the end of a strike is announced - so they should never drift. But nothing repaired them when
+   they did: a strike that started an hour apart once left a whole staff 10 happiness apart for
+   the rest of the game, which then decides who quits and when the next strike comes. The owner
+   resends them every hour, as it does money, image and routes. */
+void PLAYER::NetSynchronizeStaff() {
+    TEAKFILE Message;
+
+    Message.Announce(1024);
+
+    Message << ATNET_SYNC_STAFF << NetSynchronizeGetNum(false);
+
+    for (SLONG c = 0; c < 4; c++) {
+        PLAYER &qPlayer = Sim.Players.Players[c];
+
+        if (needToSyncPlayer(qPlayer, false)) {
+            SLONG Anz = 0;
+            for (SLONG d = 0; d < Workers.Workers.AnzEntries(); d++) {
+                if (Workers.Workers[d].Employer == c) {
+                    Anz++;
+                }
+            }
+
+            Message << c << Anz;
+
+            for (SLONG d = 0; d < Workers.Workers.AnzEntries(); d++) {
+                if (Workers.Workers[d].Employer == c) {
+                    Message << d << Workers.Workers[d].Gehalt << Workers.Workers[d].Happyness;
+                }
+            }
+        }
+    }
+
+    SIM::SendMemFile(Message);
+}
+
+//--------------------------------------------------------------------------------------------
 // Changes how much this player likes another one, and tells the other peers:
 //--------------------------------------------------------------------------------------------
 /* How a player feels about the others belongs to that player, so a dialog may only change it

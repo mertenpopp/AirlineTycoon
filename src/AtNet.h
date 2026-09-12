@@ -160,6 +160,7 @@ static const ULONG ATNET_WORKER_FIRE = 0xadaa1807;     // Hello all, player x ju
 static const ULONG ATNET_WORKER_SALARY = 0xadaa1808;   // Hello all, player x just changed the salary of worker y (-1 = all)
 static const ULONG ATNET_STRIKE = 0xadaa1809;          // Hello all, the strike at player x ended (0) or its hours were set (1)
 static const ULONG ATNET_KILL_CITY = 0xadaa180a;       // Hello all, player x just gave up the branch in city y
+static const ULONG ATNET_SYNC_STAFF = 0xadaa180b;      // Synchronizes what my people earn and how they feel
 
 static const ULONG ATNET_BOTSELECT = 0xadab0000;
 
@@ -276,5 +277,6 @@ DEFINE_NAME_ENTRY(ATNET_WORKER_FIRE, "Player x just fired worker y")
 DEFINE_NAME_ENTRY(ATNET_WORKER_SALARY, "Player x just changed the salary of worker y")
 DEFINE_NAME_ENTRY(ATNET_STRIKE, "The strike at player x ended")
 DEFINE_NAME_ENTRY(ATNET_KILL_CITY, "Player x just gave up the branch in city y")
+DEFINE_NAME_ENTRY(ATNET_SYNC_STAFF, "What my people earn and how they feel")
 DEFINE_NAME_ENTRY(ATNET_BOTSELECT, "I've chosen bot difficulty")
 END_NAME_MAP

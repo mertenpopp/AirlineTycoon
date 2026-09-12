@@ -2338,6 +2338,37 @@ void PumpNetwork() {
                 }
             } break;
 
+            case ATNET_SYNC_STAFF: {
+                SLONG Anz = 0;
+
+                Message >> Anz;
+
+                while (Anz > 0) {
+                    SLONG PlayerNum = 0;
+                    SLONG Workers2 = 0;
+
+                    Message >> PlayerNum >> Workers2;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                    for (SLONG d = 0; d < Workers2; d++) {
+                        SLONG WorkerId = 0;
+                        SLONG Gehalt = 0;
+                        SLONG Happyness = 0;
+
+                        Message >> WorkerId >> Gehalt >> Happyness;
+
+                        /* Only for people this player really employs here: if the pools had drifted
+                           apart, writing by index alone would scramble somebody else's staff. */
+                        if (WorkerId >= 0 && WorkerId < Workers.Workers.AnzEntries() && Workers.Workers[WorkerId].Employer == PlayerNum) {
+                            Workers.Workers[WorkerId].Gehalt = Gehalt;
+                            Workers.Workers[WorkerId].Happyness = Happyness;
+                        }
+                    }
+
+                    Anz--;
+                }
+            } break;
+
             case ATNET_SYNCGEHALT: {
                 SLONG playerId = 0;
                 SLONG gehalt = 0;
