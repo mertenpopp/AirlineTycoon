@@ -292,6 +292,14 @@ void NetTraceFingerprint(const char *When) {
                 FpStaff.Add(Workers.Workers[d].Gehalt);
                 FpStaff.Add(Workers.Workers[d].Happyness);
                 Staff++;
+
+                /* Level 2 spells out the staff, so that a difference in the hash can be tracked
+                   down to the worker and the field. */
+                if (gNetTraceLevel >= 2) {
+                    AT_Log("FPSTAFF %s p=%ld w=%ld gehalt=%ld orig=%ld happy=%ld", When, static_cast<long>(c), static_cast<long>(d),
+                           static_cast<long>(Workers.Workers[d].Gehalt), static_cast<long>(Workers.Workers[d].OriginalGehalt),
+                           static_cast<long>(Workers.Workers[d].Happyness));
+                }
             }
         }
 
