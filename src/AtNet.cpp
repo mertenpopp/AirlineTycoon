@@ -228,16 +228,41 @@ void PumpBroadcastBitmap(bool bJustForEmergency) {
 //--------------------------------------------------------------------------------------------
 // Look for new messages:
 //--------------------------------------------------------------------------------------------
+/* Each of these counts how many peers are currently keeping the game from running: somebody in
+   the options, somebody whose window lost focus, somebody busy saving. The clock runs only while
+   they are all exactly zero (CTakeOffApp::GameLoop), so a count below zero stops the game as
+   surely as one above it - and the peers send only the change, never the state. A peer that
+   was not yet in the session when somebody opened the options receives only the "closed again"
+   half of the pair. Hold them at zero from below; the peer that is really blocked keeps its own
+   count. */
+static void NetClampBlockers() {
+    if (nOptionsOpen < 0) {
+        nOptionsOpen = 0;
+    }
+    if (nAppsDisabled < 0) {
+        nAppsDisabled = 0;
+    }
+    for (SLONG c = 0; c < 4; c++) {
+        if (nPlayerOptionsOpen[c] < 0) {
+            nPlayerOptionsOpen[c] = 0;
+        }
+        if (nPlayerAppsDisabled[c] < 0) {
+            nPlayerAppsDisabled[c] = 0;
+        }
+    }
+}
+
 /* A frozen multiplayer game is the hardest thing to tell from a bug report, because nothing in
-   the log says what the game is waiting for. The clock only runs while nWaitingForPlayer is zero
-   (CTakeOffApp::GameLoop), so while it is not, say so - and say which player is being waited
-   for - every half minute. Players send us their debug.txt, and this turns "it froze" into a
-   name. */
+   the log says what the game is waiting for. The clock only runs while nobody is holding it up
+   (CTakeOffApp::GameLoop), so while somebody is, say so - and say who - every half minute.
+   Players send us their debug.txt, and this turns "it froze" into a name. Sim.bPause is left
+   out: that one is the local player's own doing. */
 void NetWaitWatchdog() {
     static DWORD WaitingSince = 0;
     static DWORD LastReported = 0;
 
-    if (Sim.bNetwork == 0 || Sim.Gamestate != (GAMESTATE_PLAYING | GAMESTATE_WORKING) || nWaitingForPlayer == 0) {
+    if (Sim.bNetwork == 0 || Sim.Gamestate != (GAMESTATE_PLAYING | GAMESTATE_WORKING) ||
+        (nWaitingForPlayer == 0 && nOptionsOpen == 0 && nAppsDisabled == 0)) {
         WaitingSince = 0;
         return;
     }
@@ -254,13 +279,16 @@ void NetWaitWatchdog() {
     }
     LastReported = Now;
 
-    AT_Log("Waiting for other players since %lu s (total %ld: %ld/%ld/%ld/%ld) at day %ld %02ld:%02ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
-           static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]), static_cast<long>(nPlayerWaiting[1]),
-           static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]), static_cast<long>(Sim.Date), static_cast<long>(Sim.GetHour()),
-           static_cast<long>(Sim.GetMinute()));
-    NetTraceEvent("STILLWAITING seconds=%lu total=%ld p0=%ld p1=%ld p2=%ld p3=%ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
+    AT_Log("The clock has been standing for %lu s at day %ld %02ld:%02ld: waiting=%ld (%ld/%ld/%ld/%ld) options=%ld (%ld/%ld/%ld/%ld) apps=%ld",
+           static_cast<unsigned long>((Now - WaitingSince) / 1000), static_cast<long>(Sim.Date), static_cast<long>(Sim.GetHour()),
+           static_cast<long>(Sim.GetMinute()), static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]),
+           static_cast<long>(nPlayerWaiting[1]), static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]),
+           static_cast<long>(nOptionsOpen), static_cast<long>(nPlayerOptionsOpen[0]), static_cast<long>(nPlayerOptionsOpen[1]),
+           static_cast<long>(nPlayerOptionsOpen[2]), static_cast<long>(nPlayerOptionsOpen[3]), static_cast<long>(nAppsDisabled));
+    NetTraceEvent("STILLWAITING seconds=%lu waiting=%ld p0=%ld p1=%ld p2=%ld p3=%ld options=%ld apps=%ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
                   static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]), static_cast<long>(nPlayerWaiting[1]),
-                  static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]));
+                  static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]), static_cast<long>(nOptionsOpen),
+                  static_cast<long>(nAppsDisabled));
 }
 
 void PumpNetwork() {
@@ -454,6 +482,7 @@ void PumpNetwork() {
                 Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
+                NetClampBlockers();
                 SetNetworkBitmap(static_cast<SLONG>(nOptionsOpen > 0) * 1);
                 break;
 
@@ -464,6 +493,7 @@ void PumpNetwork() {
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
                 nPlayerAppsDisabled[Par2] += Par1;
+                NetClampBlockers();
                 SetNetworkBitmap(static_cast<SLONG>(nOptionsOpen > 0) * 2);
                 break;
 
