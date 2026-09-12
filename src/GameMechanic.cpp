@@ -1242,6 +1242,33 @@ void GameMechanic::planStrike(PLAYER &qPlayer) {
     qPlayer.StrikeEndType = 0;
 }
 
+void GameMechanic::startStrike(PLAYER &qPlayer, SLONG hours, bool bFromNetwork) {
+    qPlayer.StrikePlanned = FALSE;
+    qPlayer.StrikeEndCountdown = 0;
+    qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
+
+    /* How the last strike ended is only cleared once its owner has been told, on the owner's peer
+       - but endStrike() refuses to end a strike while it is set. So every peer clears it here. */
+    if (Sim.bNetwork != 0) {
+        qPlayer.StrikeEndType = 0;
+    }
+
+    qPlayer.StrikeHours = hours;
+    qPlayer.DaysWithoutStrike = 0;
+
+    /* The priority was written as 25 + (c == localPlayer) * 10 with a c that the loop above had
+       left at -1, so it has always been 25. */
+    Sim.Headlines.AddOverride(1, bprintf(StandardTexte.GetS(TOKEN_MISC, 2090), qPlayer.AirlineX.c_str()), GetIdFromString("STREIK"), 25);
+    AT_Log("GameMechanic::startStrike(%s): @%02ld:%02ld for %ld hours", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute(), qPlayer.StrikeHours);
+
+    /* The hour the strike is over, not how many hours are left: the message can reach a peer
+       just before or just after its own change of hour, and a peer that counted the hours itself
+       from there would stop a whole hour early or late. */
+    if (!bFromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 2, Sim.Date * 24 + Sim.GetHour() + hours);
+    }
+}
+
 void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork) {
     if (qPlayer.StrikeEndType != 0) {
         AT_Error("GameMechanic::endStrike(%s): Strike already ended.", qPlayer.AirlineX.c_str());

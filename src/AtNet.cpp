@@ -2323,6 +2323,18 @@ void PumpNetwork() {
                     GameMechanic::endStrike(qPlayer, static_cast<GameMechanic::EndStrikeMode>(Par), true);
                 } else if (Event == 1) {
                     qPlayer.StrikeHours = Par;
+                } else if (Event == 2) {
+                    /* The owner's peer decided that these people are striking until this hour
+                       (counted from the start of the game). Turning it back into hours against
+                       this peer's own clock lets the strike end in the same hour everywhere, even
+                       though the message arrives just before or just after the change of hour. */
+                    const SLONG Hours = Par - (Sim.Date * 24 + Sim.GetHour());
+                    if (Hours > 0 && Hours <= 72) {
+                        GameMechanic::startStrike(qPlayer, Hours, true);
+                    } else {
+                        NetTraceEvent("STRIKE out of range p=%ld until=%ld hours=%ld", static_cast<long>(PlayerNum), static_cast<long>(Par),
+                                      static_cast<long>(Hours));
+                    }
                 }
             } break;
 

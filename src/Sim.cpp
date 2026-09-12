@@ -1518,14 +1518,18 @@ void SIM::DoTimeStep() {
         if (Minute < OldMinute) {
             // Streik vorbereiten?
             if (GetHour() == 10) {
-                /* Only humans go on strike. In a network game every peer decides this for every
-                   human rather than each for its own: the strike delays that player's
-                   departures on all peers, and the workers' happiness it depends on is the same
-                   everywhere, so they all start it in the same hour. */
+                /* Only humans go on strike, and only the peer that owns one decides it: the
+                   happiness this is judged by changes through messages - a salary cut, say -
+                   which reach the peers a moment apart, so peers judging for themselves started
+                   the strike on different days. The start is announced below. */
                 for (c = 0; c < 4; c++) {
                     PLAYER &qPlayer = Players.Players[c];
 
-                    if (c != localPlayer && (bNetwork == 0 || qPlayer.Owner == 1 || qPlayer.IsOut != 0)) {
+                    if (bNetwork == 0) {
+                        if (c != localPlayer) {
+                            continue;
+                        }
+                    } else if (qPlayer.Owner != 0 || qPlayer.IsOut != 0) {
                         continue;
                     }
 
@@ -1543,7 +1547,12 @@ void SIM::DoTimeStep() {
                 if (Players.Players[c].IsOut == 0) {
                     PLAYER &qPlayer = Players.Players[c];
 
-                    if ((qPlayer.StrikePlanned != 0) && GetHour() > 9 && GetHour() < 18 && CallItADay == FALSE) {
+                    /* The owner decides when the planned strike starts and for how long, and
+                       GameMechanic::startStrike() tells the other peers. They run the clock on it
+                       themselves (below), so it ends everywhere in the same hour. */
+                    const bool bWeDecide = (bNetwork == 0) || qPlayer.NetIsAuthoritative();
+
+                    if ((qPlayer.StrikePlanned != 0) && bWeDecide && GetHour() > 9 && GetHour() < 18 && CallItADay == FALSE) {
                         SLONG c = 0;
                         SLONG AnyPlanes = FALSE;
 
@@ -1573,36 +1582,21 @@ void SIM::DoTimeStep() {
                         }
 
                         if (AnyPlanes != 0) {
-                            qPlayer.StrikePlanned = FALSE;
-                            qPlayer.StrikeEndCountdown = 0;
-                            qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
-
-                            /* How the last strike ended is only cleared once its owner has been
-                               told, on the owner's peer - but endStrike() refuses to end a strike
-                               while it is set. So every peer clears it here. */
-                            if (bNetwork != 0) {
-                                qPlayer.StrikeEndType = 0;
-                            }
-
                             TEAKRAND LocalRand(Date + GetHour());
+                            SLONG Hours = 0;
 
                             /* Single player judges by the human's staff even when a bot strikes
                                (after a sabotage); a network game must not use localPlayer, which
                                differs from peer to peer, so it judges by the striking player's. */
                             if (qPlayer.DaysWithoutStrike > 10) {
-                                qPlayer.StrikeHours = 2;
+                                Hours = 2;
                             } else if (Workers.GetAverageHappyness(bNetwork != 0 ? qPlayer.PlayerNum : localPlayer) < -10) {
-                                qPlayer.StrikeHours = 72;
+                                Hours = 72;
                             } else {
-                                qPlayer.StrikeHours = 4 + LocalRand.Rand(20);
+                                Hours = 4 + LocalRand.Rand(20);
                             }
 
-                            qPlayer.DaysWithoutStrike = 0;
-
-                            Headlines.AddOverride(1, bprintf(StandardTexte.GetS(TOKEN_MISC, 2090), qPlayer.AirlineX.c_str()), GetIdFromString("STREIK"),
-                                                  25 + static_cast<SLONG>(c == localPlayer) * 10);
-                            hprintf("Sim.cpp: %s: Strike started @%02ld:%02ld (for %ld hours)", (LPCTSTR)qPlayer.AirlineX, Sim.GetHour(), Sim.GetMinute(),
-                                    qPlayer.StrikeHours);
+                            GameMechanic::startStrike(qPlayer, Hours);
                         }
                     } else if (qPlayer.StrikeHours != 0) {
                         qPlayer.StrikeHours--;

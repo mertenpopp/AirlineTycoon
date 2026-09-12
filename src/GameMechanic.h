@@ -98,6 +98,10 @@ class GameMechanic {
     static void increaseAllSalaries(PLAYER &qPlayer, bool bFromNetwork = false);
     static void decreaseAllSalaries(PLAYER &qPlayer);
     static void planStrike(PLAYER &qPlayer);
+    /* A strike runs on every peer, since it delays the player's departures everywhere. Only the
+       peer that owns the player decides that it starts and how long it lasts; startStrike() tells
+       the others, which apply it with bFromNetwork set. */
+    static void startStrike(PLAYER &qPlayer, SLONG hours, bool bFromNetwork = false);
     enum class EndStrikeMode { Salary, Threat, Drunk, Waiting };
     static void endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork = false);
 
