@@ -1411,6 +1411,13 @@ void PumpNetwork() {
 
                 PLAYER &qFromPlayer = Sim.Players.Players[PlayerNum];
 
+                /* Which plane in the museum, by its place in the list: the lookup throws when
+                   this peer does not have it. */
+                if (Sim.UsedPlanes.IsInAlbum(PlaneIndex) == 0) {
+                    NetTraceEvent("DROP name=%s reason=used plane %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneIndex));
+                    break;
+                }
+
                 if (qFromPlayer.Planes.GetNumFree() < 2) {
                     qFromPlayer.Planes.ReSize(qFromPlayer.Planes.AnzEntries() + 10);
                 }
@@ -1434,6 +1441,11 @@ void PumpNetwork() {
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                if (qPlayer.Planes.IsInAlbum(PlaneId) == 0) {
+                    NetTraceEvent("DROP name=%s reason=plane %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneId));
+                    break;
+                }
 
                 qPlayer.Planes -= PlaneId;
             } break;
