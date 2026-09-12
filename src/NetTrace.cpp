@@ -262,7 +262,9 @@ void NetTraceFingerprint(const char *When) {
         FpMisc.Add(qPlayer.Tank);
         FpMisc.Add(qPlayer.TankInhalt);
         FpMisc.Add(qPlayer.TankOpen);
-        FpMisc.Add(qPlayer.KerosinKind);
+        /* KerosinKind is not hashed: it only remembers which kind the buy menu offers first.
+           Kerosin bought outside the tank counts as quality 1 either way, so it decides
+           nothing - but a human opening the dealer's dialog would look like a desync. */
 
         /* Sabotage state: a sabotaged office and the security measures decide what the next
            saboteur gets away with. */
