@@ -1740,7 +1740,9 @@ bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item) {
     qPlayer.ReformIcons();
     if (qPlayer.HasItem(ITEM_LAPTOP) == 0) {
         qPlayer.SecurityFlags &= ~(1 << 1);
+        PLAYER::NetSynchronizeFlags();
     }
+    PLAYER::NetSynchronizeItems();
     AT_Log("GameMechanic::removeItem(%s): Removed item (%ld).", qPlayer.AirlineX.c_str(), item);
     return true;
 }

@@ -266,6 +266,12 @@ void NetTraceFingerprint(const char *When) {
            Kerosin bought outside the tank counts as quality 1 either way, so it decides
            nothing - but a human opening the dealer's dialog would look like a desync. */
 
+        /* What the player carries: it decides what a saboteur may do, and an item is there only
+           once. */
+        for (SLONG d = 0; d < qPlayer.Items.AnzEntries() && d < 6; d++) {
+            FpMisc.Add(qPlayer.Items[d]);
+        }
+
         /* Sabotage state: a sabotaged office and the security measures decide what the next
            saboteur gets away with. */
         FpMisc.Add(qPlayer.OfficeState);
