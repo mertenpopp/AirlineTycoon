@@ -30,6 +30,9 @@
 //                         0 (default) stays until the game closes the day at 18:00
 //   /mpcutsalaries <n>    before going home the first time, cut all salaries n times, as the
 //                         personnel dialog does (needs /mpgohome); 4 provokes a strike
+//   /mpactions 1          the idle human also does what a player does in the rooms: bid for a
+//                         branch and a gate, refit a plane, give up a branch, buy a used plane
+//                         and be nice to a competitor - one action per game hour on days 1 and 2
 //
 // Both roles imply CheatAutoSkip, a free game, no autosave (a networked game autosaves 12 MB
 // per in-game day, and peers sharing a directory would fight over the file), and protocol
@@ -49,6 +52,7 @@ extern CString gAutoLobbyHostIP; // client: address of the host
 extern SLONG gAutoLobbyTimeout;  // seconds before the run is declared stuck
 extern SLONG gAutoLobbyGoHome;   // hour at which the idle human calls it a day, 0 = never
 extern SLONG gAutoLobbyCutSalaries; // times the idle human cuts all salaries once, before first going home
+extern SLONG gAutoLobbyActions;     // 1 = the idle human also bids, gives up a branch, refits and buys
 
 inline bool AutoLobbyActive() { return gAutoLobbyRole != AutoLobbyRole::NONE; }
 
@@ -66,6 +70,7 @@ void AutoLobbyScheduleQuit(DWORD DelayMs);
 
 /* Lets the idle human end the day at /mpgohome's hour. Called from the main loop. */
 void AutoLobbyPumpDay();
+void AutoLobbyPumpActions();
 void AutoLobbyPollQuit();
 
 /* Logs why we are stuck and terminates with a non-zero exit code. There is nobody to read a

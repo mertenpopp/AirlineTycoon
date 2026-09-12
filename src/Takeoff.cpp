@@ -339,6 +339,11 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gAutoLobbyCutSalaries = atoi(argv[++i]);
             }
         }
+        if (stricmp(Argument, "/mpactions") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyActions = atoi(argv[++i]);
+            }
+        }
 
         // Trace the multiplayer protocol into the game log, see NetTrace.h
         if (stricmp(Argument, "/nettrace") == 0) {
@@ -997,6 +1002,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
     while (bLeaveGameLoop == 0) {
         AutoLobbyPollQuit();
         AutoLobbyPumpDay();
+        AutoLobbyPumpActions();
         Time = SDL_GetTicks();
 
         if (LastTime == 0xffffffff || (bgJustDidLotsOfWork != 0) || bActive == FALSE) {
