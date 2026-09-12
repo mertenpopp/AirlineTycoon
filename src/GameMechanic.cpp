@@ -2094,6 +2094,15 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         AT_Error("GameMechanic.cpp: Default case should not be reached.");
         DebugBreak();
     }
+
+    /* Most branches above use the item up by clearing its slot, and none of them told the other
+       peers: an item a bot used stayed in everybody else's copy of its inventory for good, and
+       what a player carries decides what a saboteur may do. One message covers whichever branch
+       ran. */
+    if (Sim.bNetwork != 0) {
+        PLAYER::NetSynchronizeItems();
+    }
+
     return true;
 }
 
