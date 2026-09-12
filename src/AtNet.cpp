@@ -1289,6 +1289,12 @@ void PumpNetwork() {
                 switch (Art) {
                 // Tafel: Jemand hat einen überboten
                 case 0:
+                    /* The note on the board, by its place on it: a board that had drifted apart
+                       would index past the end here, and the lookup throws rather than returns. */
+                    if (Generic1 < 0 || Generic1 >= SLONG(TafelData.ByPositions.size())) {
+                        NetTraceEvent("ADVISOR out of range art=%ld note=%ld", static_cast<long>(Art), static_cast<long>(Generic1));
+                        break;
+                    }
                     if (qPlayer.HasBerater(BERATERTYP_INFO) >= rnd.Rand(100)) {
                         auto &qEntry = *TafelData.ByPositions[Generic1];
                         if (qEntry.Type == CTafelZettel::Type::GATE) {
@@ -1303,6 +1309,11 @@ void PumpNetwork() {
 
                     // Jemand kauft gebrauchtes Flugzeug:
                 case 1:
+                    /* The used plane somebody bought, by its place in the museum's list. */
+                    if (Sim.UsedPlanes.IsInAlbum(Generic1) == 0) {
+                        NetTraceEvent("ADVISOR out of range art=%ld usedplane=%ld", static_cast<long>(Art), static_cast<long>(Generic1));
+                        break;
+                    }
                     if (qPlayer.HasBerater(BERATERTYP_INFO) >= rnd.Rand(100)) {
                         qPlayer.Messages.AddMessage(BERATERTYP_INFO, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9000), (LPCTSTR)qFromPlayer.NameX,
                                                                              (LPCTSTR)qFromPlayer.AirlineX, Sim.UsedPlanes[Generic1].CalculatePrice()));
@@ -1377,6 +1388,14 @@ void PumpNetwork() {
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* PLAYER::BuyPlane() looks the type up in an album, and an unknown key throws
+                   instead of returning - which ends a release build through the handler in
+                   main(). Peers with different plane data would take each other down. */
+                if (PlaneTypes.IsInAlbum(Type + 0x10000000) == 0) {
+                    NetTraceEvent("DROP name=%s reason=unknown plane type %ld", Translate_ATNET(MessageType), static_cast<long>(Type));
+                    break;
+                }
 
                 rnd.SRand(Sim.Date);
 
