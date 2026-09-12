@@ -1198,9 +1198,21 @@ bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx) {
    with different holders, and one bid was gone. A single bid can be merged in any order, see the
    ATNET_BID handler. */
 void GameMechanic::_announceBid(const CTafelZettel &qNote) {
+    /* Which of the seven notes this is, found by address. Subtracting the two pointers would say
+       the same thing in one line, but only as long as the note really lies in the array picked by
+       its type - and pointer arithmetic across two different arrays is undefined, so the range
+       check afterwards would not be a guard at all. Comparing addresses is well defined either
+       way, and says "not in there" instead of a number that means nothing. */
     const auto &Notes = (qNote.Type == CTafelZettel::Type::CITY) ? TafelData.City : TafelData.Gate;
-    const SLONG Slot = static_cast<SLONG>(&qNote - Notes.data());
-    if (Slot < 0 || Slot >= SLONG(Notes.size())) {
+    SLONG Slot = -1;
+    for (SLONG c = 0; c < SLONG(Notes.size()); c++) {
+        if (&Notes[c] == &qNote) {
+            Slot = c;
+            break;
+        }
+    }
+
+    if (Slot < 0) {
         AT_Error("GameMechanic::_announceBid: Note is not on the board.");
         return;
     }
