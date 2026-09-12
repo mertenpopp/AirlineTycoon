@@ -4807,13 +4807,11 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                             MakeSayWindow(0, TOKEN_PLAYER, 2201, pFontPartner);
                         }
 
-                        qOther.Sympathie[Sim.localPlayer] += 10;
-                        Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                        qOther.NetAddSympathie(Sim.localPlayer, 10);
                     } else if (qPlayer.HasItem(ITEM_PRALINEN_A) != 0) {
                         qPlayer.DropItem(ITEM_PRALINEN_A);
                         MakeSayWindow(0, TOKEN_PLAYER, 2202, pFontPartner);
-                        qOther.Sympathie[Sim.localPlayer] -= 10;
-                        Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                        qOther.NetAddSympathie(Sim.localPlayer, -10);
                     }
                     break;
                 } else if (DialogPar2 != 0) {
@@ -4864,8 +4862,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 break;
 
             case 20400: // Kooperation beginnen:
-                qOther.Sympathie[Sim.localPlayer] += 30;
-                Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                qOther.NetAddSympathie(Sim.localPlayer, 30);
 
                 qOther.Kooperation[Sim.localPlayer] = TRUE;
                 qPlayer.Kooperation[DialogPar1] = TRUE;
@@ -4887,8 +4884,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 break;
 
             case 20401: // Kooperation ablehnen:
-                qOther.Sympathie[Sim.localPlayer] -= 10;
-                Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                qOther.NetAddSympathie(Sim.localPlayer, -10);
 
                 DialogPar2 ^= 1;
                 if (DialogPar2 != 0) {
@@ -4896,15 +4892,14 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 } else if (bIsRobot) {
                     // Was will der Computerspieler? Beleidigt sein!
                     MakeSayWindow(0, TOKEN_PLAYER, 20402, pFontPartner);
-                    qOther.Sympathie[Sim.localPlayer] -= 20;
+                    qOther.NetAddSympathie(Sim.localPlayer, -20);
                 } else if (point != CPoint(0, 0)) {
                     SIM::SendSimpleMessage(ATNET_DIALOG_NEXT, qOther.NetworkID);
                 }
                 break;
 
             case 20210: // Kooperation kündigen (brutal):
-                qOther.Sympathie[Sim.localPlayer] -= 200;
-                Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                qOther.NetAddSympathie(Sim.localPlayer, -200);
 
                 qOther.Kooperation[Sim.localPlayer] = FALSE;
                 qPlayer.Kooperation[DialogPar1] = FALSE;
@@ -4944,8 +4939,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 break;
 
             case 20212: // schmeicheln/schleimen:
-                qOther.Sympathie[Sim.localPlayer] += 10;
-                Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                qOther.NetAddSympathie(Sim.localPlayer, 10);
 
                 DialogPar2 ^= 1;
                 if (DialogPar2 != 0) {
@@ -4980,8 +4974,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 // Dialog beenden:
             case 1601:
                 if (DialogPar2 != 0) {
-                    qOther.Sympathie[Sim.localPlayer] -= 10;
-                    Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                    qOther.NetAddSympathie(Sim.localPlayer, -10);
                     if (qOther.Sympathie[Sim.localPlayer] < -100) {
                         qOther.Kooperation[Sim.localPlayer] = FALSE;
                         qPlayer.Kooperation[DialogPar1] = FALSE;
@@ -5007,8 +5000,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
             case 1602:
                 if (DialogPar2 != 0) {
-                    qOther.Sympathie[Sim.localPlayer] -= 100;
-                    Limit(static_cast<SLONG>(-1000), qOther.Sympathie[Sim.localPlayer], static_cast<SLONG>(1000));
+                    qOther.NetAddSympathie(Sim.localPlayer, -100);
                     qOther.Kooperation[Sim.localPlayer] = FALSE;
                     qPlayer.Kooperation[DialogPar1] = FALSE;
 
