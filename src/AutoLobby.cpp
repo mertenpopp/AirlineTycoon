@@ -31,6 +31,7 @@ SLONG gAutoLobbyTimeout = 120;
 SLONG gAutoLobbyGoHome = 0;
 SLONG gAutoLobbyCutSalaries = 0;
 SLONG gAutoLobbyActions = 0;
+SLONG gAutoLobbySeed = 0;
 
 namespace {
 DWORD gStartedAt = 0;
@@ -73,6 +74,9 @@ void AutoLobbyApplyOptions() {
            gAutoLobbyRole == AutoLobbyRole::HOST ? "HOST" : "JOIN", static_cast<long>(gAutoLobbySlot), static_cast<long>(gAutoLobbyHumans),
            static_cast<long>(gAutoLobbyBots), gAutoLobbyHostIP.c_str(), static_cast<long>(gAutoLobbyTimeout), static_cast<long>(gAutoLobbyGoHome),
            static_cast<long>(gAutoLobbyCutSalaries), static_cast<long>(gNetTraceLevel));
+    if (gAutoLobbySeed != 0) {
+        AT_Log("Seed=%ld (fixed start time, so the run can be repeated)", static_cast<long>(gAutoLobbySeed));
+    }
 }
 
 void AutoLobbyStartClock() {

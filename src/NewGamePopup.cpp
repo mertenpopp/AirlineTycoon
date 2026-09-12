@@ -2526,8 +2526,10 @@ void NewGamePopup::AutoLobbyPump() {
         if (!gNetwork.IsInitialized()) {
             gNetwork.SetProvider(bHost ? SBProviderEnum::SBNETWORK_RAKNET_DIRECT_HOST : SBProviderEnum::SBNETWORK_RAKNET_DIRECT_JOIN);
             gNetwork.SetMasterServer(Sim.Options.OptionMasterServer);
-            Sim.StartTime = time(nullptr);
-            NetTraceEvent("LOBBY provider=%s", bHost ? "direct_host" : "direct_join");
+            /* The host's start time decides the calendar and every shared pool, and it is sent
+               to the clients with ATNET_BEGINGAME - so fixing it repeats the same game. */
+            Sim.StartTime = (gAutoLobbySeed != 0) ? time_t(gAutoLobbySeed) : time(nullptr);
+            NetTraceEvent("LOBBY provider=%s seed=%ld", bHost ? "direct_host" : "direct_join", static_cast<long>(gAutoLobbySeed));
         }
 
         if (bHost) {

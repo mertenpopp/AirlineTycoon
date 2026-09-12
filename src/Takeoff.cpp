@@ -344,6 +344,11 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gAutoLobbyActions = atoi(argv[++i]);
             }
         }
+        if (stricmp(Argument, "/mpseed") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbySeed = atoi(argv[++i]);
+            }
+        }
 
         // Trace the multiplayer protocol into the game log, see NetTrace.h
         if (stricmp(Argument, "/nettrace") == 0) {

@@ -33,6 +33,8 @@
 //   /mpactions 1          the idle human also does what a player does in the rooms: bid for a
 //                         branch and a gate, refit a plane, give up a branch, buy a used plane
 //                         and be nice to a competitor - one action per game hour on days 1 and 2
+//   /mpseed <n>           run the same game again: the host's Sim.StartTime, which decides the
+//                         calendar and every shared pool, instead of the current time
 //
 // Both roles imply CheatAutoSkip, a free game, no autosave (a networked game autosaves 12 MB
 // per in-game day, and peers sharing a directory would fight over the file), and protocol
@@ -53,6 +55,7 @@ extern SLONG gAutoLobbyTimeout;  // seconds before the run is declared stuck
 extern SLONG gAutoLobbyGoHome;   // hour at which the idle human calls it a day, 0 = never
 extern SLONG gAutoLobbyCutSalaries; // times the idle human cuts all salaries once, before first going home
 extern SLONG gAutoLobbyActions;     // 1 = the idle human also bids, gives up a branch, refits and buys
+extern SLONG gAutoLobbySeed;        // fixed Sim.StartTime, so a run can be repeated exactly; 0 = now
 
 inline bool AutoLobbyActive() { return gAutoLobbyRole != AutoLobbyRole::NONE; }
 
