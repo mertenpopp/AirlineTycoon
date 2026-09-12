@@ -14,6 +14,7 @@
 #include "Proto.h"
 #include "StdRaum.h"
 
+#include <array>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -29,6 +30,7 @@ CString gAutoLobbyHostIP = "127.0.0.1";
 SLONG gAutoLobbyTimeout = 120;
 SLONG gAutoLobbyGoHome = 0;
 SLONG gAutoLobbyCutSalaries = 0;
+SLONG gAutoLobbyActions = 0;
 
 namespace {
 DWORD gStartedAt = 0;
@@ -180,6 +182,120 @@ void AutoLobbyPumpDay() {
     qPlayer.WalkStopEx();
     SIM::SendSimpleMessage(ATNET_DAYFINISH, 0, Sim.localPlayer);
     SIM::SendChatBroadcast(bprintf(StandardTexte.GetS(TOKEN_MISC, 7020), qPlayer.NameX.c_str()));
+}
+
+/* Things a player does in the rooms, which nothing else in the harness exercises: each of these
+   changes state that the other peers have to hear about, and each is replicated by a different
+   mechanism (or used to be by none). They go through GameMechanic, which is where the rooms end
+   up after their own checks.
+
+   One action per game minute, and each is tried until it works: there is nothing to bid for
+   until the board offers a note, and no used plane to buy until one is affordable, so a step
+   that cannot act yet must not hold up the others. */
+namespace {
+
+bool TryHumanAction(SLONG Step, PLAYER &qPlayer) {
+    switch (Step) {
+    case 0: // bid for a branch on the board
+        for (SLONG c = 0; c < SLONG(TafelData.ByPositions.size()); c++) {
+            if (TafelData.ByPositions[c]->Type == CTafelZettel::Type::CITY && TafelData.ByPositions[c]->ZettelId >= 0 &&
+                TafelData.ByPositions[c]->Player != qPlayer.PlayerNum) {
+                NetTraceEvent("ACTION bidOnCity note=%ld", static_cast<long>(c));
+                if (GameMechanic::bidOnCity(qPlayer, c)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+
+    case 1: // bid for a gate
+        for (SLONG c = 0; c < SLONG(TafelData.ByPositions.size()); c++) {
+            if (TafelData.ByPositions[c]->Type == CTafelZettel::Type::GATE && TafelData.ByPositions[c]->ZettelId >= 0 &&
+                TafelData.ByPositions[c]->Player != qPlayer.PlayerNum) {
+                NetTraceEvent("ACTION bidOnGate note=%ld", static_cast<long>(c));
+                if (GameMechanic::bidOnGate(qPlayer, c)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+
+    case 2: // put first class seats into a plane
+        for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+            if (qPlayer.Planes.IsInAlbum(c) != 0) {
+                NetTraceEvent("ACTION increaseFirstClassRatio plane=%ld", static_cast<long>(c));
+                return GameMechanic::increaseFirstClassRatio(qPlayer, c);
+            }
+        }
+        return false;
+
+    case 3: // be nice to a competitor, as the chocolates in a dialog are
+        for (SLONG c = 1; c < 4; c++) {
+            PLAYER &qOther = Sim.Players.Players[(Sim.localPlayer + c) % 4];
+            if (qOther.IsOut == 0) {
+                NetTraceEvent("ACTION sympathie p=%ld", static_cast<long>(qOther.PlayerNum));
+                qOther.NetAddSympathie(Sim.localPlayer, 10);
+                return true;
+            }
+        }
+        return false;
+
+    case 4: // give up a branch
+        for (SLONG c = 0; c < qPlayer.RentCities.RentCities.AnzEntries(); c++) {
+            if (qPlayer.RentCities.RentCities[c].Rang > 0) {
+                NetTraceEvent("ACTION killCity city=%ld", static_cast<long>(c));
+                return GameMechanic::killCity(qPlayer, c);
+            }
+        }
+        return false;
+
+    case 5: // buy a used plane, once one is affordable
+        for (SLONG c = 0; c < Sim.UsedPlanes.AnzEntries(); c++) {
+            if (Sim.UsedPlanes.IsInAlbum(c) == 0 || Sim.UsedPlanes[c].Name.empty()) {
+                continue;
+            }
+            if (Sim.UsedPlanes[c].CalculatePrice() > qPlayer.Money - 500000) {
+                continue;
+            }
+            NetTraceEvent("ACTION buyUsedPlane plane=%ld", static_cast<long>(c));
+            return GameMechanic::buyUsedPlane(qPlayer, c) != -1;
+        }
+        return false;
+
+    default:
+        return false;
+    }
+}
+
+const SLONG kNumHumanActions = 6;
+
+} // namespace
+
+void AutoLobbyPumpActions() {
+    if (!AutoLobbyActive() || gAutoLobbyActions == 0 || Sim.bNetwork == 0 || Sim.Gamestate != (GAMESTATE_PLAYING | GAMESTATE_WORKING)) {
+        return;
+    }
+
+    PLAYER &qPlayer = Sim.Players.Players[Sim.localPlayer];
+    if (qPlayer.IsOut != 0 || Sim.Date < 1 || Sim.GetHour() < 9) {
+        return;
+    }
+
+    /* Counted from the start of the game: Sim.Time starts over at 9:00 every day. */
+    static __int64 LastStepAt = -1;
+    const __int64 Now = static_cast<__int64>(Sim.Date) * 24 * 60000 + Sim.Time;
+    if (LastStepAt != -1 && Now < LastStepAt + 60000) {
+        return;
+    }
+    LastStepAt = Now;
+
+    static std::array<bool, kNumHumanActions> Done{};
+    for (SLONG Step = 0; Step < kNumHumanActions; Step++) {
+        if (!Done[Step] && TryHumanAction(Step, qPlayer)) {
+            Done[Step] = true;
+            return;
+        }
+    }
 }
 
 void AutoLobbyScheduleQuit(DWORD DelayMs) {
