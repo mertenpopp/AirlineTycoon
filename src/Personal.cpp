@@ -657,13 +657,20 @@ CString CWorkers::GetRandomName(BOOL Geschlecht) const {
     return (FNames[rand() % FNames.AnzEntries()] + " " + LNames[rand() % LNames.AnzEntries()]);
 }
 
+CString CWorkers::GetRandomName(BOOL Geschlecht, TEAKRAND &NameRand) const {
+    if (Geschlecht != 0) {
+        return (MNames[NameRand.Rand(MNames.AnzEntries())] + " " + LNames[NameRand.Rand(LNames.AnzEntries())]);
+    }
+    return (FNames[NameRand.Rand(FNames.AnzEntries())] + " " + LNames[NameRand.Rand(LNames.AnzEntries())]);
+}
+
 //--------------------------------------------------------------------------------------------
 // Verhindert, dass es zu wenig Piloten oder Stewardessen gibt:
 //--------------------------------------------------------------------------------------------
-CWorker CWorkers::createBerater(TEAKRAND &LocalRand, SLONG typ) const {
+CWorker CWorkers::createBerater(TEAKRAND &LocalRand, TEAKRAND &NameRand, SLONG typ) const {
     CWorker worker;
     worker.Geschlecht = static_cast<BOOL>((LocalRand.Rand(100)) > 20);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = typ;
     worker.Gehalt = (30 + LocalRand.Rand(80)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
@@ -676,10 +683,10 @@ CWorker CWorkers::createBerater(TEAKRAND &LocalRand, SLONG typ) const {
     worker.OriginalGehalt = worker.Gehalt;
     return worker;
 }
-CWorker CWorkers::createPilot(TEAKRAND &LocalRand) const {
+CWorker CWorkers::createPilot(TEAKRAND &LocalRand, TEAKRAND &NameRand) const {
     CWorker worker;
     worker.Geschlecht = static_cast<BOOL>((LocalRand.Rand(100)) > 20);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = WORKER_PILOT;
     worker.Gehalt = (30 + LocalRand.Rand(83)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
@@ -692,10 +699,10 @@ CWorker CWorkers::createPilot(TEAKRAND &LocalRand) const {
     worker.OriginalGehalt = worker.Gehalt;
     return worker;
 }
-CWorker CWorkers::createStewardess(TEAKRAND &LocalRand) const {
+CWorker CWorkers::createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) const {
     CWorker worker;
-    worker.Geschlecht = static_cast<BOOL>((rand() % 100) > 80);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Geschlecht = static_cast<BOOL>((NameRand.Rand(100)) > 80);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = WORKER_STEWARDESS;
     worker.Gehalt = (30 + LocalRand.Rand(60)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt * 100 / 80 / 200 + LocalRand.Rand(30) + 20);
@@ -709,6 +716,13 @@ CWorker CWorkers::createStewardess(TEAKRAND &LocalRand) const {
     return worker;
 }
 SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent) {
+    /* Names and a stewardess' gender used to come from the global rand(), which runs at its own
+       pace on every machine: the peers ended up with different names for the same applicant, and
+       a player could not tell a colleague whom to hire. A generator of its own, seeded like
+       LocalRand but apart from it, keeps every other draw - and with it single player - as it
+       was. */
+    TEAKRAND NameRand(Sim.Date + Sim.StartTime + 0x4e414d45 + typ * 7919);
+
     SLONG nExpired = 0;
     SLONG anz = 0;
     SLONG anzKompetent = 0;
@@ -747,11 +761,11 @@ SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompet
             }
 
             if (typ >= BERATERTYP_PERSONAL && typ <= BERATERTYP_SICHERHEIT) {
-                Workers[c] = createBerater(LocalRand, typ);
+                Workers[c] = createBerater(LocalRand, NameRand, typ);
             } else if (typ == WORKER_STEWARDESS) {
-                Workers[c] = createStewardess(LocalRand);
+                Workers[c] = createStewardess(LocalRand, NameRand);
             } else if (typ == WORKER_PILOT) {
-                Workers[c] = createPilot(LocalRand);
+                Workers[c] = createPilot(LocalRand, NameRand);
             } else {
                 TeakLibW_Exception(FNL, ExcNever);
                 return nExpired;
