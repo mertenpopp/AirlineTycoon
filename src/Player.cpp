@@ -3092,10 +3092,9 @@ class RobotPlanePropsWatch {
                 continue;
             }
             const CPlane &qPlane = Player.Planes[c];
-            Result[c] = Targets{SLONG(qPlane.SitzeTarget),       SLONG(qPlane.EssenTarget),     SLONG(qPlane.TablettsTarget),
-                                SLONG(qPlane.DecoTarget),        SLONG(qPlane.TriebwerkTarget), SLONG(qPlane.ReifenTarget),
-                                SLONG(qPlane.ElektronikTarget),  SLONG(qPlane.SicherheitTarget), qPlane.MaxPassagiereTarget,
-                                qPlane.MaxPassagiereTargetFC,    SLONG(qPlane.TargetZustand)};
+            Result[c] = Targets{SLONG(qPlane.SitzeTarget),     SLONG(qPlane.EssenTarget),    SLONG(qPlane.TablettsTarget),   SLONG(qPlane.DecoTarget),
+                                SLONG(qPlane.TriebwerkTarget), SLONG(qPlane.ReifenTarget),   SLONG(qPlane.ElektronikTarget), SLONG(qPlane.SicherheitTarget),
+                                qPlane.MaxPassagiereTarget,    qPlane.MaxPassagiereTargetFC, SLONG(qPlane.TargetZustand)};
         }
         return Result;
     }
@@ -6268,10 +6267,6 @@ bool PLAYER::DropItem(UBYTE Item) {
             Items[d] = 0xff;
             ReformIcons();
 
-            /* What a player carries is shown to everybody and decides what a saboteur may do, and
-               this is the one place where an item leaves a player's hands - the tool a sabotage
-               consumes, the laptop handed in for repair. Nothing told the other peers, so they
-               went on believing the item was still there. */
             if (Sim.bNetwork != 0) {
                 NetSynchronizeItems();
             }
