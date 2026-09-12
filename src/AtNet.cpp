@@ -2328,8 +2328,11 @@ void PumpNetwork() {
                        (counted from the start of the game). Turning it back into hours against
                        this peer's own clock lets the strike end in the same hour everywhere, even
                        though the message arrives just before or just after the change of hour. */
+                    /* The longest strike the game hands out is 72 hours, and a peer that has not
+                       reached the sender's hour yet arrives at one more than that - which is why
+                       the bound is not 72. */
                     const SLONG Hours = Par - (Sim.Date * 24 + Sim.GetHour());
-                    if (Hours > 0 && Hours <= 72) {
+                    if (Hours > 0 && Hours <= 96) {
                         GameMechanic::startStrike(qPlayer, Hours, true);
                     } else {
                         NetTraceEvent("STRIKE out of range p=%ld until=%ld hours=%ld", static_cast<long>(PlayerNum), static_cast<long>(Par),
