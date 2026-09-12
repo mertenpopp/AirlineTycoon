@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs an unattended multiplayer session with N peers on this machine and diffs their traces.
 #
-#   ./scripts/run_multiplayer.sh [--debug] [humans] [days] [botlevels] [gohome] [cutsalaries] [tracelevel] [actions]
+#   ./scripts/run_multiplayer.sh [--debug] [humans] [days] [botlevels] [gohome] [cutsalaries] [tracelevel] [actions] [seed]
 #
 # --debug builds the same optimised Release configuration with debug symbols added (-g) into
 # build-debug/ and runs the peers on that binary, so that a crash leaves a core with source
@@ -24,6 +24,10 @@
 # actions=1 makes the idle humans do what a player does in the rooms, one action per game hour on
 # days 1 and 2: bid for a branch and a gate, refit a plane, be nice to a competitor, give up a
 # branch and buy a used plane. Each of those is replicated by a different mechanism.
+#
+# seed fixes the host's start time, which decides the calendar and every shared pool, so the same
+# game can be played again - the only way to chase a divergence that shows up on day 11. 0 (the
+# default) uses the current time. The seed of a past run is in its log: "LOBBY provider=... seed=".
 #
 # days=0 quits as soon as the players reach the boss's office on the first morning - enough to
 # exercise the lobby and the start of the game in well under a minute.
@@ -49,6 +53,7 @@ GOHOME=${4:-0}
 CUTSALARIES=${5:-0}
 TRACELEVEL=${6:-1}
 ACTIONS=${7:-0}
+SEED=${8:-0}
 
 GAME="/media/LINUX/GOG Games/Airline Tycoon Deluxe/game"
 RUN="$GAME/mprun"
@@ -90,13 +95,13 @@ for ((i = 0; i < HUMANS; i++)); do
     [ -f "$GAME/AT.json" ] && cp "$GAME/AT.json" "$peer/AT.json"
 done
 
-echo "Starting $HUMANS peers for $DAYS days (bots=$BOTS, gohome=$GOHOME, cutsalaries=$CUTSALARIES, trace=$TRACELEVEL, actions=$ACTIONS)..."
+echo "Starting $HUMANS peers for $DAYS days (bots=$BOTS, gohome=$GOHOME, cutsalaries=$CUTSALARIES, trace=$TRACELEVEL, actions=$ACTIONS, seed=$SEED)..."
 
 pids=()
 # Host first, so that the clients have something to connect to. They retry anyway.
 (
     cd "$RUN/peer0" || exit 1
-    ./AT /mphost 0 "$HUMANS" "$BOTS" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mpactions "$ACTIONS" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
+    ./AT /mphost 0 "$HUMANS" "$BOTS" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mpactions "$ACTIONS" /mpseed "$SEED" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
         >"$RUN/peer0.log" 2>&1
 ) &
 pids+=($!)
@@ -104,7 +109,7 @@ pids+=($!)
 for ((i = 1; i < HUMANS; i++)); do
     (
         cd "$RUN/peer$i" || exit 1
-        ./AT /mpjoin 127.0.0.1 "$i" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mpactions "$ACTIONS" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
+        ./AT /mpjoin 127.0.0.1 "$i" /mpdays "$DAYS" /mpgohome "$GOHOME" /mpcutsalaries "$CUTSALARIES" /mpactions "$ACTIONS" /mpseed "$SEED" /mptimeout "$TIMEOUT" /nettrace "$TRACELEVEL" \
             >"$RUN/peer$i.log" 2>&1
     ) &
     pids+=($!)
