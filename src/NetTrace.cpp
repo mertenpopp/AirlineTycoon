@@ -380,6 +380,16 @@ void NetTraceFingerprint(const char *When) {
     /* The weekday decides which rooms are closed. */
     Pool.Add(Sim.Weekday);
 
+    /* The items lying around the airport: each is there once a day for whoever finds it first,
+       so every peer must agree on what is still there. */
+    Pool.Add(Sim.ItemGlove);
+    Pool.Add(Sim.ItemClips);
+    Pool.Add(Sim.ItemGlue);
+    Pool.Add(Sim.ItemPostcard);
+    Pool.Add(Sim.ItemKohle);
+    Pool.Add(Sim.ItemParfuem);
+    Pool.Add(Sim.ItemZange);
+
     AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
            static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
            static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(UsedPlanes),
