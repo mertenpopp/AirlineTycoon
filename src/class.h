@@ -2293,6 +2293,7 @@ class PLAYER {
     static void NetSynchronizeItems(void);
     void NetSynchronizeSabotage(void) const;
     void NetSynchronizeKooperation(void) const;
+    void NetAddSympathie(SLONG Target, SLONG Delta);
     void NetRouteUpdateTicketpreise(SLONG RouteId, SLONG Ticketpreis, SLONG TicketpreisFC) const;
     void NetUpdateFlightplan(SLONG Plane);
     void NetUpdateOrder(const CAuftrag &auftrag) const;

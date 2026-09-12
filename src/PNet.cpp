@@ -364,6 +364,26 @@ void PLAYER::NetSynchronizeKooperation() const {
 }
 
 //--------------------------------------------------------------------------------------------
+// Changes how much this player likes another one, and tells the other peers:
+//--------------------------------------------------------------------------------------------
+/* How a player feels about the others belongs to that player, so a dialog may only change it
+   where it happens - and the owner's next ATNET_SYNC_IMAGE then overwrote it. On a client,
+   being nice to a bot therefore had no effect at all, while the host's human was heard.
+   ATNET_ADD_SYMPATHIE exists for this and had no sender. */
+void PLAYER::NetAddSympathie(SLONG Target, SLONG Delta) {
+    if (Target < 0 || Target >= 4) {
+        return;
+    }
+
+    Sympathie[Target] += Delta;
+    Limit(static_cast<SLONG>(-1000), Sympathie[Target], static_cast<SLONG>(1000));
+
+    if (Sim.bNetwork != 0) {
+        SIM::SendSimpleMessage(ATNET_ADD_SYMPATHIE, 0, PlayerNum, Target, Delta);
+    }
+}
+
+//--------------------------------------------------------------------------------------------
 // Updates the total number of workers and which planes they work on:
 //--------------------------------------------------------------------------------------------
 void PLAYER::NetUpdateWorkers() {
