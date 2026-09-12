@@ -228,6 +228,41 @@ void PumpBroadcastBitmap(bool bJustForEmergency) {
 //--------------------------------------------------------------------------------------------
 // Look for new messages:
 //--------------------------------------------------------------------------------------------
+/* A frozen multiplayer game is the hardest thing to tell from a bug report, because nothing in
+   the log says what the game is waiting for. The clock only runs while nWaitingForPlayer is zero
+   (CTakeOffApp::GameLoop), so while it is not, say so - and say which player is being waited
+   for - every half minute. Players send us their debug.txt, and this turns "it froze" into a
+   name. */
+void NetWaitWatchdog() {
+    static DWORD WaitingSince = 0;
+    static DWORD LastReported = 0;
+
+    if (Sim.bNetwork == 0 || Sim.Gamestate != (GAMESTATE_PLAYING | GAMESTATE_WORKING) || nWaitingForPlayer == 0) {
+        WaitingSince = 0;
+        return;
+    }
+
+    const DWORD Now = AtGetTime();
+    if (WaitingSince == 0) {
+        WaitingSince = Now;
+        LastReported = Now;
+        return;
+    }
+
+    if (Now - LastReported < 30000) {
+        return;
+    }
+    LastReported = Now;
+
+    AT_Log("Waiting for other players since %lu s (total %ld: %ld/%ld/%ld/%ld) at day %ld %02ld:%02ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
+           static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]), static_cast<long>(nPlayerWaiting[1]),
+           static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]), static_cast<long>(Sim.Date), static_cast<long>(Sim.GetHour()),
+           static_cast<long>(Sim.GetMinute()));
+    NetTraceEvent("STILLWAITING seconds=%lu total=%ld p0=%ld p1=%ld p2=%ld p3=%ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
+                  static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]), static_cast<long>(nPlayerWaiting[1]),
+                  static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]));
+}
+
 void PumpNetwork() {
     SLONG c = 0;
     SLONG e = 0; // Universell, können von jedem case verwendet werden.
@@ -1777,6 +1812,13 @@ void PumpNetwork() {
                 Message >> Par1 >> Par2;
                 Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nWaitingForPlayer += Par1;
+                /* The clock only runs while this is exactly zero (CTakeOffApp::GameLoop), so a
+                   negative count stops the game just as a positive one does. A peer that
+                   reports "I am done waiting" twice, or once without this peer having counted
+                   its wait, used to leave everybody at -1 with the clock stopped for good. */
+                if (nWaitingForPlayer < 0) {
+                    nWaitingForPlayer = 0;
+                }
                 NetTraceEvent("WAITFORPLAYER p=%ld delta=%ld waiting=%ld", static_cast<long>(Par2), static_cast<long>(Par1),
                               static_cast<long>(nWaitingForPlayer));
                 nPlayerWaiting[Par2] += Par1;

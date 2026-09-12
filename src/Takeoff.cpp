@@ -2213,6 +2213,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
             }
 
             PumpNetwork();
+            NetWaitWatchdog();
         }
 
         /*for (c=0; c<Sim.Players.AnzPlayers; c++)

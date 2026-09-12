@@ -2391,6 +2391,10 @@ void NewGamePopup::CheckNetEvents() {
                 case ATNET_WAITFORPLAYER:
                     Message >> Par1 >> Par2;
                     nWaitingForPlayer += Par1;
+                    /* Never below zero: the game clock only runs at exactly zero. */
+                    if (nWaitingForPlayer < 0) {
+                        nWaitingForPlayer = 0;
+                    }
                     nPlayerWaiting[static_cast<SLONG>(Par2)] += Par1;
                     if (nPlayerWaiting[static_cast<SLONG>(Par2)] < 0) {
                         nPlayerWaiting[static_cast<SLONG>(Par2)] = 0;
