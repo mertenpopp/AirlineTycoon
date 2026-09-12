@@ -167,6 +167,22 @@ def report_unmatched(peers):
     print("   (counts are approximate for targeted messages, which only one peer receives)\n")
 
 
+# What every run does: going home, the scripted actions, the day's handover. Anything else is
+# printed, so a new kind of trouble does not need this list to be extended first.
+ROUTINE_EVENTS = {
+    "LOBBY",
+    "WINDOW",
+    "GOHOME",
+    "DAYFINISH",
+    "DAYFINISHALL",
+    "CUTSALARIES",
+    "ACTION",
+    "MENUAWAY",
+    "WAITFORPLAYER",
+    "NOGATE",
+}
+
+
 def report_events(peers):
     print("== 4. Protocol events ==")
     any_shown = False
@@ -175,11 +191,14 @@ def report_events(peers):
             raw = e["_raw"]
             # the event keyword is the first token that is not a key=value field
             keyword = next((tok for tok in raw.split() if "=" not in tok), "")
-            if keyword.startswith(("DESYNC", "RANDSKEW", "DROP", "BUDGET", "SESSIONLOST", "HOSTMIGRATION", "PLAYERDROP", "LOBBYABORT")):
+            # Everything that is not part of a run's normal course is worth seeing - a message
+            # refused as out of range says as much about a desync as a dropped one, and listing
+            # only known keywords hid exactly that once.
+            if keyword not in ROUTINE_EVENTS:
                 print(f"   {peer['path']}: {raw}")
                 any_shown = True
     if not any_shown:
-        print("   no drops, budget stalls, disconnects or host migrations")
+        print("   nothing but the run's normal course")
     print()
 
 
