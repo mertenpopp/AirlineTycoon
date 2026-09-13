@@ -80,6 +80,8 @@ Use `RobotExecuteAction()` to actually perform a planned action. It shall be che
 
 ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
 
+Due to a bug in a game, `RobotExecuteAction()` sometimes executes too early. Because of this, ClaudeBot is not allowed to perform any action when `(Sim.Time <= 540000) == TRUE`.
+
 Note that some rooms open and close at a specific time. Opening hours also depend on the day of the week:
 - ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG actionId)`
 - ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
