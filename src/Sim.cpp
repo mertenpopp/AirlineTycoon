@@ -1438,6 +1438,11 @@ void SIM::DoTimeStep() {
             if (Minute >= 30 && OldMinute < 30) {
                 PLAYER::NetSynchronizeRoutes();
             }
+            /* Items are otherwise only sent when they change, so a single one that went missing
+               stayed missing for the rest of the game. */
+            if (Minute >= 25 && OldMinute < 25) {
+                PLAYER::NetSynchronizeItems();
+            }
         }
 
         // The tank state is applied at the same flight on every peer (PLAYER::NetReceiveKerosin), so it
