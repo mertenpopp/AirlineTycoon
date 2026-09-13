@@ -2141,20 +2141,21 @@ void NewGamePopup::CheckNetEvents() {
                             SLONG WantedIndex = 0;
                             Message >> WantedIndex;
 
-                            if (MessageType == ATNET_WANNAJOIN) {
-                                CString Version;
+                            /* Both ways in carry the version: rejoining a saved game used to skip
+                               this, so two builds that do not speak the same protocol could sit in
+                               one game and drift apart without anybody being told. */
+                            CString Version;
 
-                                Message >> Version;
+                            Message >> Version;
 
-                                if (Version.Compare(VersionString) != 0) {
-                                    TEAKFILE Message;
+                            if (Version.Compare(VersionString) != 0) {
+                                TEAKFILE Message;
 
-                                    Message.Announce(30);
-                                    Message << ATNET_SORRYVERSION;
+                                Message.Announce(30);
+                                Message << ATNET_SORRYVERSION;
 
-                                    gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
-                                    return;
-                                }
+                                gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
+                                return;
                             }
 
                             if (Sim.Players.Players[WantedIndex].Owner != 3 && gNetworkSavegameLoading != -1) {
@@ -2196,7 +2197,15 @@ void NewGamePopup::CheckNetEvents() {
                     if (Sim.GetSavegameUniqueGameId(SavegameIndex, true) == UniqueGameId) {
                         BOOL bOld = Sim.bNetwork;
                         Sim.bNetwork = 1;
-                        SIM::SendSimpleMessage(ATNET_WANNAJOIN2, 0, gNetwork.GetLocalPlayerID(), Sim.GetSavegameLocalPlayer(SavegameIndex));
+
+                        /* Like joining a new game, and with the same layout: the host refuses us if
+                           we do not speak its protocol. The saved game we both load says nothing
+                           about that, and two builds that disagree would drift apart silently. */
+                        TEAKFILE JoinMessage;
+                        JoinMessage.Announce(128);
+                        JoinMessage << ATNET_WANNAJOIN2 << gNetwork.GetLocalPlayerID() << Sim.GetSavegameLocalPlayer(SavegameIndex) << CString(VersionString);
+                        SIM::SendMemFile(JoinMessage);
+
                         Sim.bNetwork = bOld;
                     } else {
                         PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
