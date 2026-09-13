@@ -1260,7 +1260,37 @@ void PumpNetwork() {
 
                 CPlane &qPlane = qPlayer.Planes[PlaneId];
 
+                /* Whether a flight has been booked is this peer's own bookkeeping: every peer books
+                   the flight itself when the plane takes off on its own clock. The sender's flag
+                   says where the sender's clock is. A plan from a peer a minute ahead came with the
+                   departure of that minute already booked, and this peer then refused to book it -
+                   the premium, the kerosine and the wear of that flight were lost here. From a peer
+                   behind, a flight already booked here would be booked a second time. So a flight
+                   keeps the flag it has here, and one this peer does not know yet is not booked. */
+                std::vector<CFlugplanEintrag> BookedHere;
+                for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+                    if (qPlane.Flugplan.Flug[e].ObjectType != 0 && (qPlane.Flugplan.Flug[e].FlightBooked != 0)) {
+                        BookedHere.push_back(qPlane.Flugplan.Flug[e]);
+                    }
+                }
+
                 Message >> qPlane.Flugplan;
+
+                for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+                    CFlugplanEintrag &qFlight = qPlane.Flugplan.Flug[e];
+                    if (qFlight.ObjectType == 0) {
+                        continue;
+                    }
+                    const bool bSame = std::any_of(BookedHere.begin(), BookedHere.end(), [&qFlight](const CFlugplanEintrag &qOld) {
+                        return qOld.ObjectType == qFlight.ObjectType && qOld.ObjectId == qFlight.ObjectId && qOld.VonCity == qFlight.VonCity &&
+                               qOld.NachCity == qFlight.NachCity && qOld.Startdate == qFlight.Startdate && qOld.Startzeit == qFlight.Startzeit;
+                    });
+                    if ((qFlight.FlightBooked != 0) != bSame) {
+                        NetTraceEvent("FLIGHTBOOKED p=%ld plane=%ld flight=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(PlaneId),
+                                      static_cast<long>(e), static_cast<long>(qFlight.FlightBooked), static_cast<long>(bSame));
+                    }
+                    qFlight.FlightBooked = bSame ? TRUE : FALSE;
+                }
 
                 // Daten aktualisieren
                 qPlane.Flugplan.UpdateNextFlight();
