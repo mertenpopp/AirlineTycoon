@@ -958,8 +958,12 @@ void PLAYER::BookSalary() {
             // Gehaltssumme berechnen:
             Money += (Workers.Workers[c].Gehalt / 30);
 
-            // Flugzeugbilanz korrigieren:
-            if (Workers.Workers[c].PlaneId != -1) {
+            /* Flugzeugbilanz korrigieren. The crew of a player whose planes are gone - sold, or
+               all of them at once when the player went bankrupt - can still point at them for a
+               moment: on the other peers until the staff and the planes have both arrived, and
+               here between the two. Asking the album for a plane that is not in it any more
+               throws, which ended the game. */
+            if (Workers.Workers[c].PlaneId != -1 && Planes.IsInAlbum(Workers.Workers[c].PlaneId) != 0) {
                 Planes[Workers.Workers[c].PlaneId].Salden[0] -= (Workers.Workers[c].Gehalt / 30);
             }
         }
