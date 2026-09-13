@@ -38,6 +38,8 @@ ULONG rChkPersonRandCreate = 0, rChkPersonRandMisc = 0, rChkHeadlineRand = 0;
 ULONG rChkLMA = 0, rChkRBA = 0, rChkAA[MAX_CITIES], rChkFrachen = 0;
 SLONG rChkGeneric, CheckGeneric = 0;
 SLONG rChkActionId[5 * 4];
+SLONG rChkRobotSyncAge[4];
+SLONG gRobotSyncSlice[4] = {-1, -1, -1, -1}; // Sim.TimeSlice when a bot's action queue was last handed over (host) or received (client)
 
 SLONG GenericSyncIds[4] = {0, 0, 0, 0};
 static std::deque<SLONG> GenericSyncReceived[4]; // ATNET_GENERICSYNC ids per player, not yet waited for
@@ -1107,6 +1109,7 @@ void PumpNetwork() {
                 for (c = 0; c < qPlayer.RobotActions.AnzEntries(); c++) {
                     Message >> qPlayer.RobotActions[c];
                 }
+                gRobotSyncSlice[PlayerNum] = Sim.TimeSlice;
             } break;
 
             case ATNET_ROBOT_PHONE: {
@@ -2232,6 +2235,10 @@ void PumpNetwork() {
                 for (c = 0; c < 20; c++) {
                     Message >> rActionId[c];
                 }
+                SLONG rRobotSyncAge[4];
+                for (c = 0; c < 4; c++) {
+                    Message >> rRobotSyncAge[c];
+                }
 
                 /* The comparison below is the game's own desync detector, but it only exists in
                    debug builds. Report the same comparison through the trace, so that a release
@@ -2284,6 +2291,17 @@ void PumpNetwork() {
                            still pending on the client, in any order. Anything else is a real
                            disagreement about what a bot is going to do. */
                         for (SLONG p = 0; p < 4; p++) {
+                            /* Both sides take the snapshot on the first step of the minute, each on its
+                               own clock, and the peers are a few steps apart. A queue handed over
+                               just before one snapshot and received just after the other is not a
+                               disagreement - in a played session the host planned 40 ticks before
+                               the minute and the client got the queue 20 ticks into it. Compare
+                               only queues that have been left alone for a while on both sides. */
+                            const SLONG kSettleSlices = 20;
+                            if (rRobotSyncAge[p] < kSettleSlices || rChkRobotSyncAge[p] < kSettleSlices) {
+                                continue;
+                            }
+
                             const SLONG *Host = (Sim.bIsHost != 0) ? &rChkActionId[p * 5] : &rActionId[p * 5];
                             const SLONG *Client = (Sim.bIsHost != 0) ? &rActionId[p * 5] : &rChkActionId[p * 5];
 

@@ -9,6 +9,7 @@
 #define AT_Log(...) AT_Log_I("Player", __VA_ARGS__)
 
 extern bool bgIsLoadingSavegame;
+extern SLONG gRobotSyncSlice[4];
 
 inline bool needToSyncPlayer(const PLAYER &qPlayer, bool onlyBots) {
     if (qPlayer.IsOut != 0) {
@@ -688,4 +689,5 @@ void PLAYER::NetSyncRobot(SLONG Par1, SLONG Par2) const {
     }
 
     SIM::SendMemFile(Message);
+    gRobotSyncSlice[PlayerNum] = Sim.TimeSlice;
 }

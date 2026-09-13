@@ -95,6 +95,8 @@ extern ULONG rChkPersonRandCreate, rChkPersonRandMisc, rChkHeadlineRand;
 extern ULONG rChkLMA, rChkRBA, rChkAA[MAX_CITIES], rChkFrachen;
 extern SLONG rChkGeneric, CheckGeneric;
 extern SLONG rChkActionId[5 * 4];
+extern SLONG rChkRobotSyncAge[4];
+extern SLONG gRobotSyncSlice[4];
 
 extern SLONG GenericSyncIds[4];
 extern SLONG GenericSyncIdPars[4];
@@ -375,6 +377,10 @@ void SIM::ChooseStartup() {
     }
     for (c = 0; c < 5 * 4; c++) {
         rChkActionId[c] = 0;
+    }
+    for (c = 0; c < 4; c++) {
+        rChkRobotSyncAge[c] = 0;
+        gRobotSyncSlice[c] = -1;
     }
     for (c = 0; c < 4; c++) {
         GenericSyncIds[c] = GenericSyncIdPars[c] = 0;
@@ -1386,6 +1392,9 @@ void SIM::DoTimeStep() {
                     for (d = 0; d < 5; d++) {
                         rChkActionId[c * 5 + d] = Players.Players[c].RobotActions[d].ActionId;
                     }
+
+                    /* How long ago the queue was handed over; TimeSlice starts again every day. */
+                    rChkRobotSyncAge[c] = (gRobotSyncSlice[c] < 0 || gRobotSyncSlice[c] > TimeSlice) ? 0x7fffffff : TimeSlice - gRobotSyncSlice[c];
                 }
             }
             if ((GetMinute() % 5) == 3) {
@@ -1404,6 +1413,9 @@ void SIM::DoTimeStep() {
                     for (d = 0; d < 5; d++) {
                         Message << rChkActionId[c * 5 + d];
                     }
+                }
+                for (c = 0; c < 4; c++) {
+                    Message << rChkRobotSyncAge[c];
                 }
 
                 SIM::SendMemFile(Message);
