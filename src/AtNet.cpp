@@ -525,6 +525,10 @@ void PumpNetwork() {
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(PlayerNum)];
 
+                // A position sent before the player got on the phone must not take the phone away:
+                bool bTelefoning = (qPlayer.IsTalking != 0) && qPerson.LookDir == 8 && qPerson.Phase >= 4;
+                UBYTE TelefoningPhase = qPerson.Phase;
+
                 // Read the message data:
                 Message >> qPlayer.PrimaryTarget.x >> qPlayer.PrimaryTarget.y;
                 Message >> qPlayer.SecondaryTarget.x >> qPlayer.SecondaryTarget.y;
@@ -538,6 +542,12 @@ void PumpNetwork() {
                 Message >> qPerson.StatePar >> qPerson.Running;
                 Message >> qPerson.Dir >> qPerson.LookDir;
                 Message >> qPerson.Phase;
+
+                if (bTelefoning) {
+                    qPerson.Dir = 8;
+                    qPerson.LookDir = 8;
+                    qPerson.Phase = TelefoningPhase;
+                }
 
                 qPlayer.UpdateWaypointWalkingDirection();
 

@@ -6020,6 +6020,15 @@ void CStdRaum::MenuLeftClick(XY Pos) {
 
                         // Die Figur aus der Animation rausreissen:
                         Sim.Players.Players[MouseClickPar2].DisplayAsTelefoning();
+
+                        // The host moves the bot and has to stop it, too. The others show it with the phone:
+                        if (Sim.bNetwork != 0) {
+                            PERSON &qBotPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(MouseClickPar2)];
+
+                            SIM::SendSimpleMessage(ATNET_DIALOG_LOCK, 0, MouseClickPar2);
+                            qOther.BroadcastPosition();
+                            SIM::SendSimpleMessage(ATNET_PLAYERLOOK, 0, MouseClickPar2, qBotPerson.Phase);
+                        }
                     }
                 }
             }
