@@ -441,7 +441,12 @@ CAufsicht::~CAufsicht() {
 
                 qPlayer.NumFlights = 0;
                 qPlayer.WorkCountdown = 1;
-                qPlayer.WaitWorkTill = 0;
+                /* Nothing is scheduled yet. A 0 meant "act now" to PLAYER::RobotPump() in a
+                   network game, which carried out the computer player's first action of the day
+                   on the spot, wherever it stood - a bot emptied the job market at 09:00 from
+                   the middle of the airport while the humans were still in the briefing. Now it
+                   walks to the room of its action first, as it does in a single player game. */
+                qPlayer.WaitWorkTill = -1;
 
                 if (qPlayer.Owner == 1) {
                     qPlayer.WalkToRoom(UBYTE(ROOM_BURO_A + c * 10));
