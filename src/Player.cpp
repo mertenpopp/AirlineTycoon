@@ -950,22 +950,23 @@ void PLAYER::BookSalary() {
     SLONG c = 0;
     SLONG Money = 0;
 
-    if (Owner != 2) {
-        for (c = 0; c < Workers.Workers.AnzEntries(); c++) {
-            if (Workers.Workers[c].Employer == PlayerNum) {
-                // Gehaltssumme berechnen:
-                Money += (Workers.Workers[c].Gehalt / 30);
+    /* Every peer books this for every player, the same way as the rents above: who works for whom
+       and for how much is the same everywhere. Leaving the other peers' humans out made their
+       money differ every morning until the hourly resync caught up. */
+    for (c = 0; c < Workers.Workers.AnzEntries(); c++) {
+        if (Workers.Workers[c].Employer == PlayerNum) {
+            // Gehaltssumme berechnen:
+            Money += (Workers.Workers[c].Gehalt / 30);
 
-                // Flugzeugbilanz korrigieren:
-                if (Workers.Workers[c].PlaneId != -1) {
-                    Planes[Workers.Workers[c].PlaneId].Salden[0] -= (Workers.Workers[c].Gehalt / 30);
-                }
+            // Flugzeugbilanz korrigieren:
+            if (Workers.Workers[c].PlaneId != -1) {
+                Planes[Workers.Workers[c].PlaneId].Salden[0] -= (Workers.Workers[c].Gehalt / 30);
             }
         }
+    }
 
-        if (Money != 0) {
-            ChangeMoney(-Money, 2070, "");
-        }
+    if (Money != 0) {
+        ChangeMoney(-Money, 2070, "");
     }
 }
 
