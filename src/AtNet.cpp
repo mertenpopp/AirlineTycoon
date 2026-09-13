@@ -2451,14 +2451,29 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
                 SLONG Event = 0;
                 SLONG Par = 0;
+                SLONG SenderHour = 0;
 
-                Message >> PlayerNum >> Event >> Par;
+                Message >> PlayerNum >> Event >> Par >> SenderHour;
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                 if (Event == 0 && Par >= static_cast<SLONG>(GameMechanic::EndStrikeMode::Salary) &&
                     Par <= static_cast<SLONG>(GameMechanic::EndStrikeMode::Drunk)) {
+                    const bool bWasOn = (qPlayer.StrikeEndType == 0);
                     GameMechanic::endStrike(qPlayer, static_cast<GameMechanic::EndStrikeMode>(Par), true);
+
+                    /* The countdown ends the strike after that many changes of hour. Count them
+                       from the owner's hour rather than from this peer's: a message that crosses
+                       the change of hour would otherwise keep the departures of that hour
+                       grounded on one peer only - and a delayed flight stays delayed. */
+                    if (bWasOn && qPlayer.StrikeEndType != 0 && qPlayer.StrikeEndCountdown > 0) {
+                        const SLONG Behind = SenderHour - (Sim.Date * 24 + Sim.GetHour());
+                        if (Behind >= -24 && Behind <= 24) {
+                            qPlayer.StrikeEndCountdown = max(1, qPlayer.StrikeEndCountdown + Behind);
+                        } else {
+                            NetTraceEvent("STRIKE end out of range p=%ld sender_hour=%ld", static_cast<long>(PlayerNum), static_cast<long>(SenderHour));
+                        }
+                    }
                 } else if (Event == 1) {
                     qPlayer.StrikeHours = Par;
                 } else if (Event == 2) {

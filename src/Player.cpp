@@ -4594,7 +4594,7 @@ void PLAYER::RobotExecuteAction() {
 
             /* Bots only act on the host, but the strike delays their departures on every peer. */
             if (NetIsAuthoritative()) {
-                SIM::SendSimpleMessage(ATNET_STRIKE, 0, PlayerNum, 1, 0);
+                SIM::SendSimpleMessage(ATNET_STRIKE, 0, PlayerNum, 1, 0, Sim.Date * 24 + Sim.GetHour());
             }
         }
 
