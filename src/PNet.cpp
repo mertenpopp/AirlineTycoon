@@ -2,6 +2,7 @@
 // PNet.cpp : Routinen zum verwalten der Spieler im Netzwerk
 //============================================================================================
 #include "AtNet.h"
+#include "NetTrace.h"
 #include "class.h"
 #include "global.h"
 
@@ -563,9 +564,72 @@ void PLAYER::NetUpdateKerosin() const {
     Message.Announce(128);
 
     Message << ATNET_SYNCKEROSIN;
-    Message << PlayerNum << Tank << TankOpen << TankInhalt << KerosinQuali << KerosinKind << TankPreis;
+    Message << PlayerNum << Tank << TankOpen << TankInhalt << KerosinQuali << KerosinKind << TankPreis << NetTankStamp();
 
     SIM::SendMemFile(Message);
+}
+
+//--------------------------------------------------------------------------------------------
+// How many flights of this player were booked today; the same on every peer at the same point
+//--------------------------------------------------------------------------------------------
+SLONG PLAYER::NetTankStamp() const {
+    if (NetTankFlightsDate != Sim.Date) {
+        return Sim.Date * 100000;
+    }
+    return Sim.Date * 100000 + NetTankFlights;
+}
+
+//--------------------------------------------------------------------------------------------
+// A flight of this player was booked (and took kerosine from the tank, if it was open)
+//--------------------------------------------------------------------------------------------
+void PLAYER::NetTankFlightBooked() {
+    if (NetTankFlightsDate != Sim.Date) {
+        NetTankFlightsDate = Sim.Date;
+        NetTankFlights = 0;
+    }
+    NetTankFlights++;
+}
+
+//--------------------------------------------------------------------------------------------
+// The owner sent its tank state. The owner may be ahead of us or behind: a state taken after a
+// flight we have still to book would be emptied by that flight a second time, and a state taken
+// before a flight we have already booked would bring back what it took.
+//--------------------------------------------------------------------------------------------
+void PLAYER::NetReceiveKerosin(const NetTankState &State) {
+    const SLONG Mine = NetTankStamp();
+
+    if (State.Stamp == Mine) {
+        NetTankPending = State;
+        NetApplyPendingKerosin();
+    } else if (State.Stamp > Mine) {
+        // The owner has booked flights we have still to book: apply it once we have booked them
+        NetTankPending = State;
+    } else {
+        // We have already booked a flight the owner had not: wait for its next state
+        NetTraceEvent("SKIP what=kerosin player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(State.Stamp),
+                      static_cast<long>(Mine));
+    }
+}
+
+void PLAYER::NetApplyPendingKerosin() {
+    if (NetTankPending.Stamp == -1) {
+        return;
+    }
+
+    const SLONG Mine = NetTankStamp();
+    if (NetTankPending.Stamp < Mine) {
+        NetTraceEvent("SKIP what=kerosin player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(NetTankPending.Stamp),
+                      static_cast<long>(Mine));
+        NetTankPending.Stamp = -1;
+    } else if (NetTankPending.Stamp == Mine) {
+        Tank = NetTankPending.Tank;
+        TankOpen = NetTankPending.TankOpen;
+        TankInhalt = NetTankPending.TankInhalt;
+        KerosinQuali = NetTankPending.KerosinQuali;
+        KerosinKind = NetTankPending.KerosinKind;
+        TankPreis = NetTankPending.TankPreis;
+        NetTankPending.Stamp = -1;
+    }
 }
 
 //--------------------------------------------------------------------------------------------

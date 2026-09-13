@@ -2369,25 +2369,14 @@ void PumpNetwork() {
 
             case ATNET_SYNCKEROSIN: {
                 SLONG playerId = 0;
-                SLONG TankOpen = 0;
-                SLONG TankInhalt = 0;
-                DOUBLE KerosinQuali = 0;
-                SLONG KerosinKind = 0;
-                BOOL Tank = 0;
-                DOUBLE TankPreis = NAN;
+                PLAYER::NetTankState State;
 
-                Message >> playerId >> Tank >> TankOpen >> TankInhalt >> KerosinQuali >> KerosinKind >> TankPreis;
+                Message >> playerId >> State.Tank >> State.TankOpen >> State.TankInhalt >> State.KerosinQuali >> State.KerosinKind >> State.TankPreis >>
+                    State.Stamp;
                 playerId = NetCheckPlayerNum(playerId, MessageType);
 
-                if (playerId != Sim.localPlayer) {
-                    PLAYER &qPlayer = Sim.Players.Players[playerId];
-
-                    qPlayer.Tank = Tank;
-                    qPlayer.TankOpen = TankOpen;
-                    qPlayer.TankInhalt = TankInhalt;
-                    qPlayer.KerosinQuali = KerosinQuali;
-                    qPlayer.KerosinKind = KerosinKind;
-                    qPlayer.TankPreis = TankPreis;
+                if (playerId != Sim.localPlayer && State.Stamp >= 0) {
+                    Sim.Players.Players[playerId].NetReceiveKerosin(State);
                 }
             } break;
 

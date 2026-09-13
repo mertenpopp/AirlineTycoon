@@ -2019,6 +2019,23 @@ class PLAYER {
     BOOL TankOpen{};                             // Tanks sind zur Verwendung freigegeben
     SLONG TankInhalt{};                          // Soviel ist im Tank drin
     DOUBLE TankPreis{};                          // Korekt berechneter Preis; auch bei mix
+
+    /* Network: The tank state the owner sends is only right at the point of the flights where it
+       was taken, since every flight takes kerosine from the tank on every peer. So the flights
+       from the tank are counted per day, and a state from the owner is applied once we have
+       booked as many flights (see ATNET_SYNCKEROSIN). */
+    struct NetTankState {
+        SLONG Stamp{-1}; // -1 = nothing pending
+        SLONG Tank{};
+        BOOL TankOpen{};
+        SLONG TankInhalt{};
+        DOUBLE KerosinQuali{};
+        SLONG KerosinKind{};
+        DOUBLE TankPreis{};
+    };
+    SLONG NetTankFlightsDate{-1};
+    SLONG NetTankFlights{};
+    NetTankState NetTankPending;
     SLONG GameSpeed{};                           // 0..3
     SLONG ArabTrust{};                           // Sabotage möglich?
     SLONG ArabMode{};                            // Anschlag unterwegs?
@@ -2309,6 +2326,10 @@ class PLAYER {
     void NetUpdateRentRoute(SLONG Route1Id, SLONG Route2Id);
     void NetUpdateWorkers(void);
     void NetUpdateKerosin(void) const;
+    SLONG NetTankStamp() const;
+    void NetTankFlightBooked();
+    void NetReceiveKerosin(const NetTankState &State);
+    void NetApplyPendingKerosin();
     static void NetSynchronizePlanes(void);
     static void NetSynchronizeMeeting(void);
     void NetBuyXPlane(SLONG Anzahl, CXPlane &plane) const;
