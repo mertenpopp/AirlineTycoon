@@ -474,6 +474,13 @@ bool GameMechanic::paySaboteurFine(SLONG player, SLONG opfer) {
         return false;
     }
 
+    /* The boss tells every player about the sabotage in their own morning briefing, so every peer
+       runs this. Only the peer that owns the saboteur books the fine and tells the others, or the
+       fine is paid once per human player - each time when that player has their briefing. */
+    if (Sim.bNetwork != 0 && !Sim.Players.Players[player].NetIsAuthoritative()) {
+        return true;
+    }
+
     auto fine = Sim.Players.Players[player].ArabHints * 10000;
     Sim.Players.Players[player].ChangeMoney(-fine, 2200, "");
     Sim.Players.Players[opfer].ChangeMoney(fine, 2201, "");
