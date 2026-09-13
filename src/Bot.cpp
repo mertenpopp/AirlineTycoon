@@ -206,7 +206,7 @@ void Bot::RobotInit(SLONG randomSeed) {
 
     /* action economy */
     mLastTimeInRoom.clear();
-    if (Sim.Date > 1) {
+    if ((Sim.Date > 1) && (Sim.bNetwork == 0 || Sim.bIsHost != 0)) {
         AT_Log("Bot::RobotInit(): Executed %d %s, %d %s, %d %s, %d %s, %d %s, %d %s actions", mActionCounter[Prio::Top], getPrioName(Prio::Top),
                mActionCounter[Prio::Higher], getPrioName(Prio::Higher), mActionCounter[Prio::High], getPrioName(Prio::High), mActionCounter[Prio::Medium],
                getPrioName(Prio::Medium), mActionCounter[Prio::Low], getPrioName(Prio::Low), mActionCounter[Prio::Lowest], getPrioName(Prio::Lowest));
