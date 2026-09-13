@@ -1064,8 +1064,18 @@ void PumpNetwork() {
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                SLONG WaitWorkTill = 0;
 
-                Message >> qPlayer.WaitWorkTill >> qPlayer.WaitWorkTill2;
+                Message >> WaitWorkTill >> qPlayer.WaitWorkTill2;
+
+                /* The host sends this also after planning, merely to hand over the new action
+                   queue, and then its own WaitWorkTill is -1 because it has already executed the
+                   action. That must not cancel the execution still pending here: after the day is
+                   called off the host waits for our ATNET_READYFORMORNING, which we only send when
+                   we execute it, and we wait for the host - the game froze during fast-forward. */
+                if (WaitWorkTill != -1 || qPlayer.WaitWorkTill == -1) {
+                    qPlayer.WaitWorkTill = WaitWorkTill;
+                }
 
                 for (c = 0; c < 4; c++) {
                     Message >> qPlayer.Sympathie[c];
