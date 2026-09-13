@@ -1129,6 +1129,10 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                            and crashed every peer on the first paint of the airport. The effective
                            network speed is the minimum over all humans anyway, so 3 costs nothing. */
                         Sim.Players.Players[Sim.localPlayer].GameSpeed = (Sim.bNetwork != 0) ? 3 : 5;
+                        /* The other peers still had this human at 0. As long as everybody is in,
+                           that is the slowest speed anyway, but once one human went home the peers
+                           ran the rest at different speeds and got minutes apart. */
+                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, Sim.Players.Players[Sim.localPlayer].GameSpeed);
                     } else {
                         if (Sim.Difficulty == DIFF_TUTORIAL) {
                             for (c = 0; c < Sim.Players.AnzPlayers; c++) {
