@@ -1477,7 +1477,18 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                     MyPrivateRandom++;
 
-                    if (((MyPrivateRandom & 1) == 0 && abs(gTimerCorrection) > 10) || (MyPrivateRandom & 7) == 0) {
+                    /* One step every other frame evens out the jitter of a few steps, but not a
+                       peer that ran at another speed for a while: at 20 frames a second it made up
+                       ten steps a second, and a peer an hour ahead stayed ahead all day. Close a
+                       large gap by a tenth per frame instead; a peer that is ahead can at most stand
+                       still for the frame. */
+                    if (abs(gTimerCorrection) > 100) {
+                        SLONG Delta = gTimerCorrection / 10;
+                        Delta = min(Delta, SLONG(40));
+                        Delta = max(Delta, -SLONG(NumSimSteps));
+                        NumSimSteps += Delta;
+                        gTimerCorrection -= Delta;
+                    } else if (((MyPrivateRandom & 1) == 0 && abs(gTimerCorrection) > 10) || (MyPrivateRandom & 7) == 0) {
                         if (gTimerCorrection > 0) {
                             NumSimSteps++;
                             gTimerCorrection--;
