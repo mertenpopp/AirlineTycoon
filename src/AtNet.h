@@ -104,6 +104,7 @@ static const ULONG ATNET_SYNC_MEETING = 0xadaa1009;    // Die typischen Sachen v
 
 // Synchronizing the robots:
 static const ULONG ATNET_ROBOT_EXECUTE = 0xadaa1100; // Hey all, robot x is gonna act at hh:mm:ss sharp
+static const ULONG ATNET_ROBOT_PHONE = 0xadaa1101;   // Hey all, robot x is on the mobile phone for n steps
 
 // Synchronizing the players:
 static const ULONG ATNET_PLAYER_REFILL = 0xadaa1200; // Hey all, please refill lastminute/freight/...
@@ -235,6 +236,7 @@ DEFINE_NAME_ENTRY(ATNET_SYNC_OFFICEFLAG, )
 DEFINE_NAME_ENTRY(ATNET_SYNC_PLANES, )
 DEFINE_NAME_ENTRY(ATNET_SYNC_MEETING, )
 DEFINE_NAME_ENTRY(ATNET_ROBOT_EXECUTE, )
+DEFINE_NAME_ENTRY(ATNET_ROBOT_PHONE, "Robot x is on the mobile phone for n steps")
 DEFINE_NAME_ENTRY(ATNET_PLAYER_REFILL, )
 DEFINE_NAME_ENTRY(ATNET_PLAYER_TOOK, )
 DEFINE_NAME_ENTRY(ATNET_PLAYER_18UHR, )

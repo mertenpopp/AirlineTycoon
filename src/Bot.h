@@ -74,6 +74,7 @@ class Bot {
     /* anim state */
     bool getOnThePhone() const { return mOnThePhone > 0; }
     void decOnThePhone() { mOnThePhone--; }
+    void setOnThePhone(SLONG steps) { mOnThePhone = steps; }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);
     friend TEAKFILE &operator>>(TEAKFILE &File, Bot &bot);
