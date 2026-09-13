@@ -1791,8 +1791,14 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 Sim.UpdateRoomUsage();
                                             }
                                         }
-                                    } else if (Sim.Players.Players[c].Owner == 1) // Und das gleiche für Roboter:
+                                    } else if (Sim.Players.Players[c].Owner == 1 && Sim.Players.Players[c].IsOut == 0) // Und das gleiche für Roboter:
                                     {
+                                        /* Not for a computer player that is out. It goes out in the morning briefing and
+                                           keeps sitting in that room, and it has no figure in the airport from the next
+                                           day on. When CalcRoom() threw it out of the room after two hours, leaving it
+                                           asked the album for that figure, which ended a network game on the host with
+                                           "Album: Persons [] failed!". Rooms of players that are out count for nothing
+                                           anyway (see SIM::UpdateRoomUsage()). */
                                         for (d = 0; d < 10; d++) {
                                             if ((qPlayer.Locations[d] & ROOM_LEAVING) != 0) {
                                                 switch (qPlayer.Locations[d] & (~ROOM_LEAVING)) {
