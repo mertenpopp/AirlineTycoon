@@ -132,6 +132,29 @@ void PLAYER::NetSynchronizeRoutes() {
                         << qPlayer.RentRouten.RentRouten[d].TicketpreisFC << qPlayer.RentRouten.RentRouten[d].TageMitVerlust
                         << qPlayer.RentRouten.RentRouten[d].TageMitGering;
             }
+
+            /* How well the routes are used follows from the flights and was never resent, so once
+               two peers disagreed about it - one differing passenger count is enough - they never
+               agreed again. Only the rented routes carry it, so send just those. */
+            SLONG Rented = 0;
+            for (SLONG d = 0; d < Routen.AnzEntries(); d++) {
+                if (qPlayer.RentRouten.RentRouten[d].Rang != 0U) {
+                    Rented++;
+                }
+            }
+            Message << Rented;
+
+            for (SLONG d = 0; d < Routen.AnzEntries(); d++) {
+                const CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
+                if (qRoute.Rang == 0U) {
+                    continue;
+                }
+
+                Message << d << qRoute.Auslastung << qRoute.AuslastungFC << qRoute.RoutenAuslastung << qRoute.HeuteBefoerdert;
+                for (SLONG e = 0; e < 7; e++) {
+                    Message << qRoute.WocheBefoerdert[e];
+                }
+            }
         }
     }
 
