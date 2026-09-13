@@ -1369,11 +1369,12 @@ void CPlane::UpdatePersonalQuality(SLONG PlayerNum) {
 
     Saldo = 0;
 
+    auto &qPlayer = Sim.Players.Players[PlayerNum];
     for (c = n = 0; c < Workers.Workers.AnzEntries(); c++) {
-        if (Workers.Workers[c].Employer == PlayerNum && Workers.Workers[c].PlaneId != -1 &&
-            Sim.Players.Players[PlayerNum].Planes.IsInAlbum(Workers.Workers[c].PlaneId) != 0 &&
-            (&Sim.Players.Players[PlayerNum].Planes[Workers.Workers[c].PlaneId]) == this) {
-            Saldo += Workers.Workers[c].Talent;
+        auto &qWorker = Workers.Workers[c];
+        if (qWorker.Employer == PlayerNum && qWorker.PlaneId != -1 && qPlayer.Planes.IsInAlbum(qWorker.PlaneId) != 0 &&
+            (&qPlayer.Planes[qWorker.PlaneId]) == this) {
+            Saldo += qWorker.Talent;
             n++;
         }
     }
