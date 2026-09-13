@@ -6254,7 +6254,16 @@ void PLAYER::BuyItem(UBYTE Item) {
 void PLAYER::DisplayAsTelefoning() const {
     PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
 
-    qPerson.Phase = qPerson.LookDir + 4;
+    // A standing person already has LookDir 8 and its direction in Phase. LookDir + 4 would then
+    // be past the standing phases and the player is drawn without the phone:
+    SLONG Dir = 2;
+    if (qPerson.LookDir == 8) {
+        Dir = qPerson.Phase % 4;
+    } else if (qPerson.LookDir < 4) {
+        Dir = qPerson.LookDir;
+    }
+
+    qPerson.Phase = UBYTE(Dir + 4);
     qPerson.LookDir = 8;
 }
 
