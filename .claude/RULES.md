@@ -751,6 +751,8 @@ You have read access to:
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
 - `Sim.nSecOutDays`: Check for how many days the security office is closed. Security office can close due to sabotage.
+- `Sim.bNetwork`: Check if this is a network game.
+- `Sim.bIsHost`: Check if this game instance is the host in a network game.
 
 ### Player objects (yourself)
 
