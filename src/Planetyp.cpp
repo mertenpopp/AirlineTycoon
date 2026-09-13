@@ -1371,6 +1371,7 @@ void CPlane::UpdatePersonalQuality(SLONG PlayerNum) {
 
     for (c = n = 0; c < Workers.Workers.AnzEntries(); c++) {
         if (Workers.Workers[c].Employer == PlayerNum && Workers.Workers[c].PlaneId != -1 &&
+            Sim.Players.Players[PlayerNum].Planes.IsInAlbum(Workers.Workers[c].PlaneId) != 0 &&
             (&Sim.Players.Players[PlayerNum].Planes[Workers.Workers[c].PlaneId]) == this) {
             Saldo += Workers.Workers[c].Talent;
             n++;
