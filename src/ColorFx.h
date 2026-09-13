@@ -29,7 +29,7 @@ class SB_CColorFX {
     void ApplyOn2(SLONG Step, SB_CBitmapCore *Bitmap, SLONG Step2, SB_CBitmapCore *Bitmap2);
     void ApplyOn2(SLONG Step, SB_CBitmapCore *SrcBitmap, SLONG Step2, SB_CBitmapCore *SrcBitmap2, SB_CBitmapCore *TgtBitmap);
     void ApplyRoughOn2(SLONG Step, SB_CBitmapCore *SrcBitmap, SLONG Step2, SB_CBitmapCore *SrcBitmap2, SB_CBitmapCore *TgtBitmap);
-    void BlitWhiteTrans(BOOL DoMessagePump, SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, const CRect *SrcRect = NULL,
+    void BlitWhiteTrans(SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, const CRect *SrcRect = NULL,
                         SLONG Grade = -1);
     static void BlitOutline(SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, ULONG LineColor);
     void BlitTrans(SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, const CRect *SrcRect = NULL, SLONG Grade = -1);

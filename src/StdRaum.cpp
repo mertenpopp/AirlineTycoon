@@ -2687,12 +2687,12 @@ void CStdRaum::PostPaint() {
                 if (OnscreenBitmap.pBitmap != nullptr) {
                     if (RoomBm.Size.x > 0) {
                         if (DisplayThisBubble != 0) {
-                            ColorFX.BlitWhiteTrans(TRUE, OnscreenBitmap.pBitmap, RoomBm.pBitmap, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
+                            ColorFX.BlitWhiteTrans(OnscreenBitmap.pBitmap, RoomBm.pBitmap, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
                                                    &BubbleRect);
                         }
                     } else {
                         if (DisplayThisBubble != 0) {
-                            ColorFX.BlitWhiteTrans(TRUE, OnscreenBitmap.pBitmap, &PrimaryBm.PrimaryBm, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
+                            ColorFX.BlitWhiteTrans(OnscreenBitmap.pBitmap, &PrimaryBm.PrimaryBm, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
                                                    &BubbleRect);
                         }
                     }
@@ -3035,7 +3035,7 @@ void CStdRaum::PostPaint() {
             }
 
             if (qMessages.Messages[static_cast<SLONG>(0)].Message.GetLength() > 0 && qMessages.AktuellerBeraterTyp < 100) {
-                ColorFX.BlitWhiteTrans(TRUE, qMessages.SprechblaseBm.pBitmap, &PrimaryBm.PrimaryBm,
+                ColorFX.BlitWhiteTrans(qMessages.SprechblaseBm.pBitmap, &PrimaryBm.PrimaryBm,
                                        XY(640 - BeraterBms[qMessages.AktuelleBeraterBitmap][0].Size.x +
                                               BeraterSprechblasenOffset[qMessages.AktuelleBeraterBitmap].x - qMessages.SprechblaseBm.Size.x,
                                           qMessages.BeraterPosY + BeraterSprechblasenOffset[qMessages.AktuelleBeraterBitmap].y));
@@ -3062,9 +3062,9 @@ void CStdRaum::PostPaint() {
     }
 
     if (gBroadcastBm.Size.y > 10) {
-        ColorFX.BlitWhiteTrans(TRUE, gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10, 10));
+        ColorFX.BlitWhiteTrans(gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10, 10));
     } else if (gBroadcastBm.Size.y > 0) {
-        ColorFX.BlitWhiteTrans(TRUE, gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10 - (10 - gBroadcastBm.Size.y) * 20, 10 + (10 - gBroadcastBm.Size.y) * 5));
+        ColorFX.BlitWhiteTrans(gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10 - (10 - gBroadcastBm.Size.y) * 20, 10 + (10 - gBroadcastBm.Size.y) * 5));
     }
 
     if (bHandy == FALSE) {

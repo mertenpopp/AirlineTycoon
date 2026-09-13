@@ -765,7 +765,7 @@ void GameFrame::OnPaint() {
                     }
                 }
 
-                ColorFX.BlitWhiteTrans(FALSE, gToolTipBm.pBitmap, &PrimaryBm.PrimaryBm, XY(px, py));
+                ColorFX.BlitWhiteTrans(gToolTipBm.pBitmap, &PrimaryBm.PrimaryBm, XY(px, py));
             }
 
             if (gUseWindowsMouse == 0) {
