@@ -1496,6 +1496,10 @@ void SIM::DoTimeStep() {
                         bgWarp = FALSE;
                         if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                             qPlayer.GameSpeed = 0;
+                            /* The clock runs at the slowest human's speed, and the other peers only
+                               learn this one's from the message. Without it they ran on at full
+                               speed and got an hour ahead within a few minutes. */
+                            SIM::SendSimpleMessage(ATNET_SETSPEED, 0, qPlayer.PlayerNum, qPlayer.GameSpeed);
                         }
                     }
                 }
@@ -1522,6 +1526,7 @@ void SIM::DoTimeStep() {
                             qPlayer.StrikeEndType = 0;
                             if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                                 qPlayer.GameSpeed = 0;
+                                SIM::SendSimpleMessage(ATNET_SETSPEED, 0, qPlayer.PlayerNum, qPlayer.GameSpeed);
                             }
                         }
                     }
@@ -1688,6 +1693,7 @@ void SIM::DoTimeStep() {
                                                 bgWarp = FALSE;
                                                 if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                                                     qLocalPlayer.GameSpeed = 0;
+                                                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                                                 }
                                             } else if (CallItADay == 0) {
                                                 qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
@@ -2569,6 +2575,10 @@ void SIM::NewDay() {
     }
 
     CallItADay = FALSE;
+
+    /* The session master's clock is only sent during the day, and the peers meet again at the
+       morning briefing anyway. What was left of yesterday's gap must not bend tomorrow's clock. */
+    gTimerCorrection = 0;
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
     NetTraceFingerprint("dayend");

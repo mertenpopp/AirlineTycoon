@@ -1284,7 +1284,7 @@ void GameMechanic::startStrike(PLAYER &qPlayer, SLONG hours, bool bFromNetwork) 
        just before or just after its own change of hour, and a peer that counted the hours itself
        from there would stop a whole hour early or late. */
     if (!bFromNetwork && qPlayer.NetIsAuthoritative()) {
-        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 2, Sim.Date * 24 + Sim.GetHour() + hours);
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 2, Sim.Date * 24 + Sim.GetHour() + hours, Sim.Date * 24 + Sim.GetHour());
     }
 }
 
@@ -1329,9 +1329,10 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetw
 
     /* A strike runs on every peer, since it delays the player's departures everywhere. Waiting
        it out ends it on every peer by itself; a dialog or a bot ends it only where it happens,
-       so that has to be announced. StrikeEndType is only set if it actually ended. */
+       so that has to be announced. StrikeEndType is only set if it actually ended. The hour goes
+       along because the countdown above counts changes of hour, see ATNET_STRIKE. */
     if (!bFromNetwork && mode != EndStrikeMode::Waiting && qPlayer.StrikeEndType != 0 && qPlayer.NetIsAuthoritative()) {
-        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 0, static_cast<SLONG>(mode));
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 0, static_cast<SLONG>(mode), Sim.Date * 24 + Sim.GetHour());
     }
 }
 
@@ -3427,6 +3428,7 @@ void GameMechanic::executeSabotageMode1() {
                 bgWarp = FALSE;
                 if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                     qLocalPlayer.GameSpeed = 0;
+                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                 }
             } else {
                 gUniversalFx.Stop();
@@ -3436,6 +3438,7 @@ void GameMechanic::executeSabotageMode1() {
                 bgWarp = FALSE;
                 if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                     qLocalPlayer.GameSpeed = 0;
+                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                 }
 
                 delete qLocalPlayer.DialogWin;
@@ -3461,6 +3464,7 @@ void GameMechanic::executeSabotageMode1() {
                     bgWarp = FALSE;
                     if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                         qLocalPlayer.GameSpeed = 0;
+                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                     }
                 } else if (Sim.CallItADay == 0) {
                     qOpfer.Messages.AddMessage(
