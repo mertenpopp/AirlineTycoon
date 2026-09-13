@@ -6,6 +6,7 @@
 #include "AtNet.h"
 #include "NetTrace.h"
 
+#include "Bot.h"
 #include "Buero.h"
 #include "GameMechanic.h"
 #include "global.h"
@@ -1071,6 +1072,19 @@ void PumpNetwork() {
                 }
                 for (c = 0; c < qPlayer.RobotActions.AnzEntries(); c++) {
                     Message >> qPlayer.RobotActions[c];
+                }
+            } break;
+
+            case ATNET_ROBOT_PHONE: {
+                SLONG PlayerNum = 0;
+                SLONG Steps = 0;
+
+                Message >> PlayerNum >> Steps;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                if (qPlayer.IsMertenBot() && qPlayer.mBot != nullptr && Steps >= 0 && Steps <= 100) {
+                    qPlayer.mBot->setOnThePhone(Steps);
                 }
             } break;
 

@@ -413,6 +413,10 @@ void Bot::RobotExecuteAction() {
         AT_Log("Bot::RobotExecuteAction(): Calling international using mobile phone.");
         actionCallInternational(false);
         mOnThePhone = 30;
+        if (Sim.bNetwork != 0) {
+            /* Only the host executes the action, the other peers have to be told to show the phone */
+            SIM::SendSimpleMessage(ATNET_ROBOT_PHONE, 0, qPlayer.PlayerNum, mOnThePhone);
+        }
         break;
 
     case ACTION_CHECKAGENT1:
