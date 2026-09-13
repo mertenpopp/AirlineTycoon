@@ -83,9 +83,15 @@ def report_divergence(peers):
         print("   no fingerprints in common (did every peer run with /nettrace?)\n")
         return
 
+    # In the order they are taken: "daystart" when the game starts, "dayend day=N" in the night
+    # before day N (SIM::NewDay has already counted the day up) and "briefing day=N" at 9:00 of
+    # it. Sorting the names alphabetically put the briefing first, so a divergence the briefing
+    # sync repaired looked lasting, and the one that really lasted was never reached.
+    WHEN = {"daystart": 0, "dayend": 1, "briefing": 2}
+
     def order(key):
         day = key[0]
-        return (int(day) if day and day.lstrip("-").isdigit() else 0, key[1], str(key[2]))
+        return (int(day) if day and day.lstrip("-").isdigit() else 0, WHEN.get(key[1], 3), key[1], str(key[2]))
 
     # Each peer reports its own human as owner 0 and the other humans as 2, so only the
     # human/computer split is comparable - and it must agree, or the peers are playing
@@ -111,26 +117,41 @@ def report_divergence(peers):
         rows = [table[key] for table in tables]
         return len({r.get("hash") for r in rows}) == 1 and len({role(r) for r in rows}) == 1
 
+    # "owner" is relative to the peer doing the reporting (itself 0, the others 2), so it
+    # differs by design and is not evidence of anything. A human's money and credit are only
+    # authoritative on that human's own peer and resynchronised every morning, so they are
+    # not hashed either; listing them would bury the field that actually caused the mismatch.
+    def comparable(key):
+        rows = [table[key] for table in tables]
+        local_only = {"owner", "t", "hash"}
+        if key[1] != "briefing" and any(r.get("owner") in ("0", "2") for r in rows):
+            local_only |= {"money", "credit"}
+        return [k for k in rows[0] if not k.startswith("_") and k not in local_only]
+
+    def differing(key):
+        rows = [table[key] for table in tables]
+        return [f for f in comparable(key) if len({r.get(f) for r in rows}) > 1]
+
     # A divergence the next sync repairs is a different animal from one that stays. The owner
     # resends money, image, routes and staff every hour and at the morning briefing, so a
     # message that crossed a nightly computation shows up once and is gone - worth listing,
-    # but not worth stopping at while a lasting one may follow.
+    # but not worth stopping at while a lasting one may follow. Judged field by field: an
+    # unrelated transient at the next fingerprint must not make this one look lasting.
     def heals_later(key):
         who = key[2]
-        seen = False
-        for other in keys:
-            if other == key:
-                seen = True
-                continue
-            if seen and other[2] == who:
-                return agrees(other)
-        return False
+        later = [other for other in keys[keys.index(key) + 1:] if other[2] == who]
+        for field in differing(key):
+            nxt = next((other for other in later if field in comparable(other)), None)
+            if nxt is None or len({table[nxt].get(field) for table in tables}) > 1:
+                return False
+        return bool(differing(key)) and len({role(table[key]) for table in tables}) == 1
 
     transient = [k for k in keys if not agrees(k) and heals_later(k)]
     if transient:
         print("   healed again later (the owner resends its state every hour):")
         for day, when, who in transient:
-            print(f"      day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}")
+            fields = " ".join(differing((day, when, who)))
+            print(f"      day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}: {fields}")
         print()
 
     for key in keys:
@@ -142,15 +163,7 @@ def report_divergence(peers):
         if len({role(r) for r in rows}) > 1:
             for peer, r in zip(peers, rows):
                 print(f"      {'role':<10} {role(r):<24} {peer['path']}")
-        # "owner" is relative to the peer doing the reporting (itself 0, the others 2), so it
-        # differs by design and is not evidence of anything. A human's money and credit are only
-        # authoritative on that human's own peer and resynchronised every morning, so they are
-        # not hashed either; listing them would bury the field that actually caused the mismatch.
-        local_only = {"owner"}
-        if when != "briefing" and any(r.get("owner") in ("0", "2") for r in rows):
-            local_only |= {"money", "credit"}
-        keys = [k for k in rows[0] if not k.startswith("_") and k not in local_only]
-        for field in keys:
+        for field in differing(key) + ["hash"]:
             values = [r.get(field) for r in rows]
             if len(set(values)) > 1:
                 for peer, value in zip(peers, values):

@@ -278,9 +278,11 @@ void NetTraceFingerprint(const char *When) {
         FpMisc.Add(qPlayer.SecurityFlags);
 
         /* A strike delays the player's departures on every peer. How it ended is left out: its
-           owner's peer clears that once the player has been told. */
+           owner's peer clears that once the player has been told. Nor whether one is planned:
+           only the owner's peer plans and starts a human's strike and announces the start, so
+           the others never set it - a planned strike that finds no plane in the air stays
+           planned there for days, and looked like a lasting desync. */
         FpMisc.Add(qPlayer.StrikeHours);
-        FpMisc.Add(qPlayer.StrikePlanned);
         FpMisc.Add(qPlayer.StrikeEndCountdown);
 
         FpMisc.Add(qPlayer.Gates.NumRented);
