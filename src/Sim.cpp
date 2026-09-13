@@ -1435,12 +1435,15 @@ void SIM::DoTimeStep() {
             if (Minute >= 40 && OldMinute < 40) {
                 PLAYER::NetSynchronizeStaff();
             }
-            if (Minute >= 50 && OldMinute < 50) {
-                PLAYER::NetSynchronizeKerosin();
-            }
             if (Minute >= 30 && OldMinute < 30) {
                 PLAYER::NetSynchronizeRoutes();
             }
+        }
+
+        // The tank state is applied at the same flight on every peer (PLAYER::NetReceiveKerosin), so it
+        // is safe to send also while the day runs fast after being called off:
+        if ((bNetwork != 0) && Minute >= 50 && OldMinute < 50) {
+            PLAYER::NetSynchronizeKerosin();
         }
 
         // if (bNetwork && (Time<9*60000 || Time>18*60000 || CallItADay))
