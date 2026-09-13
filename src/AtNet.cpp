@@ -896,6 +896,30 @@ void PumpNetwork() {
                             qPlayer.RentRouten.RentRouten[d].TageMitGering;
                     }
 
+                    SLONG Rented = 0;
+                    Message >> Rented;
+
+                    while (Rented > 0) {
+                        SLONG RouteId = 0;
+
+                        Message >> RouteId;
+                        /* RouteId indexes a plain array below, where out of range is not an error
+                           but a write into whatever happens to lie there. */
+                        if (RouteId < 0 || RouteId >= Routen.AnzEntries()) {
+                            NetTraceEvent("DROP name=%s reason=route %ld out of range", Translate_ATNET(MessageType), static_cast<long>(RouteId));
+                            Anz = 0; // The rest of the message cannot be read any more either
+                            break;
+                        }
+
+                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[RouteId];
+                        Message >> qRoute.Auslastung >> qRoute.AuslastungFC >> qRoute.RoutenAuslastung >> qRoute.HeuteBefoerdert;
+                        for (d = 0; d < 7; d++) {
+                            Message >> qRoute.WocheBefoerdert[d];
+                        }
+
+                        Rented--;
+                    }
+
                     Anz--;
                 }
             } break;
