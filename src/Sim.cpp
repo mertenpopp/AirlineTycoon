@@ -1424,6 +1424,12 @@ void SIM::DoTimeStep() {
             }
         }
 
+        /* Twice a day is too coarse to tell where state diverged: after the humans went home, a
+           whole day runs without the hourly resends. At trace level 2, fingerprint every hour. */
+        if (GetHour() != OldHour && gNetTraceLevel >= 2) {
+            NetTraceFingerprint(bprintf("hour%02ld", static_cast<long>(GetHour())));
+        }
+
         if (GetHour() == 18 && OldHour != 18) {
             // Synchronisierung durch Robots; wird um 18 Uhr auf false gesetzt (würde sonst in CAbend.cpp geschehen)
             if (Players.GetAnzRobotPlayers() == 0) {
