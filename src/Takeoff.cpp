@@ -287,7 +287,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             }
 
             if (gQuickTestRun == 1) {
-                gAutoQuitOnDay = 99; /* auto-quit in freegame */
+                gAutoQuitOnDay = 59; /* auto-quit in freegame */
             }
         }
         if (stricmp(Argument, "/quicker") == 0) {

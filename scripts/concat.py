@@ -102,8 +102,8 @@ if __name__ == '__main__':
     data.reset_index(inplace=True)
     data.set_index('Tag', inplace=True)
     print(data)
-    print("Day 99 / SaldoGesamt / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
-    print("Day 99 / Firmenwert / Airline HA: ", data[(data.index == 99) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
+    print("Day 59 / SaldoGesamt / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
+    print("Day 59 / Firmenwert / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
 
     if doPrint:
         for c in columns:
