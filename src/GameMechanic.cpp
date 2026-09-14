@@ -2118,9 +2118,13 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     /* Most branches above use the item up by clearing its slot, and none of them told the other
        peers: an item a bot used stayed in everybody else's copy of its inventory for good, and
        what a player carries decides what a saboteur may do. One message covers whichever branch
-       ran. */
+       ran. Several items also change what ATNET_SYNC_FLAGS carries - the floppy disk cures the
+       laptop, the pills the sickness, the coffee and the stink bomb set their timers - and the other
+       peers only saw that when something else happened to send the flags. A laptop cured by the
+       floppy disk was never sent at all: a client planning for the bot used its next disk, too. */
     if (Sim.bNetwork != 0) {
         PLAYER::NetSynchronizeItems();
+        PLAYER::NetSynchronizeFlags();
     }
 
     return true;

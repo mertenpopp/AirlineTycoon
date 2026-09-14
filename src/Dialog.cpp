@@ -4603,6 +4603,10 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 /* The player hands the laptop in for repair, so it does leave the inventory here.
                    Through DropItem, so that the other peers hear that it is gone. */
                 qPlayer.DropItem(ITEM_LAPTOP);
+                /* The repair runs on every peer overnight (PLAYER::NewDay), so they need to know. */
+                if (Sim.bNetwork != 0) {
+                    PLAYER::NetSynchronizeFlags();
+                }
             }
                 StopDialog();
                 break;
@@ -4611,6 +4615,10 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 qPlayer.LaptopVirus = 0;
                 qPlayer.BuyItem(ITEM_LAPTOP);
                 qPlayer.ReformIcons();
+                if (Sim.bNetwork != 0) {
+                    PLAYER::NetSynchronizeItems();
+                    PLAYER::NetSynchronizeFlags();
+                }
                 StopDialog();
                 break;
 

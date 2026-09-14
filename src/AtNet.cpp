@@ -941,6 +941,9 @@ void PumpNetwork() {
                     Message >> qPlayer.SickTokay >> qPlayer.RunningToToilet >> qPlayer.PlayerSmoking >> qPlayer.Stunned >> qPlayer.OfficeState >>
                         qPlayer.Koffein >> qPlayer.NumFlights >> qPlayer.WalkSpeed >> qPlayer.WerbeBroschuere >> qPlayer.TelephoneDown >>
                         qPlayer.Presseerklaerung >> qPlayer.SecurityFlags >> qPlayer.PlayerStinking >> qPlayer.RocketFlags >> qPlayer.LastRocketFlags;
+                    /* Whether the laptop has a virus: the floppy disk cures it on its owner's peer
+                       only, and the other peers kept the virus for good. */
+                    Message >> qPlayer.LaptopVirus;
 
                     Anz--;
                 }
