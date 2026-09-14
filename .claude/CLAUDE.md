@@ -8,7 +8,7 @@ The full source code is available in this repository. Source code builds only th
 Goal
 ----
 
-Build a new computer player called 'ClaudeBot' for this game that follows all the rules and can beat even experienced human players. We want to maximize one specific metric: Cumulative operative saldo after 99 full days.
+Build a new computer player called 'ClaudeBot' for this game that follows all the rules and can beat even experienced human players. We want to maximize one specific metric: Cumulative operative saldo after 59 full days.
 
 Sometimes, a reference implementation called "MertenBot" is available in the game files matching `Bot*.*`. Analyze and compare against this implementation only when asked explicitly.
 
@@ -55,7 +55,7 @@ This runs the game in a mode which requires no human input. Note:
 - Players "Falcon Lines" and "Phoenix Travel" will be controlled by the regular CPU player
 - Player "Sunshine Airways" will be the human player and remain idle the entire time
 - Player "Honey Airlines" will be controlled by ClaudeBot
-- Game ends automatically at start of in-game day 100
+- Game ends automatically at start of in-game day 60
 - A detailled log is printed to GameLog.txt
 - ClaudeBot.csv contains important stats with one line of data per in-game day. Very first filtered line are column headers
 - You can also filter for the other airlines by adapting the grep command above: Search for "BotStatistics/<abbreviation>" instead
@@ -72,16 +72,16 @@ This runs the game in a mode which requires no human input. Note:
 - Players "Falcon Lines" and "Phoenix Travel" will be controlled by the regular CPU player
 - Player "Sunshine Airways" will be the human player and remain idle the entire time
 - Player "Honey Airlines" will be controlled by ClaudeBot
-- Game ends automatically at start of in-game day 100
+- Game ends automatically at start of in-game day 60
 - 300 game instances in total are run using parallel threads. Script waits until all have terminated
 - Detailled logs are printed for each instance to a log file matching `dataCLAUDE_*.txt`
 - For each instance, CSV data is printed to a file matching `dataCLAUDE_*.csv`
-- The CSV data from the runs is then combined and a performance score is computed: Cumulative operative saldo after 99 full days
+- The CSV data from the runs is then combined and a performance score is computed: Cumulative operative saldo after 59 full days
 
-Last line of output shall look like this:
+Last two lines of the output shall look like this:
 ```
-Day 99 / SaldoGesamt / Airline HA:  7228674337.883333
-Day 99 / Firmenwert / Airline HA:  6512003341.083333
+Day 59 / SaldoGesamt / Airline HA:  247040650.76791808
+Day 59 / Firmenwert / Airline HA:  242523782.79522184
 ```
 
 To measure the performance of "MertenBot", run the following command. "Honey Airlines" will be controlled by MertenBot.
