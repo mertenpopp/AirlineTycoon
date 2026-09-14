@@ -310,9 +310,12 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 
+# This module is SDL2main, but also reports SDL2 itself
+set(FPHSA_NAME_MISMATCHED TRUE)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2
                                   REQUIRED_VARS SDL2_LIBRARY SDL2_INCLUDE_DIR
                                   VERSION_VAR SDL2_VERSION_STRING)
+unset(FPHSA_NAME_MISMATCHED)
 
 if(SDL2MAIN_LIBRARY)
   FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2main
