@@ -1393,8 +1393,10 @@ void SIM::DoTimeStep() {
                         rChkActionId[c * 5 + d] = Players.Players[c].RobotActions[d].ActionId;
                     }
 
-                    /* How long ago the queue was handed over; TimeSlice starts again every day. */
-                    rChkRobotSyncAge[c] = (gRobotSyncSlice[c] < 0 || gRobotSyncSlice[c] > TimeSlice) ? 0x7fffffff : TimeSlice - gRobotSyncSlice[c];
+                    /* How long ago the queue was handed over. Not yet today counts as just now: only
+                       the host plans a bot's first actions, and the clients learn them with the
+                       first hand-over. */
+                    rChkRobotSyncAge[c] = (gRobotSyncSlice[c] < 0 || gRobotSyncSlice[c] > TimeSlice) ? 0 : TimeSlice - gRobotSyncSlice[c];
                 }
             }
             if ((GetMinute() % 5) == 3) {
@@ -2591,6 +2593,12 @@ void SIM::NewDay() {
     /* The session master's clock is only sent during the day, and the peers meet again at the
        morning briefing anyway. What was left of yesterday's gap must not bend tomorrow's clock. */
     gTimerCorrection = 0;
+
+    /* TimeSlice starts again at 0, so yesterday's hand-overs of the bots' action queues would look
+       like today's. */
+    for (c = 0; c < 4; c++) {
+        gRobotSyncSlice[c] = -1;
+    }
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
     NetTraceFingerprint("dayend");
