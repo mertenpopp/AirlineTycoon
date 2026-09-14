@@ -1722,8 +1722,9 @@ void CPlaner::HandleLButtonDown() {
                 qPlayer.Planes[pBlock->SelectedId].ExtendFlugplaene(PlayerNum);
                 qPlayer.UpdateAuftragsUsage();
                 qPlayer.UpdateFrachtauftragsUsage();
-                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Planes[pBlock->SelectedId].CheckFlugplaene(PlayerNum, FALSE);
+                /* After the check, which still changes the plan: the other peers take it as it is. */
+                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Blocks[CurrentBlock].RefreshData(PlayerNum);
                 qPlayer.Blocks[CurrentBlock].Refresh(PlayerNum, IsLaptop);
             } else if ((MouseClickArea == ROOM_GLOBE || MouseClickArea == ROOM_LAPTOP) && MouseClickId == 151) // Flugplan löschen
