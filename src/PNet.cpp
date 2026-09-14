@@ -324,7 +324,7 @@ void PLAYER::NetUpdateTook(SLONG Type, SLONG Index, SLONG City) const {
 
     Message.Announce(128);
 
-    Message << ATNET_PLAYER_TOOK << PlayerNum << Type << Index << City;
+    Message << ATNET_PLAYER_TOOK << PlayerNum << Type << Index << City << NetJobsRefillEpoch(); // which refill the boards were at
 
     SIM::SendMemFile(Message);
 }

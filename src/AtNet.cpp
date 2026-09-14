@@ -70,6 +70,89 @@ SLONG GenericAsyncIdPars[4 * 100] = {
 // write outside those arrays. Validate before use: the exception is caught by
 // PumpNetwork(), which logs and drops the offending message.
 //--------------------------------------------------------------------------------------------
+static SLONG NetCheckPlayerNum(SLONG PlayerNum, ULONG MessageType);
+
+SLONG NetJobsRefillEpoch() { return Sim.Date * 24 * 12 + (Sim.GetHour() * 60 + Sim.GetMinute()) / 5; }
+
+namespace {
+
+struct PendingTook {
+    SLONG Type;
+    SLONG Index;
+    SLONG City;
+    SLONG Epoch;
+};
+
+/* Orders taken on another peer that this peer's boards have not yet been refilled up to. */
+std::deque<PendingTook> gPendingTook;
+
+/* Marks an order on a shared board as taken: the next refill replaces it. */
+void NetApplyTook(SLONG Type, SLONG Index, SLONG City) {
+    /* Which order somebody took, by its place in a shared list. If the lists had drifted apart the
+       lookup throws (and ends a release build) or, for the foreign cities, indexes a vector out of
+       range. */
+    if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsFrachten.size()))) {
+        NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(ATNET_PLAYER_TOOK), static_cast<long>(City));
+        return;
+    }
+
+    bool bKnown = false;
+    switch (Type) {
+    case 1:
+        bKnown = (LastMinuteAuftraege.IsInAlbum(Index) != 0);
+        break;
+    case 2:
+        bKnown = (ReisebueroAuftraege.IsInAlbum(Index) != 0);
+        break;
+    case 3:
+        bKnown = (gFrachten.IsInAlbum(Index) != 0);
+        break;
+    case 4:
+        bKnown = (AuslandsAuftraege[City].IsInAlbum(Index) != 0);
+        break;
+    case 5:
+        bKnown = (AuslandsFrachten[City].IsInAlbum(Index) != 0);
+        break;
+    default:
+        break;
+    }
+    if (!bKnown) {
+        NetTraceEvent("DROP name=%s reason=order %ld of type %ld unknown", Translate_ATNET(ATNET_PLAYER_TOOK), static_cast<long>(Index), static_cast<long>(Type));
+        return;
+    }
+
+    switch (Type) {
+    case 1:
+        LastMinuteAuftraege[Index].Praemie = -1;
+        break;
+    case 2:
+        ReisebueroAuftraege[Index].Praemie = -1;
+        break;
+    case 3:
+        gFrachten[Index].Praemie = -1;
+        break;
+    case 4:
+        AuslandsAuftraege[City][Index].Praemie = -1;
+        break;
+    case 5:
+        AuslandsFrachten[City][Index].Praemie = -1;
+        break;
+    default:
+        break;
+    }
+}
+
+} // namespace
+
+void NetApplyPendingTook() {
+    const SLONG Mine = NetJobsRefillEpoch();
+    while (!gPendingTook.empty() && gPendingTook.front().Epoch <= Mine) {
+        const PendingTook Took = gPendingTook.front();
+        gPendingTook.pop_front();
+        NetApplyTook(Took.Type, Took.Index, Took.City);
+    }
+}
+
 static SLONG NetCheckPlayerNum(SLONG PlayerNum, ULONG MessageType) {
     if (PlayerNum < 0 || PlayerNum >= 4) {
         TeakLibW_Exception(FNL, "Invalid player number %ld in message %s", static_cast<long>(PlayerNum), Translate_ATNET(MessageType));
@@ -1178,66 +1261,30 @@ void PumpNetwork() {
                 SLONG City = 0;
                 SLONG Index = 0;
                 SLONG PlayerNum = 0;
+                SLONG Epoch = 0;
 
-                Message >> PlayerNum >> Type >> Index >> City;
+                Message >> PlayerNum >> Type >> Index >> City >> Epoch;
                 PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                /* Which order somebody took, by its place in a shared list. If the lists had
-                   drifted apart the lookup throws (and ends a release build) or, for the foreign
-                   cities, indexes a vector out of range. */
-                if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsFrachten.size()))) {
-                    NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(MessageType), static_cast<long>(City));
-                    break;
-                }
-
-                {
-                    bool bKnown = false;
-                    switch (Type) {
-                    case 1:
-                        bKnown = (LastMinuteAuftraege.IsInAlbum(Index) != 0);
-                        break;
-                    case 2:
-                        bKnown = (ReisebueroAuftraege.IsInAlbum(Index) != 0);
-                        break;
-                    case 3:
-                        bKnown = (gFrachten.IsInAlbum(Index) != 0);
-                        break;
-                    case 4:
-                        bKnown = (AuslandsAuftraege[City].IsInAlbum(Index) != 0);
-                        break;
-                    case 5:
-                        bKnown = (AuslandsFrachten[City].IsInAlbum(Index) != 0);
-                        break;
-                    default:
-                        break;
+                /* A taken order stays on the board until the next refill replaces it, and the refill
+                   draws a new order for every one taken. A peer that marked it after its own refill
+                   of that five minutes - or before a refill the taker had already done - replaced a
+                   different set of orders and drew its random numbers differently, and its boards
+                   differed until the night. In a played session the host's bots took orders a good
+                   ten minutes ahead of the client's clock all day. So the order is marked once this
+                   peer's boards are refilled as far as the taker's were. */
+                const SLONG Mine = NetJobsRefillEpoch();
+                if (Epoch > Mine) {
+                    if (!gPendingTook.empty() && gPendingTook.back().Epoch > Epoch) {
+                        NetTraceEvent("TOOK out of order epoch=%ld last=%ld", static_cast<long>(Epoch), static_cast<long>(gPendingTook.back().Epoch));
                     }
-
-                    if (!bKnown) {
-                        NetTraceEvent("DROP name=%s reason=order %ld of type %ld unknown", Translate_ATNET(MessageType), static_cast<long>(Index),
-                                      static_cast<long>(Type));
-                        break;
+                    gPendingTook.push_back({Type, Index, City, Epoch});
+                } else {
+                    if (Epoch < Mine) {
+                        NetTraceEvent("TOOK late type=%ld order=%ld theirs=%ld mine=%ld", static_cast<long>(Type), static_cast<long>(Index),
+                                      static_cast<long>(Epoch), static_cast<long>(Mine));
                     }
-                }
-
-                switch (Type) {
-                case 1:
-                    LastMinuteAuftraege[Index].Praemie = -1;
-                    break;
-                case 2:
-                    ReisebueroAuftraege[Index].Praemie = -1;
-                    break;
-                case 3:
-                    gFrachten[Index].Praemie = -1;
-                    break;
-                case 4:
-                    AuslandsAuftraege[City][Index].Praemie = -1;
-                    break;
-                case 5:
-                    AuslandsFrachten[City][Index].Praemie = -1;
-                    break;
-                default:
-                    hprintf("AtNet.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    NetApplyTook(Type, Index, City);
                 }
             } break;
 
@@ -2729,6 +2776,8 @@ void NetResetGenericSync() {
     for (auto &Received : GenericSyncReceived) {
         Received.clear();
     }
+    /* Orders taken in another game, or before the savegame was loaded, belong to other boards. */
+    gPendingTook.clear();
 }
 
 //--------------------------------------------------------------------------------------------

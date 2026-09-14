@@ -1371,6 +1371,9 @@ void SIM::DoTimeStep() {
             }
 
             GameMechanic::flightJobsRefill();
+
+            /* Orders another peer took after this refill (ATNET_PLAYER_TOOK). */
+            NetApplyPendingTook();
         }
 
         if (GetHour() >= 9 && GetHour() < 18 && (CallItADay == 0)) {
@@ -3002,6 +3005,7 @@ BOOL SIM::LoadGame(SLONG Number) {
 
     VoiceScheduler.Clear();
     gTimerCorrection = 0;
+    NetResetGenericSync();
 
     if (DoesFileExist(Filename) == 0) {
         return (FALSE);
