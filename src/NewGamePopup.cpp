@@ -2440,6 +2440,15 @@ void NewGamePopup::CheckNetEvents() {
                     Sim.Players.Players[SLONG(Par1)].bReadyForMorning = 1;
                     break;
 
+                /* The host sends its speed right after ATNET_BEGINGAMELOADING, and a client still
+                   loading the savegame reads it here. It advances the game clock by it every step
+                   and the savegame does not keep it, so a client dropping it ran on at its own last
+                   value (30 for a freshly started game) and fell behind a host set to another speed. */
+                case ATNET_SETGAMESPEED:
+                    Message >> Par1 >> Par2;
+                    Sim.ServerGameSpeed = Par1;
+                    break;
+
                     // Microsoft and SBLib internal codes:
                 case 0x0003:
                 case 0x0005:
