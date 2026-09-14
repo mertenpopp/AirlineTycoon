@@ -409,18 +409,28 @@ void NetTraceFingerprint(const char *When) {
         AddOrders(Orders);
     }
 
-    Pool.Add(gFrachten.Random.GetSeed());
-    for (SLONG d = 0; d < gFrachten.AnzEntries(); d++) {
-        if (gFrachten.IsInAlbum(d) == 0) {
-            continue;
+    /* The freight depot and the freight offered from each foreign city. The latter was left out,
+       and the dates too, so a disagreement about them never showed. */
+    auto AddFreight = [&Pool](CFrachten &Freight) {
+        Pool.Add(Freight.Random.GetSeed());
+        for (SLONG d = 0; d < Freight.AnzEntries(); d++) {
+            if (Freight.IsInAlbum(d) == 0) {
+                continue;
+            }
+            const CFracht &qFreight = Freight[d];
+            Pool.Add(d);
+            Pool.Add(qFreight.VonCity);
+            Pool.Add(qFreight.NachCity);
+            Pool.Add(qFreight.Tons);
+            Pool.Add(qFreight.Date);
+            Pool.Add(qFreight.BisDate);
+            Pool.Add(qFreight.Praemie);
+            Pool.Add(qFreight.Strafe);
         }
-        const CFracht &qFreight = gFrachten[d];
-        Pool.Add(d);
-        Pool.Add(qFreight.VonCity);
-        Pool.Add(qFreight.NachCity);
-        Pool.Add(qFreight.Tons);
-        Pool.Add(qFreight.Praemie);
-        Pool.Add(qFreight.Strafe);
+    };
+    AddFreight(gFrachten);
+    for (auto &Freight : AuslandsFrachten) {
+        AddFreight(Freight);
     }
 
     for (const auto *Board : {&TafelData.Route, &TafelData.City, &TafelData.Gate}) {
