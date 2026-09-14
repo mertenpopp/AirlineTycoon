@@ -15,6 +15,11 @@ Reports, in this order:
   4. Dropped messages and other protocol events.
 
 Enable the traces with "/nettrace 1" (or 2 for per-frame chatter) on every peer.
+
+A log may hold several sessions: a new game starts one ("daystart"), and so does loading a
+savegame ("loaded"). Fingerprints are only compared within the same session, which is named
+after the day and hour it started at. A peer that rejoined in a new process may pass that
+second log separately, or the two concatenated.
 """
 
 import re
@@ -28,6 +33,11 @@ KV = re.compile(r"(\w+)=(\S+)")
 def parse(path):
     msgs, fps, evts, mismatches = [], [], [], []
     details = {}
+    # The same game time comes round again after loading a savegame, so every fingerprint belongs
+    # to the session the last "daystart" or "loaded" began. The name must come out the same on
+    # every peer, which are a step or two apart: day and hour, and how often that was loaded.
+    session = ""
+    started = defaultdict(int)
     with open(path, encoding="utf-8", errors="replace") as handle:
         for lineno, line in enumerate(handle, 1):
             found = LINE.search(line)
@@ -44,11 +54,17 @@ def parse(path):
                 # "FP daystart day=.. p=.." or the pool line, which has no p=
                 fields["_when"] = rest.split()[0]
                 fields["_who"] = fields.get("p", "pool")
+                if fields["_when"] in ("daystart", "loaded") and fields.get("p") == "0":
+                    t = fields.get("t", "0")
+                    name = f"{fields['_when']} day={fields.get('day')} {(int(t) if t.isdigit() else 0) // 60000:02d}h"
+                    started[name] += 1
+                    session = name if started[name] == 1 else f"{name} #{started[name]}"
+                fields["_session"] = session
                 fps.append(fields)
             elif kind == "FPDETAIL":
                 # "FPDETAIL hour13 day=.. p=.. planes=index:equipment/plan,... routes=index:hash,..."
                 parts = {name: dict(item.split(":", 1) for item in fields.get(name, "").split(",") if ":" in item) for name in ("planes", "routes")}
-                details[(fields.get("day"), rest.split()[0], fields.get("p"))] = parts
+                details[((session, fields.get("day")), rest.split()[0], fields.get("p"))] = parts
             elif kind == "EVT":
                 evts.append(fields)
             else:
@@ -57,7 +73,13 @@ def parse(path):
 
 
 def fp_key(entry):
-    return (entry.get("day"), entry["_when"], entry["_who"])
+    return ((entry["_session"], entry.get("day")), entry["_when"], entry["_who"])
+
+
+def show_day(day):
+    """The (session, day) of a fingerprint key, as printed."""
+    session, number = day
+    return f"{number} (session {session})" if session else f"{number}"
 
 
 def report_mismatches(peers):
@@ -99,12 +121,19 @@ def report_divergence(peers):
     for peer in peers:
         for f in peer["fps"]:
             t = f.get("t", "0")
-            taken_at.setdefault((f.get("day"), f["_when"]), int(t) if t.isdigit() else 0)
+            taken_at.setdefault((fp_key(f)[0], f["_when"]), int(t) if t.isdigit() else 0)
+
+    # Sessions in the order the peers ran them.
+    session_rank = {}
+    for peer in peers:
+        for f in peer["fps"]:
+            session_rank.setdefault(f["_session"], len(session_rank))
 
     def order(key):
-        day = key[0]
+        session, day = key[0]
         rank = WHEN.get(key[1], 2)
-        return (int(day) if day and day.lstrip("-").isdigit() else 0, taken_at.get((key[0], key[1]), 0), rank, key[1], str(key[2]))
+        return (session_rank.get(session, 0), int(day) if day and day.lstrip("-").isdigit() else 0, taken_at.get((key[0], key[1]), 0), rank, key[1],
+                str(key[2]))
 
     # Each peer reports its own human as owner 0 and the other humans as 2, so only the
     # human/computer split is comparable - and it must agree, or the peers are playing
@@ -121,7 +150,7 @@ def report_divergence(peers):
         for (day, when) in sorted(groups, key=lambda k: order((k[0], k[1], ""))):
             local = sum(1 for entry in groups[(day, when)] if entry.get("owner") == "0")
             if local != 1:
-                print(f"   {peer['path']} controls {local} players at day={day} {when} (expected exactly 1)")
+                print(f"   {peer['path']} controls {local} players at day={show_day(day)} {when} (expected exactly 1)")
                 break
 
     keys = sorted(common, key=order)
@@ -205,8 +234,8 @@ def report_divergence(peers):
                     index += 1
                 day, when, _ = own[start]
                 fields = sorted({f for k in own[start:index + 1] for f in differing(k)}) or ["hash"]
-                until = "" if index == start else f" until day={own[index][0]} {own[index][1]}"
-                print(f"      day={day} {when}{until} {'pool' if who == 'pool' else 'player ' + str(who)}: {' '.join(fields)}"
+                until = "" if index == start else f" until day={show_day(own[index][0])} {own[index][1]}"
+                print(f"      day={show_day(day)} {when}{until} {'pool' if who == 'pool' else 'player ' + str(who)}: {' '.join(fields)}"
                       f"{detail_difference(own[start])}")
                 index += 1
         print()
@@ -216,7 +245,7 @@ def report_divergence(peers):
             continue
         rows = [table[key] for table in tables]
         day, when, who = key
-        print(f"   day={day} {when} {'pool' if who == 'pool' else 'player ' + str(who)}{detail_difference(key)}")
+        print(f"   day={show_day(day)} {when} {'pool' if who == 'pool' else 'player ' + str(who)}{detail_difference(key)}")
         if len({role(r) for r in rows}) > 1:
             for peer, r in zip(peers, rows):
                 print(f"      {'role':<10} {role(r):<24} {peer['path']}")

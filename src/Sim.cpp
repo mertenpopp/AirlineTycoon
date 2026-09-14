@@ -1174,7 +1174,11 @@ void SIM::ChooseStartup() {
     DumpAASeedSum(1002);
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
-    NetTraceFingerprint("daystart");
+    /* Loading a savegame starts from here too, but only to throw this state away again; it
+       fingerprints what it loaded at the end instead ("loaded"). */
+    if (!bgIsLoadingSavegame) {
+        NetTraceFingerprint("daystart");
+    }
 }
 
 //----------------------------------------------------------------------------------------
@@ -3285,6 +3289,10 @@ BOOL SIM::LoadGame(SLONG Number) {
             }
         }
     }
+
+    /* Every peer loads its own copy of the savegame, so this is the first chance to see whether
+       they saved the same game. */
+    NetTraceFingerprint("loaded");
 
     return (TRUE);
 }
