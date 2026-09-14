@@ -1445,8 +1445,13 @@ void SIM::DoTimeStep() {
         }
 
         // Verschiedene Sync's für's Netzwerk:
-        if ((CallItADay == 0) && (bNetwork != 0)) {
-            if (Minute >= 10 && OldMinute < 10 && Time >= 9 * 60000 && Time <= 18 * 60000) {
+        /* Only during the working day, as the day called off already was. NewDay() clears CallItADay
+           at midnight, so these ran all night too - while the host runs the night well ahead of the
+           clients. A client then applied the owner's image of 02:20 before its own 02:00, and booked
+           that owner's flights with it: more passengers than on the owner's peer, different route
+           usage, until the briefing. Nobody acts at night, and every peer simulates it alike. */
+        if ((CallItADay == 0) && (bNetwork != 0) && Time >= 9 * 60000 && Time <= 18 * 60000) {
+            if (Minute >= 10 && OldMinute < 10) {
                 PLAYER::NetSynchronizeMoney();
             }
             if (Minute >= 20 && OldMinute < 20) {
