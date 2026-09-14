@@ -2419,6 +2419,12 @@ bool GameMechanic::removeFromFlightPlan(PLAYER &qPlayer, SLONG planeId, SLONG id
     qPlan.UpdateNextFlight();
     qPlan.UpdateNextStart();
 
+    qPlayer.UpdateAuftragsUsage();
+    qPlayer.UpdateFrachtauftragsUsage();
+    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
+    qPlayer.Blocks.RepaintAll = TRUE;
+
+    /* Sent after the check, which still changes the plan: the other peers take it as it is. */
     if (Sim.bNetwork != 0) {
         SLONG key = planeId;
 
@@ -2428,11 +2434,6 @@ bool GameMechanic::removeFromFlightPlan(PLAYER &qPlayer, SLONG planeId, SLONG id
 
         qPlayer.NetUpdateFlightplan(key);
     }
-
-    qPlayer.UpdateAuftragsUsage();
-    qPlayer.UpdateFrachtauftragsUsage();
-    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
-    qPlayer.Blocks.RepaintAll = TRUE;
 
     return true;
 }
@@ -2471,6 +2472,12 @@ bool GameMechanic::clearFlightPlanFrom(PLAYER &qPlayer, SLONG planeId, SLONG dat
     qPlan.UpdateNextFlight();
     qPlan.UpdateNextStart();
 
+    qPlayer.UpdateAuftragsUsage();
+    qPlayer.UpdateFrachtauftragsUsage();
+    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
+    qPlayer.Blocks.RepaintAll = TRUE;
+
+    /* Sent after the check, which still changes the plan: the other peers take it as it is. */
     if (Sim.bNetwork != 0) {
         SLONG key = planeId;
 
@@ -2480,11 +2487,6 @@ bool GameMechanic::clearFlightPlanFrom(PLAYER &qPlayer, SLONG planeId, SLONG dat
 
         qPlayer.NetUpdateFlightplan(key);
     }
-
-    qPlayer.UpdateAuftragsUsage();
-    qPlayer.UpdateFrachtauftragsUsage();
-    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
-    qPlayer.Blocks.RepaintAll = TRUE;
 
     return true;
 }

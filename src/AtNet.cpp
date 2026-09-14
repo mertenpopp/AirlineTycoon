@@ -1333,7 +1333,15 @@ void PumpNetwork() {
 
                 qPlayer.UpdateAuftragsUsage();
                 qPlayer.UpdateFrachtauftragsUsage();
-                qPlayer.Planes[PlaneId].CheckFlugplaene(PlayerNum);
+
+                /* The sender has already checked the plan (CPlane::CheckFlugplaene) and sends the
+                   result; checking it again here did it on this peer's clock. That is not a no-op:
+                   automatic flights are placed relative to the current hour. A bot's plan the
+                   host sent unchanged because only a ticket price had changed was rearranged an
+                   hour later on the client, and the two peers flew different plans for the rest of
+                   the day. Only the gates are worked out again, since the sender may have moved
+                   other planes' gates without sending those planes. */
+                qPlayer.PlanGates();
             } break;
 
             case ATNET_TAKE_ORDER: {

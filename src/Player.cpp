@@ -3132,7 +3132,24 @@ class RobotFlightplanWatch {
         if (!bActive) {
             return;
         }
-        for (const auto &Plane : Snapshot()) {
+        const auto After = Snapshot();
+        bool bAnyChanged = false;
+        for (const auto &Plane : After) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                bAnyChanged = true;
+            }
+        }
+        if (!bAnyChanged) {
+            return;
+        }
+
+        /* The other peers work the gates out again from the plans they receive (ATNET_FP_UPDATE).
+           A bot's planning does not always do that here, and the host then flew a plan whose gates
+           the clients had assigned differently. */
+        Player.PlanGates();
+
+        for (const auto &Plane : After) {
             const auto Old = Before.find(Plane.first);
             if (Old == Before.end() || Old->second != Plane.second) {
                 Player.NetUpdateFlightplan(Plane.first);
