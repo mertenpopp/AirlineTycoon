@@ -1281,6 +1281,9 @@ void PumpNetwork() {
                 }
 
                 Message >> qPlane.Flugplan;
+                SLONG PlanDate = 0;
+                SLONG PlanHour = 0;
+                Message >> PlanDate >> PlanHour;
 
                 for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
                     CFlugplanEintrag &qFlight = qPlane.Flugplan.Flug[e];
@@ -1332,7 +1335,12 @@ void PumpNetwork() {
                 }
 
                 qPlayer.UpdateAuftragsUsage();
-                qPlayer.UpdateFrachtauftragsUsage();
+                /* How much freight is still open leaves out the flights that have already taken off,
+                   judged by the hour. On this peer's clock a plan that arrived just after the change
+                   of hour counted one flight less than on the sender's, and the freight contract's
+                   open tons and whether it was fully planned differed until the next recount - in a
+                   played session for the rest of the day. */
+                qPlayer.UpdateFrachtauftragsUsage(PlanDate, PlanHour);
 
                 /* The sender has already checked the plan (CPlane::CheckFlugplaene) and sends the
                    result; checking it again here did it on this peer's clock. That is not a no-op:

@@ -306,6 +306,7 @@ void PLAYER::NetUpdateFlightplan(SLONG PlaneId) {
     Message << ATNET_FP_UPDATE;
     Message << PlaneId << PlayerNum;
     Message << Planes[PlaneId].Flugplan;
+    Message << Sim.Date << Sim.GetHour(); // when the plan was made, see ATNET_FP_UPDATE
 
     SIM::SendMemFile(Message);
 }
