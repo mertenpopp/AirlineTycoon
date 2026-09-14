@@ -10,6 +10,12 @@ void NetResetGenericSync();
 void NetGenericSync(SLONG SyncId, SLONG Par);
 void NetGenericAsync(SLONG SyncId, SLONG Par, SLONG player = -1);
 
+/* The five-minute period the order boards were last refilled in (GameMechanic::flightJobsRefill),
+   counted from the start of the game - the same on every peer at the same game time. */
+SLONG NetJobsRefillEpoch();
+/* Marks the orders other peers took, once this peer's boards have reached the same refill. */
+void NetApplyPendingTook();
+
 // Messages for creating a new game
 static const ULONG ATNET_WANNAJOIN = 0xadaa0000;        // Server, I want to join, Please send list of players and their names
 static const ULONG ATNET_SORRYFULL = 0xadaa0001;        // Server: Sorry, you can't join: too many players
