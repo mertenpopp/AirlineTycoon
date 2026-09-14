@@ -556,7 +556,10 @@ void ClaudeBot::RobotInit(SLONG randomSeed) {
         i = {};
     }
 
-    RobotPlan();
+    /* Only the host plans and acts for a bot, and planning may use items. */
+    if (Sim.bNetwork == 0 || Sim.bIsHost != 0) {
+        RobotPlan();
+    }
     AT_Log("ClaudeBot.cpp: Leaving RobotInit()");
 }
 

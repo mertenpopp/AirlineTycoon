@@ -231,7 +231,13 @@ void Bot::RobotInit(SLONG randomSeed) {
     /* items */
     mIsSickToday = false;
 
-    RobotPlan();
+    /* Only the host plans and acts for a bot (PLAYER::RobotPlan() says the same). Planning is not
+       free of side effects: judging whether the laptop can be used puts in the floppy disk against
+       a virus, and a sick bot takes its pills. A client that planned here as well used the bot's
+       floppy disk in the night, while the host used it the next day. */
+    if (Sim.bNetwork == 0 || Sim.bIsHost != 0) {
+        RobotPlan();
+    }
     AT_Log("Bot.cpp: Leaving RobotInit()");
 }
 
