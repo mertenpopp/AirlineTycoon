@@ -72,49 +72,56 @@ def run_for_file(file):
 if __name__ == '__main__':
     pool = Pool()
 
-    filepattern = 'data_*.csv'
+    allFilepatterns = ['data_*.csv']
     airlines = ['HA']
     columns = ['SaldoGesamt', 'Firmenwert']
     doPrint = False
     if len(sys.argv) > 1:
-        filepattern = sys.argv[1]
+        allFilepatterns = sys.argv[1].split(',')
     if len(sys.argv) > 2:
         airlines = sys.argv[2].split(',')
     if len(sys.argv) > 3:
         columns = sys.argv[3].split(',')
         doPrint = True
 
-    files = glob.glob(filepattern)
-    files = natsorted(files)
-
-    results = pool.map(run_for_file, files)
-
     overall = pd.DataFrame()
-    for detailledStat in results:
-        overall = pd.concat([overall, detailledStat])
+    for filepattern in allFilepatterns:
+        files = glob.glob(filepattern)
+        files = natsorted(files)
 
-    agg = {}
-    for i in columns:
-        #agg[i] = np.std
-        agg[i] = 'mean'
+        results = pool.map(run_for_file, files)
 
-    data = (overall.groupby(['Tag', 'Airline', 'Param']).agg(agg))
-    data.reset_index(inplace=True)
-    data.set_index('Tag', inplace=True)
-    print(data)
-    print("Day 59 / SaldoGesamt / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
-    print("Day 59 / Firmenwert / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
+        data = pd.DataFrame()
+        for detailledStat in results:
+            data = pd.concat([data, detailledStat])
+
+        agg = {}
+        for i in columns:
+            #agg[i] = np.std
+            agg[i] = 'mean'
+
+        data = (data.groupby(['Tag', 'Airline', 'Param']).agg(agg))
+        data.reset_index(inplace=True)
+        data.set_index('Tag', inplace=True)
+        print(data)
+        print("Day 59 / SaldoGesamt / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['SaldoGesamt'].to_list()[0])
+        print("Day 59 / Firmenwert / Airline HA: ", data[(data.index == 59) & (data['Airline'] == 'HA')]['Firmenwert'].to_list()[0])
+
+        data['Pattern'] = filepattern
+        overall = pd.concat([overall, data])
 
     if doPrint:
         for c in columns:
             ax = None
 
-            for p in data['Param'].unique():
-                df1 = data.loc[data['Param'] == p]
+            for p in overall['Param'].unique():
+                df1 = overall.loc[overall['Param'] == p]
                 for a in airlines:
                     df2 = df1.loc[df1['Airline'] == a]
-                    name = '_'.join([a,p])
-                    ax = df2[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
+                    for f in df2['Pattern'].unique():
+                        df3 = df2.loc[df2['Pattern'] == f]
+                        name = '_'.join([a,p,f])
+                        ax = df3[[c]].rename(columns={c: name}).plot(title=c, ax=ax)
 
         plt.show()
 
