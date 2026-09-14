@@ -2359,9 +2359,16 @@ void PLAYER::UpdateAuftragsUsage() {
 //--------------------------------------------------------------------------------------------
 // Welche Frachtaufträge wurden wie oft verplant?:
 //--------------------------------------------------------------------------------------------
-void PLAYER::UpdateFrachtauftragsUsage() {
+void PLAYER::UpdateFrachtauftragsUsage(SLONG Date, SLONG Hour) {
     SLONG c = 0;
     SLONG d = 0;
+
+    /* A flight that has already taken off no longer counts. "Already" is the caller's time; a peer
+       applying another peer's flight plan passes the time the plan was made at (ATNET_FP_UPDATE). */
+    if (Date < 0) {
+        Date = Sim.Date;
+        Hour = Sim.GetHour();
+    }
 
     // TonsOpen bei allen Frachtaufträge resetten:
     for (c = Frachten.AnzEntries() - 1; c >= 0; c--) {
@@ -2413,10 +2420,10 @@ void PLAYER::UpdateFrachtauftragsUsage() {
                 // Flug 2 geht an Tag 5 18:00 los
 
                 BOOL ignoreFlight = 0;
-                if (qFPE.Startdate < Sim.Date) {
+                if (qFPE.Startdate < Date) {
                     ignoreFlight = 1;
                 } // (qFPE.Startzeit==Sim.GetHour() && (Sim.GetHour()<30 || Planes[c].Ort!=-5)))
-                if (qFPE.Startdate == Sim.Date && qFPE.Startzeit < Sim.GetHour()) {
+                if (qFPE.Startdate == Date && qFPE.Startzeit < Hour) {
                     ignoreFlight = 1;
                 }
 

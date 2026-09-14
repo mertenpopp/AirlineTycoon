@@ -2290,7 +2290,7 @@ class PLAYER {
     void RouteWegnehmen(SLONG Routenindex, SLONG NeuerBesitzer = -1);
     void SackWorkers(void);
     void UpdateAuftragsUsage(void);
-    void UpdateFrachtauftragsUsage(void);
+    void UpdateFrachtauftragsUsage(SLONG Date = -1, SLONG Hour = -1);
     void UpdateWalkSpeed(void);
     void UpdateWaypoints(void);
     void UpdateWaypointWalkingDirection(void);
