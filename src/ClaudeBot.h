@@ -60,7 +60,22 @@ class ClaudeBot {
     /* Cached view of one plane. Only the fields derived from the flight plan need
      * caching; everything copied from CPlaneType may be read in any room. */
     struct PlaneState {
-        SLONG id{-1};
+        /* The album's *unique id*, not its index.
+         *
+         * mPlanes is built in the office and read again at the travel agency and the freight
+         * depot, and ALBUM_V indices do not survive in between: PLAYER::BuyPlane() ends with
+         * `Planes.Sort()` (Player.cpp:167), and a sort preserves unique ids but not indices.
+         * IsInAlbum() cannot catch that - the slot is still valid, it just holds a different
+         * aeroplane - so the cached windows would be sold against the wrong flight plan.
+         *
+         * That is a latent hazard rather than a live bug: executeBuyPlane() sets
+         * mPlaneStateStale, and collectActions() will not schedule the agency or the freight
+         * depot while it is set, so today the cache is always rebuilt before it is reused.
+         * Instrumenting the resolution found zero divergences over a full game, with and
+         * without aeroplanes being destroyed. Keying on the unique id costs nothing and
+         * removes the dependency on every future album mutation remembering to set that
+         * flag. Resolve to today's index with planeIndex() at the point of use. */
+        ULONG uid{0};
         PlaneTime avail{};
         SLONG city{-1};
         std::vector<PlaneGap> gaps;
@@ -81,6 +96,10 @@ class ClaudeBot {
          * kMinRouteValuePerHour the pair is a castaway route: rented only because some
          * plane can reach nothing else, and reserved for exactly those planes. */
         SLONG valuePerHour{0};
+        /* Rented by the stranded-plane pass in executeRouteBox(), for an aeroplane that
+         * could reach nothing else. scheduleRouteFlights() hides it from every aeroplane
+         * that has a proper pair in range - see the comment there. */
+        bool castaway{false};
         SLONG anzPax{0};  /* passengers the route wants per day, CRoute::AnzPassagiere() */
         bool pricesSet{false};
     };
@@ -90,6 +109,7 @@ class ClaudeBot {
     SLONG pickFillerAction();
     bool canUseAction(SLONG actionId) const;
     bool haveOffice() const;
+    SLONG planeIndex(ULONG uid) const;
     void startNewDay();
 
     /* --- action implementations --- */
@@ -159,6 +179,11 @@ class ClaudeBot {
 
     /* Routes we rent, cached at the route box. */
     std::vector<RouteState> mRoutes;
+    /* Route ids of the pairs rented for a stranded aeroplane. mRoutes is rebuilt from
+     * qPlayer.RentRouten every day, so the flag has to live somewhere that survives that -
+     * and it has to be pruned to what we still hold, or a pair the game confiscates and the
+     * ordinary loop later rents back on merit would stay marked a castaway for good. */
+    std::vector<SLONG> mCastawayRoutes;
 
     /* per-day bookkeeping, reset in startNewDay() */
     SLONG mDay{-1};
