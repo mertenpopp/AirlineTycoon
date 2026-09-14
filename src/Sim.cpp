@@ -1659,77 +1659,89 @@ void SIM::DoTimeStep() {
 
             // Probleme bei einem Flugzeug auslösen:
             if ((CallItADay == 0) && (GetHour() > 5 && GetHour() < 17)) {
-                PLAYER &qPlayer = qLocalPlayer;
+                /* Every human's planes, on every peer. It was only rolled for the local player, so each
+                   human's peer grounded that human's planes on its own, the plane's flights were
+                   delayed there only (the delay check further down), and the peers flew different
+                   flight plans. The roll depends on nothing but the time and the plane, which every
+                   peer agrees on; the fax, the letter and the advice stay with the local player. */
+                for (SLONG p = 0; p < 4; p++) {
+                    if (bNetwork == 0 ? (p != localPlayer) : (Players.Players[p].Owner == 1 || Players.Players[p].IsOut != 0)) {
+                        continue;
+                    }
+                    PLAYER &qPlayer = Players.Players[p];
 
-                if (qPlayer.Planes.HasProblemPlane() == 0) {
-                    if (qPlayer.Planes.GetNumUsed() >= 2) {
-                        TEAKRAND LocalRand(Date + GetHour() + GetMinute());
+                    if (qPlayer.Planes.HasProblemPlane() == 0) {
+                        if (qPlayer.Planes.GetNumUsed() >= 2) {
+                            TEAKRAND LocalRand(Date + GetHour() + GetMinute());
 
-                        for (c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                            if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                                if (qPlayer.Planes[c].Ort == -5 && (qPlayer.Planes[c].GetFlugplanEintrag() != nullptr) &&
-                                    qPlayer.Planes[c].GetFlugplanEintrag()->Landedate == Date &&
-                                    qPlayer.Planes[c].GetFlugplanEintrag()->Landezeit == GetHour()) {
-                                    if (LocalRand.Rand(10) == 0 && (LocalRand.Rand(100)) > qPlayer.Planes[c].Zustand && qPlayer.Planes[c].Zustand < 90) {
-                                        SLONG Extra = 0;
+                            for (c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
+                                if (qPlayer.Planes.IsInAlbum(c) != 0) {
+                                    if (qPlayer.Planes[c].Ort == -5 && (qPlayer.Planes[c].GetFlugplanEintrag() != nullptr) &&
+                                        qPlayer.Planes[c].GetFlugplanEintrag()->Landedate == Date &&
+                                        qPlayer.Planes[c].GetFlugplanEintrag()->Landezeit == GetHour()) {
+                                        if (LocalRand.Rand(10) == 0 && (LocalRand.Rand(100)) > qPlayer.Planes[c].Zustand && qPlayer.Planes[c].Zustand < 90) {
+                                            SLONG Extra = 0;
 
-                                        qPlayer.Planes[c].Problem =
-                                            4 + (LocalRand.Rand(101 - qPlayer.Planes[c].Zustand)) / 3 + static_cast<SLONG>((LocalRand.Rand(4)) == 0) * 15;
+                                            qPlayer.Planes[c].Problem =
+                                                4 + (LocalRand.Rand(101 - qPlayer.Planes[c].Zustand)) / 3 + static_cast<SLONG>((LocalRand.Rand(4)) == 0) * 15;
 
-                                        if (qPlayer.Planes[c].GetFlugplanEintrag()->NachCity == static_cast<ULONG>(HomeAirportId)) {
-                                            qPlayer.Planes[c].Problem = max(4, qPlayer.Planes[c].Problem - 15);
-                                        } else if (qPlayer.Planes[c].Problem > 20) {
-                                            Extra = 1;
-                                        }
-
-                                        if (Extra != 0) {
-                                            if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
-                                                qPlayer.Letters.AddLetter(FALSE,
-                                                                          bprintf(StandardTexte.GetS(TOKEN_LETTER, 507), (LPCTSTR)qPlayer.Planes[c].Name,
-                                                                                  qPlayer.Planes[c].Problem, (LPCTSTR)Cities[HomeAirportId].Name,
-                                                                                  (LPCTSTR)Cities[qPlayer.Planes[c].GetFlugplanEintrag()->NachCity].Name),
-                                                                          "", "", 6);
+                                            if (qPlayer.Planes[c].GetFlugplanEintrag()->NachCity == static_cast<ULONG>(HomeAirportId)) {
+                                                qPlayer.Planes[c].Problem = max(4, qPlayer.Planes[c].Problem - 15);
+                                            } else if (qPlayer.Planes[c].Problem > 20) {
+                                                Extra = 1;
                                             }
+                                            NetTraceEvent("PLANEPROBLEM p=%ld plane=%s hours=%ld", static_cast<long>(p), qPlayer.Planes[c].Name.c_str(),
+                                                          static_cast<long>(qPlayer.Planes[c].Problem));
 
-                                            CAuftrag Auftrag;
-
-                                            Auftrag.VonCity = HomeAirportId;
-                                            Auftrag.NachCity = qPlayer.Planes[c].GetFlugplanEintrag()->NachCity;
-                                            Auftrag.Personen = 0;
-                                            Auftrag.Date = static_cast<UWORD>(Date);
-                                            Auftrag.BisDate = Date + ((qPlayer.Planes[c].Problem - (24 - GetHour())) / 24);
-                                            Auftrag.InPlan = 0;
-                                            Auftrag.Okay = 0;
-                                            Auftrag.Praemie = 0;
-                                            Auftrag.Strafe = 0;
-                                            qPlayer.Auftraege += Auftrag;
-                                        } else if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
-                                            qPlayer.Letters.AddLetter(
-                                                FALSE,
-                                                bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem), "",
-                                                "", 7);
-                                        }
-
-                                        if (qPlayer.LocationWin != nullptr) {
-                                            if (((qPlayer.LocationWin)->IsDialogOpen() == 0) && ((qPlayer.LocationWin)->MenuIsOpen() == 0) &&
-                                                (Options.OptionFax != 0) && (CallItADay == 0)) {
-                                                (qPlayer.LocationWin)->MenuStart(MENU_SABOTAGEFAX, 6 + Extra, c, qPlayer.Planes[c].Problem);
-                                                (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
-
-                                                qPlayer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
-
-                                                bgWarp = FALSE;
-                                                if (CheatTestGame == 0 && CheatAutoSkip == 0) {
-                                                    qLocalPlayer.GameSpeed = 0;
-                                                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
+                                            if (Extra != 0) {
+                                                if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
+                                                    qPlayer.Letters.AddLetter(FALSE,
+                                                                              bprintf(StandardTexte.GetS(TOKEN_LETTER, 507), (LPCTSTR)qPlayer.Planes[c].Name,
+                                                                                      qPlayer.Planes[c].Problem, (LPCTSTR)Cities[HomeAirportId].Name,
+                                                                                      (LPCTSTR)Cities[qPlayer.Planes[c].GetFlugplanEintrag()->NachCity].Name),
+                                                                              "", "", 6);
                                                 }
-                                            } else if (CallItADay == 0) {
-                                                qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                            bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
-                                            }
-                                        }
 
-                                        break;
+                                                CAuftrag Auftrag;
+
+                                                Auftrag.VonCity = HomeAirportId;
+                                                Auftrag.NachCity = qPlayer.Planes[c].GetFlugplanEintrag()->NachCity;
+                                                Auftrag.Personen = 0;
+                                                Auftrag.Date = static_cast<UWORD>(Date);
+                                                Auftrag.BisDate = Date + ((qPlayer.Planes[c].Problem - (24 - GetHour())) / 24);
+                                                Auftrag.InPlan = 0;
+                                                Auftrag.Okay = 0;
+                                                Auftrag.Praemie = 0;
+                                                Auftrag.Strafe = 0;
+                                                qPlayer.Auftraege += Auftrag;
+                                            } else if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
+                                                qPlayer.Letters.AddLetter(
+                                                    FALSE,
+                                                    bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem), "",
+                                                    "", 7);
+                                            }
+
+                                            if (qPlayer.LocationWin != nullptr) {
+                                                if (((qPlayer.LocationWin)->IsDialogOpen() == 0) && ((qPlayer.LocationWin)->MenuIsOpen() == 0) &&
+                                                    (Options.OptionFax != 0) && (CallItADay == 0)) {
+                                                    (qPlayer.LocationWin)->MenuStart(MENU_SABOTAGEFAX, 6 + Extra, c, qPlayer.Planes[c].Problem);
+                                                    (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
+
+                                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
+
+                                                    bgWarp = FALSE;
+                                                    if (CheatTestGame == 0 && CheatAutoSkip == 0) {
+                                                        qLocalPlayer.GameSpeed = 0;
+                                                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
+                                                    }
+                                                } else if (CallItADay == 0) {
+                                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
+                                                                                bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
+                                                }
+                                            }
+
+                                            break;
+                                        }
                                     }
                                 }
                             }
