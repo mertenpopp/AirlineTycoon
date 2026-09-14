@@ -485,6 +485,33 @@ void NetTraceFingerprint(const char *When) {
     Pool.Add(Sim.ItemParfuem);
     Pool.Add(Sim.ItemZange);
 
+    /* How many people still want to fly each route today. Every airline's route flights take
+       their passengers from it, so a peer that disagrees books different passenger counts for
+       everybody on that route. At level 2 the rented routes are listed too. */
+    std::string DemandText;
+    for (SLONG d = 0; d < Routen.AnzEntries(); d++) {
+        if (Routen.IsInAlbum(d) == 0) {
+            continue;
+        }
+        Pool.Add(Routen[d].Bedarf);
+        if (gNetTraceLevel >= 2) {
+            bool bRented = false;
+            for (SLONG c = 0; c < Sim.Players.Players.AnzEntries() && c < 4; c++) {
+                if (Sim.Players.Players[c].RentRouten.RentRouten[d].Rang != 0U) {
+                    bRented = true;
+                }
+            }
+            if (bRented) {
+                char One[32];
+                snprintf(One, sizeof(One), "%ld:%ld,", static_cast<long>(d), static_cast<long>(Routen[d].Bedarf));
+                DemandText += One;
+            }
+        }
+    }
+    if (gNetTraceLevel >= 2) {
+        AT_Log("FPDETAIL %s day=%ld p=pool planes= routes=%s", When, static_cast<long>(Sim.Date), DemandText.c_str());
+    }
+
     AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld applicants=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
            static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
            static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(UsedPlanes), static_cast<long>(Applicants),
