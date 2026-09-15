@@ -190,3 +190,56 @@ kicks in for first class (Schedule.cpp:513) and cuts first class passengers to a
 `kTicketPriceFactorFC = 2.85` respects this, but it is untested - Bot buys no first class seats
 (one FC seat costs two regular ones), so `MaxPassagiereFC` is 0 on all its planes.
 `RouteInfo::ticketCostFactor` is now unused but still serialised.
+
+## 2026-09-16 — Comparison session (no code changes), day-59 objective
+
+First comparison since the objective moved from day 99 to day 59 (`adbf4bd4`), so none of the
+numbers above are comparable. Three fresh 300-game batches at HEAD `d44f757f`.
+
+| Matchup | ClaudeBot (HA) | Bot |
+|---|---|---|
+| Solo (`run_measurement_claudebot.sh` / `run_measurement_bot.sh`) | **7.079e8** (med 7.594e8, sd 1.37e8, n=295+) | **1.760e9** (med 1.824e9, sd 3.28e8) |
+| Head-to-head (`run_competition.sh`, lvl 24) | 3.215e8 | **1.943e9**, wins **298/298** |
+
+ClaudeBot is liquidated in **296/300** head-to-head games, median day **52** (min 45, max 59) -
+`Geld == -1e7` and SaldoGesamt frozen. It still emits with mode 0 and never buys back, so its
+self-holding is 8,000 shares. Bot is taken over in 0/300 of either batch.
+
+Where the solo gap comes from (day-59 lifetime totals, mean):
+
+- Bot's early engine is jobs, ClaudeBot has none: Auftraege+Fracht 1.44e8 vs 3.9e6. Through
+  day 20 that *is* Bot's income, and it is what funds the first route planes.
+- Growth curve: fleet at day 30/40/50/59 - Bot 4.9 / 9.6 / 27.6 / 54.4, ClaudeBot 3.0 / 4.7 /
+  10.4 / 26.1. ClaudeBot flies its two starting planes until day 22 (kMinFleetBeforeSaving)
+  and is ~8 days behind for the rest of the game.
+- Concentration: Bot 7.9 pairs for 54 planes, 203 pax/flight, 6,452 of ticket revenue per
+  passenger; ClaudeBot 21.4 pairs for 26 planes, 179 pax/flight, 5,193 per passenger.
+- ClaudeBot spends *more* on advertising with a third of the fleet: 1.25e8 vs 8.5e7.
+
+Findings about Bot from reading its sources against ClaudeBot's:
+
+1. **Bug in `d44f757f`** (`updateRouteInfoBoard`): for a competitor `i`, the reverse direction is
+   read from `getReverseRentRoute(route)`, which is `qPlayer`, not `qqPlayer` - so every
+   competitor contributes `(their outbound + OUR return) / 2` to `route.routeUtilization`.
+   With BERATERTYP_INFO employed and three competitors, our own return-direction load is counted
+   1.5 extra times, which pushes `routeUtilization` over the `< 90` gate in
+   `routesFindNextStep()` and stops the route buying planes. Same expression, same bug, in the
+   `routeOwnUtilization` line is correct (it is our own player there).
+2. **Cabin fit-out and food are image-neutral at Bot's own price point.** `BookFlight`
+   (Schedule.cpp:925-998) gives Add = +10 (Zustand>98) +3 (crew) + cabin - 20 (price is between
+   1.5x and 2x Costs2, and Costs2 == Bot's `highCost`). Full fit-out makes Add = +1, food-2-only
+   -5, no food -8: `Add / 10` truncates all of them to 0. So `kPlaneLuxuryTargetLateGame = 2`
+   (2.4e7 of FlugzeugUpgrades) and `kPlaneFoodTarget = 2` (1.37e7 of *scored* Essen) both buy
+   nothing through image, and first class is stripped from every route plane so LuxusSumme does
+   not sell either. Worth an A/B; note c8f71c28 measured the luxury arm at +6.1e7, which is
+   t~2.3 against a per-run sem of 1.9e7.
+3. Airline image is negative until ~day 36 and falls 539 -> 442 over the last nine days while the
+   fleet doubles. Image is step 7 of `routesFindNextStep()`, so it only gets cash when no route
+   wants a plane or an ad.
+
+Transferable from ClaudeBot, in expected-value order: the weekend/decay-aware image target
+(`mImageDecayPerDay * daysToCover`, agency shut Sat+Sun), the marginal-payback rule for airline
+image (`kImagePaybackDays`), folding `DoBodyguardRabatt` into the plane count and calling
+`buyPlane()` repeatedly instead of once, `WorkCountdown = 2` on filler actions, and fitting
+agency/freight jobs into the overnight idle windows of route planes (Bot's route planes never
+visit the agency again).
