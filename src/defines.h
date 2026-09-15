@@ -38,6 +38,7 @@ typedef signed char SBYTE;
 
 #ifdef WIN32
 typedef int32_t SLONG;
+#define PR_I64i "I64i"
 #else
 typedef int32_t SLONG;
 typedef uint32_t ULONG;
@@ -58,6 +59,7 @@ typedef const char *LPCTSTR;
 typedef char *LPTSTR;
 
 typedef long long __int64;
+#define PR_I64i "lli"
 
 typedef struct tagPOINT {
     SLONG x;
