@@ -437,6 +437,8 @@ static const SLONG kCrewSparePlanes = 3;
  * Flying lifts route image the last ten points for free (Schedule.cpp:860), which would drop
  * the useful ceiling to 400; 440 covers a pair rented this morning. */
 static const SLONG kImageSaturation = 440;
+/* Route image bought back to this level, in both directions. */
+static const SLONG kRouteImageTarget = 90;
 
 /* But the saturation point is what we need on the day the *flights* run, not what we need
  * to buy. Image erodes on every flight (Schedule.cpp:917, 992) and the only thing that
@@ -468,6 +470,27 @@ static const SLONG kMaxTargetImage = 950;
  * floor: reserving cash from the agency does not work, because executeBuyPlane() spends to the
  * debt limit every day and anything queued behind it is never funded (measured at 1.3M). */
 static const SLONG kSmallFleet = 10;
+/* ...and no airline image campaign at all until the first aeroplane has been bought.
+ *
+ * With the two starting aeroplanes the airline earns about 1.5 million a day and the image
+ * campaign to kImageSaturationSmallFleet was spending a million of it: 28 million by day 25,
+ * which is more than the 25 million 767 the broker was saving for. Image is worth ~20% more
+ * passengers per leg, i.e. ~400,000 a day on two aeroplanes - but a 767 bought five days
+ * earlier starts the whole growth curve five days earlier, and at ~10% a day that compounds
+ * into everything that follows. Route image, four times as effective per point and a one-off
+ * cost per pair, is still bought. Measured +100M: 684.4 / 679.9 / 672.3 against ~578.
+ *
+ * The session 21 arm that withheld airline image below 10 aeroplanes lost 64M: past the first
+ * purchase the fleet earns enough that the image pays for itself within days. */
+static const SLONG kNoAirlineImageUpToPlanes = 2;
+/* Airline image is bought only as far as its last point pays back within this many days of
+ * yesterday's ticket revenue - see executeAds(). 0 falls back on the fleet-size ceilings above.
+ *
+ * The fleet-size rule bought 250 points as soon as a third aeroplane arrived and 440 at ten,
+ * whatever those aeroplanes earned. Sizing it on revenue withholds image until the airline
+ * flies four or five aeroplanes and then goes straight to the ImageTotal cap. Measured
+ * 739.1 / 723.1 / 753.1M against 678.9M for the fleet rule (+59.5M). */
+static const __int64 kImagePaybackDays = 10;
 static const SLONG kImageSaturationSmallFleet = 250;
 static const __int64 kAdCashBuffer = 1500000;
 
@@ -2059,8 +2082,18 @@ void ClaudeBot::executeAds() {
 
     /* Route image is the cheaper of the two - a flat 30,000 per point at every size - and
      * it counts four times as much in the passenger formula. Buy it first. */
+    /* Both directions: a campaign lifts both by the same amount, but each direction erodes on
+     * its own legs, and stopping when the outbound direction reached the target left return
+     * directions at 43-49 while the outbound one sat at 90. */
+    auto routeImage = [&](const RouteState &qRoute) {
+        SLONG image = qPlayer.RentRouten.RentRouten[qRoute.id].Image;
+        if (qRoute.reverseId >= 0) {
+            image = std::min<SLONG>(image, qPlayer.RentRouten.RentRouten[qRoute.reverseId].Image);
+        }
+        return image;
+    };
     for (const auto &qRoute : mRoutes) {
-        if (qPlayer.RentRouten.RentRouten[qRoute.id].Image >= 90) {
+        if (routeImage(qRoute) >= kRouteImageTarget) {
             continue;
         }
         /* Size 4 only, bought repeatedly until the route reaches the target.
@@ -2070,7 +2103,7 @@ void ClaudeBot::executeAds() {
          * size 5 buys 46 points at a time for 1,400,000, the same 30,435 a point but in a
          * granularity that overshoots a clamp at 100. Looping the small one costs the same per
          * point and stops exactly on target. */
-        while (qPlayer.RentRouten.RentRouten[qRoute.id].Image < 90) {
+        while (routeImage(qRoute) < kRouteImageTarget) {
             if (qPlayer.Money - gWerbePrice[1 * 6 + 4] < kAdCashBuffer) {
                 break;
             }
@@ -2103,8 +2136,21 @@ void ClaudeBot::executeAds() {
             numPlanes++;
         }
     }
-    const SLONG saturation = (numPlanes < kSmallFleet) ? kImageSaturationSmallFleet : kImageSaturation;
-    const SLONG target = std::min<SLONG>(kMaxTargetImage, saturation + mImageDecayPerDay * daysToCover);
+    SLONG saturation = (numPlanes < kSmallFleet) ? kImageSaturationSmallFleet : kImageSaturation;
+    if (kImagePaybackDays > 0) {
+        /* Buy airline image up to the point where the last campaign point pays for itself
+         * within kImagePaybackDays. One point lifts every route leg by 1 / (400 + ImageTotal)
+         * (CalcPassengers), so on a day of `R` ticket revenue it is worth R / (400 + ImageTotal)
+         * a day against ~50,000 for the point - the marginal payback is
+         * 50,000 * (400 + ImageTotal) / R. ImageTotal is 4 * route image + airline image + 200. */
+        const __int64 baseTotal = 400 + 4 * 90 + 200;
+        const __int64 worthwhile = mTicketsYesterday * kImagePaybackDays / 50000 - baseTotal;
+        saturation = static_cast<SLONG>(std::max<__int64>(0, std::min<__int64>(kImageSaturation, worthwhile)));
+    }
+    SLONG target = std::min<SLONG>(kMaxTargetImage, saturation + mImageDecayPerDay * daysToCover);
+    if (numPlanes <= kNoAirlineImageUpToPlanes || saturation <= 0) {
+        target = 0;
+    }
 
     /* Airline image costs 50,000 a point and counts once; route image costs 30,000 and
      * counts four times, so a route point is worth six airline points. Airline image only
@@ -2469,6 +2515,7 @@ void ClaudeBot::cacheFuelBurn() {
     if (qPlayer.HasBerater(BERATERTYP_GELD) <= 0) {
         return; /* not allowed to look; keep yesterday's figure */
     }
+    mTicketsYesterday = qPlayer.BilanzGestern.Tickets;
     if (gKerosinPrice <= 0) {
         return;
     }
@@ -3257,6 +3304,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mWrongRoomDay;
     File << bot.mWrongRoomCount;
     File << bot.mBalanceLoggedDay;
+    File << bot.mTicketsYesterday;
     /* mPlanes is deliberately not serialised. It is a pure function of the flight plans,
      * which the game saves itself, and the loader marks it stale so it is rebuilt from them
      * before anything is allowed to read it - so no state is lost. */
@@ -3326,6 +3374,7 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     File >> bot.mWrongRoomDay;
     File >> bot.mWrongRoomCount;
     File >> bot.mBalanceLoggedDay;
+    File >> bot.mTicketsYesterday;
 
     bot.mPlanes.clear();
     bot.mPlaneStateStale = true;
