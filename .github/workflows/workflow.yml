@@ -110,7 +110,7 @@ jobs:
     - name: Setup homebrew (macOS)
       if: matrix.name == 'macos'
       id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@v1
+      uses: Homebrew/actions/setup-homebrew@2026.09.13.1
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
