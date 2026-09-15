@@ -937,7 +937,7 @@ void Bot::updateRouteInfoBoard() {
     SLONG routeToStealUtil = 0;
     for (auto &route : mRoutes) {
         route.image = std::min(getRentRoute(route).Image, getReverseRentRoute(route).Image);
-        route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
+        route.routeOwnUtilization = (getRentRoute(route).RoutenAuslastungBot + getReverseRentRoute(route).RoutenAuslastungBot) / 2;
         route.routeUtilization = 0;
         for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
             const auto &qqPlayer = Sim.Players.Players[i];
@@ -949,7 +949,7 @@ void Bot::updateRouteInfoBoard() {
             }
 
             const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[route.routeId];
-            route.routeUtilization += qRentRoute.RoutenAuslastungBot;
+            route.routeUtilization += (qRentRoute.RoutenAuslastungBot + getReverseRentRoute(route).RoutenAuslastungBot) / 2;
 
             if (qRentRoute.RoutenAuslastungBot > 0 && i != qPlayer.PlayerNum) {
                 AT_Log("Bot::updateRouteInfoBoard(): Route %s: We (%d utilization) are competing with %s (%d utilization)",
