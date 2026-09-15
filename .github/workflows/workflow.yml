@@ -71,6 +71,7 @@ jobs:
         build_type:
           - ${{ needs.env.outputs.build-type }}
         c_compiler: [gcc, cl]
+        cpp_compiler: [g++, cl]
         exclude: # exclude all by default
           - os: windows-latest
           - os: ubuntu-latest
@@ -109,7 +110,7 @@ jobs:
     - name: Setup homebrew (macOS)
       if: matrix.name == 'macos'
       id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@master
+      uses: Homebrew/actions/setup-homebrew@v1
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos'
