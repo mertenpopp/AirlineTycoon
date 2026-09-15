@@ -886,7 +886,7 @@ void Bot::updateRouteInfoOffice() {
      * does not update: routeUtilization, mRouteToSteal */
     std::unordered_map<SLONG, std::vector<SLONG>> tmpList;
     for (auto &route : mRoutes) {
-        route.image = getRentRoute(route).Image;
+        route.image = std::min(getRentRoute(route).Image, getReverseRentRoute(route).Image);
         route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
         route.planeUtilization = getRentRoute(route).AuslastungBot;
         route.planeUtilizationFC = getRentRoute(route).AuslastungFirstClassBot;
@@ -936,7 +936,7 @@ void Bot::updateRouteInfoBoard() {
     mRouteToSteal = -1;
     SLONG routeToStealUtil = 0;
     for (auto &route : mRoutes) {
-        route.image = getRentRoute(route).Image;
+        route.image = std::min(getRentRoute(route).Image, getReverseRentRoute(route).Image);
         route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
         route.routeUtilization = 0;
         for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {

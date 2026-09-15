@@ -34,6 +34,7 @@ __int64 Bot::getMoneyAvailable() const {
 }
 
 const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { return qPlayer.RentRouten.RentRouten[routeInfo.routeId]; }
+const CRentRoute &Bot::getReverseRentRoute(const Bot::RouteInfo &routeInfo) const { return qPlayer.RentRouten.RentRouten[routeInfo.routeReverseId]; }
 
 const CRoute &Bot::getRoute(const Bot::RouteInfo &routeInfo) const { return Routen[routeInfo.routeId]; }
 
@@ -335,11 +336,6 @@ SLONG Bot::calcCurrentGainFromJobs() const {
         gain += Helper::calculateScheduleInfo(qPlayer, planeId).gain;
     }
     return gain;
-}
-
-SLONG Bot::calcRouteImageDeltaNeeded(const Bot::RouteInfo &routeInfo) const {
-    auto routeImageTarget = std::min(100, (800 - getImage()) / 4);
-    return (routeImageTarget - routeInfo.image);
 }
 
 void Bot::removePlaneFromRoute(SLONG planeId) {
