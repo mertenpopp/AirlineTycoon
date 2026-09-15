@@ -72,6 +72,7 @@ jobs:
         build_type:
           - ${{ needs.env.outputs.build-type }}
         c_compiler: [gcc, cl]
+        cpp_compiler: [g++, cl]
         exclude: # exclude all by default
           - os: windows-latest
           - os: ubuntu-latest
@@ -117,7 +118,7 @@ jobs:
     - name: Setup homebrew (macOS)
       if: matrix.name == 'macos' || matrix.name == 'macos-x64'
       id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@master
+      uses: Homebrew/actions/setup-homebrew@2026.09.13.1
 
     - name: Install macOS dependencies
       if: matrix.name == 'macos' || matrix.name == 'macos-x64'
@@ -133,7 +134,13 @@ jobs:
          rm /usr/local/bin/pydoc3 || true
          rm /usr/local/bin/python3 || true
          rm /usr/local/bin/python3-config || true
-         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
+         # Update Homebrew and cleanup
+         brew update
+         brew cleanup
+         # Install dependencies
+         brew install cmake
+         brew install jansson
+         brew install sdl2-compat sdl2_mixer sdl2_image sdl2_ttf
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
