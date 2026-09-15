@@ -284,6 +284,7 @@ class Bot {
     const CRoute &getRoute(const RouteInfo &routeInfo) const;
     __int64 refreshWeeklyOpSaldo();
     bool checkLateGame();
+    bool checkVeryLateGame();
     SLONG getImage() const;
     void forceReplanning();
     bool doWeNeedMoreGates(bool print) const;
