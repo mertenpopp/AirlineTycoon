@@ -1327,22 +1327,21 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
     while ((mRoutesNextStep == RoutesNextStep::BuyAdsForRoute) && (cost <= moneyAvailable)) {
         assert(mImproveRouteId != -1);
         auto &qRoute = mRoutes[mImproveRouteId];
-        auto &qRentedRoute = getRentRoute(qRoute);
-        if (qRentedRoute.Image >= kRouteMaxImage) {
+        SLONG oldImage = qRoute.image;
+        if (oldImage >= kRouteMaxImage) {
             AT_Error("Bot::actionBuyAdsForRoutes(): Image already maximum.");
             break;
         }
 
-        SLONG oldImage = qRentedRoute.Image;
-        while ((qRentedRoute.Image < kRouteMaxImage) && (cost <= moneyAvailable)) {
+        while ((qRoute.image < kRouteMaxImage) && (cost <= moneyAvailable)) {
             if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
                 break;
             }
             moneyAvailable = getMoneyAvailable();
+            qRoute.image = std::min(getRentRoute(qRoute).Image, getReverseRentRoute(qRoute).Image);
         }
         AT_Log("Bot::actionBuyAdsForRoutes(): Buying advertisement for route %s for %d $ (image improved %d => %d)",
-               Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, qRentedRoute.Image);
-        qRoute.image = qRentedRoute.Image;
+               Helper::getRouteName(getRoute(qRoute)).c_str(), cost, oldImage, qRoute.image);
 
         routesRecalcNextStep();
     }

@@ -281,6 +281,7 @@ class Bot {
 
     /* misc (in BotMisc.cpp) */
     const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
+    const CRentRoute &getReverseRentRoute(const RouteInfo &routeInfo) const;
     const CRoute &getRoute(const RouteInfo &routeInfo) const;
     __int64 refreshWeeklyOpSaldo();
     bool checkLateGame();
@@ -303,7 +304,6 @@ class Bot {
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
-    SLONG calcRouteImageDeltaNeeded(const RouteInfo &routeInfo) const;
     void removePlaneFromRoute(SLONG planeId);
     bool checkPlaneLists();
     void findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned);
