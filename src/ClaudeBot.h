@@ -225,6 +225,10 @@ class ClaudeBot {
      * may read the balance itself. */
     SLONG mFuelUnitsPerDay{0};
 
+    /* Yesterday's ticket revenue, cached in the office (BilanzGestern needs the office and a
+     * financial advisor) for the advertising agency to size the airline image by. */
+    __int64 mTicketsYesterday{0};
+
     /* Room-check bookkeeping: the day the last mismatch warning was printed, and how many
      * mismatches that day has seen. */
     SLONG mWrongRoomDay{-1};
