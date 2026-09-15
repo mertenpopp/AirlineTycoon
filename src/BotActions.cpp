@@ -268,10 +268,11 @@ void Bot::actionUpgradePlanes() {
         return;
     }
 
-    SLONG upgradeSeats = 2;
-    SLONG upgradeTray = 2;
-    SLONG upgradeDeco = 2;
-    SLONG upgradeFood = 2;
+    bool lateGame = checkLateGame();
+    SLONG upgradeSeats = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;
+    SLONG upgradeTray = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;
+    SLONG upgradeDeco = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;
+    SLONG upgradeFood = kPlaneFoodTarget;
     SLONG upgradeForFirstClass = 0;
     if ((Sim.Difficulty == DIFF_ATFS02) && (mRunToFinalObjective == FinalPhase::TargetRun)) {
         upgradeForFirstClass = 2;

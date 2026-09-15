@@ -892,6 +892,7 @@ void Bot::updateRouteInfoOffice() {
         route.planeUtilizationFC = getRentRoute(route).AuslastungFirstClassBot;
 
         DOUBLE luxusSumme = 0;
+        SLONG luxusTarget = 3 * (checkLateGame() ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget) + kPlaneFoodTarget;
         __int64 currentWeeklyRevenue = 0;
         route.canUpgrade = false;
         for (auto i : route.planeIds) {
@@ -904,7 +905,7 @@ void Bot::updateRouteInfoOffice() {
             currentWeeklyRevenue += qPlane.GetSaldo();
 
             /* target: upgrade image-relevant */
-            route.canUpgrade = (qPlane.MaxPassagiereTargetFC > 0) || (luxusForImage < 8);
+            route.canUpgrade = (qPlane.MaxPassagiereTargetFC > 0) || (luxusForImage < luxusTarget);
         }
         luxusSumme /= route.planeIds.size();
 
