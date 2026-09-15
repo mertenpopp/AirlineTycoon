@@ -268,7 +268,7 @@ void Bot::actionUpgradePlanes() {
         return;
     }
 
-    bool lateGame = checkLateGame();
+    bool lateGame = checkVeryLateGame();
     SLONG upgradeSeats = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;
     SLONG upgradeTray = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;
     SLONG upgradeDeco = lateGame ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget;

@@ -44,7 +44,11 @@ __int64 Bot::refreshWeeklyOpSaldo() {
     return mWeeklyOperatingSaldo;
 }
 
-bool Bot::checkLateGame() { return (refreshWeeklyOpSaldo() > 1e8) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 8; }
+/* fires around day 35 in a free game */
+bool Bot::checkLateGame() { return (qPlayer.Money > 1e8) || (refreshWeeklyOpSaldo() > 1e8) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 8; }
+
+/* fires around day 62-70 in a free game */
+bool Bot::checkVeryLateGame() { return (qPlayer.Money > 1e9) || (refreshWeeklyOpSaldo() > 1e9) || (mPlanesForJobs.size() + mPlanesForRoutes.size()) >= 60; }
 
 SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) ? mCurrentImage : qPlayer.Image; }
 
