@@ -34,7 +34,7 @@ const SLONG kCallInternationalHandyEveryXMinutes = 5;
 const SLONG kCheckTravelAgencyEveryXMinutes = 15;
 const SLONG kCheckLastMinuteEveryXMinutes = 60;
 const SLONG kCheckFreightDepotEveryXMinutes = 60;
-const SLONG kFrequencyRouteStrategy = 2;
+const SLONG kFrequencyRouteStrategy = 1;
 
 const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -100;
@@ -553,19 +553,25 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_VISITTELESCOPE:
+        qPlayer.WorkCountdown = 2;
         break;
 
     case ACTION_VISITKIOSK:
+        qPlayer.WorkCountdown = 2;
         break;
 
     case ACTION_VISITMAKLER: {
-        auto list = findBestAvailablePlaneType(false, true);
-        mBestPlaneTypeId = list.empty() ? -1 : list[0];
+        auto list = findBestAvailablePlaneType();
+        if (!list.empty()) {
+            mBestPlaneTypeId = list[0];
+        }
 
         if (mItemAntiStrike == 0) {
             if (pickUpItem(ITEM_BH)) {
                 mItemAntiStrike = 1;
             }
+        } else if (list.empty()) {
+            qPlayer.WorkCountdown = 2;
         }
     } break;
 
@@ -575,23 +581,33 @@ void Bot::RobotExecuteAction() {
                 AT_Log("Bot::RobotExecuteAction(): Used item MG");
                 mItemArabTrust = 2;
             }
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
         break;
 
-    case ACTION_VISITRICK:
+    case ACTION_VISITRICK: {
+        bool idle = true;
         if (mItemAntiStrike == 3) {
             if (useItem(ITEM_HUFEISEN)) {
                 mItemAntiStrike = 4;
             }
+            idle = false;
         }
         if ((qPlayer.StrikeHours > 0) && (qPlayer.StrikeEndType == 0) && (qPlayer.TrinkerTrust == 1)) {
             AT_Log("Bot::RobotExecuteAction(): Ended strike using drunk guy");
             GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Drunk);
+            idle = false;
         }
-        break;
+        if (idle) {
+            qPlayer.WorkCountdown = 2;
+        }
+    } break;
 
     case ACTION_VISITDUTYFREE:
-        actionVisitDutyFree(moneyAvailable);
+        if (!actionVisitDutyFree(moneyAvailable)) {
+            qPlayer.WorkCountdown = 2;
+        }
         break;
 
     case ACTION_VISITAUFSICHT:

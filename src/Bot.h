@@ -240,7 +240,7 @@ class Bot {
     void actionOvertakeAirline();
     void actionSellShares(__int64 moneyAvailable);
     void actionVisitMech();
-    void actionVisitDutyFree(__int64 moneyAvailable);
+    bool actionVisitDutyFree(__int64 moneyAvailable);
     void actionVisitBoss();
     void actionVisitRouteBox();
     void actionRentRoute();
@@ -254,7 +254,7 @@ class Bot {
     __int64 getNemesisScore(SLONG p) const;
     void determineNemesis();
     void switchToFinalTarget();
-    std::vector<SLONG> findBestAvailablePlaneType(bool forRoutes, bool canRefresh);
+    std::vector<SLONG> findBestAvailablePlaneType();
     void grabFlights(BotPlaner &planer, bool areWeInOffice);
     void requestPlanFlights(bool areWeInOffice);
     void planFlights();

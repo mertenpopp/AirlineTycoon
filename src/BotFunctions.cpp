@@ -341,16 +341,19 @@ void Bot::switchToFinalTarget() {
            Insert1000erDots64(cash).c_str(), Insert1000erDots64(availableMoney - cash).c_str());
 }
 
-std::vector<SLONG> Bot::findBestAvailablePlaneType(bool forRoutes, bool canRefresh) {
-    if (canRefresh) {
-        mKnownPlaneTypes = GameMechanic::getAvailablePlaneTypes();
-        AT_Log("Bot::findBestAvailablePlaneType(): Checking available plane types: %d available", mKnownPlaneTypes.size());
-    }
-
-    if (mKnownPlaneTypes.empty()) {
+std::vector<SLONG> Bot::findBestAvailablePlaneType() {
+    auto list = GameMechanic::getAvailablePlaneTypes();
+    if (list.empty()) {
         AT_Warn("Bot::findBestAvailablePlaneType(): No plane types known yet.");
         return {};
     }
+    if (list == mKnownPlaneTypes) {
+        AT_Log("Bot::findBestAvailablePlaneType(): %d available (no new types)", mKnownPlaneTypes.size());
+        return {};
+    }
+
+    mKnownPlaneTypes = list;
+    AT_Log("Bot::findBestAvailablePlaneType(): Checking available plane types: %d available", mKnownPlaneTypes.size());
 
     std::vector<std::pair<SLONG, DOUBLE>> scores;
     for (const auto &i : mKnownPlaneTypes) {
@@ -361,9 +364,7 @@ std::vector<SLONG> Bot::findBestAvailablePlaneType(bool forRoutes, bool canRefre
 
         DOUBLE score = 1.0; /* multiplication (geometric mean) because values have wildly different ranges */
         score = 1.0 * planeType.Passagiere;
-        if (!forRoutes) {
-            score *= planeType.Reichweite;
-        }
+        score *= planeType.Reichweite;
         score /= planeType.Verbrauch;
 
         scores.emplace_back(i, score);
