@@ -848,7 +848,7 @@ Bot::Prio Bot::condVisitMakler() {
     if (mItemAntiStrike == 0) {
         prio = std::max(prio, Prio::Low); /* take BH */
     }
-    return std::max(prio, condVisitMisc());
+    return prio;
 }
 
 Bot::Prio Bot::condVisitArab() {

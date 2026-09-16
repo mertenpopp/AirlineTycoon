@@ -469,8 +469,6 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     if (mDoRoutes) {
         mBuyPlaneForRouteId = -1;
         requestPlanRoutes(false);
-    } else {
-        mBestPlaneTypeId = -1;
     }
 
     updateExtraWorkers();
@@ -1133,22 +1131,26 @@ void Bot::actionVisitMech() {
            Insert1000erDots64(getMoneyAvailable()).c_str());
 }
 
-void Bot::actionVisitDutyFree(__int64 moneyAvailable) {
+bool Bot::actionVisitDutyFree(__int64 moneyAvailable) {
+    bool actionPerformed = false;
     if (mItemAntiStrike == 1) {
         if (useItem(ITEM_BH)) {
             mItemAntiStrike = 2;
         }
+        actionPerformed = true;
     }
     if (mItemAntiStrike == 2) {
         if (pickUpItem(ITEM_HUFEISEN)) {
             mItemAntiStrike = 3;
         }
+        actionPerformed = true;
     }
 
     if (mItemArabTrust == 0 && Sim.Date > 0 && qPlayer.ArabTrust == 0) {
         if (GameMechanic::BuyItemResult::Ok == GameMechanic::buyDutyFreeItem(qPlayer, ITEM_MG)) {
             mItemArabTrust = 1;
         }
+        actionPerformed = true;
     }
 
     __int64 money = qPlayer.Money;
@@ -1156,6 +1158,7 @@ void Bot::actionVisitDutyFree(__int64 moneyAvailable) {
         auto quali = qPlayer.LaptopQuality;
         GameMechanic::buyDutyFreeItem(qPlayer, ITEM_LAPTOP);
         AT_Log("Bot::actionVisitDutyFree(): Buying laptop (%d => %d)", quali, qPlayer.LaptopQuality);
+        actionPerformed = true;
     }
     __int64 moneySpent = std::max(0LL, (money - qPlayer.Money));
     moneyAvailable -= moneySpent;
@@ -1163,7 +1166,9 @@ void Bot::actionVisitDutyFree(__int64 moneyAvailable) {
     if (moneyAvailable > 0 && !qPlayer.HasItem(ITEM_HANDY)) {
         AT_Log("Bot::actionVisitDutyFree(): Buying cell phone");
         GameMechanic::buyDutyFreeItem(qPlayer, ITEM_HANDY);
+        actionPerformed = true;
     }
+    return actionPerformed;
 }
 
 void Bot::actionVisitBoss() {
