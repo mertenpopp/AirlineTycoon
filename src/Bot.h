@@ -295,6 +295,7 @@ class Bot {
     bool hoursPassed(SLONG room, SLONG hours) const;
     bool minutesPassed(SLONG room, SLONG minutes) const;
     bool haveDiscount() const;
+    SLONG applyDiscount(SLONG money) const;
     bool checkLaptop();
     enum class HowToPlan { None, Laptop, Office };
     HowToPlan howToPlanFlights();
