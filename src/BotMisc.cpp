@@ -108,6 +108,15 @@ bool Bot::haveDiscount() const {
     return (qPlayer.HasBerater(BERATERTYP_SICHERHEIT) >= 50) || (Sim.Date > 7);
 }
 
+SLONG Bot::applyDiscount(SLONG money) const {
+    SLONG quality = qPlayer.HasBerater(BERATERTYP_SICHERHEIT);
+    if (quality <= 20) {
+        return money;
+    }
+    SLONG delta = money / 100 * (quality / 10);
+    return (money - delta);
+}
+
 bool Bot::checkLaptop() {
     if (qPlayer.HasItem(ITEM_LAPTOP)) {
         if ((qPlayer.LaptopVirus == 1) && (qPlayer.HasItem(ITEM_DISKETTE) == 1)) {

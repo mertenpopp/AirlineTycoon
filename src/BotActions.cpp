@@ -405,7 +405,7 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     SLONG numToBuy = 0;
     const auto &qPlaneType = PlaneTypes[bestPlaneTypeId];
     while (numToBuy < 10) {
-        if (moneyAvailable < (numToBuy * qPlaneType.Preis)) {
+        if (moneyAvailable < (numToBuy * applyDiscount(qPlaneType.Preis))) {
             break;
         }
         if (qPlayer.xPiloten < (numToBuy * qPlaneType.AnzPiloten) || qPlayer.xBegleiter < (numToBuy * qPlaneType.AnzBegleiter)) {
@@ -423,24 +423,36 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
         assert(mImproveRouteId != -1);
         auto &qRoute = mRoutes[mImproveRouteId];
         numToBuy = std::min(numToBuy, qRoute.numberOfPlanesTarget - static_cast<SLONG>(qRoute.planeIds.size()));
+        if (numToBuy < 1) {
+            AT_Error("Bot::actionBuyNewPlane(): No more planes needed for route %s", Helper::getRouteName(getRoute(qRoute)).c_str());
+            return;
+        }
     } else {
         numToBuy = 1; /* only buy one plane when not doing routes */
     }
 
-    auto list = GameMechanic::buyPlane(qPlayer, bestPlaneTypeId, numToBuy);
-    if (list.empty()) {
-        AT_Error("Bot::actionBuyNewPlane(): Gamemechanic returned error!");
+    std::vector<SLONG> planeIds;
+    for (int i = 0; i < numToBuy; i++) {
+        auto list = GameMechanic::buyPlane(qPlayer, bestPlaneTypeId, 1);
+        if (list.empty()) {
+            break;
+        }
+        assert(list.size() == 1);
+        planeIds.push_back(list[0]);
+    }
+    if (planeIds.empty()) {
+        AT_Error("Bot::actionBuyNewPlane(): GameMechanic returned error!");
         return;
     }
-    for (const auto &planeId : list) {
+    for (const auto &planeId : planeIds) {
         if (planeId < 0x1000000) {
-            AT_Error("Bot::actionBuyNewPlane(): Gamemechanic returned invalid plane id %d!", planeId);
+            AT_Error("Bot::actionBuyNewPlane(): GameMechanic returned invalid plane id %d!", planeId);
             return;
         }
     }
 
     /* assign new planes */
-    for (const auto &planeId : list) {
+    for (const auto &planeId : planeIds) {
         auto &qPlane = qPlayer.Planes[planeId];
         AT_Log("Bot::actionBuyNewPlane(): Bought plane %s (passengers = %d, fuel = %d)", Helper::getPlaneName(qPlane).c_str(), qPlane.ptPassagiere,
                qPlane.ptVerbrauch);
