@@ -377,6 +377,18 @@ static const SLONG kExpectedPaxPerFlight = 250;
  * the threshold on the day the flight actually runs. */
 static const SLONG kTicketPriceThresholdPercent = 190;
 
+/* ...but a price already inside this band is left alone, in the same percent of the threshold.
+ *
+ * The threshold moves with Sim.Kerosin every day, and re-pricing to it daily raises the price on
+ * roughly every other day. A raise is the expensive direction: PLAYER::UpdateTicketpreise
+ * (Player.cpp:7092) calls FlightChanged() on every leg already in the plans, which re-stamps
+ * HoursBefore and strips a leg departing inside 48 hours of up to half its passengers
+ * (Schedule.cpp:327-330). Lowering is free. Below the lower bound the cabin fills and revenue
+ * starts to drop with the price; above the upper one a flight costs an image point
+ * (BookFlight, price over 2x Costs2). */
+static const SLONG kTicketPriceKeepMinPercent = 160;
+static const SLONG kTicketPriceKeepMaxPercent = 198;
+
 /* The same, for first class, whose threshold is 9 * routePriceBase() rather than 3
  * (CalcPassengers, Schedule.cpp:509-514).
  *
@@ -2755,6 +2767,14 @@ SLONG ClaudeBot::scheduleRouteFlights() {
      * flights are planned - planFlightJob() copies them into the plan entry. */
     for (auto &qRoute : mRoutes) {
         if (qRoute.pricesSet) {
+            continue;
+        }
+        /* Ticketpreis may be read here: this runs in the office. */
+        const SLONG highCost = routePriceBase(qRoute.vonCity, qRoute.nachCity) * 3;
+        const SLONG current = qPlayer.RentRouten.RentRouten[qRoute.id].Ticketpreis;
+        if (static_cast<__int64>(current) * 100 >= static_cast<__int64>(highCost) * kTicketPriceKeepMinPercent &&
+            static_cast<__int64>(current) * 100 <= static_cast<__int64>(highCost) * kTicketPriceKeepMaxPercent) {
+            qRoute.pricesSet = true;
             continue;
         }
         if (GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.id, qRoute.ticketPrice, qRoute.ticketPriceFC)) {
