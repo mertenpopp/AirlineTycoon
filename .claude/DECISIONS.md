@@ -579,3 +579,27 @@ step 3/6 still return BuyMorePlanes, so the fix mostly reorders ads vs. purchase
 The CSV column `Available` is always 0, so cash is `Geld`. Over 99 days the fix is a small but clear gain;
 over 59 days it is +1.2% / -0.4% on two seed bases. Still not committed. Note that MertenBot ends a 99-day
 game with ~8.2e9 idle cash against 122 aeroplanes - the fleet stops being cash-bound late in a long game.
+
+### Same day, later: MertenBot airline image rule ported from ClaudeBot (`Bot: Buy airline image ...`)
+
+Target = min(saturation `1000 - 200 - 4 * lowest route image`, what pays back within `kImagePaybackDays` of
+yesterday's `BilanzGestern.Tickets` at ~50,000 per point) + measured daily erosion x days until the ad agency
+reopens. Refill only to that target. `kAirlineImageAnyStep`: buy whenever below target instead of only in
+`routesFindNextStep()` step 7; step 7 uses the same target so it cannot stall route renting.
+
+Paired against `5fe834ac` (crew fix), 300 seeded games, day 59:
+
+| arm | seed base 0 | seed base 1000 |
+|---|---|---|
+| payback 0 (old rule) | identical 300/300 | - |
+| step 7 only, payback 10 / 20 / 40 | -10.5% (all identical: cap never binds late) | - |
+| any step, old target (saturation, refill 1000) | +0.3% (t +0.2) | - |
+| any step, payback 3 / 6 | +6.4% / +14.9% | - |
+| any step, payback 10 | +18.4% (t +27) | +19.5% (t +28) |
+| **any step, payback 20 (committed)** | **+19.2% (t +27), 2.209e9** | **+20.4% (t +28), 2.194e9** |
+| any step, payback 40 | +14.3% | - |
+
+The gain needs both parts: buying whenever below target (step 7 is rarely reached) and a target that holds
+image back early (payback cap) but keeps a weekend buffer later. Refill-to-1000 at any step is neutral.
+MertenBot (2.21e9) is now above ClaudeBot `8d5b6547` (2.02e9) on seed base 0. Not in savegames:
+`mTicketsYesterday` and the erosion tracking reset on load (no airline image until the next day starts).
