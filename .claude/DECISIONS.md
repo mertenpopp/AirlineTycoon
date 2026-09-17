@@ -479,3 +479,36 @@ Planned next, ranked by likelihood of a significant paired win:
 - MertenBot: (1) fix/A-B the inverted crew test; (2) no kerosene tanks; (3) fuel-per-seat filtered early
   route start; (4) weekend-aware image target; (5) night-aware scheduling; (6) route re-typing.
 - Both: explain the start-weekday effect (Sun 2.32e9 vs Wed 1.40e9) before tuning weekday-sensitive rules.
+
+### Same day, later: first ClaudeBot improvement round (seeded, paired)
+
+All numbers: 300 seeded games, mean day-59 `SaldoGesamt` for HA, paired against the previous build
+with `compare_paired.py`. One batch takes ~4 minutes.
+
+| commit | change | seed base 0 | seed base 1000 |
+|---|---|---|---|
+| `b291dc95` (start) | - | 6.36e8 | - |
+| `acc9dd19` | keep ticket prices inside [160%, 198%] of the threshold | **1.770e9** (+178%, t=+89, 299/300) | 1.789e9 |
+| `b6d6ab0d` | `kMinRouteValueShare` 90 -> 95 | **1.954e9** (+10.4%, t=+22, 280/300) | 1.957e9 (+9.4%, t=+23) |
+| `8d5b6547` | hold legs back <= 4h to avoid night departure/landing | **2.024e9** (+3.6%, t=+8, 219/300) | 2.016e9 (+3.0%, t=+6) |
+
+For reference, seeded MertenBot (unchanged since `dc8f04ba`) measured 1.831e9 on seed base 0.
+
+Price band: through day 15 the fleet and flights are identical (75.2 flights, same kerosene) but
+passengers are +21%; that compounds into 63 aeroplanes on day 59 against 23.
+
+Rejected (paired against the build current at the time):
+- `kEmitStock = false` (takeover defence): **-38.6%**. Setting the dividend without emitting: -38.7%,
+  so it is the emission cash itself - a few million in weeks 1-3 bring the first 767 forward.
+  Head-to-head with `acc9dd19`: MertenBot still liquidates ClaudeBot in 290/300 (median day 51),
+  ClaudeBot wins 81/300 (was ~2). Defence needs a cheaper mechanism (late buy-back).
+- `kRoutePairsPerHundredPlanes`: 25 -28%, 32 -17.8%, 44 -1.5%, 50 -3.8% -> 38 stays.
+- `kMinRouteValueShare`: 80 -13.7%, 98 -40.9%, 100 -69.7% -> sharp peak at 95 (confirmed on
+  seed base 1000). The cliff suggests the gate logic itself is fragile - worth a structural look.
+- `kRankPlanesByCrew = false`: identical in 300/300 games (never changes the pick).
+- `kImagePaybackDays` 20 / 40: +0.6% / +0.9% (t 1.6 / 2.6) - not taken.
+- `kMaxNightShiftHours`: 2 -1.7%, 3 +3.6%, 5 -2.3%, 6 and 8 -11%.
+
+Next candidates: takeover defence by late buy-back to 51% (measure solo and head-to-head);
+rework the route gate so it is not a knife edge (value per hour per actual plane, not per the
+largest plane); last-minute jobs; jobs-first starter planes; weekday effect.
