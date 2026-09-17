@@ -447,3 +447,35 @@ each). An unseeded batch starts every game on the real date it is run, i.e. on o
 **unseeded measurements taken on different days of the week are not comparable** - a plausible
 source of past "run-to-run noise". Why the weekday matters this much is unexplored (both bots
 have weekend-dependent logic, e.g. the ad agency closes Sat/Sun) and a promising lead in itself.
+
+## 2026-09-17 — Strengths/weaknesses review of both bots (no code changes, no new batches)
+
+Code read in full for ClaudeBot (unchanged since `abc54748`) and the strategy layer of MertenBot. Numbers are
+the 2026-09-16 batches above plus the single ClaudeBot game still in `game/ClaudeBot.csv` (2026-09-15 21:12,
+possibly one commit before `abc54748`).
+
+New findings, verified in code:
+- **ClaudeBot re-prices every route every day and it is a raise-penalty.** `executeRouteBox()` rebuilds
+  `mRoutes` with `pricesSet = false`; `scheduleRouteFlights()` then sets 5.7 x base from today's kerosene.
+  `PLAYER::UpdateTicketpreise` (Player.cpp:7092) calls `FlightChanged()` on every future leg whenever the
+  new price is higher. Same mechanism MertenBot measured at -19% ("recompute daily").
+- **ClaudeBot's night-flight rationale is wrong.** `CalcPassengers` caps at 1.5x cabin *first*
+  (Schedule.cpp:321), then applies price (~1/1.9), night (5/6 each) and image (<= 1.27). At our price and max
+  image the chain is exactly one cabin, so each night departure/landing costs ~1/6 of the leg's
+  passengers while fuel is charged in full. MertenBot flies around the clock too.
+- **Starter-plane idle cash.** Single game: 2 planes until day ~23, cash 24.2M on day 22 waiting for the
+  25M 767; jobs 0.72M and freight 0.15M by day 22 (route legs leave no >= 5h windows); route ads 12.2M;
+  equity emission only 4.1M by day 22 and 23.0M by day 59 - small capital for the takeover exposure.
+- **MertenBot `routesFindNextStep()` crew test is inverted** (BotFunctions.cpp:1104, since `045d1925`):
+  `haveCrew` is true when crew is *missing*. With money and crew, a route that already has a plane skips
+  steps 2-3 and on weekdays buys route ads to 97 (step 4) before planes (step 6). Possibly half-intended
+  (the BuyMorePlanes state drives crew hiring), so A/B rather than assume.
+
+Planned next, ranked by likelihood of a significant paired win:
+- ClaudeBot: (1) port the [1.60, 1.98] price keep-band; (2) `kEmitStock = false` (keeps 80% own stake,
+  measure solo *and* competition); (3) paired re-sweep of 99-day-era constants (`kRoutePairsPerHundredPlanes`,
+  `kRankPlanesByCrew`, `kMinRouteValueShare`); (4) night-aware leg placement; (5) jobs-first starter planes;
+  (6) last-minute agency.
+- MertenBot: (1) fix/A-B the inverted crew test; (2) no kerosene tanks; (3) fuel-per-seat filtered early
+  route start; (4) weekend-aware image target; (5) night-aware scheduling; (6) route re-typing.
+- Both: explain the start-weekday effect (Sun 2.32e9 vs Wed 1.40e9) before tuning weekday-sensitive rules.
