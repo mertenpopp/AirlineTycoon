@@ -344,8 +344,11 @@ static const SLONG kPoolCaptureSharePercent = 67;
  * network tells - concentration beats spread now that the fleet is large. The two are a pair:
  * `kRoutePairsPerHundredPlanes` at 38 only works because this gate is tight enough to stop an
  * aeroplane wandering onto the weakest pair it can reach. Session 15 recorded a cliff at 95,
- * measured on a much smaller airline under the seven-day objective - worth retesting. */
-static const SLONG kMinRouteValueShare = 90;
+ * measured on a much smaller airline under the seven-day objective - worth retesting.
+ *
+ * Retested on the day-59 objective with stable ticket prices, 300 paired seeded games against 90:
+ * 80 -> -13.7%, 95 -> +10.4% (better in 280). Still no cliff. */
+static const SLONG kMinRouteValueShare = 95;
 
 /* Economy passengers the plane valuation credits a route flight with.
  *
