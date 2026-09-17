@@ -2181,6 +2181,17 @@ DWORD AtGetTime() {
     return epoch + SDL_GetTicks64();
 }
 
+/* AtGetTime() for code that only uses the clock as a random seed. With "/seed N" it returns one
+   value derived from N instead, so the same N replays the same game. It is deliberately the same
+   value on every call: the callers used to seed several pools within the same millisecond, i.e.
+   with identical seeds, and keeping that preserves the kind of games the harness produces. */
+DWORD AtGetSeedTime() {
+    if (gFixedSeed != 0) {
+        return static_cast<DWORD>(gFixedSeed) * 2654435761U;
+    }
+    return AtGetTime();
+}
+
 DWORD AtGetTickCount() { return SDL_GetTicks(); }
 
 SLONG AtGetAsyncKeyState(SLONG vKey) { return (SDL_GetModState() & vKey) != 0 ? 0x8000 : 0; }

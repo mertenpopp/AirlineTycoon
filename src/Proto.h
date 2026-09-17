@@ -116,6 +116,7 @@ CString GetFilenameFromFullFilename(CString FullFilename);
 BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy);
 #endif
 DWORD AtGetTime(void);
+DWORD AtGetSeedTime(void);
 SLONG AtGetAsyncKeyState(SLONG vKey);
 DWORD AtGetTickCount(void);
 CString getCurrentDayString();

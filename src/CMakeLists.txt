@@ -244,3 +244,4 @@ install(FILES "$<TARGET_FILE_DIR:AT>/patch/std_ger.patched.res" DESTINATION "${P
 
 install(FILES "${PROJECT_SOURCE_DIR}/../scripts/concat.py" DESTINATION "${PROJECT_INSTALL_DIR}/")
 install(FILES "${PROJECT_SOURCE_DIR}/../scripts/threadpool.rb" DESTINATION "${PROJECT_INSTALL_DIR}/")
+install(FILES "${PROJECT_SOURCE_DIR}/../scripts/compare_paired.py" DESTINATION "${PROJECT_INSTALL_DIR}/")

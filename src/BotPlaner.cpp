@@ -99,6 +99,38 @@ std::pair<int, float> BotPlaner::FlightJob::calculateScore(const Factors &f, int
 
 BotPlaner::BotPlaner(PLAYER &player, const CPlanes &planes) : qPlayer{player}, qPlanes{planes}, mScheduleLastDay{Sim.Date + kScheduleForNextDays} {}
 
+unsigned BotPlaner::makeSeed(const PLAYER &qPlayer) {
+    if (gFixedSeed == 0) {
+        return std::random_device{}();
+    }
+
+    /* "/seed N": derived from the game time rather than from a running count, so that two builds
+       compared on the same seed keep drawing the same numbers for every planning run that happens
+       at the same moment - a pure counter would shift all later seeds as soon as one build plans
+       once more than the other. The counter only separates runs at the very same moment. */
+    static SLONG lastDate = -1;
+    static SLONG lastTime = -1;
+    static SLONG lastPlayer = -1;
+    static uint64_t sameMoment = 0;
+    if (Sim.Date != lastDate || Sim.Time != lastTime || qPlayer.PlayerNum != lastPlayer) {
+        lastDate = Sim.Date;
+        lastTime = Sim.Time;
+        lastPlayer = qPlayer.PlayerNum;
+        sameMoment = 0;
+    } else {
+        sameMoment++;
+    }
+
+    uint64_t h = static_cast<uint64_t>(gFixedSeed);
+    for (uint64_t v : {static_cast<uint64_t>(Sim.Date), static_cast<uint64_t>(Sim.Time), static_cast<uint64_t>(qPlayer.PlayerNum), sameMoment}) {
+        h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+    }
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccdULL;
+    h ^= h >> 33;
+    return static_cast<unsigned>(h);
+}
+
 void BotPlaner::addJobSource(JobOwner jobOwner, const std::vector<int> &intJobSource) {
     if (jobOwner == JobOwner::International) {
         for (const auto &i : intJobSource) {

@@ -359,6 +359,21 @@ if (idx = argv.index { |a| a == "--prefix" || a.start_with?("--prefix=") })
     abort("--prefix requires a value") if bot_prefix.nil? || bot_prefix.empty?
 end
 
+# Game seeds, for paired measurements. Run j plays "./AT /seed <base + j + 1>", so run j of one
+# measurement is the same game as run j of any other measurement with the same base: two builds
+# can be compared game by game, and the difference no longer carries the game-to-game spread.
+#   --seed-base N   use a different set of 300 games (default 0, i.e. seeds 1..300) - worth doing
+#                   now and then, so that tuning does not fit these particular 300 games
+#   --unseeded      the old behaviour: every game seeded from the wall clock
+seed_base = 0
+if (idx = argv.index { |a| a == "--seed-base" || a.start_with?("--seed-base=") })
+    arg = argv.delete_at(idx)
+    value = arg.start_with?("--seed-base=") ? arg.split("=", 2)[1] : argv.delete_at(idx)
+    abort("--seed-base requires a number") unless value =~ /\A\d+\z/
+    seed_base = value.to_i
+end
+seeded = argv.delete("--unseeded").nil?
+
 # Additional arguments for ./AT, taken from this script's own command line, e.g.
 #   ruby threadpool.rb "/testbot 3"
 # They are appended after "/quick <param>".
@@ -388,11 +403,15 @@ miss.map{|i| i}.each do |i|
     #  end
     #end
 
-    tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick #{i}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
+    seed_arg = seeded ? " /seed #{seed_base + j + 1}" : ""
+    tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick #{i}#{seed_arg}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
     #tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick -1 /testbot #{i}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
     end
 end
 # Worker count must not exceed the number of cores.
+#
+# (What follows applies to --unseeded runs. A seeded game plays out the same however loaded the
+# machine is; the pool size then only decides the runtime.)
 #
 # The game seeds its flight-job pool from the wall clock -
 # `qPlayer.Auftraege.Random.SRand(AtGetTime())` (Sim.cpp:809), and AtGetTime() is

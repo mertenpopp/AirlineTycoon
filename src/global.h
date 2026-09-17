@@ -171,6 +171,7 @@ extern BOOL bLeaveGameLoop;      // Hauptschleife verlassen?
 extern BOOL bFirstClass;
 extern SLONG gAutoQuitOnDay; // Exit game on specified game
 extern SLONG gAutoBotDiff;
+extern SLONG gFixedSeed; // "/seed N": replay the same game for the same N (0 = seeded from the clock)
 
 //--------------------------------------------------------------------------------------------
 // Das Spiel höchstpersönlich:
