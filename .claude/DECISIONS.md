@@ -603,3 +603,133 @@ The gain needs both parts: buying whenever below target (step 7 is rarely reache
 image back early (payback cap) but keeps a weekend buffer later. Refill-to-1000 at any step is neutral.
 MertenBot (2.21e9) is now above ClaudeBot `8d5b6547` (2.02e9) on seed base 0. Not in savegames:
 `mTicketsYesterday` and the erosion tracking reset on load (no airline image until the next day starts).
+
+### 2026-09-17: Why MertenBot's score depends on the start weekday (investigation, no code change)
+
+`Sim.StartWeekday` (Sim.cpp:468) is `(tm_wday + 6) % 7`, Mon=0, derived from `StartTime`, so with
+`/seed N` the start weekday is exactly `N % 7`. `SIM::NewDay()` recomputes `Weekday` from
+`StartTime + Date * 86400` (Sim.cpp:2311) *before* `Date++` (Sim.cpp:2383), so despite the different
+convention the sequence is consistent: `Weekday(d) = (StartWeekday + d) % 7`. No bug there.
+
+Measured on the 300 seeded games of `run_measurement_bot.sh`, grouping by `(j + 1) % 7`:
+
+| start | Mo | Tu | We | Th | Fr | Sa | Su |
+|---|---|---|---|---|---|---|---|
+| day-59 saldo, geo mean | 1.45e9 | 1.90e9 | 1.43e9 | 1.84e9 | 1.87e9 | 2.20e9 | 2.39e9 |
+
+ANOVA on log score: F(6,293) = 3.79, weekday explains 7.2% of the variance. The only contrast that
+resolves is **(Sa,Su) vs (Mo-Fr) = 1.36x, t = 4.0**; the ordering inside Mo-Fr is noise (se(log) ~0.1).
+
+Cause: in-game **Saturday** (`Weekday == 5`) closes `ROOM_LAST_MINUTE` (Sim.cpp:1769,
+`checkRoomOpen(ACTION_CHECKAGENT1)` BotHelper.cpp:714), and in week 1 MertenBot takes 2.43 of its
+2.57 daily flight jobs from that office. Per-weekday means over days 0-6: flights 2.9 on any day,
+0.62 on Saturday; flight-job income 0.70e6 vs 0.11e6. Saturday is a ~85% write-off. The travel
+agency is open on Saturday but MertenBot books only ~0.14 jobs/day there at any time, so it does not
+compensate.
+
+Phase is what the start weekday sets: the first Saturday falls on day `(5 - StartWeekday) % 7`, i.e.
+**day 1-5 for a Mon-Fri start** - inside the ramp, which compounds at ~+25%/day on days 3-14 - but on
+day 0 (the stub day) for a Sat start and day 6 for a Sun start. After ~day 15 growth is ~+11%/day
+regardless of weekday, so the head start is frozen, not amplified: the (Sa,Su)/(Mo-Fr) ratio is
+1.29x at day 5, 1.30x at day 15, 1.41x at day 30, 1.36x at day 59.
+
+Control: ClaudeBot `8d5b6547` on the same 300 seeds is flat across weekdays - **1.001x, t = 0.07**,
+per-weekday se(log) 0.013-0.031 - because it flies routes from day 0 and takes *zero* last-minute
+jobs (4.86 flights/day on every weekday incl. Saturday). Paired, ClaudeBot 2.024e9 vs MertenBot
+2.209e9 overall = 1.093x for MertenBot, but the sign flips with the weekday: ClaudeBot is 1.42x
+ahead on Mo and We starts and 0.83x behind on Su starts.
+
+Next, if this is worth fixing in MertenBot: stock up on travel-agency jobs on Friday for the
+Saturday schedule, or get onto routes earlier. Upper bound ~+25% overall (the 1.36x applies to the
+5/7 of games that start Mon-Fri).
+
+### 2026-09-17, later: is the last-minute preference a bug? (three measured arms, all reverted)
+
+Follow-up to the Saturday finding. The preference comes from one line, [BotPlaner.cpp:473](src/BotPlaner.cpp):
+`auto minScore = (job.getBisDate() == Sim.Date) ? mMinScoreRatioLastMinute : mMinScoreRatio;` with
+`kSchedulingMinScoreRatio = 140000` and `kSchedulingMinScoreRatioLastMinute = 10000` (Bot.h:158-159,
+clamped to 5.0 only for BotLevel <= 1). `scoreRatio` is `(premium - kerosene) / flight hours`; in a
+free game no bonus factors are set, so it is plain profit per flight hour.
+
+It is backed by real pricing: the game generates last-minute jobs at `flightCost * 130/100 * 5/4`
+= 1.625x and travel-agency jobs (`RefillForAusland`) at `* 120/100` = 1.20x, and the agency pool is
+AreaType 4 for days 0-9 (no `*3/2` / `*8/5` area bonus) while the last-minute pool draws 4 of 6 slots
+from AreaType 1/2. The detour is real - 44-48% of flights are empty legs, longer on average than the
+loaded ones - but costs ~17k against ~331k net per loaded leg, ~5% of revenue. The empty leg *is*
+priced in the optimizer (adjMatrix edges, `emptyFlight = true`); only the admission filter ignores it.
+
+Three arms, paired against `77db4b91` (`dataREF`, 2.209e9), 300 seeded games, seed base 0:
+
+| arm | day 59 | vs baseline | t | better/worse |
+|---|---|---|---|---|
+| `getDate() <= Sim.Date` (predicate change) | 0.569e9 | **-74.3%** | -25.7 | 6 / 294 |
+| `kSchedulingMinScoreRatio` 140k -> 40k | 1.575e9 | **-28.7%** | -10.6 | 85 / 215 |
+| `kSchedulingMinScoreRatio` 140k -> 240k | 1.095e9 | **-50.4%** | -21.9 | 24 / 274 |
+
+**The predicate is not a bug.** `BisDate == Sim.Date` means the job *must* be flown today (node
+`latest == today`), so the cheap bar can only ever fill today's gap. `getDate() <= Sim.Date` means it
+*may* be flown today, and the optimizer then places those multi-day jobs (agency type B and any
+widened window, both carrying the `Praemie * 4/5` cut) on **future** days, pre-committing plane
+capacity cheaply. Measured: agency jobs/day 0.38-0.47 -> 1.75-1.90, flights/day 2.65 -> 4.70, but job
+income 1.06e6 -> 0.47e6 and last-minute jobs 1.20 -> 0.03 per day. The bot flies nearly twice as much
+for less than half the revenue. It did cure the weekday spread - (Sa,Su)/(Mo-Fr) 1.36x -> ~1.16x,
+agency uptake flat at 1.75 even on Saturday - but at a catastrophic price.
+
+**140k is a tuned optimum, not a floor**: both 40k and 240k are large regressions. Early planes are
+the scarce resource; reserving them for the 1.6x-priced today-jobs beats filling them. The Saturday
+write-off is the cost of a policy that is still winning, not a defect - so the ~25% Saturday
+opportunity is *not* reachable by touching this filter. If it is reachable at all it has to come
+from somewhere else (pre-booking Friday for Saturday without giving up capacity on other days, or
+reaching routes earlier).
+
+Also confirmed: under the current rule agency uptake is flat across weekdays (0.35-0.47/day, 0.38 on
+Saturday), so the filter binds, not competition from last-minute jobs in the optimizer.
+
+### 2026-09-17, later still: agent-check priority and frequency sweep
+
+Hypothesis (user): since most jobs come from last minute, its `Prio` should outrank the travel
+agency's, and the check frequencies should follow. Baseline `77db4b91` (`dataREF`, 2.209e9),
+300 seeded games per arm, seed base 0, paired. `kCheck*EveryXMinutes` live in Bot.cpp:34-36, the
+priorities in `condCheckLastMinute` / `condCheckTravelAgency` / `condCheckFreight`
+(BotConditions.cpp:220/246/280). All arms reverted; nothing committed.
+
+| arm | LM | TA | Fr | prio | delta | t | better/worse |
+|---|---|---|---|---|---|---|---|
+| prioswap | 60 | 15 | 60 | LM Higher, TA High | -0.92% | -0.85 | 150/150 |
+| lm15 | 15 | 15 | 60 | base | +0.75% | +1.07 | 145/155 |
+| lm30 | 30 | 15 | 60 | base | -0.15% | -0.40 | 162/138 |
+| lm120 | 120 | 15 | 60 | base | -0.19% | -0.48 | 145/155 |
+| fr30 | 60 | 15 | 30 | base | -0.16% | -0.45 | 139/161 |
+| fr120 | 60 | 15 | 120 | base | +0.61% | +2.13 | 168/132 |
+| ta20 | 60 | 20 | 60 | base | +4.47% | +12.21 | 268/32 |
+| **ta30** | 60 | **30** | 60 | base | **+4.74%** | **+9.55** | **269/31** |
+| ta45 | 60 | 45 | 60 | base | +4.61% | +9.23 | 258/42 |
+| ta60 | 60 | 60 | 60 | base | +4.63% | +10.42 | 264/36 |
+| ta120 | 60 | 120 | 60 | base | +4.20% | +9.16 | 254/46 |
+| ta45_fr120 | 60 | 45 | 120 | base | +4.41% | +10.32 | 264/36 |
+| **ta45_fr120_lm15** | **15** | 45 | 120 | base | **+0.20%** | **+0.42** | 158/142 |
+
+**Result: `kCheckTravelAgencyEveryXMinutes` 15 -> 30 is worth +4.7%.** Re-measured on a fresh 300
+games (`--seed-base 1000`, own baseline): **+4.52%, t +9.42, 257/300** - not fitted to seed base 0.
+
+**Mechanism.** The decisive arm is `ta45_fr120_lm15`: putting last minute on 15 minutes throws the
+whole travel-agency gain away (+4.61% -> +0.20%). So the problem is not *which* counter is polled
+often - it is that **any** agent check on a 15-minute timer is permanently due and starves every
+lower-priority action. TA@15 was blocking the queue; moving last minute to 15 just re-blocks it.
+That also explains the two nulls: `lm15` measured neutral in isolation because the queue was already
+saturated by TA@15, and `prioswap` is neutral because ranking two permanently-due actions against
+each other unblocks nothing. `Prio` only arbitrates simultaneous readiness.
+
+The response is a step, not a gradient - 20/30/45/60 are all +4.2..4.7% and indistinguishable, only
+15 is wrong - and the decay by 120 is mild, so anything in 20..60 works. Freight at 120 (+0.61%,
+t +2.13) does not survive once TA is fixed (`ta45_fr120` +4.41% vs `ta45` +4.61%): the same slack
+measured twice.
+
+The gain is **not** better job acquisition - `Aufträge` 108.9 -> 107.8, `LastMinute` 54.5 -> 54.4,
+job income 88.5e6 -> 87.6e6 at day 59, all flat. It is route throughput on an unchanged fleet:
+passengers 351,992 -> 367,844 (+4.5%) with 56.1 -> 56.6 planes and 8.2 -> 8.2 routes, and image at
+day 20 42.4 -> 45.3. The freed action slots go into running the routes, not into buying more jobs.
+
+Next: commit `kCheckTravelAgencyEveryXMinutes = 30` if wanted (one constant). Then look for other
+actions whose condition is near-permanently satisfied - the same starvation pattern may exist
+elsewhere in the prio queue.
