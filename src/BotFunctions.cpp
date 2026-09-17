@@ -1101,7 +1101,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         const auto &qRoute = mRoutes[routeToBuyPlanes];
         const auto &qPlaneType = PlaneTypes[qRoute.planeTypeId];
         bool haveMoney = (moneyAvailable >= qPlaneType.Preis);
-        bool haveCrew = (mExtraPilots < qPlaneType.AnzPiloten) || (mExtraBegleiter < qPlaneType.AnzBegleiter);
+        bool haveCrew = (mExtraPilots >= qPlaneType.AnzPiloten) && (mExtraBegleiter >= qPlaneType.AnzBegleiter);
         if (haveMoney && haveCrew) {
             return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
         }
