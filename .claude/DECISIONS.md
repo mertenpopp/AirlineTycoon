@@ -566,3 +566,16 @@ so a route aeroplane is bought eagerly when money and crew are there. Paired, 30
 Not reproducible on the second game set, so not committed (reverted). Consistent with
 [at-bot-throughput-knobs-dont-pay]: the fleet is cash-bound, `condBuyNewPlane()` checks crew itself, and
 step 3/6 still return BuyMorePlanes, so the fix mostly reorders ads vs. purchase by a planning round.
+
+#### 99-day check of the same fix (seed base 0, `/mpdays 99` appended after `/quick`, no code change)
+
+| day 99, mean of 300 | reference | fixed | paired difference |
+|---|---|---|---|
+| SaldoGesamt | 1.3487e10 | 1.3615e10 | +0.95% (t +4.9, better in 185/300) |
+| Flugzeuge | 122.3 | 122.8 | +0.5 (t +3.0, identical in 63) |
+| Geld | 8.163e9 | 8.268e9 | +1.3% (t +4.3) |
+| Kredit | 0 | 0 | - |
+
+The CSV column `Available` is always 0, so cash is `Geld`. Over 99 days the fix is a small but clear gain;
+over 59 days it is +1.2% / -0.4% on two seed bases. Still not committed. Note that MertenBot ends a 99-day
+game with ~8.2e9 idle cash against 122 aeroplanes - the fleet stops being cash-bound late in a long game.
