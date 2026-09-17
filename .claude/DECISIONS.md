@@ -512,3 +512,43 @@ Rejected (paired against the build current at the time):
 Next candidates: takeover defence by late buy-back to 51% (measure solo and head-to-head);
 rework the route gate so it is not a knife edge (value per hour per actual plane, not per the
 largest plane); last-minute jobs; jobs-first starter planes; weekday effect.
+
+### Same day, later: early-income round - nothing kept (all paired against `8d5b6547`, 2.024e9)
+
+Early economics, seeded base 0, mean of 300 games:
+
+| | MertenBot (`dc8f04ba`, 1.831e9) | ClaudeBot (`8d5b6547`, 2.024e9) |
+|---|---|---|
+| income days 1-14 | jobs 12.2M + freight 7.0M, ads 0.9M | tickets 24.9M, ads 10.2M |
+| first bought aeroplane (quartiles) | day 15 / 17 / 22 | day 18 / 18 / 19 |
+| fleet day 30 / 40 / 59 | 5.4 / 11.8 / 50.7 | 4.0 / 8.4 / 72.1 |
+| ads by day 30 | 6.1M | 36.4M (airline image starts at the 3rd aeroplane) |
+
+Rejected:
+- **Job planes** (starting aeroplanes chain agency + last-minute jobs with repositioning, first route
+  rented at 20M cash, no route ads before a route aeroplane): **-90%**. Jobs earned 7.5M by day 14 vs
+  24.9M of tickets; first purchase slipped to day 29-35. Even MertenBot's planner (19M) would only
+  match routes net of ads.
+- Route image target while fleet <= 2: 0 -50.7%, 40 -49.3%, 60 -18.3%, 100 -8.6%.
+  `kRouteImageTarget` 100: -4.9%. `kNoAirlineImageUpToPlanes` 4 -4.2%, 6 -14.0%, 0 identical.
+  Early image is essential and already tuned.
+- Second bank visit whenever the credit limit is >= 500k: -0.6% (t -2.2). The limit is
+  `(Money - Credit)/2 - Credit`, so total credit is capped at half the net cash anyway.
+- Two route pairs for the two starting aeroplanes: -50.6%.
+- Efficient fallback purchase (buy an affordable type within 125% / 200% fuel per seat of the best one
+  while the fleet is < 4 / 8 / always): -32% in every arm. Traced seed 5: A 310 on day 16 and 25 instead
+  of 767 on day 19 and 27 - three days ahead, but 250 against 290 seats, and behind from day 34 on.
+- `kExpectedPaxPerFlight` 280 / 300: identical (the A 300 is slower and needs 7 crew, the per-crew rank
+  still picks the 767). With `kRankPlanesByCrew = false` as well it picks the A 300: -29.7%.
+
+Plane catalogue (price, seats, fuel/seat): 767-300 ER 25M/290/9.7, A 300 28.1M/375/8.0,
+A 310 22.5M/250/11.4 (from day 15), MD 81 20M/172/17.4, A 320 12M/149/20.3 (from day 25),
+Il 86 17.1M/380/25.8, Il 62 9.9M/198/53.0.
+
+Harness notes: bot log lines go to the game's stdout (`./AT /quick -1 /setbotlevel 4 /seed N | grep`),
+not into GameLog.txt via run_test.sh; use `fprintf(stderr)` / `%d` for SLONG in temporary debug prints
+(-Werror=format). `threadpool.rb --help` starts a real batch.
+
+Conclusion: the early game is bound by the 25M first aeroplane and the route image it needs; income and
+capital levers tested here are exhausted. Next: takeover defence (late buy-back), a less knife-edged
+route gate (95 good, 98 -41%), and why the 767 fleet stops at ~72 aeroplanes on day 59.
