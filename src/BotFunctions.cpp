@@ -1007,11 +1007,47 @@ SLONG Bot::calcRequiredImageForAirline() {
             targetImage = 1000;
         }
     } else {
-        if (!nearEnd && haveDiscount() && (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage)) {
-            targetImage = Helper::getRequiredImageBasedOnLowestRoute(mRoutes[mImproveRouteId].image);
+        bool wanted = (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage);
+        if (kAirlineImageAnyStep) {
+            wanted = mDoRoutes && !mRoutes.empty();
+        }
+        if (!nearEnd && haveDiscount() && wanted && kImagePaybackDays <= 0) {
+            SLONG lowestRouteImage = 100;
+            for (const auto &qRoute : mRoutes) {
+                lowestRouteImage = std::min(lowestRouteImage, qRoute.image);
+            }
+            targetImage = Helper::getRequiredImageBasedOnLowestRoute(kAirlineImageAnyStep ? lowestRouteImage : mRoutes[mImproveRouteId].image);
+        } else if (!nearEnd && haveDiscount() && wanted) {
+            targetImage = calcAirlineImageTarget();
         }
     }
     return targetImage;
+}
+
+SLONG Bot::calcAirlineImageTarget() const {
+    SLONG lowestRouteImage = 100;
+    for (const auto &qRoute : mRoutes) {
+        lowestRouteImage = std::min(lowestRouteImage, qRoute.image);
+    }
+    /* image beyond this does not add passengers: ImageTotal is capped at 1000 */
+    SLONG saturation = Helper::getRequiredImageBasedOnLowestRoute(lowestRouteImage);
+
+    /* One airline image point costs ~50,000 and lifts every route passenger by 1 / (400 + ImageTotal),
+     * so it is worth yesterday's tickets / (400 + ImageTotal) a day. Buy only as far as the last point
+     * pays back within kImagePaybackDays. */
+    __int64 baseTotal = 400 + 4 * lowestRouteImage + 200;
+    __int64 worthwhile = mTicketsYesterday * kImagePaybackDays / 50000 - baseTotal;
+    saturation = static_cast<SLONG>(std::max<__int64>(0, std::min<__int64>(saturation, worthwhile)));
+    if (saturation <= 0) {
+        return kMinimumImage;
+    }
+
+    /* the agency is closed on Saturday and Sunday: cover the erosion until it opens again */
+    SLONG daysToCover = 1;
+    while (daysToCover < 7 && ((Sim.Weekday + daysToCover) % 7 == 5 || (Sim.Weekday + daysToCover) % 7 == 6)) {
+        daysToCover++;
+    }
+    return std::min(1000, saturation + mImageDecayPerDay * daysToCover);
 }
 
 void Bot::routesRecalcNextStep() {
@@ -1134,6 +1170,9 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 7: Improve airline image when we have one fully utilized route */
+    if (kImagePaybackDays > 0) {
+        howMuchImageDoWeNeed = calcAirlineImageTarget();
+    }
     if (canBuyAdsToday && !mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
         return {RoutesNextStep::ImproveAirlineImage, routeWithLowImage};
     }
