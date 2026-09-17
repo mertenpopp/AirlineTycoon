@@ -31,7 +31,7 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 const bool kAlwaysReplan = true;
 const SLONG kCallInternationalEveryXMinutes = 15;
 const SLONG kCallInternationalHandyEveryXMinutes = 5;
-const SLONG kCheckTravelAgencyEveryXMinutes = 15;
+const SLONG kCheckTravelAgencyEveryXMinutes = 30;
 const SLONG kCheckLastMinuteEveryXMinutes = 60;
 const SLONG kCheckFreightDepotEveryXMinutes = 60;
 const SLONG kFrequencyRouteStrategy = 1;
