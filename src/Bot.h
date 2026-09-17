@@ -24,6 +24,8 @@ extern const SLONG kFrequencyRouteStrategy;
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
 extern const SLONG kImageRefillTarget;
+extern const SLONG kImagePaybackDays;
+extern const bool kAirlineImageAnyStep;
 extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
@@ -269,6 +271,7 @@ class Bot {
     void updateRouteInfoOffice();
     void updateRouteInfoBoard();
     SLONG calcRequiredImageForAirline();
+    SLONG calcAirlineImageTarget() const;
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
@@ -370,6 +373,12 @@ class Bot {
     /* cached game state */
     SLONG mCurrentImage{0};
     __int64 mWeeklyOperatingSaldo{0};
+
+    /* airline image target (not serialized: after loading, no airline image is bought until the next day starts) */
+    __int64 mTicketsYesterday{0};
+    SLONG mImageDecayPerDay{0};
+    SLONG mImageAfterAds{0};
+    SLONG mImageAdsDay{-1};
 
     /* status boss office */
     SLONG mBossNumCitiesAvailable{-1};

@@ -74,6 +74,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     /* refresh cached info */
     if (qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
         mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
+        mTicketsYesterday = qPlayer.BilanzGestern.Tickets;
     }
 
     mArabHintsTracker -= std::min(3, mArabHintsTracker);
@@ -1367,13 +1368,22 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
 void Bot::actionBuyAds(__int64 moneyAvailable) {
     actionVisitAds();
 
+    /* measure how much airline image was lost per day since the last campaign */
+    if (mImageAdsDay >= 0 && Sim.Date > mImageAdsDay) {
+        SLONG perDay = std::max(0, (mImageAfterAds - qPlayer.Image) / (Sim.Date - mImageAdsDay));
+        mImageDecayPerDay = std::max(perDay, mImageDecayPerDay * 3 / 4); /* up immediately, down slowly */
+    }
+    mImageAfterAds = qPlayer.Image;
+    mImageAdsDay = Sim.Date;
+
     SLONG targetImage = std::max(kMinimumImage, calcRequiredImageForAirline());
     if (getImage() >= targetImage) {
-        AT_Error("Bot::actionBuyAds(): Image already maximum.");
+        AT_Log("Bot::actionBuyAds(): Image already at target.");
         return;
     }
 
-    const SLONG refillImage = std::max(targetImage, kImageRefillTarget);
+    /* with the payback rule, the target already contains the buffer for erosion until the next visit */
+    const SLONG refillImage = (kImagePaybackDays > 0) ? targetImage : std::max(targetImage, kImageRefillTarget);
 
     assert(kSmallestAdCampaign >= 1);
     SLONG oldImage = qPlayer.Image;
@@ -1389,6 +1399,7 @@ void Bot::actionBuyAds(__int64 moneyAvailable) {
     }
     AT_Log("Bot::actionBuyAds(): Airline image improved (%d => %d, trigger: %d, refill: %d)", oldImage, qPlayer.Image, targetImage, refillImage);
     mCurrentImage = qPlayer.Image;
+    mImageAfterAds = qPlayer.Image;
 }
 
 void Bot::actionVisitAds() {
