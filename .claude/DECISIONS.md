@@ -552,3 +552,17 @@ not into GameLog.txt via run_test.sh; use `fprintf(stderr)` / `%d` for SLONG in 
 Conclusion: the early game is bound by the 25M first aeroplane and the route image it needs; income and
 capital levers tested here are exhausted. Next: takeover defence (late buy-back), a less knife-edged
 route gate (95 good, 98 -41%), and why the 767 fleet stops at ~72 aeroplanes on day 59.
+
+### Same day, later: MertenBot inverted crew check - not committed
+
+`routesFindNextStep()` step 2 fixed to `haveCrew = (mExtraPilots >= AnzPiloten) && (mExtraBegleiter >= AnzBegleiter)`
+so a route aeroplane is bought eagerly when money and crew are there. Paired, 300 seeded games each:
+
+| seed base | reference | fixed | difference |
+|---|---|---|---|
+| 0 | 1.8308e9 | 1.8532e9 | +1.23% (t +2.26, better in 154/300) |
+| 1000 | 1.8300e9 | 1.8233e9 | -0.37% (t -0.69, better in 116/300) |
+
+Not reproducible on the second game set, so not committed (reverted). Consistent with
+[at-bot-throughput-knobs-dont-pay]: the fleet is cash-bound, `condBuyNewPlane()` checks crew itself, and
+step 3/6 still return BuyMorePlanes, so the fix mostly reorders ads vs. purchase by a planning round.
