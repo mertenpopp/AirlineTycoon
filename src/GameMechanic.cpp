@@ -2505,9 +2505,9 @@ bool GameMechanic::refillFlightJobs(SLONG cityNum, SLONG minimum) {
 
 bool GameMechanic::flightJobsInitialFill() {
     if (Sim.bNetwork == 0) {
-        gFrachten.Random.SRand(AtGetTime());
-        LastMinuteAuftraege.Random.SRand(AtGetTime());
-        ReisebueroAuftraege.Random.SRand(AtGetTime());
+        gFrachten.Random.SRand(AtGetSeedTime());
+        LastMinuteAuftraege.Random.SRand(AtGetSeedTime());
+        ReisebueroAuftraege.Random.SRand(AtGetSeedTime());
     } else {
         gFrachten.Random.SRand(Sim.Date);
         LastMinuteAuftraege.Random.SRand(Sim.Date + 1);
@@ -2524,8 +2524,8 @@ bool GameMechanic::flightJobsInitialFill() {
 
     for (SLONG c = 0; c < Cities.AnzEntries(); c++) {
         if (Sim.bNetwork == 0) {
-            AuslandsAuftraege[c].Random.SRand(AtGetTime());
-            AuslandsFrachten[c].Random.SRand(AtGetTime());
+            AuslandsAuftraege[c].Random.SRand(AtGetSeedTime());
+            AuslandsFrachten[c].Random.SRand(AtGetSeedTime());
         } else {
             AuslandsAuftraege[c].Random.SRand(Sim.Date + c + 3);
             AuslandsFrachten[c].Random.SRand(Sim.Date + c + 3);

@@ -90,6 +90,15 @@ To measure the performance of "MertenBot", run the following command. "Honey Air
 To have both bots compete against each other, run the following command. "Phoenix Travel" will be controlled by MertenBot. "Honey Airlines" will be controlled by ClaudeBot.
 - `./scripts/run_competition.sh`
 
+Paired measurements
+-------------------
+
+The measurement scripts play game j with `./AT ... /seed <j + 1>`, and the same seed replays exactly the same game. So run j of two measurements is the same game in both, and two builds can be compared game by game, which removes the game-to-game spread from the difference:
+- In the game directory: `python compare_paired.py 'dataREF_*.csv' 'dataBOT_*.csv'` prints the paired difference and its t value, next to what an unpaired comparison of the same data would say. Copy or rename the first measurement's files before running the script again, because each run deletes its own prefix's files.
+- `threadpool.rb --seed-base N` plays a different set of 300 games. Use it now and then, so that tuning doesn't overfit one set of games. `threadpool.rb --unseeded` restores the old wall-clock seeding.
+- Seeded games are a different sample than the old unseeded ones, so re-measure the baseline once instead of comparing against older numbers.
+- The seed also sets the start weekday, and the start weekday alone moves the score by up to ~65%. Unpaired scores are therefore very noisy, so always compare builds paired.
+
 Persistent progress log
 -----------------------
 

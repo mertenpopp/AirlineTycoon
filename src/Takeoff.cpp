@@ -361,6 +361,13 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 gNetTraceLevel = atoi(argv[i]);
             }
         }
+        // Repeatable games for paired measurements: the same N gives the same game
+        if (stricmp(Argument, "/seed") == 0) {
+            if (i + 1 < argc) {
+                gFixedSeed = atoi(argv[++i]);
+                srand(static_cast<unsigned>(gFixedSeed));
+            }
+        }
         if (stricmp(Argument, "/setbotlevel") == 0) {
             gAutoBotDiff = 3;
 
@@ -1512,6 +1519,17 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                     while (NumSimSteps > 0 &&
                            (SimStepsCounter < 400 || (SimStepsCounter < 1600 && ((Sim.CallItADay != 0) || Sim.Time > 18 * 60000 || Sim.Time < 9 * 60000)))) {
+                        /* "/seed N": game logic draws from rand() (e.g. the computer players' sabotage
+                           choice), and so does drawing, once per frame. How many frames fall between two
+                           steps depends on the wall clock, so reseed at every step from the game clock:
+                           every step then sees the same numbers however much was drawn in between.
+                           Not from TimeSlice: the clock stands still at 9:00 until the idle human leaves
+                           the boss office on a painted frame, and TimeSlice keeps counting meanwhile. */
+                        if (gFixedSeed != 0) {
+                            srand(static_cast<unsigned>(gFixedSeed) * 2654435761U ^ static_cast<unsigned>(Sim.Date) * 40503U ^
+                                  static_cast<unsigned>(Sim.Time) * 2246822519U);
+                        }
+
                         // Synchronisierung beim Feierabend:
                         if (Sim.GetHour() >= 9 && Sim.GetHour() < 18 && Sim.CallItADay == 1 && (Sim.bIsHost != 0) && NumSimStepsBegin != 1) {
                             for (c = 0; c < 4; c++) {

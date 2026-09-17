@@ -4121,6 +4121,11 @@ void PLAYER::RobotExecuteAction() {
                 SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
             }
         }
+    } else if (gFixedSeed != 0) {
+        /* "/seed N": the wall clock's second below would make the computer players' choices differ
+           from one replay of the same game to the next. */
+        LocalRandom.SRand(static_cast<ULONG>(gFixedSeed) * 2654435761U ^ static_cast<ULONG>(Sim.Date) * 40503U ^ static_cast<ULONG>(Sim.Time) * 2246822519U ^
+                          static_cast<ULONG>(PlayerNum) * 3266489917U);
     } else {
         LocalRandom.SRand(time(nullptr));
     }

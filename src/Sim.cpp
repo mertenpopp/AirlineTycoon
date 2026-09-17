@@ -439,7 +439,12 @@ void SIM::ChooseStartup() {
 
     // Bei Netzwerkspielen wird die Starttime schon in NewGamePopup erstellt:
     if (bNetwork == 0) {
-        if (Options.OptionRandomStartday != 0) {
+        if (gFixedSeed != 0) {
+            /* "/seed N": most of the game's randomness is derived from StartTime. Whole days from a
+               fixed Monday noon (2026-01-05 12:00 UTC), so the weekday and season still vary from
+               one seed to the next, as they would between real start dates. */
+            StartTime = time_t(1767614400) + time_t(gFixedSeed) * 60 * 60 * 24;
+        } else if (Options.OptionRandomStartday != 0) {
             StartTime = (rand() % 365) * 60 * 60 * 24;
         } else {
             StartTime = time(nullptr);
@@ -821,7 +826,7 @@ void SIM::ChooseStartup() {
 
         if (GlobalUse(USE_TRAVELHOLDING) && Difficulty != DIFF_ADDON09) {
             if (bNetwork == 0) {
-                qPlayer.Auftraege.Random.SRand(AtGetTime());
+                qPlayer.Auftraege.Random.SRand(AtGetSeedTime());
             }
 
             a.RefillForBegin(0, &qPlayer.Auftraege.Random);
@@ -3846,6 +3851,12 @@ void SIM::SaveHighscores() {
 #endif
     CString str;
     auto path = FullFilename("xmlmap.fla", MiscPath);
+    /* The measurement harness runs many games at once in the same game directory: one game reading
+       the file while another rewrites it gets a truncated line, and LoadHighscores() crashes on it
+       (atoll on the nullptr strtok returns). The harness has no use for highscores. */
+    if (gQuickTestRun > 0) {
+        return;
+    }
     try {
         TEAKFILE OutputFile(path, TEAKFILE_WRITE);
 
@@ -3895,6 +3906,9 @@ void SIM::SaveHighscores() {
 //
 //--------------------------------------------------------------------------------------------
 void SIM::LoadHighscores() {
+    if (gQuickTestRun > 0) {
+        return; /* see SaveHighscores() */
+    }
     try {
         auto path = FullFilename("xmlmap.fla", MiscPath);
         if (DoesFileExist(path) != 0) {

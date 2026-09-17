@@ -225,14 +225,15 @@ Findings about Bot from reading its sources against ClaudeBot's:
    1.5 extra times, which pushes `routeUtilization` over the `< 90` gate in
    `routesFindNextStep()` and stops the route buying planes. Same expression, same bug, in the
    `routeOwnUtilization` line is correct (it is our own player there).
-2. **Cabin fit-out and food are image-neutral at Bot's own price point.** `BookFlight`
-   (Schedule.cpp:925-998) gives Add = +10 (Zustand>98) +3 (crew) + cabin - 20 (price is between
-   1.5x and 2x Costs2, and Costs2 == Bot's `highCost`). Full fit-out makes Add = +1, food-2-only
-   -5, no food -8: `Add / 10` truncates all of them to 0. So `kPlaneLuxuryTargetLateGame = 2`
-   (2.4e7 of FlugzeugUpgrades) and `kPlaneFoodTarget = 2` (1.37e7 of *scored* Essen) both buy
-   nothing through image, and first class is stripped from every route plane so LuxusSumme does
-   not sell either. Worth an A/B; note c8f71c28 measured the luxury arm at +6.1e7, which is
-   t~2.3 against a per-run sem of 1.9e7.
+2. ~~Cabin fit-out and food are image-neutral at Bot's own price point.~~ **Corrected later the
+   same day - wrong as written.** `BookFlight` (Schedule.cpp:925-998) gives Add = +10 (Zustand>98)
+   +3 (crew) + cabin - 20 (price is between 1.5x and 2x Costs2, and Costs2 == Bot's `highCost`),
+   and `Add / 10` truncates toward zero. The mistake was assuming a new plane's cabin starts at
+   level 1: **all four items start at 0** (Planetyp.cpp:226-229, -1 each). So with Zustand > 98:
+   full fit-out +1 -> 0, food 2 only -8 -> 0, **food 0 or 1 -11/-10 -> -1 image per flight**.
+   `kPlaneFoodTarget = 2` is therefore load-bearing, not waste. The late-game luxury arm is only
+   neutral while Zustand > 98; below that, full fit-out -9 -> 0 against food-only -18 -> -1, which
+   is a plausible mechanism for c8f71c28's +6.1e7.
 3. Airline image is negative until ~day 36 and falls 539 -> 442 over the last nine days while the
    fleet doubles. Image is step 7 of `routesFindNextStep()`, so it only gets cash when no route
    wants a plane or an ad.
@@ -243,3 +244,206 @@ image (`kImagePaybackDays`), folding `DoBodyguardRabatt` into the plane count an
 `buyPlane()` repeatedly instead of once, `WorkCountdown = 2` on filler actions, and fitting
 agency/freight jobs into the overnight idle windows of route planes (Bot's route planes never
 visit the agency again).
+
+### Same day, later: Bot-side experiments (idle actions, bodyguard discount, earlier routes)
+
+All batches below are 300 games, mean day-59 `SaldoGesamt` for HA, per-run sem ~2.0e7 - so
+nothing under ~5e7 is decidable from a single pair of runs.
+
+| build | score | note |
+|---|---|---|
+| `0d4e8188` (reference) | 1.762e9 | measured here; commit `ee02d9e2` reported 1.748e9 |
+| `c9d2df9f` / `12655bd8` "Shorter idle actions" | 1.715e9 / 1.741e9 | + `kFrequencyRouteStrategy` 2 -> 1 |
+| `dc8f04ba` "Check discount when buying planes" | 1.751e9 | t=-0.36 against `12655bd8` |
+| A/B: no truncation in `findBestRoute()` | **0.593e9** | t=-47 |
+| A/B: rank routes by profit per dollar of capital | **0.634e9** | t=-46 |
+
+**The `d44f757f` reverse-utilization bug is fixed** in `ee02d9e2`: `route.routeUtilization` now
+reads `qqPlayer.RentRouten.RentRouten[route.routeReverseId]` instead of our own player's.
+
+#### Shorter idle actions: works mechanically, worth nothing
+
+`WorkCountdown = 2` on rooms where the bot did nothing (kiosk, telescope, and Arab / Rick /
+duty-free / broker when they had no item business). Placement is correct - `PLAYER::RobotPump`
+sets `WorkCountdown = 20 * 5` *before* calling `RobotExecuteAction()` (Player.cpp:4204) and the
+`ROBOT_USE_WORKQUICK*` divisors only touch values `> 2`.
+
+It buys slots that nothing wants. Actions per day over 30 games (1,740 days):
+
+| build | Top | Higher | High | Medium | Low | Lowest |
+|---|---|---|---|---|---|---|
+| reference | 1.3 | 19.9 | 54.9 | 8.8 | 2.2 | 15.7 |
+| idle actions | 1.3 | 20.0 | 55.6 | 8.8 | 2.2 | 20.8 |
+| + `kFrequencyRouteStrategy` 1 | 1.3 | 20.0 | 56.1 | 9.6 | 2.1 | 25.2 |
+
+Per-action counts per game are flat for everything useful (`CHECKAGENT2` 1170 -> 1176,
+`CHECKAGENT3` 399 -> 398, `VISITROUTEBOX` 98 -> 98, `VISITMECH` 116 -> 116, `PERSONAL` 83 -> 82)
+while the idle rooms absorb the entire gain (Rick 212 -> 269, telescope 191 -> 268, kiosk
+203 -> 258). Every useful action is gated by its own `hoursPassed`/`minutesPassed` cadence or a
+state precondition, so cheaper idle actions cannot make one due any earlier - and the baseline
+was never slot-starved (it already idled ~16 actions a day). Halving `kFrequencyRouteStrategy`
+raised route-box visits 98 -> 136 per game and changed nothing else.
+
+Log volume is unaffected: mean 7.51 / 7.49 / 7.90 MB per game. (An earlier claim in this session
+that logs grew 7.8 -> 13.2 MB was wrong - that compared two single games, and the per-game spread
+dwarfs the effect.)
+
+Two bugs found and fixed while reviewing it:
+- `findBestAvailablePlaneType()` was rewritten to return `{}` when the catalogue is unchanged, and
+  the caller did `mBestPlaneTypeId = list.empty() ? -1 : list[0]` - so the id was cleared on
+  almost every broker visit (78 "no new types" against 6 real refreshes per game). Fixed by
+  assigning only when non-empty; the post-purchase `mBestPlaneTypeId = -1` in the non-route branch
+  was removed as well (it would have stuck at -1 forever under the new caching).
+- `condVisitMakler()` floored at `condVisitMisc()`, making the broker a permanent filler room:
+  633 visits per game (1,028 with `kFrequencyRouteStrategy` 1), each rebuilding a `CDataTable` via
+  `GameMechanic::getAvailablePlaneTypes()`. Now ~39 per game.
+
+#### Bodyguard discount
+
+`PLAYER::DoBodyguardRabatt` (Player.cpp:6737) refunds `Money / 100 * (quality / 10)`, only when
+quality > 20, capped at 10% by talent <= 100. It is called for planes (new / used / designer),
+kerosene, tanks, advertising, duty-free items and sabotage - **not** for rocket or station parts
+(`AddRocketPart` just books `ChangeMoney(-price, 3400)` and has no affordability check at all).
+
+The refund is paid *after* the purchase, while `buyPlane`/`buyXPlane`/`buyUsedPlane`/
+`buyAdvertisement` all validate at **list** price against `DEBT_LIMIT` (-1e6). So the discounted
+price may size a batch but must never gate affordability: an early version that did gate on it
+produced 330 refused purchases in 40 games, clustered at 22.75-24.0M against the 25M 767-300 ER
+(= 0.91 x price up to price - DEBT_LIMIT). It also returned 0 below the talent threshold, which
+would have divided by zero in `actionBuyKerosineTank` and could hang `actionBuyAds` (that loop
+ignores `buyAdvertisement`'s return value, and the call refuses without spending).
+
+The committed form (`dc8f04ba`) is correct: gate on `Preis`, size the batch with the discounted
+price, then call `buyPlane(type, 1)` in a loop and stop when it refuses, so each refund funds the
+next unit. Refused purchases: 0. Planes per broker visit 1.57 -> 1.66.
+
+**It still does not move the score (t=-0.36), and cannot:** `BodyguardRabatt` at day 59 is
+1.775e8 (reference) against 1.751e8 - the rebate was always being collected. The change only
+moves the marginal plane earlier by at most one broker visit (~1 in-game hour, with the 1h
+cadence), and the fleet curve is identical at every checkpoint (day 15/25/35/45/55/59:
+2.26/3.70/7.04/15.40/45.29/55.89 against 2.23/3.63/6.99/15.36/44.96/55.64).
+
+#### Why throughput and cash-timing changes cannot pay
+
+The fleet is **cash-flow bound**. `routesRecalcNextStep()` logs "Need to buy another ..." ~3,200
+times per game against ~56 purchases: the bot knows what it wants on essentially every planning
+round and is waiting for money. Funding at day 59: `FlugzeugKauf` -1.70e9 against net equity of
+**+0.9e7** (2.87e7 emitted - 1.53e7 own-share buy-back - 0.48e7 fee) and 6.5e7 of new credit, so
+~96% of the fleet comes out of operating cash flow. Anything that neither adds capital nor raises
+revenue per plane-hour lands inside the noise.
+
+#### The early game is where the score is - and the Il 62 trap
+
+First route and first plane arrive on the *same day*, median **day 14-15** (range 11-20): the
+airline spends two weeks as a two-plane charter operation saving for a 25M wide-body. Fleet then
+doubles every ~7-9 days, so moving that curve left is worth far more than any percent-level knob.
+
+Two attempts to start earlier, both catastrophic, both for the same reason:
+
+1. **No truncation in `findBestRoute()`** (0.593e9): the loop takes the first *affordable*
+   candidate in score order, so without the top-5 cut it falls through to the cheapest combination
+   - the **Ilyushin Il 62** at 9.9M. Fleet over 20 games: 508 Il 62 + 118 Boeing 720 + 158 767.
+2. **Ranking by profit per dollar of capital** (0.634e9): now the Il 62 is the *top* candidate -
+   988 of 1030 planes. With `profitPerWeek ∝ numPlanesTarget` and the denominator `∝ numPlanesMin`
+   the plane count cancels and the score reduces to `const × (revenue/trip - fuel/trip) / Preis`:
+   Il 62 ~0.072 per million against the 767-300 ER's ~0.065.
+
+Both collapse the same way: kerosene 1.64e8 -> 3.8-5.1e8, passengers -26 to -36% on *more*
+flights, ticket revenue roughly halved. The Il 62 carries 198 seats on 10,500 l/h (53 fuel/seat)
+and the Boeing 720 165 on 11,000 (66.7), against the 767-300 ER's 290 on 2,800 (9.7).
+
+Three mechanics make this a trap rather than a trade-off:
+- **`FlugzeugKauf` is not in `GetOpVerlust`, kerosene is.** Optimising return on capital trades an
+  unscored one-off for a scored recurring cost: the second experiment saved 1.17e9 of purchase
+  price the metric ignores and bought 3.5e8 of fuel it counts.
+- **The fare does not depend on your consumption.** `getRouteBaseCost` prices from a reference
+  plane (`CalculateFlightCost(von, nach, 800, 800, -1)`), so a thirsty aircraft can never earn its
+  fuel back - efficiency is pure margin.
+- **The choice is permanent.** `RouteInfo::planeTypeId` is fixed in `addNewRoute()`;
+  `condBuyNewPlane`/`actionBuyNewPlane` only ever buy that type for the route and
+  `assignPlanesToRoutes()` only assigns matching types. Nothing re-types a route, so one cheap
+  decision on day 8 sets the fleet for 50 days.
+
+**The head start itself is real, though:** both arms rented their first route at ~day 8-10 and led
+until the crossover - at day 35 they had 9.8-9.9 planes against 7.0 and ~26% more ticket revenue;
+the fleet crossover only comes around day 50.
+
+Also note in the capital-ranking patch: `planesToBuy` can be 0 (division by zero -> `inf` wins
+every sort; reachable under `ROBOT_USE_FORCEROUTES`, where `mPlanesForRoutesUnassigned` is
+non-empty for the first route), and `RouteScore::score` became `DOUBLE` while the log still prints
+it through `Insert1000erDots64`, so the tuning quantity shows as "is: 7 $".
+
+#### Next candidates
+
+1. Keep absolute-profit ranking and the truncation, but **filter candidate plane types by
+   efficiency** first - e.g. fuel per seat within ~1.5x of the best available type (Il 62 and 720
+   out, 767 and A 310 in). That allows a cheap *and* efficient early start.
+2. **Allow a route to be re-typed** once a better type is affordable. This is the only option that
+   keeps the whole day-35 head start, because it makes an early cheap choice recoverable.
+3. Still open from the earlier entry: the weekend/decay-aware image target, the marginal-payback
+   rule for airline image, and jobs in the overnight windows of route planes. (The earlier
+   suggestion to cut `kPlaneFoodTarget` is withdrawn - see the correction to finding 2 above.)
+4. **Kerosene tanks look net-negative on this objective.** The tank program starts ~day 46 (needs
+   3 routes) and spends 7.76e7 of `ExpansionTanks` by day 59 - about three 767s' worth, spent in
+   exactly the days the fleet grows 17.5 -> 55.6. In scored terms it does not pay either: stock
+   bought (`KerosinVorrat`) is 1.074e8 against 9.25e7 of fuel drawn from the tank
+   (`KerosinGespart`), and 3.3e7 of stock is still being bought on days 58-59 against 2.6e7
+   burned, so part of it is stranded when the game ends. ClaudeBot measured the same thing
+   independently (`kUseFuelArbitrage = false`). A/B: no tanks at all, or no stock purchases in the
+   last ~2 days.
+5. **ClaudeBot re-prices every route every day.** `executeRouteBox()` rebuilds `mRoutes` from
+   scratch (ClaudeBot.cpp:1501) with `pricesSet = false`, so `scheduleRouteFlights()` calls
+   `setRouteTicketPriceBoth()` daily from that day's kerosene price. Whenever kerosene rose
+   overnight that is a raise, and `PLAYER::UpdateTicketpreise` then calls `FlightChanged()` on
+   every scheduled leg of the route, re-stamping `HoursBefore` and costing the legs inside 48 hours
+   up to half their passengers - the "recompute daily" arm MertenBot measured at -24% on the old
+   objective. Port Bot's keep-band (only change when outside [1.60, 1.98] x highCost).
+6. Checked and rejected: selling the sponsored starting planes to fund an early 767 -
+   `CPlane::CalculatePrice()` divides a sponsored plane's value by 10.
+
+### Same day, later: seeded games for paired measurements (harness change)
+
+`./AT /seed N` now replays exactly the same game for the same N, and `threadpool.rb` plays run j
+with `/seed <base + j + 1>` (`--seed-base N` for a different set of games, `--unseeded` for the
+old behaviour). `compare_paired.py` (installed next to `concat.py`) compares two measurements game
+by game. Uncommitted at the time of writing.
+
+**Nondeterminism found and removed**, each confirmed by diffing identical-seed replicas:
+- `Sim.StartTime = time(nullptr)` (Sim.cpp) - most world randomness derives from it. Seeded:
+  2026-01-05 12:00 UTC (a Monday) plus N days, so weekday and season still vary between seeds.
+- Job/freight pools and the starting jobs seeded from `AtGetTime()` (GameMechanic.cpp,
+  Sim.cpp) - now `AtGetSeedTime()`, one seed-derived value for all of them, like the millisecond
+  they used to share.
+- `BotPlaner`'s `std::mt19937` seeded from `std::random_device` - now from seed, date, game time
+  and player. The annealing loop itself is iteration-bounded (`kTempStep = 100`), not time-bounded.
+- **The main one:** the legacy CPU players reseed their per-action RNG with `time(nullptr)` in single
+  player (Player.cpp, `PLAYER::RobotExecuteAction`) - every sabotage and auction decision depended on
+  the wall-clock second. Now from seed, date, game time and player.
+- libc `rand()` is used by game logic (e.g. the legacy sabotage mode) and by drawing, once per frame,
+  so its stream shifted with frame timing. Reseeded at every simulation step from seed, date and
+  game time - not from `TimeSlice`, which keeps counting while the clock stands at 9:00 waiting for
+  the idle human to leave the boss office on a painted frame.
+
+Verified: 8 replicas of one seed produce byte-identical traces of every robot action and every
+`ChangeMoney` of all four players over 59 days (level 2), 4 replicas identical at levels 4 and 24,
+and two full 300-game batches under 24-way load identical in every game both completed.
+
+**A pre-existing harness crash is fixed too:** `SIM::LoadHighscores()` does
+`atoll(strtok(nullptr, ";"))` on the shared `xmlmap.fla`, which other games rewrite on day
+boundaries - a truncated read segfaults at game start (seen 5 and 4 times per 300; earlier unseeded
+batches also lost 3-5 games at times). Highscore load/save is now skipped when `gQuickTestRun > 0`.
+(The many SIGSEGV core dumps at game end are a separate, harmless Mesa crash in SDL teardown after
+`exit()` on day 59; the CSV is complete by then.)
+
+**What pairing buys, measured:** MertenBot HEAD vs a one-constant change (`kFrequencyRouteStrategy`
+1 -> 2), 300 seeded games each: B - A = +9.9e6 (+0.54%), **paired se 8.0e6 (t = +1.23) against
+unpaired se 9.34e7 (t = +0.11)** - 11.6x smaller, i.e. ~135x fewer games for the same precision;
+correlation across games 0.993. Seeded baseline: mean 1.831e9, median 1.516e9 (not comparable to
+unseeded numbers, see below).
+
+**The start weekday is a massive confound:** seeded MertenBot mean by start weekday -
+Sun 2.32e9, Sat 2.19e9, Tue 1.91e9, Thu 1.74e9, Fri 1.73e9, Mon 1.51e9, Wed 1.40e9 (43 games
+each). An unseeded batch starts every game on the real date it is run, i.e. on one weekday, so
+**unseeded measurements taken on different days of the week are not comparable** - a plausible
+source of past "run-to-run noise". Why the weekday matters this much is unexplored (both bots
+have weekend-dependent logic, e.g. the ad agency closes Sat/Sun) and a promising lead in itself.
