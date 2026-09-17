@@ -328,6 +328,10 @@ static const SLONG kMinFleetBeforeSaving = 2;
  * seventeen hours long and a leg either fits twice into it or does not. */
 static const SLONG kUsableHoursPerDay = 17;
 
+/* Longest a route leg is held back so that neither its departure nor its landing falls into the
+ * night (before 05:00 or after 22:00). 0 flies around the clock - see scheduleRouteFlights(). */
+static const SLONG kMaxNightShiftHours = 4;
+
 /* Share of the waiting queue one departure actually carries away, in percent. See
  * legTakes() in scheduleRouteFlights(): the price factor (3B - 10) / Ticketpreis is 1/1.9
  * and the image factor (400 + 1000) / 1100 is 1.27, so a departure takes about two thirds
@@ -3043,6 +3047,29 @@ SLONG ClaudeBot::scheduleRouteFlights() {
             }
             if (time.getDate() == Sim.Date && time.getHour() < Sim.GetHour() + 2) {
                 time = PlaneTime{Sim.Date, static_cast<int>(Sim.GetHour()) + 2};
+            }
+
+            /* ...except where waiting a few hours avoids the night. The reasoning above is wrong
+             * about the order: CalcPassengers caps at 1.5x the cabin *first* (Schedule.cpp:321) and
+             * only then applies the price factor (~1/1.9), the night factors (5/6 each) and the
+             * image factor (at most 1.27). At our price and a full image that chain comes to
+             * exactly one cabin, so every night departure or landing costs a sixth of the leg's
+             * passengers while its kerosene is charged in full. */
+            if (kMaxNightShiftHours > 0) {
+                auto isNight = [](SLONG hour) {
+                    hour %= 24;
+                    return hour < 5 || hour > 22;
+                };
+                SLONG shift = 0;
+                while (shift <= kMaxNightShiftHours && (isNight(time.getHour() + shift) || isNight(time.getHour() + shift + duration))) {
+                    shift++;
+                }
+                if (shift > 0 && shift <= kMaxNightShiftHours) {
+                    time += shift;
+                    if (time > horizon) {
+                        break;
+                    }
+                }
             }
 
             /* Park the night at home rather than at the far end of the route.
