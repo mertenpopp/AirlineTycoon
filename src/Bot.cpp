@@ -677,7 +677,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 103;
+    SLONG savegameVersion = 104;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -801,6 +801,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mOptions.kSwitchToRoutesNumPlanesMin << bot.mOptions.kSwitchToRoutesNumPlanesMax;
     File << bot.mOptions.kMaximumRouteUtilization << bot.mOptions.kMaxTicketPriceFactor;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
+
+    File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay;
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -1011,6 +1013,16 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mOptions.kSwitchToRoutesNumPlanesMin >> bot.mOptions.kSwitchToRoutesNumPlanesMax;
     File >> bot.mOptions.kMaximumRouteUtilization >> bot.mOptions.kMaxTicketPriceFactor;
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
+
+    if (savegameVersion < 104) {
+        /* airline image target did not exist yet: no airline image until the next day starts */
+        bot.mTicketsYesterday = 0;
+        bot.mImageDecayPerDay = 0;
+        bot.mImageAfterAds = 0;
+        bot.mImageAdsDay = -1;
+    } else {
+        File >> bot.mTicketsYesterday >> bot.mImageDecayPerDay >> bot.mImageAfterAds >> bot.mImageAdsDay;
+    }
 
     SLONG magicnumber = 0;
     File >> magicnumber;
