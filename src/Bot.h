@@ -374,7 +374,7 @@ class Bot {
     SLONG mCurrentImage{0};
     __int64 mWeeklyOperatingSaldo{0};
 
-    /* airline image target (not serialized: after loading, no airline image is bought until the next day starts) */
+    /* airline image target */
     __int64 mTicketsYesterday{0};
     SLONG mImageDecayPerDay{0};
     SLONG mImageAfterAds{0};
