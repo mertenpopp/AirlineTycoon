@@ -961,9 +961,9 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     auto balance = qPlayer.BilanzGesamt;
     auto moneyAvailable = 0;
     if (qPlayer.IsMertenBot()) {
-        qPlayer.mBot->getMoneyAvailable();
+        moneyAvailable = qPlayer.mBot->getMoneyAvailable();
     } else if (qPlayer.IsClaudeBot()) {
-        qPlayer.mClaudeBot->getMoneyAvailable();
+        moneyAvailable = qPlayer.mClaudeBot->getMoneyAvailable();
     }
     values.insert(values.end(), {Sim.Date, qPlayer.Money, qPlayer.Credit, moneyAvailable});
     values.insert(values.end(), {balance.GetOpSaldo(), balanceAvg.GetOpSaldo(), balanceAvg.GetOpGewinn(), balanceAvg.GetOpVerlust()});
