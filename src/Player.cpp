@@ -7884,7 +7884,9 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 
     // For improved bot
     File >> *Player.mBot;
-    File >> *Player.mClaudeBot;
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
+        File >> *Player.mClaudeBot;
+    }
     // Player.Owner = (Player.PlayerNum == 3) ? 0 : 1;
 
     return (File);

@@ -1726,8 +1726,8 @@ void SIM::DoTimeStep() {
                                             } else if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
                                                 qPlayer.Letters.AddLetter(
                                                     FALSE,
-                                                    bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem), "",
-                                                    "", 7);
+                                                    bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem),
+                                                    "", "", 7);
                                             }
 
                                             if (qPlayer.LocationWin != nullptr) {
@@ -1744,8 +1744,8 @@ void SIM::DoTimeStep() {
                                                         SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                                                     }
                                                 } else if (CallItADay == 0) {
-                                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                                bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
+                                                    qPlayer.Messages.AddMessage(
+                                                        BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
                                                 }
                                             }
 
@@ -3318,7 +3318,7 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     SLONG NumSaveGameCities = Cities.AnzEntries();
 
     SaveVersion = 1;
-    SaveVersionSub = 203; // Version 1.9.1
+    SaveVersionSub = 204; // Version 1.9.2
 
     fs::path path{Filename.c_str()};
     fs::create_directory(path.parent_path());

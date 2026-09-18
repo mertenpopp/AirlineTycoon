@@ -1444,7 +1444,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const CPlane &Plane) {
         File << Plane.OhneSitze;
         File << Plane.PersonalQuality;
     }
-    if (SaveVersion == 1 && SaveVersionSub >= 104) {
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
         File << Plane.MaxPassagiereTarget << Plane.MaxPassagiereTargetFC;
     }
 
@@ -1509,7 +1509,7 @@ TEAKFILE &operator>>(TEAKFILE &File, CPlane &Plane) {
         Plane.Sicherheit = Plane.SicherheitTarget = 0;
         Plane.OhneSitze = 0;
     }
-    if (SaveVersion == 1 && SaveVersionSub >= 104) {
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
         File >> Plane.MaxPassagiereTarget >> Plane.MaxPassagiereTargetFC;
     } else {
         Plane.MaxPassagiereTarget = Plane.MaxPassagiere;
