@@ -3318,7 +3318,7 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     SLONG NumSaveGameCities = Cities.AnzEntries();
 
     SaveVersion = 1;
-    SaveVersionSub = 204; // Version 1.9.2
+    SaveVersionSub = 204; // Version 1.9.1
 
     fs::path path{Filename.c_str()};
     fs::create_directory(path.parent_path());

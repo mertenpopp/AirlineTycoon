@@ -6805,7 +6805,7 @@ void CStdRaum::MenuLeftClick(XY Pos) {
 
                 MenuStop();
 
-                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, true).second) {
+                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, true).first) {
                     MakeSayWindow(0, TOKEN_BANK, 6000, pFontPartner);
                 }
             } else if (MenuPar2 == 1) // verkaufen

@@ -541,7 +541,7 @@ void CWorkers::NewDay() {
                                                           {BERATERTYP_SICHERHEIT, 0}}};
     for (auto &berater : AnzahlBerater) {
         if (berater.first == BERATERTYP_PERSONAL || berater.first == BERATERTYP_ROUTE || berater.first == BERATERTYP_FLUGZEUG) {
-            berater.second = LocalRand.Rand(0, 2) / 2; /* not terribly useful: Make them rarer (25% chance) */
+            berater.second = LocalRand.Rand(0, 2) / 2; /* not terribly useful: Make them rarer (33% chance) */
         } else {
             berater.second = LocalRand.Rand(0, 1); /* 50% chance */
         }

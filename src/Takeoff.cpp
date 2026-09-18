@@ -419,7 +419,7 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
         std::ifstream ifil = std::ifstream(sabbelPath);
         if (ifil.is_open()) {
             AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
-            ifil.read(reinterpret_cast<char *>(&gLanguage), sizeof(gLanguage));
+            ifil.read(reinterpret_cast<char *>(&gLanguage), 1);
             ifil.close();
 
             AT_Log("Language was not set in options file, reading from sabbel: %li", gLanguage);
