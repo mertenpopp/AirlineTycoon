@@ -25,7 +25,7 @@ Technical details:
 Testing the game
 ----------------
 
-Test the game **only** by running the scripts in the `scripts/` folder (`./scripts/run_build.sh`, `./scripts/run_test.sh`, `./scripts/run_smoketest.sh`, `./scripts/run_measurement.sh`). Do not invoke the game binary directly and do not set, export or override any environment variables for a test run (for example `SDL_VIDEODRIVER`).
+Test the game by running the scripts in the `scripts/` folder. Avoid to invoke the game binary directly and do not set, export or override any environment variables for a test run (for example `SDL_VIDEODRIVER`).
 
 Reason: in a previous session the video driver was switched to `offscreen`, which caused extreme GPU load on the test machine. The scripts contain the configuration that is known to be safe.
 
