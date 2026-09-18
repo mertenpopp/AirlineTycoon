@@ -62,11 +62,12 @@ const SLONG kStockEmissionMode = 2;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
-const SLONG kMoneyEmergencyFund = 0; /* we can go into debt */
-const SLONG kMoneyReservePaybackCredit = 500 * 1e6;
-const SLONG kMoneyReserveBuyOwnShares = 2 * 1e6;
-const SLONG kMoneyReserveBuyNemesisShares = 80 * 1e6;
-const SLONG kMoneyReserveSabotage = 200 * 1000;
+const __int64 kMoneyEmergencyFund = 0; /* we can go into debt */
+const __int64 kMoneyReservePaybackCredit = 500 * 1e6;
+const __int64 kMoneyReserveBuyOwnShares = 2 * 1e6;
+const __int64 kMoneyReserveBuyNemesisShares = 80 * 1e6;
+const __int64 kMoneyReserveSabotage = 200 * 1000;
+const __int64 kPlaneCashReserve = 800000;
 
 SLONG kPlaneScoreForceBest = -1;
 
@@ -441,7 +442,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_BUYNEWPLANE:
-        actionBuyNewPlane(moneyAvailable);
+        actionBuyNewPlane(moneyAvailable - DEBT_LIMIT - kPlaneCashReserve);
         break;
 
     case ACTION_BUYUSEDPLANE:
@@ -671,7 +672,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 104;
+    SLONG savegameVersion = 103;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -1008,7 +1009,7 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mOptions.kMaximumRouteUtilization >> bot.mOptions.kMaxTicketPriceFactor;
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
 
-    if (savegameVersion < 104) {
+    if (savegameVersion < 103) {
         /* airline image target did not exist yet: no airline image until the next day starts */
         bot.mTicketsYesterday = 0;
         bot.mImageDecayPerDay = 0;
