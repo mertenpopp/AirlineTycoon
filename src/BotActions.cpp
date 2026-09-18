@@ -485,6 +485,8 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     }
 
     updateExtraWorkers();
+    AT_Log("Bot::actionBuyNewPlane(): Money after purchase: %lld, Planes for jobs: %d, Unassigned: %d", qPlayer.Money, mPlanesForJobs.size(),
+           mPlanesForJobsUnassigned.size());
 }
 
 void Bot::actionBuyUsedPlane(__int64 /*moneyAvailable*/) {

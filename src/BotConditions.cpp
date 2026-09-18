@@ -337,7 +337,7 @@ Bot::Prio Bot::condUpgradePlanes() {
 }
 
 Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable();
+    moneyAvailable = getMoneyAvailable() - DEBT_LIMIT - kPlaneCashReserve;
     if (!hoursPassed(ACTION_BUYNEWPLANE, kFrequencyRouteStrategy)) {
         return Prio::None;
     }
