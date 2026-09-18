@@ -733,3 +733,20 @@ day 20 42.4 -> 45.3. The freed action slots go into running the routes, not into
 Next: commit `kCheckTravelAgencyEveryXMinutes = 30` if wanted (one constant). Then look for other
 actions whose condition is near-permanently satisfied - the same starvation pattern may exist
 elsewhere in the prio queue.
+
+## 2026-09-18 - ClaudeBot: buy aeroplanes one per call, not in batches of ten
+
+**Bug (spotted by the user).** `executeBuyPlane()` sized the purchase at the bodyguard-discounted
+price, then called `GameMechanic::buyPlane()` in batches of up to ten. `buyPlane()` checks
+`Money - Preis * amount >= DEBT_LIMIT` at *list* price and only refunds the discount afterwards. So
+when ten fit the discounted budget but only nine fit at list price, the batch of ten was refused and
+the loop broke off - **zero** aeroplanes that visit, not nine. Fix: one aeroplane per call, each step
+guarded by `Money - Preis >= DEBT_LIMIT + kPlaneCashReserve`, so every refund lands before the next
+charge and the reserve holds at list price. Per-call side effects are harmless (a random name picked
+from the unused ones, MapWorkers, advisor update).
+
+**Result:** paired on seed base 0, HEAD ae3f5614 vs fix: 2.0242e9 -> 2.1531e9, **+6.36%, t +30.33,
+better in 299/300**. Committed.
+
+Next: the same list-vs-discount mismatch may exist anywhere else ClaudeBot budgets with a discount
+it only receives after paying.

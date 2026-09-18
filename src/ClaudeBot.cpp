@@ -1985,10 +1985,8 @@ void ClaudeBot::executeBuyPlane() {
      * Only the *count* may use the discounted price. buyPlane() tests
      * `Money - price * amount < DEBT_LIMIT` at full list and refunds afterwards, so the
      * money for any single batch has to be there first - which is why the "can I afford one
-     * at all" test above is left on `Preis`. But the broker takes ten at a time and the loop
-     * below calls it repeatedly, so each batch's refund is in the account before the next
-     * one is charged, and the loop still stops the moment buyPlane() refuses. Spending down
-     * to the same reserve therefore ends the day with more cash, not less. */
+     * at all" test above is left on `Preis`, and why the loop below buys one aeroplane
+     * per call: only then is every refund in the account before the next one is charged. */
     SLONG discountPercent = 0;
     const SLONG bodyguard = qPlayer.HasBerater(BERATERTYP_SICHERHEIT);
     if (bodyguard > 20) {
@@ -1998,18 +1996,19 @@ void ClaudeBot::executeBuyPlane() {
     const SLONG affordable = static_cast<SLONG>(budget / effectivePrice);
     SLONG want = std::max<SLONG>(1, std::min<SLONG>(affordable, kMaxPlanes - havePlanes));
 
-    /* buyPlane() takes ten at a time and the broker opens once a day, so one call is a cap
-     * of ten aeroplanes a day however rich the airline is - and the fleet grew by exactly
-     * ten on every one of the last ten days of a measured game. Nothing stops us calling it
-     * again. */
+    /* One aeroplane per call, not batches of ten. buyPlane() charges list price for the
+     * whole batch before it refunds the discount, so a batch sized at the discounted price
+     * can be refused outright: nine may be affordable at list, the tenth only once their
+     * refund has landed, and a batch of ten then buys nothing. Buying singly puts every
+     * refund in the account before the next aeroplane is charged, and each step keeps the
+     * reserve at list price. */
     SLONG amount = 0;
-    while (want > 0) {
-        const SLONG batch = std::min<SLONG>(want, 10);
-        if (GameMechanic::buyPlane(qPlayer, bestType, batch).empty()) {
+    while (want > 0 && qPlayer.Money - PlaneTypes[bestType].Preis >= DEBT_LIMIT + kPlaneCashReserve) {
+        if (GameMechanic::buyPlane(qPlayer, bestType, 1).empty()) {
             break;
         }
-        amount += batch;
-        want -= batch;
+        amount++;
+        want--;
     }
     if (amount == 0) {
         return;
