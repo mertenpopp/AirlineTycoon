@@ -137,6 +137,7 @@ class ClaudeBot {
 
     /* --- Hurricane (BotLevel == BotDifficultyTBD): the Tycoon economy plus sabotage --- */
     bool isHurricane() const;
+    bool sabotageVisitWorthIt() const;
     void executeDutyFree();
     void executeArab();
     void executeSabotage();
@@ -266,6 +267,13 @@ class ClaudeBot {
     /* A job was refused because the victim bought protection. Cleared once the pliers have
      * knocked out the security office. */
     bool mSecurityBlocked{false};
+    /* Bit per entry of kSabotageJobs: refused by the victim's security, skip until the pliers
+     * have been used or the week is over. Without this we would save hints for a job that
+     * can never be ordered. */
+    SLONG mBlockedJobs{0};
+    SLONG mLastVirusDay{-100};
+    /* Hints of the job we are saving for, 0 if none - see sabotageVisitWorthIt(). */
+    SLONG mSavingForHints{0};
     /* Routes we could fly, with their value per plane hour to our largest aeroplane, cached at
      * the route box (Bedarf and Miete may only be read there). The saboteur steals from this. */
     std::vector<std::pair<SLONG, SLONG>> mTheftValues;
