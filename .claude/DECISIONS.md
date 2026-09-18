@@ -750,3 +750,23 @@ better in 299/300**. Committed.
 
 Next: the same list-vs-discount mismatch may exist anywhere else ClaudeBot budgets with a discount
 it only receives after paying.
+
+## 2026-09-18 - Hurricane (BotLevel 7): first implementation of sabotage
+
+New play style "Hurricane" = Tycoon economy plus sabotage, gated on `BotLevel == BotDifficultyTBD`,
+so Tycoon (level 6) is unchanged (smoke test: no Hurricane code runs).
+
+- Trust: buy ITEM_MG at duty free, hand it over at the Arab Air counter (the game grants the trust
+  in ROOM_ARAB_AIR, not in the saboteur's room).
+- Victim: a human if there is one, else the competitor with the highest share price.
+- Hints: own count (ArabHints may not be read), +job hints on order, -3 per day, ceiling 99 so the
+  boss never exposes us. Cash reserve 1.5M after paying.
+- Job order: route theft at trust 6 (saves hints for it), else the trust-raising job, else damage
+  (strike, press release if the victim has routes, engine breakdown, ...).
+- Route theft steals the victim route with the best value per hour among routes our scheduler can
+  fly, cached at the route box.
+- Pliers: after a job is refused by security, pick up ITEM_ZANGE and knock out the security office.
+- Savegame version 108.
+
+Not measured yet: no script runs level 7. Next: a level-7 smoke test, then check that sabotage
+does not cost the economy too much (paired measurement against Tycoon).
