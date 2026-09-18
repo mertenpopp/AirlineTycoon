@@ -591,7 +591,7 @@ void NewGamePopup::RefreshKlackerField() {
             KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4000)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4000)); // Start
         }
 
-        KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 5006)); // Headline
+        KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 5010)); // Headline
 
         for (c = 0; c < 4; c++) {
             auto &qPlayer = Sim.Players.Players[c];
@@ -1706,7 +1706,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                         auto &qPlayer = Sim.Players.Players[c];
                         if (qPlayer.Owner == 1) {
                             qPlayer.BotLevel += 1;
-                            if (qPlayer.BotLevel > 4) {
+                            if (qPlayer.BotLevel > BotDifficultyMax) {
                                 qPlayer.BotLevel = 0;
                             }
                             SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
@@ -2059,7 +2059,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
                 if (qPlayer.Owner == 1) {
                     qPlayer.BotLevel -= 1;
                     if (qPlayer.BotLevel < 0) {
-                        qPlayer.BotLevel = 4;
+                        qPlayer.BotLevel = BotDifficultyMax;
                     }
                     SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                 }
@@ -2662,10 +2662,10 @@ void NewGamePopup::AutoLobbyPump() {
                say which precondition it is waiting on, not just time out. */
             if ((PageSub++ % 20) == 0) {
                 NetTraceEvent("LOBBY waiting peers=%ld/%ld claimed=%ld/%ld names=%ld ready_in=%ld owners=%ld%ld%ld%ld", static_cast<long>(Peers),
-                              static_cast<long>(gAutoLobbyHumans), static_cast<long>(Claimed), static_cast<long>(gAutoLobbyHumans),
-                              static_cast<long>(NamesOK), static_cast<long>(SLONG(PlayerReadyAt) - SLONG(AtGetTime())),
-                              static_cast<long>(Sim.Players.Players[0].Owner), static_cast<long>(Sim.Players.Players[1].Owner),
-                              static_cast<long>(Sim.Players.Players[2].Owner), static_cast<long>(Sim.Players.Players[3].Owner));
+                              static_cast<long>(gAutoLobbyHumans), static_cast<long>(Claimed), static_cast<long>(gAutoLobbyHumans), static_cast<long>(NamesOK),
+                              static_cast<long>(SLONG(PlayerReadyAt) - SLONG(AtGetTime())), static_cast<long>(Sim.Players.Players[0].Owner),
+                              static_cast<long>(Sim.Players.Players[1].Owner), static_cast<long>(Sim.Players.Players[2].Owner),
+                              static_cast<long>(Sim.Players.Players[3].Owner));
             }
             break;
         }

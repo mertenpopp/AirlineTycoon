@@ -188,10 +188,9 @@ void Bot::RobotInit(SLONG randomSeed) {
 
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
-        if (qPlayer.BotLevel <= 1) {
+        if (qPlayer.BotLevel <= BotDifficultyLaidBack) {
             mOptions.kMaxTicketPriceFactor = std::min(2.0, mOptions.kMaxTicketPriceFactor);
-            mOptions.kSchedulingMinScoreRatio = std::min(5.0F, mOptions.kSchedulingMinScoreRatio);
-            mOptions.kSchedulingMinScoreRatioLastMinute = std::min(5.0F, mOptions.kSchedulingMinScoreRatioLastMinute);
+            mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatio / 10.0F;
             mOptions.kMaxKerosinQualiZiel = std::min(1.0, mOptions.kMaxKerosinQualiZiel);
         }
 
@@ -325,7 +324,7 @@ void Bot::RobotPlan() {
                 qAction.walkingDistance);
     }*/
 
-    auto threshNoRun = (qPlayer.BotLevel >= 3 ? Prio::Low : (qPlayer.BotLevel >= 2 ? Prio::Medium : Prio::Top));
+    auto threshNoRun = (qPlayer.BotLevel > BotDifficultyLaidBack ? Prio::Low : Prio::Top);
 
     qFirstAction.ActionId = prioList[0].actionId;
     qFirstAction.Running = (prioList[0].prio > threshNoRun);
