@@ -738,7 +738,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << static_cast<SLONG>(bot.mRoutes.size());
     for (const auto &i : bot.mRoutes) {
-        File << i.routeId << i.routeReverseId << i.planeTypeId << i.numberOfPlanesTarget;
+        File << i.routeId << i.routeReverseId << i.planeTypeId;
         File << i.routeUtilization << i.routeOwnUtilization << i.image;
         File << i.planeUtilization << i.planeUtilizationFC;
         File << i.ticketCostFactor;
@@ -748,6 +748,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
             File << j;
         }
         File << i.canUpgrade;
+
+        File << i.numberOfPlanesTarget;
     }
 
     File << static_cast<SLONG>(bot.mRoutesSortedByOwnUtilization.size());
@@ -820,7 +822,10 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
     assert(bot.mLastTimeInRoom.size() == size);
 
-    if (savegameVersion >= 102) {
+    if (savegameVersion < 103) {
+        SLONG oldNumActionsToday;
+        File >> oldNumActionsToday;
+    } else {
         File >> size;
         bot.mActionCounter.clear();
         for (SLONG i = 0; i < size; i++) {
