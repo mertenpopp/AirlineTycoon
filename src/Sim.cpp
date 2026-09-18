@@ -2657,8 +2657,8 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
     } else if (plane.ptErstbaujahr < 1999) {
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1999);
     } else {
-        SLONG planeAge = rnd.getRandInt(1, 6);
-        plane.Baujahr = std::min(plane.ptErstbaujahr + planeAge, kCurrentYear);
+        plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, std::max(plane.ptErstbaujahr + 1, kCurrentYear - 3));
+        plane.Baujahr = std::min(plane.Baujahr, kCurrentYear);
         isOldPlaneFromReleaseVersion = false;
     }
 
@@ -2668,7 +2668,7 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
         plane.Baujahr += kYearsSinceRelease;
     }
 
-    plane.Zustand = UBYTE((plane.Baujahr - 1950) + 25 + rnd.Rand(40) - 20);
+    plane.Zustand = UBYTE((plane.Baujahr - kYearsSinceRelease - 1950) + 25 + rnd.Rand(40) - 20);
     if (plane.Zustand < 20 || plane.Zustand > 200) {
         plane.Zustand = 20;
     }

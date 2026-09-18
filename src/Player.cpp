@@ -1773,8 +1773,11 @@ void PLAYER::NewDay() {
 
                     costImprovement = Improvement * Planes[c].ptPreis / 110;
 
-                    costRepairs = SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - Planes[c].Baujahr) / 100 *
-                                        (200 - Planes[c].Zustand) / 100);
+                    /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+                    /* We have added kYearsSinceRelease to all build years and have to subtract it here to get the same value as before. */
+                    SLONG baujahr = Planes[c].Baujahr - kYearsSinceRelease;
+                    costRepairs =
+                        SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - baujahr) / 100 * (200 - Planes[c].Zustand) / 100);
                 }
 
                 SLONG delta = salary + costImprovement + costRepairs;
@@ -5126,7 +5129,7 @@ void PLAYER::RobotExecuteAction() {
         if ((BuyBigPlane != 0) && !RobotUse(ROBOT_USE_GROSSESKONTO)) {
             Sim.UpdateUsedPlanes();
             for (c = 0; c < 3; c++) {
-                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr > 1960 &&
+                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr - kYearsSinceRelease > 1960 &&
                     Sim.UsedPlanes[0x1000000 + c].Zustand > 40 && Sim.UsedPlanes[0x1000000 + c].CalculatePrice() < Money + 1000000 &&
                     Sim.UsedPlanes[0x1000000 + c].ptReichweite >= BuyBigPlane)
                 // if (Sim.UsedPlanes[0x1000000+c].Name.GetLength()>0 && Sim.UsedPlanes[0x1000000+c].Baujahr>1960 && Sim.UsedPlanes[0x1000000+c].Zustand>40
@@ -5617,7 +5620,7 @@ void PLAYER::RobotExecuteAction() {
         if ((Planes.GetNumUsed() < 3 || !RobotUse(ROBOT_USE_GROSSESKONTO)) && (Planes.GetNumUsed() < 5 || !RobotUse(ROBOT_USE_MAX5PLANES)) &&
             (Planes.GetNumUsed() < 4 || !RobotUse(ROBOT_USE_MAX4PLANES)) && (Planes.GetNumUsed() < 10 || !RobotUse(ROBOT_USE_MAX10PLANES))) {
             for (c = 0; c < 3; c++) {
-                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr > 1950 &&
+                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr - kYearsSinceRelease > 1950 &&
                     Sim.UsedPlanes[0x1000000 + c].Zustand > 65 && Sim.UsedPlanes[0x1000000 + c].CalculatePrice() < Money - 1000000) {
 
                     GameMechanic::buyUsedPlane(*this, 0x1000000 + c);
