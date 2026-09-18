@@ -135,6 +135,19 @@ class ClaudeBot {
      * qPlayer.BilanzGestern, which RULES.md gates on the office and a financial advisor. */
     void cacheFuelBurn();
 
+    /* --- Hurricane (BotLevel == BotDifficultyTBD): the Tycoon economy plus sabotage --- */
+    bool isHurricane() const;
+    void executeDutyFree();
+    void executeArab();
+    void executeSabotage();
+    void executeSecurity();
+    /* Saboteur room only: the competitor to sabotage, or -1. */
+    SLONG pickSabotageVictim() const;
+    /* Saboteur room only: album index of the victim's largest aeroplane, or -1. */
+    SLONG pickVictimPlane(SLONG victim) const;
+    /* Saboteur room only: the victim's route worth most to us, from mTheftValues, or -1. */
+    SLONG pickRouteToSteal(SLONG victim) const;
+
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
     SLONG schedulePendingJobs();
@@ -236,6 +249,26 @@ class ClaudeBot {
 
     /* the day the weekly balance was last logged from the office */
     SLONG mBalanceLoggedDay{-1};
+
+    /* --- Hurricane state --- */
+
+    /* Our own count of the saboteur's hints. qPlayer.ArabHints may not be read, so this is
+     * what a human would have to keep in mind: every ordered job adds its hints, every day
+     * takes 3 off. The game only adds hints once a job is carried out, and a job may never
+     * be, so this count is never below the real one - which is the safe side, because the
+     * boss exposes the saboteur at 100. */
+    SLONG mSabotageHints{0};
+    SLONG mSabotageJobsOrdered{0};
+    bool mVisitedDutyFreeToday{false};
+    bool mVisitedArabToday{false};
+    bool mVisitedSaboteurToday{false};
+    bool mVisitedSecurityToday{false};
+    /* A job was refused because the victim bought protection. Cleared once the pliers have
+     * knocked out the security office. */
+    bool mSecurityBlocked{false};
+    /* Routes we could fly, with their value per plane hour to our largest aeroplane, cached at
+     * the route box (Bedarf and Miete may only be read there). The saboteur steals from this. */
+    std::vector<std::pair<SLONG, SLONG>> mTheftValues;
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);

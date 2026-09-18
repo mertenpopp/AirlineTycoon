@@ -562,6 +562,62 @@ static const SLONG kFillerActions[] = {ACTION_VISITKIOSK, ACTION_VISITRICK, ACTI
  * RobotExecuteAction(). */
 static const bool kFastFiller = true;
 
+/* --- Hurricane: sabotage ---
+ *
+ * The boss exposes a saboteur whose hints reach 100 at the next briefing, and the fine is
+ * hints x 10,000 paid to the victim. Staying at 99 or below means never being caught. */
+static const SLONG kMaxSabotageHints = 99;
+/* Cash that has to stay on the account after paying the saboteur, so sabotage never takes
+ * the money the fleet needs for fuel and the next aeroplane. */
+static const __int64 kSabotageCashReserve = 1500000;
+
+/* Every job the saboteur offers, as RULES.md describes them. `hints` is what the job adds
+ * once it is carried out (GameMechanic::executeSabotageMode1-3). */
+struct SabotageJob {
+    SLONG type;
+    SLONG number;
+    SLONG hints;
+    bool needsPlane;
+    bool needsRoute;
+    const char *name;
+};
+static const SabotageJob kSabotageJobs[] = {
+    {0, 1, 2, true, false, "salted food"},
+    {0, 2, 4, true, false, "broken movie theatre"},
+    {0, 3, 10, true, false, "flat tire"},
+    {0, 4, 20, true, false, "engine breakdown"},
+    {0, 5, 100, true, false, "plane crash"},
+    {1, 1, 8, false, false, "bacteria in the coffee"},
+    {1, 2, 0, false, false, "laptop virus"},
+    {1, 3, 25, false, false, "office bomb"},
+    {1, 4, 40, false, false, "strike"},
+    {2, 1, 8, false, false, "brochures"},
+    {2, 2, 15, false, false, "cut telephones"},
+    {2, 3, 25, false, false, "false press release"},
+    {2, 4, 30, false, false, "bank hack"},
+    {2, 5, 50, true, false, "ground aeroplane"},
+    {2, 6, 70, false, true, "route theft"},
+};
+
+static const SabotageJob *findSabotageJob(SLONG type, SLONG number) {
+    for (const auto &qJob : kSabotageJobs) {
+        if (qJob.type == type && qJob.number == number) {
+            return &qJob;
+        }
+    }
+    return nullptr;
+}
+
+static SLONG sabotageJobCost(const SabotageJob &qJob) {
+    if (qJob.type == 0) {
+        return SabotagePrice[qJob.number - 1];
+    }
+    if (qJob.type == 1) {
+        return SabotagePrice2[qJob.number - 1];
+    }
+    return SabotagePrice3[qJob.number - 1];
+}
+
 /* The kerosene price, cached once a day.
  *
  * RULES.md permits `Sim.Kerosin` / `Sim.HoleKerosinPreis()` at the Arab and in the personal
@@ -693,6 +749,12 @@ void ClaudeBot::startNewDay() {
     mVisitedFreightToday = false;
     mFreightEmptyToday = false;
     mFreightTakenToday = 0;
+    mVisitedDutyFreeToday = false;
+    mVisitedArabToday = false;
+    mVisitedSaboteurToday = false;
+    mVisitedSecurityToday = false;
+    /* The saboteur's hints fall by 3 every night (PLAYER::NewDay). */
+    mSabotageHints = std::max<SLONG>(0, mSabotageHints - 3);
     /* Flights were flown overnight, so every cached availability is out of date. */
     mPlaneStateStale = true;
     mNeedSchedule = true;
@@ -769,6 +831,27 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *     slot every day the room is open - see kPlanesPerGate. */
     if (!mVisitedBossToday && canUseAction(ACTION_EXPANDAIRPORT)) {
         out.push_back(ACTION_EXPANDAIRPORT);
+    }
+
+    /* 5d) Hurricane only: sabotage. The saboteur only works for someone the Arab trusts, and
+     *     the Arab trusts whoever hands him the item ITEM_MG from the duty free shop. Every
+     *     branch clears its own condition: the item leaves the inventory, trust is set, and
+     *     each room is visited at most once a day. */
+    if (isHurricane()) {
+        if (qPlayer.ArabTrust == 0) {
+            if (qPlayer.HasItem(ITEM_MG) == 0) {
+                if (!mVisitedDutyFreeToday && Sim.Date > 0 && canUseAction(ACTION_VISITDUTYFREE)) {
+                    out.push_back(ACTION_VISITDUTYFREE);
+                }
+            } else if (!mVisitedArabToday && canUseAction(ACTION_VISITARAB)) {
+                out.push_back(ACTION_VISITARAB);
+            }
+        } else if (!mVisitedSaboteurToday && mSabotageHints < kMaxSabotageHints && qPlayer.Money > kSabotageCashReserve && canUseAction(ACTION_SABOTAGE)) {
+            out.push_back(ACTION_SABOTAGE);
+        }
+        if (mSecurityBlocked && qPlayer.HasItem(ITEM_ZANGE) != 0 && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY2)) {
+            out.push_back(ACTION_VISITSECURITY2);
+        }
     }
 
     if (!mVisitedAdsToday && !mRoutes.empty() && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] && canUseAction(ACTION_WERBUNG)) {
@@ -982,6 +1065,22 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_BUERO:
         executeOffice();
+        break;
+
+    case ACTION_VISITDUTYFREE:
+        executeDutyFree();
+        break;
+
+    case ACTION_VISITARAB:
+        executeArab();
+        break;
+
+    case ACTION_SABOTAGE:
+        executeSabotage();
+        break;
+
+    case ACTION_VISITSECURITY2:
+        executeSecurity();
         break;
 
     case ACTION_WAIT:
@@ -1624,6 +1723,29 @@ void ClaudeBot::executeRouteBox() {
         }
         return false;
     };
+
+    /* Hurricane: what every route we could fly is worth to us, for the saboteur to steal the
+     * best one the victim holds. Bedarf and Miete may only be read here, so the value is
+     * cached rather than worked out in the saboteur room. Only routes our scheduler can fly
+     * count - the same network rule as renting - and only those worth an hour of a plane. */
+    if (isHurricane()) {
+        mTheftValues.clear();
+        for (SLONG r = 0; r < Routen.AnzEntries(); r++) {
+            if (Routen.IsInAlbum(r) == 0 || qPlayer.RentRouten.RentRouten[r].Rang != 0) {
+                continue;
+            }
+            const auto &qRoute = Routen[r];
+            if (!touchesNetwork(qRoute.VonCity, qRoute.NachCity) || Cities.CalcDistance(qRoute.VonCity, qRoute.NachCity) > qRef.ptReichweite * 1000) {
+                continue;
+            }
+            SLONG value = routeValuePerHour(qRef, qRoute);
+            if (value > kMinRouteValuePerHour) {
+                mTheftValues.emplace_back(r, value);
+            }
+        }
+        std::sort(mTheftValues.begin(), mTheftValues.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
+        AT_Log("ClaudeBot::executeRouteBox(): %ld route(s) worth stealing.", static_cast<SLONG>(mTheftValues.size()));
+    }
 
     /* Rents the single best pair `qFor` can reach, ranked by what an hour on it is worth to
      * that aeroplane. Returns false when there is nothing left worth renting, so every
@@ -3289,6 +3411,240 @@ SLONG ClaudeBot::schedulePendingFreight() {
     return planned;
 }
 
+/* --- Hurricane: the Tycoon economy plus sabotage ---------------------------------------- */
+
+bool ClaudeBot::isHurricane() const { return qPlayer.BotLevel == BotDifficultyTBD; }
+
+/* Duty free: buy the item the Arab wants before he lets the saboteur work for us. */
+void ClaudeBot::executeDutyFree() {
+    mVisitedDutyFreeToday = true;
+    if (qPlayer.ArabTrust != 0 || qPlayer.HasItem(ITEM_MG) != 0) {
+        qPlayer.WorkCountdown = 2;
+        return;
+    }
+    auto res = GameMechanic::buyDutyFreeItem(qPlayer, ITEM_MG);
+    AT_Log("ClaudeBot::executeDutyFree(): Buying ITEM_MG %s.", (res == GameMechanic::BuyItemResult::Ok && qPlayer.HasItem(ITEM_MG) != 0) ? "worked" : "failed");
+}
+
+/* The Arab Air counter: hand over the item. The game grants the trust there, not in the
+ * saboteur's room (GameMechanic::useItem checks for ROOM_ARAB_AIR). */
+void ClaudeBot::executeArab() {
+    mVisitedArabToday = true;
+    if (qPlayer.ArabTrust != 0 || qPlayer.HasItem(ITEM_MG) == 0) {
+        qPlayer.WorkCountdown = 2;
+        return;
+    }
+    GameMechanic::useItem(qPlayer, ITEM_MG);
+    AT_Log("ClaudeBot::executeArab(): Handed over ITEM_MG, saboteur trust now %ld.", qPlayer.ArabTrust);
+}
+
+/* The competitor we sabotage: a human if there is one - Hurricane is a style for playing
+ * against people - and otherwise, or among several humans, the one with the highest share
+ * price, which is the best public measure of who is ahead. Owner, IsOut and Kurse may always
+ * be read. */
+SLONG ClaudeBot::pickSabotageVictim() const {
+    SLONG best = -1;
+    bool bestHuman = false;
+    DOUBLE bestKurs = 0;
+    for (SLONG p = 0; p < 4; p++) {
+        if (p == qPlayer.PlayerNum) {
+            continue;
+        }
+        const auto &qOther = Sim.Players.Players[p];
+        if (qOther.IsOut != 0) {
+            continue;
+        }
+        const bool human = (qOther.Owner == 0 || qOther.Owner == 2);
+        const DOUBLE kurs = qOther.Kurse[0];
+        if (best < 0 || (human && !bestHuman) || (human == bestHuman && kurs > bestKurs)) {
+            best = p;
+            bestHuman = human;
+            bestKurs = kurs;
+        }
+    }
+    return best;
+}
+
+/* The victim's largest aeroplane: plane sabotage costs the same whatever the target, and a
+ * large one flies the most passengers, so its image and route image count most. */
+SLONG ClaudeBot::pickVictimPlane(SLONG victim) const {
+    const auto &qPlanes = Sim.Players.Players[victim].Planes;
+    SLONG best = -1;
+    for (SLONG c = 0; c < qPlanes.AnzEntries(); c++) {
+        if (qPlanes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        if (best < 0 || qPlanes[c].ptPassagiere > qPlanes[best].ptPassagiere) {
+            best = c;
+        }
+    }
+    return best;
+}
+
+/* The best route the victim holds that our scheduler can fly. mTheftValues is sorted, most
+ * valuable first; the victim's Rang may be read in this room. */
+SLONG ClaudeBot::pickRouteToSteal(SLONG victim) const {
+    const auto &qRRouten = Sim.Players.Players[victim].RentRouten.RentRouten;
+    for (const auto &qEntry : mTheftValues) {
+        if (qEntry.first >= 0 && qEntry.first < qRRouten.AnzEntries() && qRRouten[qEntry.first].Rang != 0) {
+            return qEntry.first;
+        }
+    }
+    return -1;
+}
+
+/* The saboteur's room. At most one job runs at a time, so this orders one job and leaves.
+ *
+ * Order of preference:
+ *  1. Route theft once the saboteur trusts us fully (6): it takes a route from the victim for
+ *     good and hands it to us. While it does not fit under the hint ceiling yet, only jobs
+ *     without hints are ordered, so the ceiling comes down to where it fits.
+ *  2. Build trust: a job with the number of the current trust raises it by one.
+ *  3. Damage, most harmful first: the strike grounds every aeroplane, the press release
+ *     empties the route flights for a day, an engine breakdown halves a route's image.
+ * Every candidate has to fit under the hint ceiling and leave the cash reserve. */
+void ClaudeBot::executeSabotage() {
+    mVisitedSaboteurToday = true;
+
+    /* The pliers knock out every airline's protection for three days. There is one pair, so
+     * take them as soon as protection has stopped us - see executeSecurity(). */
+    bool acted = false;
+    if (mSecurityBlocked && Sim.ItemZange != 0 && qPlayer.HasItem(ITEM_ZANGE) == 0) {
+        auto res = GameMechanic::pickUpItem(qPlayer, ITEM_ZANGE);
+        acted = (res == GameMechanic::PickedUp);
+        AT_Log("ClaudeBot::executeSabotage(): Picking up ITEM_ZANGE %s.", acted ? "worked" : "failed");
+    }
+
+    const SLONG victim = pickSabotageVictim();
+    if (victim < 0) {
+        AT_Log("ClaudeBot::executeSabotage(): Nobody left to sabotage.");
+        if (!acted) {
+            qPlayer.WorkCountdown = 2;
+        }
+        return;
+    }
+    const auto &qVictim = Sim.Players.Players[victim];
+    const SLONG trust = qPlayer.ArabTrust;
+    const SLONG plane = pickVictimPlane(victim);
+    const SLONG route = (trust >= 6) ? pickRouteToSteal(victim) : -1;
+    const SLONG victimRoutes = qVictim.Statistiken[STAT_ROUTEN].GetAtPastDay(0);
+
+    std::vector<std::pair<SLONG, SLONG>> plan;
+    bool savingForTheft = false;
+    if (route >= 0) {
+        plan.emplace_back(2, 6);
+        const auto *qTheft = findSabotageJob(2, 6);
+        savingForTheft = (mSabotageHints + qTheft->hints > kMaxSabotageHints) && (qPlayer.Money - sabotageJobCost(*qTheft) >= kSabotageCashReserve);
+    }
+    switch (trust) {
+    case 1:
+        plan.emplace_back(0, 1);
+        break;
+    case 2:
+        plan.emplace_back(1, 2);
+        plan.emplace_back(0, 2);
+        break;
+    case 3:
+        plan.emplace_back(0, 3);
+        break;
+    case 4:
+        plan.emplace_back(0, 4);
+        break;
+    case 5:
+        plan.emplace_back(2, 5);
+        break;
+    default:
+        break;
+    }
+    plan.emplace_back(1, 4);
+    if (victimRoutes > 0) {
+        plan.emplace_back(2, 3);
+    }
+    plan.emplace_back(0, 4);
+    plan.emplace_back(0, 3);
+    plan.emplace_back(1, 3);
+    plan.emplace_back(1, 2);
+    plan.emplace_back(1, 1);
+    plan.emplace_back(0, 2);
+    plan.emplace_back(0, 1);
+
+    AT_Log("ClaudeBot::executeSabotage(): Victim %s, trust %ld, hints (own count) %ld, %ld route(s), plane %ld, route to steal %ld%s.",
+           qVictim.AirlineX.c_str(), trust, mSabotageHints, victimRoutes, plane, route, savingForTheft ? ", saving hints for the theft" : "");
+
+    for (const auto &qEntry : plan) {
+        const auto *qJob = findSabotageJob(qEntry.first, qEntry.second);
+        if (qJob == nullptr || qJob->number > trust) {
+            continue;
+        }
+        if (savingForTheft && !qJob->needsRoute && qJob->hints > 0) {
+            continue;
+        }
+        if (mSabotageHints + qJob->hints > kMaxSabotageHints) {
+            continue;
+        }
+        const SLONG cost = sabotageJobCost(*qJob);
+        if (qPlayer.Money - cost < kSabotageCashReserve) {
+            continue;
+        }
+        if ((qJob->needsPlane && plane < 0) || (qJob->needsRoute && route < 0)) {
+            continue;
+        }
+
+        if (GameMechanic::setSaboteurTarget(qPlayer, victim) != victim) {
+            AT_Error("ClaudeBot::executeSabotage(): Cannot select %s as the target.", qVictim.AirlineX.c_str());
+            return;
+        }
+        qPlayer.ArabPlaneSelection = qJob->needsPlane ? plane : (qJob->needsRoute ? route : -1);
+
+        auto res = GameMechanic::checkPrerequisitesForSaboteurJob(qPlayer, qJob->type, qJob->number, FALSE).result;
+        switch (res) {
+        case GameMechanic::CheckSabotageResult::Ok:
+            if (GameMechanic::activateSaboteurJob(qPlayer, FALSE)) {
+                mSabotageHints += qJob->hints;
+                mSabotageJobsOrdered++;
+                AT_Log("ClaudeBot::executeSabotage(): Ordered '%s' against %s for %ld $ (+%ld hints, now %ld; trust now %ld; job #%ld).", qJob->name,
+                       qVictim.AirlineX.c_str(), cost, qJob->hints, mSabotageHints, qPlayer.ArabTrust, mSabotageJobsOrdered);
+            } else {
+                AT_Error("ClaudeBot::executeSabotage(): '%s' passed the check but could not be activated.", qJob->name);
+            }
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedSaboteurBusy:
+            AT_Log("ClaudeBot::executeSabotage(): The saboteur is still busy.");
+            if (!acted) {
+                qPlayer.WorkCountdown = 2;
+            }
+            return;
+        case GameMechanic::CheckSabotageResult::DeniedSecurity:
+            mSecurityBlocked = true;
+            AT_Log("ClaudeBot::executeSabotage(): '%s' is blocked by %s's security.", qJob->name, qVictim.AirlineX.c_str());
+            break;
+        case GameMechanic::CheckSabotageResult::DeniedNoLaptop:
+            AT_Log("ClaudeBot::executeSabotage(): '%s': %s has no laptop.", qJob->name, qVictim.AirlineX.c_str());
+            break;
+        default:
+            AT_Log("ClaudeBot::executeSabotage(): '%s' refused (%ld).", qJob->name, static_cast<SLONG>(res));
+            break;
+        }
+    }
+    AT_Log("ClaudeBot::executeSabotage(): Nothing ordered today.");
+    if (!acted) {
+        qPlayer.WorkCountdown = 2;
+    }
+}
+
+/* The security office: the pliers switch off every airline's protection for three days. */
+void ClaudeBot::executeSecurity() {
+    mVisitedSecurityToday = true;
+    if (qPlayer.HasItem(ITEM_ZANGE) == 0) {
+        qPlayer.WorkCountdown = 2;
+        return;
+    }
+    if (GameMechanic::sabotageSecurityOffice(qPlayer)) {
+        mSecurityBlocked = false;
+        AT_Log("ClaudeBot::executeSecurity(): Knocked out the security office.");
+    }
+}
+
 SLONG ClaudeBot::getNextMood() {
     SLONG mood = mMood;
     mMood = mMoodNext;
@@ -3297,7 +3653,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 107;
+    SLONG savegameVersion = 108;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -3357,6 +3713,15 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     /* mPlanes is deliberately not serialised. It is a pure function of the flight plans,
      * which the game saves itself, and the loader marks it stale so it is rebuilt from them
      * before anything is allowed to read it - so no state is lost. */
+
+    /* version 108: Hurricane */
+    File << bot.mSabotageHints << bot.mSabotageJobsOrdered;
+    File << bot.mVisitedDutyFreeToday << bot.mVisitedArabToday << bot.mVisitedSaboteurToday << bot.mVisitedSecurityToday;
+    File << bot.mSecurityBlocked;
+    File << static_cast<SLONG>(bot.mTheftValues.size());
+    for (const auto &qEntry : bot.mTheftValues) {
+        File << qEntry.first << qEntry.second;
+    }
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -3424,6 +3789,25 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     File >> bot.mWrongRoomCount;
     File >> bot.mBalanceLoggedDay;
     File >> bot.mTicketsYesterday;
+
+    bot.mTheftValues.clear();
+    if (savegameVersion >= 108) {
+        File >> bot.mSabotageHints >> bot.mSabotageJobsOrdered;
+        File >> bot.mVisitedDutyFreeToday >> bot.mVisitedArabToday >> bot.mVisitedSaboteurToday >> bot.mVisitedSecurityToday;
+        File >> bot.mSecurityBlocked;
+        SLONG numTheft = 0;
+        File >> numTheft;
+        for (SLONG i = 0; i < numTheft; i++) {
+            std::pair<SLONG, SLONG> qEntry;
+            File >> qEntry.first >> qEntry.second;
+            bot.mTheftValues.push_back(qEntry);
+        }
+    } else {
+        bot.mSabotageHints = 0;
+        bot.mSabotageJobsOrdered = 0;
+        bot.mVisitedDutyFreeToday = bot.mVisitedArabToday = bot.mVisitedSaboteurToday = bot.mVisitedSecurityToday = false;
+        bot.mSecurityBlocked = false;
+    }
 
     bot.mPlanes.clear();
     bot.mPlaneStateStale = true;
