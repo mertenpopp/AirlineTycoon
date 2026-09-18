@@ -570,6 +570,23 @@ static const SLONG kMaxSabotageHints = 99;
 /* Cash that has to stay on the account after paying the saboteur, so sabotage never takes
  * the money the fleet needs for fuel and the next aeroplane. */
 static const __int64 kSabotageCashReserve = 1500000;
+/* No single job may cost more than this share of the cash on hand.
+ *
+ * The fleet grows by buying the next aeroplane the moment the cash for it is there, and every
+ * aeroplane bought earlier earns and compounds for the rest of the game. A first version paid
+ * 5 million for "ground aeroplane" on day 9 to reach full trust: that delayed the next 25
+ * million aeroplane by a few days, the gap opened between days 15 and 20, and the airline ended
+ * 29.4% below Tycoon (t -57.7, worse in 299/300 games) although sabotage cost it only 5.3 million
+ * in all. Tying the price to the cash on hand lets the cheap jobs run early and holds the
+ * expensive ones back until they no longer slow the fleet down.
+ *
+ * Paired against Tycoon on seed base 0: 5% -4.26% (t -11.8), 1% -1.85% (t -6.5). At 1% a strike
+ * needs 25 million in cash and full trust (the 5 million "ground aeroplane") about 500 million,
+ * so route theft is out of reach within 59 days. What is left of the gap is mostly the 80,000
+ * for ITEM_MG on day 1: early cash compounds. */
+static const __int64 kSabotageMaxCashSharePercent = 1;
+/* Days between two laptop viruses. */
+static const SLONG kVirusEveryDays = 7;
 
 /* Every job the saboteur offers, as RULES.md describes them. `hints` is what the job adds
  * once it is carried out (GameMechanic::executeSabotageMode1-3). */
@@ -753,6 +770,10 @@ void ClaudeBot::startNewDay() {
     mVisitedArabToday = false;
     mVisitedSaboteurToday = false;
     mVisitedSecurityToday = false;
+    /* A victim may drop protection again, and without the pliers we would never find out. */
+    if (Sim.Date % 7 == 0) {
+        mBlockedJobs = 0;
+    }
     /* The saboteur's hints fall by 3 every night (PLAYER::NewDay). */
     mSabotageHints = std::max<SLONG>(0, mSabotageHints - 3);
     /* Flights were flown overnight, so every cached availability is out of date. */
@@ -846,7 +867,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
             } else if (!mVisitedArabToday && canUseAction(ACTION_VISITARAB)) {
                 out.push_back(ACTION_VISITARAB);
             }
-        } else if (!mVisitedSaboteurToday && mSabotageHints < kMaxSabotageHints && qPlayer.Money > kSabotageCashReserve && canUseAction(ACTION_SABOTAGE)) {
+        } else if (!mVisitedSaboteurToday && mSabotageHints < kMaxSabotageHints && qPlayer.Money > kSabotageCashReserve && sabotageVisitWorthIt() &&
+                   canUseAction(ACTION_SABOTAGE)) {
             out.push_back(ACTION_SABOTAGE);
         }
         if (mSecurityBlocked && qPlayer.HasItem(ITEM_ZANGE) != 0 && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY2)) {
@@ -3415,6 +3437,19 @@ SLONG ClaudeBot::schedulePendingFreight() {
 
 bool ClaudeBot::isHurricane() const { return qPlayer.BotLevel == BotDifficultyTBD; }
 
+/* Whether a walk to the saboteur can order anything. While we save hints for a job, the only
+ * thing that could be ordered is the virus, so the walk waits until the saved-for job fits or
+ * the virus is due. Every walk costs an action slot of a working day the economy needs. */
+bool ClaudeBot::sabotageVisitWorthIt() const {
+    if (mSavingForHints <= 0) {
+        return true;
+    }
+    if (mSabotageHints + mSavingForHints <= kMaxSabotageHints) {
+        return true;
+    }
+    return Sim.Date - mLastVirusDay >= kVirusEveryDays;
+}
+
 /* Duty free: buy the item the Arab wants before he lets the saboteur work for us. */
 void ClaudeBot::executeDutyFree() {
     mVisitedDutyFreeToday = true;
@@ -3497,12 +3532,12 @@ SLONG ClaudeBot::pickRouteToSteal(SLONG victim) const {
  *
  * Order of preference:
  *  1. Route theft once the saboteur trusts us fully (6): it takes a route from the victim for
- *     good and hands it to us. While it does not fit under the hint ceiling yet, only jobs
- *     without hints are ordered, so the ceiling comes down to where it fits.
+ *     good and hands it to us.
  *  2. Build trust: a job with the number of the current trust raises it by one.
  *  3. Damage, most harmful first: the strike grounds every aeroplane, the press release
  *     empties the route flights for a day, an engine breakdown halves a route's image.
- * Every candidate has to fit under the hint ceiling and leave the cash reserve. */
+ * Every candidate has to leave the cash reserve, and the first one we could pay for is saved
+ * for if its hints do not fit yet. */
 void ClaudeBot::executeSabotage() {
     mVisitedSaboteurToday = true;
 
@@ -3530,11 +3565,8 @@ void ClaudeBot::executeSabotage() {
     const SLONG victimRoutes = qVictim.Statistiken[STAT_ROUTEN].GetAtPastDay(0);
 
     std::vector<std::pair<SLONG, SLONG>> plan;
-    bool savingForTheft = false;
     if (route >= 0) {
         plan.emplace_back(2, 6);
-        const auto *qTheft = findSabotageJob(2, 6);
-        savingForTheft = (mSabotageHints + qTheft->hints > kMaxSabotageHints) && (qPlayer.Money - sabotageJobCost(*qTheft) >= kSabotageCashReserve);
     }
     switch (trust) {
     case 1:
@@ -3568,26 +3600,48 @@ void ClaudeBot::executeSabotage() {
     plan.emplace_back(0, 2);
     plan.emplace_back(0, 1);
 
-    AT_Log("ClaudeBot::executeSabotage(): Victim %s, trust %ld, hints (own count) %ld, %ld route(s), plane %ld, route to steal %ld%s.",
-           qVictim.AirlineX.c_str(), trust, mSabotageHints, victimRoutes, plane, route, savingForTheft ? ", saving hints for the theft" : "");
+    AT_Log("ClaudeBot::executeSabotage(): Victim %s, trust %ld, hints (own count) %ld, %ld route(s), plane %ld, route to steal %ld.", qVictim.AirlineX.c_str(),
+           trust, mSabotageHints, victimRoutes, plane, route);
 
+    /* The first job we could order - trust, cash and a target permitting - is the one we
+     * want. If its hints do not fit under the ceiling yet, we save for it: only jobs without
+     * hints are ordered until it fits. Ordering whatever fits instead keeps the count pinned
+     * just under the ceiling with small jobs, and the valuable ones never fit at all - a
+     * first game ordered two strikes on days 7 and 8 and then a flat tire every four days. */
+    const SabotageJob *qSavingFor = nullptr;
+    mSavingForHints = 0;
     for (const auto &qEntry : plan) {
         const auto *qJob = findSabotageJob(qEntry.first, qEntry.second);
         if (qJob == nullptr || qJob->number > trust) {
             continue;
         }
-        if (savingForTheft && !qJob->needsRoute && qJob->hints > 0) {
-            continue;
+        const SLONG jobIndex = static_cast<SLONG>(qJob - kSabotageJobs);
+        if ((mBlockedJobs & (1 << jobIndex)) != 0) {
+            continue; /* refused by security; see executeSecurity() */
         }
-        if (mSabotageHints + qJob->hints > kMaxSabotageHints) {
+        /* A second virus does nothing while the first is still on the laptop, and we cannot
+         * see whether it has been cured. */
+        if (qJob->type == 1 && qJob->number == 2 && Sim.Date - mLastVirusDay < kVirusEveryDays) {
             continue;
         }
         const SLONG cost = sabotageJobCost(*qJob);
-        if (qPlayer.Money - cost < kSabotageCashReserve) {
+        if (qPlayer.Money - cost < kSabotageCashReserve || static_cast<__int64>(cost) * 100 > qPlayer.Money * kSabotageMaxCashSharePercent) {
             continue;
         }
         if ((qJob->needsPlane && plane < 0) || (qJob->needsRoute && route < 0)) {
             continue;
+        }
+        if (qSavingFor != nullptr && qJob->hints > 0) {
+            continue;
+        }
+        if (mSabotageHints + qJob->hints > kMaxSabotageHints) {
+            qSavingFor = qJob;
+            mSavingForHints = qJob->hints;
+            AT_Log("ClaudeBot::executeSabotage(): Saving hints for '%s' (%ld needed, %ld in hand).", qJob->name, qJob->hints, kMaxSabotageHints - mSabotageHints);
+            continue;
+        }
+        if (qJob->type == 1 && qJob->number == 2) {
+            mLastVirusDay = Sim.Date;
         }
 
         if (GameMechanic::setSaboteurTarget(qPlayer, victim) != victim) {
@@ -3616,6 +3670,7 @@ void ClaudeBot::executeSabotage() {
             return;
         case GameMechanic::CheckSabotageResult::DeniedSecurity:
             mSecurityBlocked = true;
+            mBlockedJobs |= (1 << jobIndex);
             AT_Log("ClaudeBot::executeSabotage(): '%s' is blocked by %s's security.", qJob->name, qVictim.AirlineX.c_str());
             break;
         case GameMechanic::CheckSabotageResult::DeniedNoLaptop:
@@ -3641,6 +3696,7 @@ void ClaudeBot::executeSecurity() {
     }
     if (GameMechanic::sabotageSecurityOffice(qPlayer)) {
         mSecurityBlocked = false;
+        mBlockedJobs = 0;
         AT_Log("ClaudeBot::executeSecurity(): Knocked out the security office.");
     }
 }
@@ -3653,7 +3709,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 108;
+    SLONG savegameVersion = 110;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -3718,6 +3774,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mSabotageHints << bot.mSabotageJobsOrdered;
     File << bot.mVisitedDutyFreeToday << bot.mVisitedArabToday << bot.mVisitedSaboteurToday << bot.mVisitedSecurityToday;
     File << bot.mSecurityBlocked;
+    /* version 109 */
+    File << bot.mBlockedJobs << bot.mLastVirusDay;
+    /* version 110 */
+    File << bot.mSavingForHints;
     File << static_cast<SLONG>(bot.mTheftValues.size());
     for (const auto &qEntry : bot.mTheftValues) {
         File << qEntry.first << qEntry.second;
@@ -3795,6 +3855,17 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         File >> bot.mSabotageHints >> bot.mSabotageJobsOrdered;
         File >> bot.mVisitedDutyFreeToday >> bot.mVisitedArabToday >> bot.mVisitedSaboteurToday >> bot.mVisitedSecurityToday;
         File >> bot.mSecurityBlocked;
+        if (savegameVersion >= 109) {
+            File >> bot.mBlockedJobs >> bot.mLastVirusDay;
+        } else {
+            bot.mBlockedJobs = 0;
+            bot.mLastVirusDay = -100;
+        }
+        if (savegameVersion >= 110) {
+            File >> bot.mSavingForHints;
+        } else {
+            bot.mSavingForHints = 0;
+        }
         SLONG numTheft = 0;
         File >> numTheft;
         for (SLONG i = 0; i < numTheft; i++) {
@@ -3807,6 +3878,9 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         bot.mSabotageJobsOrdered = 0;
         bot.mVisitedDutyFreeToday = bot.mVisitedArabToday = bot.mVisitedSaboteurToday = bot.mVisitedSecurityToday = false;
         bot.mSecurityBlocked = false;
+        bot.mBlockedJobs = 0;
+        bot.mLastVirusDay = -100;
+        bot.mSavingForHints = 0;
     }
 
     bot.mPlanes.clear();

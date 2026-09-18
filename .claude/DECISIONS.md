@@ -770,3 +770,27 @@ so Tycoon (level 6) is unchanged (smoke test: no Hurricane code runs).
 
 Not measured yet: no script runs level 7. Next: a level-7 smoke test, then check that sabotage
 does not cost the economy too much (paired measurement against Tycoon).
+
+## 2026-09-19 - Hurricane: first measurements and fixes
+
+Paired against Tycoon (level 6), seed base 0, 300 games. Tycoon reference 2.1409e9.
+
+| Hurricane version | vs Tycoon | t | worse in |
+|---|---|---|---|
+| first version (orders whatever fits under the hint ceiling) | not measured | | |
+| save hints for the best affordable job, virus weekly | -29.40% | -57.7 | 299/300 |
+| + no job above 5% of cash | -4.26% | -11.8 | 261/300 |
+| + no walk to the saboteur while saving | -4.58% | -12.7 | 270/300 (neutral, kept) |
+| + no job above 1% of cash | **-1.85%** | -6.5 | 224/300 |
+
+- The -29% came from paying 5M for "ground aeroplane" (trust 5 -> 6) on day 9: it delayed the next
+  25M aeroplane by a few days and the gap opened between days 15 and 20. Sabotage itself cost only
+  5.3M. Early cash compounds; the cap on the share of cash fixes it.
+- The first version kept its hint count pinned at 90-99 with flat tires and never had room for a
+  strike; saving for the first affordable job fixes that (strike every ~13 days).
+- At 1% what remains is mostly the 80,000 for ITEM_MG on day 1.
+- With 1%, full trust needs ~500M cash, so route theft does not happen within 59 days. In the test
+  setup the victim is the idle human, so none of the damage shows up in any number.
+
+Open design question for the user: how much of its own score may Hurricane give up for earlier
+and stronger sabotage (early sabotage hurts a human most).
