@@ -483,7 +483,7 @@ Bot::Prio Bot::condBuyKerosine(__int64 &moneyAvailable) {
 }
 
 Bot::Prio Bot::condBuyKerosineTank(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyTanks;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_BUY_KEROSIN_TANKS, 24)) {
         return Prio::None;
     }
@@ -578,7 +578,7 @@ Bot::Prio Bot::condVisitSaboteur() {
 }
 
 Bot::Prio Bot::condIncreaseDividend(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - kMoneyReserveIncreaseDividend;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_SET_DIVIDEND, 24)) {
         return Prio::None;
     }
@@ -903,7 +903,7 @@ Bot::Prio Bot::condVisitDutyFree(__int64 &moneyAvailable) {
 }
 
 Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - kMoneyReserveBossOffice;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_VISITAUFSICHT, 2)) {
         return Prio::None;
     }
@@ -928,7 +928,7 @@ Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
 }
 
 Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - kMoneyReserveExpandAirport;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_EXPANDAIRPORT, 24)) {
         return Prio::None;
     }
@@ -946,7 +946,7 @@ Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
         return Prio::None;
     }
 
-    if (moneyAvailable >= 0) {
+    if (moneyAvailable >= 1e6) {
         return Prio::Medium;
     }
     return Prio::None;

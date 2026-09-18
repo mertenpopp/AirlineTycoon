@@ -49,15 +49,9 @@ extern const bool kReduceDividend;
 extern const SLONG kMaxSabotageHints;
 
 extern const SLONG kMoneyEmergencyFund;
-extern const SLONG kMoneyReserveRepairs;
-extern const SLONG kMoneyReservePlaneUpgrades;
-extern const SLONG kMoneyReserveBuyTanks;
-extern const SLONG kMoneyReserveIncreaseDividend;
 extern const SLONG kMoneyReservePaybackCredit;
 extern const SLONG kMoneyReserveBuyOwnShares;
 extern const SLONG kMoneyReserveBuyNemesisShares;
-extern const SLONG kMoneyReserveBossOffice;
-extern const SLONG kMoneyReserveExpandAirport;
 extern const SLONG kMoneyReserveSabotage;
 
 extern SLONG kPlaneScoreForceBest;

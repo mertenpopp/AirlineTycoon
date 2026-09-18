@@ -63,15 +63,9 @@ const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
 const SLONG kMoneyEmergencyFund = 0; /* we can go into debt */
-const SLONG kMoneyReserveRepairs = 0;
-const SLONG kMoneyReservePlaneUpgrades = 2500 * 1000;
-const SLONG kMoneyReserveBuyTanks = 200 * 1000;
-const SLONG kMoneyReserveIncreaseDividend = 100 * 1000;
 const SLONG kMoneyReservePaybackCredit = 500 * 1e6;
-const SLONG kMoneyReserveBuyOwnShares = 2000 * 1000;
+const SLONG kMoneyReserveBuyOwnShares = 2 * 1e6;
 const SLONG kMoneyReserveBuyNemesisShares = 80 * 1e6;
-const SLONG kMoneyReserveBossOffice = 0;
-const SLONG kMoneyReserveExpandAirport = 1000 * 1000;
 const SLONG kMoneyReserveSabotage = 200 * 1000;
 
 SLONG kPlaneScoreForceBest = -1;
