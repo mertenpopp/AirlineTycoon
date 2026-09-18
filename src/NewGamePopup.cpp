@@ -2134,7 +2134,11 @@ void NewGamePopup::CheckNetEvents() {
                             TEAKFILE Message;
 
                             Message.Announce(30);
-                            Message << ATNET_SAVGEGAMECHECK << gNetworkSavegameLoading << Sim.GetSavegameUniqueGameId(gNetworkSavegameLoading, true);
+                            /* The version at the end lets the client refuse us, too: a 1.9.0 host never checks the
+                               version of a client rejoining a saved game, so a client has to check its host itself.
+                               Older clients read the first two fields only and ignore the rest. */
+                            Message << ATNET_SAVGEGAMECHECK << gNetworkSavegameLoading << Sim.GetSavegameUniqueGameId(gNetworkSavegameLoading, true)
+                                    << CString(VersionString);
 
                             gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
                         } else {
@@ -2144,9 +2148,13 @@ void NewGamePopup::CheckNetEvents() {
                             /* Both ways in carry the version: rejoining a saved game used to skip
                                this, so two builds that do not speak the same protocol could sit in
                                one game and drift apart without anybody being told. */
+                            /* Builds up to 1.9.0 send ATNET_WANNAJOIN2 without a version. Reading one anyway ran past the
+                               end of the message and threw out of the lobby. A missing version is a different build. */
                             CString Version;
 
-                            Message >> Version;
+                            if (Message.BytesRemaining() > 0) {
+                                Message >> Version;
+                            }
 
                             if (Version.Compare(VersionString) != 0) {
                                 TEAKFILE Message;
@@ -2194,7 +2202,21 @@ void NewGamePopup::CheckNetEvents() {
 
                     Message >> SavegameIndex >> UniqueGameId;
 
-                    if (Sim.GetSavegameUniqueGameId(SavegameIndex, true) == UniqueGameId) {
+                    /* Hosts up to 1.9.0 send no version here and would let us rejoin whatever we are. */
+                    CString HostVersion;
+                    if (Message.BytesRemaining() > 0) {
+                        Message >> HostVersion;
+                    }
+
+                    if (HostVersion.Compare(VersionString) != 0) {
+                        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                        if (pNetworkConnections == nullptr) {
+                            pNetworkConnections = gNetwork.GetConnectionList();
+                        }
+                        gNetwork.StartGetSessionListAsync();
+                        RefreshKlackerField();
+                        MenuStart(MENU_REQUEST, MENU_REQUEST_NET_VERSION);
+                    } else if (Sim.GetSavegameUniqueGameId(SavegameIndex, true) == UniqueGameId) {
                         BOOL bOld = Sim.bNetwork;
                         Sim.bNetwork = 1;
 
