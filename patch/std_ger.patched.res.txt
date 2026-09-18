@@ -1510,46 +1510,86 @@
   D::klassisch
 >NewG
 >>0005002
-  B::casual
-  E::casual
-  F::casual
-  I::casual
-  N::casual
-  O::casual
-  S::casual
-  D::einfach
+  B::laid-back guy
+  E::laid-back guy
+  F::laid-back guy
+  I::laid-back guy
+  N::laid-back guy
+  O::laid-back guy
+  S::laid-back guy
+  D::entspannter Typ
 >NewG
 >>0005003
-  B::normal
-  E::normal
-  F::normal
-  I::normal
-  N::normal
-  O::normal
-  S::normal
-  D::normal
+  B::Challenger
+  E::Challenger
+  F::Challenger
+  I::Challenger
+  N::Challenger
+  O::Challenger
+  S::Challenger
+  D::Herausforderer
 >NewG
 >>0005004
-  B::brutal
-  E::brutal
-  F::brutal
-  I::brutal
-  N::brutal
-  O::brutal
-  S::brutal
-  D::brutal
+  B::Saboteur
+  E::Saboteur
+  F::Saboteur
+  I::Saboteur
+  N::Saboteur
+  O::Saboteur
+  S::Saboteur
+  D::Saboteur
 >NewG
 >>0005005
-  B::Claude
-  E::Claude
-  F::Claude
-  I::Claude
-  N::Claude
-  O::Claude
-  S::Claude
-  D::Claude
+  B::Freight Baron
+  E::Freight Baron
+  F::Freight Baron
+  I::Freight Baron
+  N::Freight Baron
+  O::Freight Baron
+  S::Freight Baron
+  D::Frachtbaron
 >NewG
 >>0005006
+  B::Nemesis
+  E::Nemesis
+  F::Nemesis
+  I::Nemesis
+  N::Nemesis
+  O::Nemesis
+  S::Nemesis
+  D::Nemesis
+>NewG
+>>0005007
+  B::Tycoon
+  E::Tycoon
+  F::Tycoon
+  I::Tycoon
+  N::Tycoon
+  O::Tycoon
+  S::Tycoon
+  D::Tycoon
+>NewG
+>>0005008
+  B::TBD
+  E::TBD
+  F::TBD
+  I::TBD
+  N::TBD
+  O::TBD
+  S::TBD
+  D::TBD
+>NewG
+>>0005009
+  B::TBD
+  E::TBD
+  F::TBD
+  I::TBD
+  N::TBD
+  O::TBD
+  S::TBD
+  D::TBD
+>NewG
+>>0005010
   B::Choose bot level
   E::Choose bot level
   F::Choose bot level

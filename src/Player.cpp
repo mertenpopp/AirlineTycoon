@@ -7150,9 +7150,9 @@ void PLAYER::BroadcastPosition(bool bForce) {
     }
 }
 
-bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > 0); }
-bool PLAYER::IsMertenBot() const { return (Owner == 1) && (BotLevel >= 1) && (BotLevel <= 3); }
-bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= 4); }
+bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > BotDifficultyClassic); }
+bool PLAYER::IsMertenBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyLaidBack) && (BotLevel <= BotDifficultyNemesis); }
+bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyTycoon) && (BotLevel <= BotDifficultyTBD2); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
         return;
@@ -8116,7 +8116,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
     case ROBOT_USE_MUCH_SABOTAGE:
         /* SuperBot: Respects this flag */
         if (IsSuperBot()) {
-            if (BotLevel < 3) {
+            if ((BotLevel != BotDifficultySaboteur) && (BotLevel != BotDifficultyNemesis)) {
                 return false;
             }
         }
@@ -8134,8 +8134,13 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
         break;
     case ROBOT_USE_MUCH_FRACHT:
         /* SuperBot: Respects this flag */
-        if (IsSuperBot() && Sim.Difficulty == DIFF_ADDON03) {
-            return true; /* higher priority also in free freight mission */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON03) {
+                return true; /* higher priority also in free freight mission */
+            }
+            if (BotLevel == BotDifficultyFreightBaron) {
+                return true;
+            }
         }
         pFeatureDesc = "------"
                        "."
@@ -8331,7 +8336,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
     case ROBOT_USE_PETROLAIR:
         /* SuperBot: Respects this flag */
         if (IsSuperBot()) {
-            return (BotLevel > 1);
+            return (BotLevel != BotDifficultyLaidBack);
         }
         pFeatureDesc = "XXXXXX"
                        "!"
@@ -8351,7 +8356,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
     case ROBOT_USE_TANKS:
         /* SuperBot: Respects this flag */
         if (IsSuperBot()) {
-            return (BotLevel > 1);
+            return (BotLevel != BotDifficultyLaidBack);
         }
         pFeatureDesc = "------"
                        "."
@@ -8432,9 +8437,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
         }
         return true;
 
-    /* specialization of computer players. SuperBot ignores all but the first one. */
     case ROBOT_USE_WORKQUICK_2:
-        return (PlayerNum == 2 || (BotLevel > 1));
+        /* SuperBot: Respects this flag */
+        if (IsSuperBot()) {
+            return (BotLevel != BotDifficultyLaidBack);
+        }
+        return (PlayerNum == 2);
+
+    /* specialization of computer players. SuperBot ignores all of these */
     case ROBOT_USE_EXTRA_SABOTAGE:
         return (PlayerNum == 0);
     case ROBOT_USE_SABO_AFFORD_FINE:
