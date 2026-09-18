@@ -287,7 +287,7 @@ void Bot::actionUpgradePlanes() {
     /* plan new plane ugprades until we run out of money */
     auto randOffset = LocalRandom.Rand(planes.size());
     for (SLONG upgradeWhat = 0; upgradeWhat < 8; upgradeWhat++) {
-        auto moneyAvailable = getMoneyAvailable() - kMoneyReservePlaneUpgrades;
+        auto moneyAvailable = getMoneyAvailable();
         if (moneyAvailable < 0) {
             break;
         }
@@ -297,7 +297,7 @@ void Bot::actionUpgradePlanes() {
             CPlane &qPlane = qPlayer.Planes[planes[idx]];
             auto ptPassagiere = qPlane.ptPassagiere;
 
-            moneyAvailable = getMoneyAvailable() - kMoneyReservePlaneUpgrades;
+            moneyAvailable = getMoneyAvailable();
             if (moneyAvailable < 0) {
                 break;
             }
@@ -803,7 +803,7 @@ void Bot::actionBuyKerosineTank(__int64 moneyAvailable) {
             SLONG amount = std::min(3LL, moneyAvailable / TankPrice[i]);
             AT_Log("Bot::actionBuyKerosineTank(): Buying %d times tank type %d", amount, i);
             GameMechanic::buyKerosinTank(qPlayer, i, amount);
-            moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyTanks;
+            moneyAvailable = getMoneyAvailable();
             break;
         }
     }
@@ -1109,7 +1109,7 @@ void Bot::actionVisitMech() {
 
     /* distribute available money for repair extra costs */
     mMoneyReservedForRepairs = 0;
-    auto moneyAvailable = getMoneyAvailable() - kMoneyReserveRepairs;
+    auto moneyAvailable = getMoneyAvailable();
     bool keepGoing = true;
     while (keepGoing && moneyAvailable >= 0) {
         keepGoing = false;
@@ -1121,7 +1121,7 @@ void Bot::actionVisitMech() {
                 GameMechanic::setPlaneTargetZustand(qPlayer, iter.first, qPlane.TargetZustand + 1);
                 keepGoing = true;
                 mMoneyReservedForRepairs += cost;
-                moneyAvailable = getMoneyAvailable() - kMoneyReserveRepairs;
+                moneyAvailable = getMoneyAvailable();
             }
             if (moneyAvailable < 0) {
                 break;
@@ -1214,7 +1214,7 @@ void Bot::actionVisitBoss() {
         }
     }
 
-    auto moneyAvailable = getMoneyAvailable() - kMoneyReserveBossOffice;
+    auto moneyAvailable = getMoneyAvailable();
 
     /* auction for gates */
     for (SLONG c = 0; c < TafelData.ByPositions.size(); c++) {
@@ -1231,7 +1231,7 @@ void Bot::actionVisitBoss() {
 
         if (GameMechanic::bidOnGate(qPlayer, c)) {
             mMoneyReservedForAuctions += qZettel.Preis;
-            moneyAvailable = getMoneyAvailable() - kMoneyReserveBossOffice;
+            moneyAvailable = getMoneyAvailable();
             AT_Log("Bot::actionVisitBoss(): Bidding on gate: %d $", qZettel.Preis);
         }
     }
@@ -1254,7 +1254,7 @@ void Bot::actionVisitBoss() {
 
         if (GameMechanic::bidOnCity(qPlayer, c)) {
             mMoneyReservedForAuctions += qZettel.Preis;
-            moneyAvailable = getMoneyAvailable() - kMoneyReserveBossOffice;
+            moneyAvailable = getMoneyAvailable();
             AT_Log("Bot::actionVisitBoss(): Bidding on city %s: %d $", Cities[qZettel.ZettelId].Name.c_str(), qZettel.Preis);
         }
     }
