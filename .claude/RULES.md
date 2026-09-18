@@ -672,20 +672,54 @@ For now, please do not use these actions.
 Sabotage actions
 ----------------
 
-Use the action IDs ACTION_SABOTAGE or ACTION_VISITSABOTEUR to visit the saboteur room. Only while in this room, the following functions may be called.
+Use the action IDs ACTION_SABOTAGE or ACTION_VISITSABOTEUR to visit the saboteur room. Only while in this room, the following functions may be called. To order a sabotage job, these three functions need to be called in the given order. `qPlayer` always has to be a reference to ClaudeBot's player object.
 
-`SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target)`:
+`SLONG GameMechanic::setSaboteurTarget(PLAYER &qPlayer, SLONG target)`: Pre-selects the competitor identified by player ID `target` as the target for the next sabotage job. No sabotage is ordered yet, this is only a prerequisite for calling the other two functions.
 
-`GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage)`:
+`GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage)`: Check if a sabotage job can be ordered. Use `type` and `number` to specify the sabotage job. `fremdSabotage` always has to be `FALSE`. The returned enum is either `Ok` or the reason why the job cannot be ordered.
 
-`bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage)`:
+`bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage)`: Can be called to activate the previously checked saboteur job if `checkPrerequisitesForSaboteurJob` returned `Ok`. `fremdSabotage` always has to be `FALSE`. Returns true if activated successfully.
 
-For now, please do not use these actions.
+### Sabotage type 0
+
+This category has 5 jobs numbered 1 to 5.
+
+These target a competitor's plane (identified by `ArabPlaneSelection` which shall be written to before `checkPrerequisitesForSaboteurJob` is called). The planes usually have to touch ground again before the saboteur begins to work.
+
+Plane sabotage affects competitor's stock price both short-time and long-term (via `TrustedDividende`), airline image and route image if the plane was flying a route. The competitor automatically pays money for repair. Job 3 also delays the next takeoff of the plane. Note that apart from this, nothing actually happens to the plane, even for the job called "plane crash".
+
+### Sabotage type 1
+
+This category has 4 jobs numbered 1 to 4 and they target the competitor directly.
+
+Job 1 make the competitor sick who has then to run to the bathroom constantly until they use the item `ITEM_TABLETTEN`.
+
+Job 2 puts a virus on the competitor's laptop rendering it unusable until they use the item `ITEM_DISKETTE`.
+
+Job 3 puts a bomb into the competitor's office. This does not hurt them but renders the office unusable for one day.
+
+Job 4 causes a worker's strike which will cause planes to stay grounded until the competitor resolves the strike. Easiest way is using the influence of the drunk guy at Rick's bar.
+
+### Sabotage type 2
+
+This category has 6 jobs numbered 1 to 6.
+
+Job 1 makes customers of the competitor's airline believe they were flying with ClaudeBot. The usual effects that passenger satisfaction has on airline image are applied to ClaudeBot instead for one day.
+
+Job 2 prevents the competitor to make any phone calls for one day. This mainly prevents calling international branches for flight jobs (`TelephoneDown == 1`).
+
+Job 3 massively reduces the passenger count on the competitor's route flights for one day using a fake press release.
+
+Job 4 steals a million from the competitor and transfers it to ClaudeBot's account.
+
+Job 5 grounds the selected airplane for 15 hours.
+
+Job 6 takes the selected route (identified confusingly by `ArabPlaneSelection`) away from the competitor.
 
 Misc rooms
 ----------
 
-The following actions and corresponding rooms do not serve any real purpose. They can be used as default actions to give the player character a more "human" 
+The following actions and corresponding rooms do not serve any real purpose. They can be used as default actions to give the player character a more "human".
 
 Use ACTION_VISITKIOSK to visit the kiosk room.
 
@@ -756,7 +790,7 @@ You have read access to:
 
 ### Player objects (yourself)
 
-You can access everything in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
+You can access the following fields in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
 
 All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`.
 
@@ -764,7 +798,7 @@ All classifications are read-only except where explicitly shown as read/write.
 
 - `Abk`: Abbreviation of airline name.
 - `AnzAktien`: Total number of shares.
-- `ArabPlaneSelection`: ID of target plane selected for sabotage. Can be read and written to while visiting the saboteur.
+- `ArabPlaneSelection`: ID of target plane (or sometimes target route) selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. May always be read.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
@@ -787,6 +821,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted.
 - `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
 - `Money`: Current cash balance.
+- `Name`: Name of the player
 - `OfficeState`: Office usability status.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read.
 - `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
@@ -825,8 +860,11 @@ All classifications are read-only.
 - `Kurse`: The last ten share prices of your own airline. May always be read.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `Name`: Name of the player
 - `OfficeState`: Office usability status. May always be read.
+- `Owner`: Human=0, computer=1, network player=2.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
+- `Planes`: Plane collection (accessing, iterating, reading plane data). Access right is given while in the saboteur room and includes only the fields `CPlane::Name`, `CPlane::TypeId`, `CPlane::Zustand`, `CPlane::Baujahr`, `CPlane::TypeId` and all type-related fields which start matching `CPlane::pt*`. The function `CPlane::CalculatePrice` may be called while in the saboteur room.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
