@@ -14,9 +14,12 @@ There are always four competing airlines:
 ClaudeBot will usually play as "HoneyAirlines" but shall work playing as any airline. The existing scaffolding in ClaudeBot.cpp has a reference called `qPlayer` to the correct `PLAYER` instance. The airline enumeration is found at `qPlayer.AirlineNum`.
 
 Technical details:
-- The field `PLAYER::BotLevel` determines the type of the computer player. `BotLevel == 4` is used for ClaudeBot. The legacy cheating computer player uses `BotLevel = 0`.
-- The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp`, sets `PLAYER::BotLevel` for player "Honey Airlines" to `4` and enables a "batch mode" where the game runs in a fast-forward mode without waiting for human input at any point.
+- The field `PLAYER::BotLevel` determines the type of the computer player. The values 6 to 8 are used for ClaudeBot. The legacy cheating computer player uses `BotLevel = 0`.
+- Use `BotLevel == 6` to implement the "Tycoon", described as a "pure profit machine: fair but relentless".
+- Use `BotLevel == 7` to implement the "Hurricane", described as "Tycoon economy plus sabotage".
+- Do not use `BotLevel == 8` yet.
 - The command line argument "/setbotlevel" can be used with a three digit number. The last digit sets `PLAYER::BotLevel` for the last non-human player, the second-to-last digit for the second-to-last non-human player, and so on. Fewer digits than players leaves the earlier players at 0.
+- The test script uses a command line argument ("/quick") which is evaluted in `Takeoff.cpp` to enable a "batch mode" where the game runs in a fast-forward mode without waiting for human input at any point.
 - The human player (which always must exist for technical reasons) will be determined by the value `OptionLastPlayer` in the `AT.json` game settings in the game directory. Otherwise, it will be determined by `Sim.Options.OptionLastPlayer`.
 
 Testing the game
@@ -351,7 +354,7 @@ Familiarize yourself with the data structures:
 - CRoute
 - CRentRoute
 
-The global array `Routen` contains all available routes and may only be accessed while in the "route box" room.
+The global array `Routen` contains all available routes.
 
 The array `qPlayer.RentRouten` has one instance of `CRentRoute` for each instance of `CRoute` in the global array at the same index. `CRentRoute` contains information regarding the player for the corresponding route, for example, if the player has rented this routes (`CRentRoute::Rang != 0`). This array may only be accessed while in the player's office or while having a functioning laptop.
 
@@ -397,12 +400,9 @@ Only while in this room, the global array `Workers.Workers` may be accessed. Onl
 
 `bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId)`: Hire the worker with the given ID.
 
-
 `bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId)`: Fire the worker with the given ID.
 
-
 `void GameMechanic::increaseAllSalaries(PLAYER &qPlayer)`: Increases salary for all workers by 10%. Also ends any currently ongoing strikes.
-
 
 `void GameMechanic::decreaseAllSalaries(PLAYER &qPlayer)`: Decreases salary for all workers by 10%.
 
@@ -646,7 +646,11 @@ Only after these steps have been completed once, you may call the function `Game
 
 ### Gain saboteur trust
 
-To gain the trust of the saboteur, buy item `ITEM_MG` at the "Duty Free" shop. Give it to the saboteur to gain his trust.
+To gain the trust of the saboteur, buy item `ITEM_MG` at the "Duty Free" shop. Give it to the Arab to gain his trust.
+
+### Sabotage security office
+
+To sabotage the security office, pick up the item `ITEM_ZANGE` at the saboteur. Use it while in the security office by calling `GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer))`.
 
 ### Buy laptop
 
@@ -661,13 +665,37 @@ Security office
 
 Use the action IDs ACTION_VISITSECURITY or ACTION_VISITSECURITY2 to visit the security office. Only while in this room, the following functions may be called.
 
-`bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState)`:
+`bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetState)`: Sets or unsets the protection against some forms of sabotage. `securityType` must be in the range 0 - 8 or 10-11. Use `targetState` to enable or disable protection.
 
-`bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType)`:
+`bool GameMechanic::toggleSecurity(PLAYER &qPlayer, SLONG securityType)`: Toggles the protection against the specified sabotage.
 
-`bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer)`:
+`bool GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer)`: Sabotages the security office to disable protection for all players.
 
-For now, please do not use these actions.
+A player can protect himself from sabotage by buying protection at the security office. However, the security office and all protection for all players can be disabled by a malicious player using the item `ITEM_ZANGE` for three days. There is only one copy of this item per day. Check `Sim.ItemZange` to see if someone has already picked it up.
+
+Use `securityType==0` to protect against type 1 job 1 and type 1 job 3.
+
+Use `securityType==1` to protect against type 1 job 2.
+
+Use `securityType==2` to protect against type 1 job 4.
+
+Use `securityType==3` to protect against type 2 job 4.
+
+Use `securityType==4` to protect against type 2 job 6.
+
+Use `securityType==5` to protect against type 2 job 2 and type 2 job 3.
+
+Use `securityType==6` to protect against type 0 job 1, type 0 job 2 and type 0 job 5.
+
+Use `securityType==7` to protect against type 0 job 3 and type 0 job 4.
+
+Use `securityType==8` to protect against type 2 job 1 and type 2 job 5.
+
+Use `securityType==10` to increase passenger satisfation for first class passengers. `securityType==8` needs to be purchased first.
+
+Use `securityType==11` to increase passenger satisfation for first class passengers. `securityType==10` needs to be purchased first.
+
+Security costs money every day (`CalcSecurityCosts()`, booked as `SecurityKosten`).
 
 Sabotage actions
 ----------------
@@ -679,6 +707,14 @@ Use the action IDs ACTION_SABOTAGE or ACTION_VISITSABOTEUR to visit the saboteur
 `GameMechanic::CheckSabotage GameMechanic::checkPrerequisitesForSaboteurJob(PLAYER &qPlayer, SLONG type, SLONG number, BOOL fremdSabotage)`: Check if a sabotage job can be ordered. Use `type` and `number` to specify the sabotage job. `fremdSabotage` always has to be `FALSE`. The returned enum is either `Ok` or the reason why the job cannot be ordered.
 
 `bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage)`: Can be called to activate the previously checked saboteur job if `checkPrerequisitesForSaboteurJob` returned `Ok`. `fremdSabotage` always has to be `FALSE`. Returns true if activated successfully.
+
+A job's number must not exceed `ArabTrust`. Ordering a job that equals the current `ArabTrust` increases it by 1.
+
+One job at a time: While any job is still running, every new order returns DeniedSaboteurBusy, in all three categories.
+
+### Hints and fines
+
+Each job adds hints when it is carried out. Hints fall by 3 per day. At 100 or more, the boss exposes the saboteur at the next briefing and the saboteur pays `ArabHints × $10,000` to the victim. So type 0 job 5 ("plane crash") always gets you caught.
 
 ### Sabotage type 0
 
@@ -714,7 +750,7 @@ Job 4 steals a million from the competitor and transfers it to ClaudeBot's accou
 
 Job 5 grounds the selected airplane for 15 hours.
 
-Job 6 takes the selected route (identified confusingly by `ArabPlaneSelection`) away from the competitor.
+Job 6 takes the selected route (identified confusingly by `ArabPlaneSelection`) away from the competitor and gives it to ClaudeBot at the victim's rank.
 
 Misc rooms
 ----------
@@ -798,17 +834,20 @@ All classifications are read-only except where explicitly shown as read/write.
 
 - `Abk`: Abbreviation of airline name.
 - `AnzAktien`: Total number of shares.
-- `ArabPlaneSelection`: ID of target plane (or sometimes target route) selected for sabotage. Can be read and written to while visiting the saboteur.
+- `ArabPlaneSelection`: Album index of target plane (or sometimes target route) selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
 - `Auftraege`: List of taken passenger jobs. May always be read.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
-- `BotLevel`: Determines the type of the computer player. ClaudeBot uses `BotLevel = 4`.
+- `BotLevel`: Determines the type of the computer player. ClaudeBot uses the values 6 to 8.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
+- `CalcPlanePropSum()`: Calculates the cost of open plane upgrades.
+- `CalcSecurityCosts()`: Calculates the daily cost of security.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
 - `Frachten`: List of taken freight jobs. May always be read.
 - `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
 - `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_GELD) >= 0`.
+- `GetRoom()`: Returns the current room the player character is in.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
 - `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
@@ -857,15 +896,16 @@ All classifications are read-only.
 - `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `IsOut`: Check if the player is still in the game. May always be read.
-- `Kurse`: The last ten share prices of your own airline. May always be read.
+- `Kurse`: The last ten share prices of this airline. May always be read.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
 - `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
 - `Name`: Name of the player
 - `OfficeState`: Office usability status. May always be read.
-- `Owner`: Human=0, computer=1, network player=2.
+- `Owner`: Human=0, computer=1, network player=2, unclaimed network slot=3.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
-- `Planes`: Plane collection (accessing, iterating, reading plane data). Access right is given while in the saboteur room and includes only the fields `CPlane::Name`, `CPlane::TypeId`, `CPlane::Zustand`, `CPlane::Baujahr`, `CPlane::TypeId` and all type-related fields which start matching `CPlane::pt*`. The function `CPlane::CalculatePrice` may be called while in the saboteur room.
+- `Planes`: Plane collection (accessing, iterating, reading plane data). Access right is given while in the saboteur room and includes only the fields `CPlane::Name`, `CPlane::TypeId`, `CPlane::Zustand`, `CPlane::Baujahr` and all type-related fields which start matching `CPlane::pt*`. The function `CPlane::CalculatePrice` may be called while in the saboteur room.
 - `PlayerNum`: Player number, used as index in many arrays. May always be read.
+- `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
 
@@ -943,7 +983,7 @@ The following may be accessed if the player object is ClaudeBot:
 - `TicketpreisFC`: Price that each first-class passenger has to pay. You may only read this while in the personal office (or using laptop). Change via `GameMechanic`.
 
 The following may be accessed if the player object is a competitor:
-- `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
+- `Rang`: You may only read this value while at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`) or while visiting the saboteur (no spy needed).
 - `RoutenAuslastung` and `RoutenAuslastungBot`: Gives how much the route is being utilized by the competitor in percent of the weekly demand. You may only read this while in the personal office (or using laptop) or at the route box and while having a spy (`qPlayer.HasBerater(BERATERTYP_INFO) > 0`).
 - `Miete`: Monthly rent that needs to be paid for this route. You can always read this value.
 
