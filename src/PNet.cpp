@@ -143,7 +143,11 @@ void PLAYER::NetSynchronizeRoutes() {
                     Rented++;
                 }
             }
-            Message << Rented;
+            /* Which of the player's flights of the day this is after (the count the tank state
+               uses, see NetTankStamp()). A flight booked in the same minute as this message would
+               otherwise be counted twice on a peer that is behind, or undone on one that is
+               ahead. */
+            Message << Rented << qPlayer.NetTankStamp();
 
             for (SLONG d = 0; d < Routen.AnzEntries(); d++) {
                 const CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
