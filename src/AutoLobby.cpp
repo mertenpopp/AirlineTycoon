@@ -18,7 +18,6 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <unistd.h>
 
 #define AT_Log(...) AT_Log_I("AutoLobby", __VA_ARGS__)
 
@@ -106,10 +105,10 @@ void AutoLobbyAbort(const char *Reason, ...) {
     fflush(stdout);
     fflush(stderr);
 
-    /* _exit rather than exit: we are called from a timer callback deep inside the room code,
+    /* std::_Exit rather than exit: we are called from a timer callback deep inside the room code,
        and running the static destructors from here crashes on the way out, which would turn a
        clean "harness gave up" into a segfault the harness has to interpret. */
-    _exit(1);
+    std::_Exit(1);
 }
 
 void AutoLobbyPumpDay() {
@@ -320,9 +319,9 @@ void AutoLobbyPollQuit() {
     if (gQuitAt == 0 || AtGetTime() < gQuitAt) {
         return;
     }
-    /* _exit for the same reason as in AutoLobbyAbort(): the static destructors crash when
+    /* std::_Exit for the same reason as in AutoLobbyAbort(): the static destructors crash when
        run from here, and the harness would read that as a failed run. */
     fflush(stdout);
     fflush(stderr);
-    _exit(0);
+    std::_Exit(0);
 }
