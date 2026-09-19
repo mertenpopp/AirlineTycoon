@@ -8125,6 +8125,27 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXXXXXXX"
                        "XXXXXXXXXX";
         break;
+    case ROBOT_USE_EXTRA_SABOTAGE:
+        /* SuperBot: Special sabotage targeting human player */
+        if (IsSuperBot()) {
+            return (BotLevel == BotDifficultyNemesis);
+        }
+        return (PlayerNum == 0);
+    case ROBOT_USE_EXTREME_SABOTAGE:
+        /* SuperBot: Enables special sabotage for certain missions */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07) {
+                return true; /* sabotage also in stock price missions */
+            }
+            if (Sim.Difficulty == DIFF_ADDON04) {
+                return true; /* sabotage also in miles&more mission */
+            }
+        }
+        pFeatureDesc = "------"
+                       "."
+                       "----------"
+                       "---X-X----";
+        break;
     case ROBOT_USE_PAYBACK_CREDIT:
         /* SuperBot: Ignores this flag */
         pFeatureDesc = "------"
@@ -8300,21 +8321,6 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------"
                        "--X-------";
         break;
-    case ROBOT_USE_EXTREME_SABOTAGE:
-        /* SuperBot: Enables special sabotage for certain missions */
-        if (IsSuperBot()) {
-            if (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07) {
-                return true; /* sabotage also in stock price missions */
-            }
-            if (Sim.Difficulty == DIFF_ADDON04) {
-                return true; /* sabotage also in miles&more mission */
-            }
-        }
-        pFeatureDesc = "------"
-                       "."
-                       "----------"
-                       "---X-X----";
-        break;
     case ROBOT_USE_SECURTY_OFFICE:
         /* SuperBot: Necessary to use security office at all */
         if (IsSuperBot()) {
@@ -8450,8 +8456,6 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
         return (PlayerNum == 2);
 
     /* specialization of computer players. SuperBot ignores all of these */
-    case ROBOT_USE_EXTRA_SABOTAGE:
-        return (PlayerNum == 0);
     case ROBOT_USE_SABO_AFFORD_FINE:
         return (PlayerNum == 1);
     case ROBOT_USE_MILD_SABOTAGE:

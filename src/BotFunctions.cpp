@@ -75,11 +75,18 @@ __int64 Bot::getNemesisScore(SLONG p) const {
             score = qTarget.GetMissionRating();
         }
     }
+
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qTarget.Owner == 0) {
+        /* special sabotage targeting human player */
+        score *= 10;
+    }
+
     return score;
 }
 
 void Bot::determineNemesis() {
     auto nemesisOld = mNemesis;
+
     mNemesis = -1;
     mNemesisScore = INT_MIN;
     auto nemesisSabotaged = std::exchange(mNemesisSabotaged, -1);
@@ -736,21 +743,14 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
         candidates.push_back({SabotageMode::Personal::OfficeBomb, (earlyGame ? 10 : 1)});
         candidates.push_back({SabotageMode::Personal::ProvokeStrike, 5});
         // Special candidates
-        candidates.push_back({SabotageMode::Special::AircraftBrochures, 1});
+        candidates.push_back({SabotageMode::Special::AircraftBrochures, (nemesisHasRoutes ? 1 : 0)});
         candidates.push_back({SabotageMode::Special::CutTelephones, (nemesisManyOffices ? 10 : 0)});
         candidates.push_back({SabotageMode::Special::FalsePressRelease, (nemesisHasRoutes ? 10 : 0)});
         candidates.push_back({SabotageMode::Special::BankHack, (nemesisBroke ? 50 : 5)});
         candidates.push_back({SabotageMode::Special::GroundAircraft, 10});
         candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheftPossible ? 10 : 0)});
 
-        // SLONG hintRemaining = std::max(0, kMaxSabotageHints - mArabHintsTracker);
         for (auto &candidate : candidates) {
-            // if (candidate.mode.getJobHints() > hintRemaining) {
-            //     candidate.weight = 0; /* cannot take this candidate because we would get caught */
-            // }
-            // if (candidate.mode.getJobCost() > moneyAvailable) {
-            //     candidate.weight = 0; /* cannot take this candidate because we do not have enough money */
-            // }
             if (candidate.mode.getJobNumber() > qPlayer.ArabTrust) {
                 candidate.weight = 0; /* cannot take this candidate because we do not have enough trust */
             }
