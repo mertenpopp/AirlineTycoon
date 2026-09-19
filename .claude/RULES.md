@@ -1098,68 +1098,85 @@ The following shall only be used when implementing ClaudeBot for missions instea
 Game missions
 =============
 
-The game has several mission where a specific target has to be met. There are also some rule changes in some missions. Use the function `PLAYER::GetMissionRating()`: to determine how much of the goal has been completed. Analyze `PLAYER::HasWon()` to see the actual win condition for each mission.
+The game has several mission where a specific target has to be met. There are also some rule changes in some missions. Use the function `PLAYER::GetMissionRating()`: to determine how much of the goal has been completed. Analyze `PLAYER::HasWon()` to see the actual win condition for each mission. `GetMissionRating()` returns -1 when the player is out (`IsOut != 0`).
+
+Start money differs in missions: Computer player gets 200,000 in the tutorial, 500,000 in FIRST, 1,000,000 in EASY and every ADDON mission, 3,000,000 in NORMAL and all ATFS, 4,000,000 in HARD, 6,000,000 in FINAL — against 2,000,000 in the free game.
+
+Interest rates differ per mission (`SollZins`/`HabenZins`): 5/5 for the first three missions, 6/4 for NORMAL, 10/3 for HARD, 15/1 for FINAL and all ADDON missions, 15/0 for all ATFS missions.
+
+Some missions end when a player reaches the goal, others run for a set number of days and the player with the highest mission rating wins. The win condition is only evaluated at 09:00 at the supervisor.
+
+`Sim.Difficulty` is -1 for a freegame or for missions equal to a macro starting with "DIFF_".
 
 DIFF_TUTORIAL:
 - Target: Complete 10 regular jobs first
 - No ITEM_POSTKARTE / ITEM_BH / ITEM_DISKETTE / ITEM_DART
 - No access to route box / arab air
 - No access to ads
-- Max. two gates
+- Max. two gates / check-in-halls
+- No freight depot available
 
 DIFF_FIRST:
 - Target: Transport 2500 passengers first
 - No ITEM_DISKETTE / ITEM_DART
 - No access to ads
-- Max. two gates
+- Max. two gates / check-in-halls
+- No freight depot available
 
 DIFF_EASY:
 - Target: Generate a profit of 5 million first
 - Different starting planes
 - No ITEM_DISKETTE / ITEM_DART
 - No access to ads
-- Max. two gates
+- Max. two gates / check-in-halls
+- No freight depot available
 
 DIFF_NORMAL:
-- Target: Connect the cities listed in `Sim.MissionCities` with routes that have 20% utilization at minimum
+- Target: Connect 5 of the 6 cities listed in `Sim.MissionCities` with routes that have more than 20% utilization in each direction at the same time
 - Different starting planes
-- Max. two gates
+- Max. two gates / check-in-halls
 - Higher chance to rent mission cities
+- No freight depot available
 
 DIFF_HARD:
 - Target: Reach an image of 750
+- No freight depot available
 
 DIFF_FINAL:
 - Target: Be first to have bought 10 rocket parts from NASA
 - NASA room is available
 - Telescope room changed
+- No freight depot available
 
 DIFF_ADDON01:
-- Target: Reduce debt to 0
+- Target: Reduce debt to 0 (`PLAYER::Credit == 0` and `PLAYER::Money >= 0`)
+- Note: The lower `GetMissionRating()` here the better. Win condition is `==0`
 - Starts with debt of 10000000
 - All planes Zustand = 60
+- No freight depot available
 
 DIFF_ADDON02:
 - Target: Be first to transport 1000 tons of freight
 - First time freight access
 
 DIFF_ADDON03:
-- Target: Within 21 day, transport the most tons of special freight missions (`CFracht::Praemie == 0`)
+- Target: After 21 days, have transported the most tons of special freight missions (`CFracht::Praemie == 0`)
 - Generating special freight jobs
 
 DIFF_ADDON04:
-- Target: Fly the most miles in 30 days
+- Target: After 30 days, be the one who flew the most miles
 
 DIFF_ADDON05:
-- Target: Be first to reach 150 "service points" (calculated in `GetMissionRating` based on plane upgrades and crew skill level)
+- Target: Be first to reach 151 "service points" (calculated in `GetMissionRating` based on plane upgrades and crew skill level)
 
 DIFF_ADDON06:
-- Target: Highest company value in 21 days
+- Target: Highest company value after 21 days
 - No travel holding
 - Starting image is 300
 
 DIFF_ADDON07
 - Target: Be first to have atleast two planes with maintenance level of 90% or more
+- Note: `GetMissionRating()` returns fleet average maintenance level here
 - All planes Zustand = 35
 
 DIFF_ADDON08
@@ -1167,8 +1184,8 @@ DIFF_ADDON08
 
 DIFF_ADDON09
 - Target: Fly 200 jobs that are automatically added each morning to the planner backlog
-- Game generates job for each player every morning with `CAuftrag::bUhrigFlight == 1`
-- No initial 2 jobs in planner
+- Game generates 5 jobs for each player every morning with `CAuftrag::bUhrigFlight == 1`
+- On day 0: Start with `2 + (PlayerNum & 1)` jobs
 
 DIFF_ADDON10
 - Target: Be first to have bought all 10 space station parts from NASA
@@ -1179,36 +1196,37 @@ DIFF_ATFS01:
 - Target: Be first to have 15 million on the bank account
 
 DIFF_ATFS02:
-- Target: Be first to have 5 planes that have a maintenance level of atleast 90% and have the following upgrades: tires, engines, safety and electronics.
+- Target: Be first to have 5 planes that have a maintenance level of atleast 90% and have the following upgrades at level 2: tires, engines, safety and electronics.
 
 DIFF_ATFS03:
-- Target: Be first to have 4 planes that transport 500 passengers/day each
+- Target: Be first to have at least 4 planes in use and average 500 passengers per plane per day over the previous five days
 
 DIFF_ATFS04:
-- Target: Survive 15 days without becoming a victim of sabotage
+- Target: Survive 15 days without becoming a victim of sabotage and have atleast 5 planes
 
 DIFF_ATFS05:
-- Target: Be first to have three planes that can transport 600 passengers (requires airplane designer)
+- Target: Be first to have three planes that can transport 600 passengers (requires airplane designer: `Planes[d].TypeId == -1`)
 
 DIFF_ATFS06:
-- Target: Survive 15 days without becoming a victim of sabotage
+- Target: Survive 15 days without becoming a victim of sabotage and have atleast 5 planes
 - Additional sabotage missions launched by a third actor
 
 DIFF_ATFS07:
-- Target: Be the first to reach a stock price of 200 while not holding more than 20% of own airline
+- Target: Be the first to reach an average stock price of 200 over the previous 29 days (or game start) while not holding more than 20% of own airline for the previous 30 days
+- Note: `GetMissionRating()` returns the averaged stock price for `bAnderer==false` and number of days where too much stock was held for `bAnderer==true`
 
 DIFF_ATFS08:
-- Target: Be first to have five planes that with `Planes[d].ptVerbrauch * 100 / Planes[d].ptGeschwindigkeit < 500` (requires airplane designer)
+- Target: Be first to have five planes that with `Planes[d].ptVerbrauch * 100 / Planes[d].ptGeschwindigkeit <= 500` (requires airplane designer: `Planes[d].TypeId == -1`)
 
 DIFF_ATFS09:
-- Target: Highest company value in 45 days
+- Target: Highest company value after 45 days
 - Computer gets kerosene tanks
-- Kerosene price manipulations
+- Kerosene price manipulations (entire mission)
 
 DIFF_ATFS10:
-- Target: Highest company value in 60 days
+- Target: Highest company value after 60 days
 - Computer gets kerosene tanks
-- Kerosene price manipulations
+- Kerosene price manipulations (days 3–10 and 35–55)
 - No flight premiums between days 20 - 30.
 - No freight premiums between days 25 - 35.
 - Stock price drops 80% on day 18.
