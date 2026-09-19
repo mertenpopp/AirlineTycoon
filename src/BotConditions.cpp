@@ -244,7 +244,7 @@ Bot::Prio Bot::condCheckTravelAgency() {
 
     Prio prio = Prio::None;
     if (minutesPassed(ACTION_CHECKAGENT2, kCheckTravelAgencyEveryXMinutes)) {
-        auto targetPrio = qPlayer.RobotUse(ROBOT_USE_MUCH_FRACHT) ? Prio::High : Prio::Higher;
+        auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::High : Prio::Higher;
         prio = std::max(prio, targetPrio);
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
@@ -278,7 +278,7 @@ Bot::Prio Bot::condCheckFreight() {
 
     Prio prio = Prio::None;
     if (minutesPassed(ACTION_CHECKAGENT3, kCheckFreightDepotEveryXMinutes)) {
-        auto targetPrio = qPlayer.RobotUse(ROBOT_USE_MUCH_FRACHT) ? Prio::Higher : Prio::High;
+        auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::Higher : Prio::High;
         prio = std::max(prio, targetPrio);
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
@@ -916,7 +916,7 @@ Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
         if (mBossGateAvailable || (mBossNumCitiesAvailable == -1)) { /* there is gate available (or we don't know yet) */
             prio = std::max(prio, Prio::High);
         }
-        if (mBossNumCitiesAvailable > 0 && hoursPassed(ACTION_VISITAUFSICHT, 4)) {
+        if (qPlayer.RobotUse(ROBOT_USE_ABROAD) && (mBossNumCitiesAvailable > 0) && hoursPassed(ACTION_VISITAUFSICHT, 4)) {
             prio = std::max(prio, Prio::Low);
         }
     }

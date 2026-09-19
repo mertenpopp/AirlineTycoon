@@ -7962,14 +7962,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-XXXXXXXXX";
         break;
     case ROBOT_USE_FRACHT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use freight depot at all */
         pFeatureDesc = "------"
                        "X"
                        "-XXXXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_WERBUNG:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use ad agency at all */
         if (IsSuperBot()) {
             return true;
         }
@@ -7986,7 +7986,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_NASA:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use NASA at all (only two missions have this room) */
         pFeatureDesc = "-----X"
                        "."
                        "---------X"
@@ -8000,7 +8000,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use routes at all */
         pFeatureDesc = "---X-X"
                        "X"
                        "----XX-X-X"
@@ -8014,7 +8014,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_FORCEROUTES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Triggers switch to routes at game start */
         pFeatureDesc = "------"
                        "."
                        "-----X----"
@@ -8062,14 +8062,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTEMISSION:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Gives large bonus to route missions and caps max. utilization at 20% */
         pFeatureDesc = "---X--"
                        "."
                        "----------"
                        "----------";
         break;
     case ROBOT_USE_MUCHWERBUNG:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Enables final target run to maximize image */
         pFeatureDesc = "----X-"
                        "."
                        "----------"
@@ -8097,7 +8097,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTEBOX:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use route box at all */
         if (IsSuperBot()) {
             return true;
         }
@@ -8107,14 +8107,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXX-X-XXXX";
         break;
     case ROBOT_USE_ABROAD:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use and buy international branches at all */
         pFeatureDesc = "--XXXX"
                        "X"
                        "XXXXXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_MUCH_SABOTAGE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use sabotage at all */
         if (IsSuperBot()) {
             if ((BotLevel != BotDifficultySaboteur) && (BotLevel != BotDifficultyNemesis)) {
                 return false;
@@ -8133,13 +8133,10 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_MUCH_FRACHT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Large score bonus for freight jobs (takes almost exclusively freight jobs) */
         if (IsSuperBot()) {
             if (Sim.Difficulty == DIFF_ADDON03) {
                 return true; /* higher priority also in free freight mission */
-            }
-            if (BotLevel == BotDifficultyFreightBaron) {
-                return true;
             }
         }
         pFeatureDesc = "------"
@@ -8148,21 +8145,29 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_FREE_FRACHT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Large score bonus for freight jobs with tons==0 (takes almost exclusively these jobs) */
         pFeatureDesc = "------"
                        "."
                        "--X-------"
                        "----------";
         break;
     case ROBOT_USE_RUN_FRACHT:
-        /* SuperBot: Ignores this flag */
+        /* SuperBot: Priorizes freight jobs in RobotPlan() and gives a small score bonus */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON02) {
+                return true; /* higher priority also in freight mission */
+            }
+            if (BotLevel == BotDifficultyFreightBaron) {
+                return true;
+            }
+        }
         pFeatureDesc = "------"
                        "."
                        "--X-------"
                        "----------";
         break;
     case ROBOT_USE_LUXERY:
-        /* SuperBot: Respects this flag, but only to buy more early and for all planes */
+        /* SuperBot: Buys all standard luxury upgrades for ALL planes during final target run */
         pFeatureDesc = "------"
                        "."
                        "----X-----"
@@ -8195,7 +8200,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_HIGHSHAREPRICE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Immediately set dividend to maximum */
         if (PlayerNum == 3 || IsSuperBot()) {
             return true;
         }
@@ -8205,14 +8210,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_WORKQUICK:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Halves WorkCountdown */
         pFeatureDesc = "------"
                        "."
                        "---XXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_GROSSESKONTO:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Immediately starts saving money */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8226,21 +8231,21 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "X---X--X--";
         break;
     case ROBOT_USE_WORKVERYQUICK:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Divides WorkCountdown by 4 */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "-----XXXXX";
         break;
     case ROBOT_USE_ALLRUN:
-        /* SuperBot: Respects this flag (but always runs for high prio actions) */
+        /* SuperBot: Enables running also for low priority actions */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "---------X";
         break;
     case ROBOT_USE_DONTBUYANYSHARES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to buy shares at all */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8275,7 +8280,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-X--------";
         break;
     case ROBOT_USE_NOCHITCHAT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Job agencies (travel, last minute, freight, international) always have at least low priority */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8289,14 +8294,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-X--X--XXX";
         break;
     case ROBOT_USE_SHORTFLIGHTS:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Only picks flights to meet BTARGET_PASSAVG passenger per hour target */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "--X-------";
         break;
     case ROBOT_USE_EXTREME_SABOTAGE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Enables special sabotage for certain missions */
         if (IsSuperBot()) {
             if (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07) {
                 return true; /* sabotage also in stock price missions */
@@ -8311,7 +8316,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "---X-X----";
         break;
     case ROBOT_USE_SECURTY_OFFICE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use security office at all */
         if (IsSuperBot()) {
             if (Sim.Difficulty == DIFF_ATFS04 || Sim.Difficulty == DIFF_ATFS06) {
                 return true; /* need to have 15 days without sabotage */
@@ -8324,7 +8329,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "---X-X-X-X";
         break;
     case ROBOT_USE_MAKLER:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to buy new planes */
         if (IsSuperBot()) {
             return true;
         }
@@ -8334,7 +8339,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXX-X-XXXX";
         break;
     case ROBOT_USE_PETROLAIR:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use petrol air at all (buying kerosene + tanks) */
         if (IsSuperBot()) {
             return (BotLevel != BotDifficultyLaidBack);
         }
@@ -8344,7 +8349,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXX-XX--";
         break;
     case ROBOT_USE_MAX20PERCENT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Bot will never own more than 20% of its own stock */
         if (IsSuperBot()) {
             return (Sim.Difficulty == DIFF_ATFS07);
         }
@@ -8354,7 +8359,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXX-XXXX";
         break;
     case ROBOT_USE_TANKS:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Enables buying tanks */
         if (IsSuperBot()) {
             return (BotLevel != BotDifficultyLaidBack);
         }
@@ -8364,14 +8369,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "--------XX";
         break;
     case ROBOT_USE_DESIGNER:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use designer at all */
         pFeatureDesc = "------"
                        "?"
                        "----------"
                        "---XX-XX--";
         break;
     case ROBOT_USE_DESIGNER_BUY:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Buy designer planes over regular planes */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8438,7 +8443,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
         return true;
 
     case ROBOT_USE_WORKQUICK_2:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Halves WorkCountdown */
         if (IsSuperBot()) {
             return (BotLevel != BotDifficultyLaidBack);
         }

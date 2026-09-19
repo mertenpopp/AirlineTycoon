@@ -1247,6 +1247,9 @@ void Bot::actionVisitBoss() {
         if (qZettel.ZettelId < 0 || qZettel.Player == qPlayer.PlayerNum) {
             continue;
         }
+        if (!qPlayer.RobotUse(ROBOT_USE_ABROAD)) {
+            continue;
+        }
         if (qPlayer.RentCities.RentCities[Cities(qZettel.ZettelId)].Rang != 0) {
             continue;
         }
