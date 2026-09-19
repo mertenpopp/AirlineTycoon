@@ -1101,72 +1101,122 @@ Game missions
 The game has several mission where a specific target has to be met. There are also some rule changes in some missions. Use the function `PLAYER::GetMissionRating()`: to determine how much of the goal has been completed. Analyze `PLAYER::HasWon()` to see the actual win condition for each mission.
 
 DIFF_TUTORIAL:
-    Target: Complete 10 regular jobs first
-    No postcard / cloth / floppy / darts
-    No access to route box / arab air
-    No access to ads
-    Max. two gates
+- Target: Complete 10 regular jobs first
+- No ITEM_POSTKARTE / ITEM_BH / ITEM_DISKETTE / ITEM_DART
+- No access to route box / arab air
+- No access to ads
+- Max. two gates
 
 DIFF_FIRST:
+- Target: Transport 2500 passengers first
+- No ITEM_DISKETTE / ITEM_DART
+- No access to ads
+- Max. two gates
 
 DIFF_EASY:
-    Target: Transport 2500 passengers first
-    Different starting planes
-    No floppy / darts
-    No access to ads
-    Max. two gates
+- Target: Generate a profit of 5 million first
+- Different starting planes
+- No ITEM_DISKETTE / ITEM_DART
+- No access to ads
+- Max. two gates
 
 DIFF_NORMAL:
-    Target: Generate a profit of 5 million first
-    Different starting planes
-    Max. two gates
-    Higher chance to rent mission cities
+- Target: Connect the cities listed in `Sim.MissionCities` with routes that have 20% utilization at minimum
+- Different starting planes
+- Max. two gates
+- Higher chance to rent mission cities
+
+DIFF_HARD:
+- Target: Reach an image of 750
+
+DIFF_FINAL:
+- Target: Be first to have bought 10 rocket parts from NASA
+- NASA room is available
+- Telescope room changed
 
 DIFF_ADDON01:
-
-    All planes Zustand = 60
+- Target: Reduce debt to 0
+- Starts with debt of 10000000
+- All planes Zustand = 60
 
 DIFF_ADDON02:
-
-    First time freight access
+- Target: Be first to transport 1000 tons of freight
+- First time freight access
 
 DIFF_ADDON03:
+- Target: Within 21 day, transport the most tons of special freight missions (`CFracht::Praemie == 0`)
+- Generating special freight jobs
 
-    Generating special freight jobs
+DIFF_ADDON04:
+- Target: Fly the most miles in 30 days
+
+DIFF_ADDON05:
+- Target: Be first to reach 150 "service points" (calculated in `GetMissionRating` based on plane upgrades and crew skill level)
 
 DIFF_ADDON06:
-
-    No travel holding
-    Starting image is 30%
+- Target: Highest company value in 21 days
+- No travel holding
+- Starting image is 300
 
 DIFF_ADDON07
+- Target: Be first to have atleast two planes with maintenance level of 90% or more
+- All planes Zustand = 35
 
-    All planes Zustand = 35
+DIFF_ADDON08
+- Target: Be the first to reach a stock price of 220
 
 DIFF_ADDON09
+- Target: Fly 200 jobs that are automatically added each morning to the planner backlog
+- Game generates job for each player every morning with `CAuftrag::bUhrigFlight == 1`
+- No initial 2 jobs in planner
 
-    Generating Uhrig flights
-    No initial 2 jobs in planner
+DIFF_ADDON10
+- Target: Be first to have bought all 10 space station parts from NASA
+- NASA room is available
+- Telescope room changed
+
+DIFF_ATFS01:
+- Target: Be first to have 15 million on the bank account
+
+DIFF_ATFS02:
+- Target: Be first to have 5 planes that have a maintenance level of atleast 90% and have the following upgrades: tires, engines, safety and electronics.
+
+DIFF_ATFS03:
+- Target: Be first to have 4 planes that transport 500 passengers/day each
+
+DIFF_ATFS04:
+- Target: Survive 15 days without becoming a victim of sabotage
+
+DIFF_ATFS05:
+- Target: Be first to have three planes that can transport 600 passengers (requires airplane designer)
 
 DIFF_ATFS06:
+- Target: Survive 15 days without becoming a victim of sabotage
+- Additional sabotage missions launched by a third actor
 
-    Additional sabotage
+DIFF_ATFS07:
+- Target: Be the first to reach a stock price of 200 while not holding more than 20% of own airline
 
-DIFF_ATFS09 / DIFF_ATFS10:
+DIFF_ATFS08:
+- Target: Be first to have five planes that with `Planes[d].ptVerbrauch * 100 / Planes[d].ptGeschwindigkeit < 500` (requires airplane designer)
 
-    Computer gets kerosene tanks
-    Kerosene price manipulations
+DIFF_ATFS09:
+- Target: Highest company value in 45 days
+- Computer gets kerosene tanks
+- Kerosene price manipulations
 
 DIFF_ATFS10:
-
-    No flight premiums between days 20 - 30.
-    No freight premiums between days 25 - 35.
-    Stock price drops 80% on day 18.
-    Image drops by 20% on day 55.
-    Random plane lost on day 40.
-    All planes damaged by 40% on day 35.
-    All workers made unhappy by 45% on day 20 and day 45.
-    No used planes between days 40 and 50.
+- Target: Highest company value in 60 days
+- Computer gets kerosene tanks
+- Kerosene price manipulations
+- No flight premiums between days 20 - 30.
+- No freight premiums between days 25 - 35.
+- Stock price drops 80% on day 18.
+- Image drops by 20% on day 55.
+- Random plane lost on day 40.
+- All planes damaged by 40% on day 35.
+- All workers made unhappy by 45% on day 20 and day 45.
+- No used planes between days 40 and 50.
 
 
 Notes regarding code base
