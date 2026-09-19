@@ -602,7 +602,18 @@ void NewGamePopup::RefreshKlackerField() {
 
             KlackerTafel.PrintAt(6, c * 2 + 2, (LPCTSTR)qPlayer.Name);
             if (qPlayer.Owner == 1) {
-                qPlayer.BotLevel = std::min(qPlayer.BotLevel, (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax));
+                /* Only where the level is chosen. A network client learns the level from the host
+                   (ATNET_BOTSELECT) and does not know the mission yet: clamping by its own, left over
+                   Sim.Difficulty made it run a different bot than the host. */
+                if (PageNum != PAGE_TYPE::SELECT_BOT_NETWORK || bThisIsSessionMaster) {
+                    const SLONG MaxLevel = MaxBotLevel();
+                    if (qPlayer.BotLevel > MaxLevel) {
+                        qPlayer.BotLevel = MaxLevel;
+                        if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
+                            SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
+                        }
+                    }
+                }
                 KlackerTafel.PrintAt(6, c * 2 + 3, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel)); // Difficulty level of bot
             } else {
                 KlackerTafel.PrintAt(6, c * 2 + 3, StandardTexte.GetS(TOKEN_NEWGAME, 5000));
@@ -760,6 +771,16 @@ void NewGamePopup::RefreshKlackerField() {
     {
         KlackerTafel.PrintAt(12 - (strlen(StandardTexte.GetS(TOKEN_NEWGAME, 530)) - 3) / 2, 8, StandardTexte.GetS(TOKEN_NEWGAME, 530)); // Zurück
     }
+}
+
+//--------------------------------------------------------------------------------------------
+// Highest bot level that can be chosen for the game being set up: ClaudeBot only plays the
+// free game. A network game takes its mission from the session page (SessionMissionID) and
+// only sets Sim.Difficulty when it starts, so Sim.Difficulty may still hold an earlier game's.
+//--------------------------------------------------------------------------------------------
+SLONG NewGamePopup::MaxBotLevel() const {
+    const SLONG Difficulty = (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) ? MissionValues[SessionMissionID] : SLONG(Sim.Difficulty);
+    return (Difficulty == DIFF_FREEGAME) ? BotDifficultyMaxFreegame : BotDifficultyMax;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1707,7 +1728,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                         auto &qPlayer = Sim.Players.Players[c];
                         if (qPlayer.Owner == 1) {
                             qPlayer.BotLevel += 1;
-                            if (qPlayer.BotLevel > (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax)) {
+                            if (qPlayer.BotLevel > MaxBotLevel()) {
                                 qPlayer.BotLevel = 0;
                             }
                             SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
@@ -2060,7 +2081,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
                 if (qPlayer.Owner == 1) {
                     qPlayer.BotLevel -= 1;
                     if (qPlayer.BotLevel < 0) {
-                        qPlayer.BotLevel = (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax);
+                        qPlayer.BotLevel = MaxBotLevel();
                     }
                     SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                 }
