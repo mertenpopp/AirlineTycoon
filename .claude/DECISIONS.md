@@ -818,3 +818,60 @@ formats 202/203/204 (scripts/run_loadtest.sh), five 3-day network games (harness
 Nemesis, Tycoon and Hurricane, strikes and room actions. Fixed: harness exit crash, /load, classic
 bot share purchases, stock dry-run logging, network version for preview peers, route usage /
 route image / airline image syncs racing flights booked in the same minute.
+
+## 2026-09-20 - Mission sweep with ClaudeBot (level 666)
+
+All 26 missions x 7 bot levels (classic, the five MertenBot levels, Tycoon), seed 1,
+`scripts/run_missions.sh 000 111 222 333 444 555 666`. Missions won, of 26:
+
+| level | won | median day | games with no result |
+|---|---|---|---|
+| classic | 19 | 53 | 6 |
+| LaidBack | 21 | 45 | 5 |
+| Challenger | 22 | 34 | 4 |
+| Saboteur | 22 | 33 | 4 |
+| FreightBaron | **25** | 35 | 1 |
+| Nemesis | 24 | 34 | 2 |
+| Tycoon (ClaudeBot) | **12** | 184 | 13 |
+
+MertenBot wins clearly, as expected. ClaudeBot has no mission logic, and half its games never
+end: it plays on for hundreds or thousands of days without reaching the goal or going bankrupt.
+
+Found and fixed (ClaudeBot.cpp):
+- **Crash, mission 11.** ClaudeBot planned ACTION_CHECKAGENT3 because
+  `Helper::checkRoomOpen()` only tests the mission number, but the freight depot is gated by
+  `ROBOT_USE_FRACHT` (off for missions 0-5 and 11) and in Sanierung the hall is not in the
+  airport at all. The walk target lookup then throws `ExcNever` out of
+  `GetRandomTypedRune(RUNE_2SHOP, ROOM_FRACHT)` and aborts the process (SIGABRT, day 0).
+  MertenBot is safe because `condCheckFreight()` checks the flag.
+  `canUseAction()` now checks `ROBOT_USE_FRACHT` and, generally, `DoesRuneExist(RUNE_2SHOP,
+  room)` - the same guard the classic bot uses for NASA and the telescope. The latent case was
+  ACTION_VISITTELESCOPE, which maps to ROOM_RUSHMORE outside two missions.
+- **`takeOutCredit(): Invalid amount`**, 11 times. `executeBank()` borrowed
+  `CalcCreditLimit()` whenever it was `> 0`, but the game refuses anything below 1000.
+
+Both are no-ops in the free game (freight is enabled, every room exists, the limit is never a
+handful of dollars), and a smoke test confirms all 16 actions still execute. Mission 11 now
+runs past day 327 with no exception.
+
+Not fixed, reported only:
+- **ClaudeBot cannot bootstrap without routes.** `collectGaps()` only yields a window bounded
+  by a *following* flight, so a plane with an empty flight plan has no window and no job can
+  ever be placed. In mission 0 (tutorial, 10 orders, the easiest mission in the game) the route
+  box is closed, so ClaudeBot took 0 jobs in 76,590 agency visits over 2553 days and idled at
+  the kiosk. The same hole would stop it recovering in a free game that lost all its routes.
+- **Crew shortage churns the scheduler.** ~180,000 `_planFlightJob(): does not have enough crew
+  members` across 10 games: HR hiring lags fleet growth (e.g. 194 attendants against 200
+  needed), and the scheduler keeps offering jobs to under-crewed planes instead of skipping
+  them. Starts as early as day 89 with a 50-plane fleet.
+- ClaudeBot never visits the Last Minute counter (no ACTION_CHECKAGENT1 anywhere).
+
+MertenBot warnings seen, for the record: `actionSabotage(): Cannot determine sabotage mode`
+(9x, levels 333/555), `checkPlaneLists(): We lost the plane with ID` (mission 50, all levels),
+`condAll(): Default case should not be reached` (1x, level 111), `_planFlightJob(): Invalid day
+(too early, 174)` with `planRouteJob returned error` (level 222, missions 44/46, both past day
+150). Classic bot only: `buyStock(): Player cannot afford` (30x) and `Tried to book flight
+twice` (11x, mission 3).
+
+Next: decide whether ClaudeBot should get a route-free bootstrap (open-tail window with a
+forced return leg) - it is the one change that would also protect the free game.
