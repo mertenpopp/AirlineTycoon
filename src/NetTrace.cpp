@@ -165,7 +165,7 @@ void NetTraceFingerprint(const char *When) {
         const bool bDetail = (gNetTraceLevel >= 2);
         std::string PlanesText;
         std::string RoutesText;
-        char One[80];
+        char One[120];
 
         SLONG Routes = 0;
         for (SLONG d = 0; d < qPlayer.RentRouten.RentRouten.AnzEntries(); d++) {
@@ -175,14 +175,17 @@ void NetTraceFingerprint(const char *When) {
             FpRoute.Add(qRoute.RoutenAuslastung);
             FpRoute.Add(qRoute.Ticketpreis);
             FpRoute.Add(qRoute.TicketpreisFC);
+            FpRoute.Add(qRoute.Image);
+            FpRoute.Add(qRoute.LastFlown);
             if (qRoute.Rang > 0) {
                 Routes++;
             }
             if (bDetail && (qRoute.Rang > 0 || qRoute.Auslastung > 0 || qRoute.RoutenAuslastung > 0)) {
                 /* The values themselves rather than a hash of them: which one differs says which
-                   code changed it. rank/usage/route usage/price/price FC */
-                snprintf(One, sizeof(One), "%ld:%ld/%ld/%ld/%ld/%ld,", static_cast<long>(d), static_cast<long>(qRoute.Rang), static_cast<long>(qRoute.Auslastung),
-                         static_cast<long>(qRoute.RoutenAuslastung), static_cast<long>(qRoute.Ticketpreis), static_cast<long>(qRoute.TicketpreisFC));
+                   code changed it. rank/usage/route usage/price/price FC/image/last flown */
+                snprintf(One, sizeof(One), "%ld:%ld/%ld/%ld/%ld/%ld/%ld/%ld,", static_cast<long>(d), static_cast<long>(qRoute.Rang), static_cast<long>(qRoute.Auslastung),
+                         static_cast<long>(qRoute.RoutenAuslastung), static_cast<long>(qRoute.Ticketpreis), static_cast<long>(qRoute.TicketpreisFC),
+                         static_cast<long>(qRoute.Image), static_cast<long>(qRoute.LastFlown));
                 RoutesText += One;
             }
         }
@@ -251,6 +254,18 @@ void NetTraceFingerprint(const char *When) {
                 PlanePlan.Add(qFlight.Startdate);
                 PlanePlan.Add(qFlight.Startzeit);
                 PlanePlan.Add(qFlight.Gate);
+                /* What the passengers of a flight follow from, and the passengers themselves: every
+                   peer works them out again each hour until shortly before the start. */
+                FpPlane.Add(qFlight.HoursBefore);
+                FpPlane.Add(qFlight.Passagiere);
+                FpPlane.Add(qFlight.PassagiereFC);
+                FpPlane.Add(qFlight.Ticketpreis);
+                FpPlane.Add(qFlight.TicketpreisFC);
+                PlanePlan.Add(qFlight.HoursBefore);
+                PlanePlan.Add(qFlight.Passagiere);
+                PlanePlan.Add(qFlight.PassagiereFC);
+                PlanePlan.Add(qFlight.Ticketpreis);
+                PlanePlan.Add(qFlight.TicketpreisFC);
             }
             if (bDetail) {
                 snprintf(One, sizeof(One), "%ld:%08lx/%08lx,", static_cast<long>(d), static_cast<unsigned long>(PlaneEquipment.Get()),
