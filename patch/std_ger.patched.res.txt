@@ -1299,6 +1299,15 @@
 // Jobs
 //
 >Jobs
+>>0002001
+  B::Consultor de funcionários
+  E::Staff advisor
+  F::Conseillère ressources humaines
+  I::Consulente del personale
+  N::Personeelsadviseur
+  O::Conselheira de pessoal
+  S::Asesora de personal
+  D::Personalberaterin
 >>0002003
   B::Consultor de rotas
   E::Route advisor
@@ -1399,6 +1408,22 @@
   O::Devido a uma falha de energia, o Escritório de Segurança está atualmente fechado.
   S::Debido a un corte de energía, la Oficina de Seguridad está actualmente cerrada.
   D::Wegen Stromausfall ist das Security Office derzeit geschlossen.
+>>0004160   // D-Deutsch
+  D::# Sprache          : DE
+>>0004161   // E-Englisch
+  E::# Language         : EN
+>>0004162   // F-Französisch
+  F::# Langue           : FR
+>>0004165   // N-Niederländisch
+  N::# Taal             : NL
+>>0004166   // I-Italienisch
+  I::# Lingua           : IT
+>>0004167   // S-Spanisch
+  S::# Idioma            : ES
+>>0004168   // O-Portugiesisch
+  O::# Língua           : PO
+>>0004169   // B-Brasilianisch (Fremdproduktion)
+  B::# Língua           : BR
 
 //
 // Tank
@@ -1485,36 +1510,86 @@
   D::klassisch
 >NewG
 >>0005002
-  B::casual
-  E::casual
-  F::casual
-  I::casual
-  N::casual
-  O::casual
-  S::casual
-  D::einfach
+  B::laid-back guy
+  E::laid-back guy
+  F::laid-back guy
+  I::laid-back guy
+  N::laid-back guy
+  O::laid-back guy
+  S::laid-back guy
+  D::entspannter Typ
 >NewG
 >>0005003
-  B::normal
-  E::normal
-  F::normal
-  I::normal
-  N::normal
-  O::normal
-  S::normal
-  D::normal
+  B::Challenger
+  E::Challenger
+  F::Challenger
+  I::Challenger
+  N::Challenger
+  O::Challenger
+  S::Challenger
+  D::Herausforderer
 >NewG
 >>0005004
-  B::brutal
-  E::brutal
-  F::brutal
-  I::brutal
-  N::brutal
-  O::brutal
-  S::brutal
-  D::brutal
+  B::Saboteur
+  E::Saboteur
+  F::Saboteur
+  I::Saboteur
+  N::Saboteur
+  O::Saboteur
+  S::Saboteur
+  D::Saboteur
 >NewG
 >>0005005
+  B::Freight Baron
+  E::Freight Baron
+  F::Freight Baron
+  I::Freight Baron
+  N::Freight Baron
+  O::Freight Baron
+  S::Freight Baron
+  D::Frachtbaron
+>NewG
+>>0005006
+  B::Nemesis
+  E::Nemesis
+  F::Nemesis
+  I::Nemesis
+  N::Nemesis
+  O::Nemesis
+  S::Nemesis
+  D::Nemesis
+>NewG
+>>0005007
+  B::Tycoon
+  E::Tycoon
+  F::Tycoon
+  I::Tycoon
+  N::Tycoon
+  O::Tycoon
+  S::Tycoon
+  D::Tycoon
+>NewG
+>>0005008
+  B::Hurricane
+  E::Hurricane
+  F::Hurricane
+  I::Hurricane
+  N::Hurricane
+  O::Hurricane
+  S::Hurricane
+  D::Hurricane
+>NewG
+>>0005009
+  B::TBD
+  E::TBD
+  F::TBD
+  I::TBD
+  N::TBD
+  O::TBD
+  S::TBD
+  D::TBD
+>NewG
+>>0005010
   B::Choose bot level
   E::Choose bot level
   F::Choose bot level

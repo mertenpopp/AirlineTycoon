@@ -95,6 +95,7 @@ class NewGamePopup : public CStdRaum {
     void Konstruktor(BOOL bHandy, SLONG PlayerNum);
     void RefreshKlackerField(void);
     void CheckNames(void);
+    SLONG MaxBotLevel() const;
     static void PushNames(void);
     static void PushName(SLONG n);
 
@@ -113,6 +114,8 @@ class NewGamePopup : public CStdRaum {
     virtual void OnPaint();
     virtual void OnLButtonDown(UINT nFlags, CPoint point);
     void CheckNetEvents();
+    void AutoLobbyPump();
+    void PumpLobbyNetwork();
     virtual void OnTimer(UINT nIDEvent);
     virtual void OnRButtonDown(UINT nFlags, CPoint point);
     virtual void OnChar(UINT nChar, UINT nRepCnt, UINT nFlags);

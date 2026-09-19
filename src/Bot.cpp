@@ -29,33 +29,45 @@ template <class... Types> void AT_Info(Types... args) { Hdu.HercPrintfMsg(SDL_LO
 template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...); }
 
 const bool kAlwaysReplan = true;
+const SLONG kCallInternationalEveryXMinutes = 15;
+const SLONG kCallInternationalHandyEveryXMinutes = 5;
+const SLONG kCheckTravelAgencyEveryXMinutes = 30;
+const SLONG kCheckLastMinuteEveryXMinutes = 60;
+const SLONG kCheckFreightDepotEveryXMinutes = 60;
+const SLONG kFrequencyRouteStrategy = 1;
+
 const SLONG kSmallestAdCampaign = 4;
-const SLONG kMinimumImage = -4;
-const SLONG kRouteAvgDays = 3;
+const SLONG kMinimumImage = -100;
+const SLONG kImageRefillTarget = 1000;
+const SLONG kImagePaybackDays = 20;
+const bool kAirlineImageAnyStep = true;
+const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
 const SLONG kMaximumPlaneUtilization = 70;
-const DOUBLE kDefaultTicketPriceFactor = 3.5;
+const DOUBLE kTicketPriceFactor = 1.90; /* relative to what the game considers a "high" flight cost */
+const DOUBLE kTicketPriceFactorFC = 2.85;
+const DOUBLE kTicketPriceKeepMin = 1.60; /* threshold, because increasing ticket price resets HoursBefore */
+const DOUBLE kTicketPriceKeepMax = 1.98;
 const SLONG kTargetEmployeeHappiness = 90;
-const SLONG kMinimumEmployeeSkill = 70;
+const SLONG kMinimumEmployeeSkill = 50;
+const SLONG kTargetEmployeeSkill = 70;
 const SLONG kPlaneMinimumZustand = 90;
 const SLONG kPlaneTargetZustand = 100;
+const SLONG kPlaneLuxuryTarget = 0;
+const SLONG kPlaneLuxuryTargetLateGame = 2;
+const SLONG kPlaneFoodTarget = 2;
 const SLONG kUsedPlaneMinimumScore = 40;
 const SLONG kNumRoutesStartBuyingTanks = 3;
 const SLONG kStockEmissionMode = 2;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
-const SLONG kMoneyEmergencyFund = 100000;
-const SLONG kMoneyReserveRepairs = 0;
-const SLONG kMoneyReservePlaneUpgrades = 2500 * 1000;
-const SLONG kMoneyReserveBuyTanks = 200 * 1000;
-const SLONG kMoneyReserveIncreaseDividend = 100 * 1000;
-const SLONG kMoneyReservePaybackCredit = 1500 * 1000;
-const SLONG kMoneyReserveBuyOwnShares = 2000 * 1000;
-const SLONG kMoneyReserveBuyNemesisShares = 80 * 1e6;
-const SLONG kMoneyReserveBossOffice = 0;
-const SLONG kMoneyReserveExpandAirport = 1000 * 1000;
-const SLONG kMoneyReserveSabotage = 200 * 1000;
+const __int64 kMoneyEmergencyFund = 0; /* we can go into debt */
+const __int64 kMoneyReservePaybackCredit = 500 * 1e6;
+const __int64 kMoneyReserveBuyOwnShares = 2 * 1e6;
+const __int64 kMoneyReserveBuyNemesisShares = 80 * 1e6;
+const __int64 kMoneyReserveSabotage = 200 * 1000;
+const __int64 kPlaneCashReserve = 800000;
 
 SLONG kPlaneScoreForceBest = -1;
 
@@ -86,7 +98,7 @@ const char *Bot::getPrioName(SLONG prio) { return getPrioName(static_cast<Bot::P
 
 Bot::Bot(PLAYER &player) : qPlayer(player) {}
 
-void Bot::RobotInit() {
+void Bot::RobotInit(SLONG randomSeed) {
     auto balance = qPlayer.BilanzWoche.Hole();
     AT_Info("Bot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
@@ -105,7 +117,8 @@ void Bot::RobotInit() {
         AT_Log("Bot::RobotInit(): First run.");
 
         /* random source */
-        LocalRandom.SRand(qPlayer.WaitWorkTill);
+        LocalRandom.SRand(randomSeed);
+        mSabotageSeed = LocalRandom.getRandInt(0, INT32_MAX); /* unsigned, overflow safe */
 
         /* starting planes */
         for (SLONG i = 0; i < qPlayer.Planes.AnzEntries(); i++) {
@@ -127,7 +140,7 @@ void Bot::RobotInit() {
             mItemPills = -1;      /* item not available */
             mItemAntiStrike = -1; /* item not available */
         }
-        if (Sim.Difficulty <= DIFF_FIRST) {
+        if (Sim.Difficulty == DIFF_TUTORIAL || Sim.Difficulty == DIFF_FIRST) {
             mItemAntiVirus = -1; /* item not available */
         }
 
@@ -175,10 +188,9 @@ void Bot::RobotInit() {
 
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
-        if (qPlayer.BotLevel <= 2) {
+        if (qPlayer.BotLevel <= BotDifficultyLaidBack) {
             mOptions.kMaxTicketPriceFactor = std::min(2.0, mOptions.kMaxTicketPriceFactor);
-            mOptions.kSchedulingMinScoreRatio = std::min(5.0F, mOptions.kSchedulingMinScoreRatio);
-            mOptions.kSchedulingMinScoreRatioLastMinute = std::min(5.0F, mOptions.kSchedulingMinScoreRatioLastMinute);
+            mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatio / 10.0F;
             mOptions.kMaxKerosinQualiZiel = std::min(1.0, mOptions.kMaxKerosinQualiZiel);
         }
 
@@ -193,7 +205,15 @@ void Bot::RobotInit() {
 
     /* action economy */
     mLastTimeInRoom.clear();
-    mNumActionsToday = 0;
+    if ((Sim.Date > 1) && (Sim.bNetwork == 0 || Sim.bIsHost != 0)) {
+        AT_Log("Bot::RobotInit(): Executed %d %s, %d %s, %d %s, %d %s, %d %s, %d %s actions", mActionCounter[Prio::Top], getPrioName(Prio::Top),
+               mActionCounter[Prio::Higher], getPrioName(Prio::Higher), mActionCounter[Prio::High], getPrioName(Prio::High), mActionCounter[Prio::Medium],
+               getPrioName(Prio::Medium), mActionCounter[Prio::Low], getPrioName(Prio::Low), mActionCounter[Prio::Lowest], getPrioName(Prio::Lowest));
+        if ((mActionCounter[Prio::Low] == 0) || (mActionCounter[Prio::Lowest] == 0)) {
+            AT_Error("Bot::RobotInit(): Did not run any low prio actions last day, workload problem?");
+        }
+    }
+    mActionCounter.clear();
 
     /* strategy state */
     mBestUsedPlaneIdx = -1;
@@ -204,25 +224,34 @@ void Bot::RobotInit() {
     mBossNumCitiesAvailable = -1;
     mBossGateAvailable = false;
 
+    /* crew */
+    mQualifiedCrewForHire = 0;
+
     /* items */
     mIsSickToday = false;
 
-    RobotPlan();
+    /* Only the host plans and acts for a bot (PLAYER::RobotPlan() says the same). Planning is not
+       free of side effects: judging whether the laptop can be used puts in the floppy disk against
+       a virus, and a sick bot takes its pills. A client that planned here as well used the bot's
+       floppy disk in the night, while the host used it the next day. */
+    if (Sim.bNetwork == 0 || Sim.bIsHost != 0) {
+        RobotPlan();
+    }
     AT_Log("Bot.cpp: Leaving RobotInit()");
 }
 
 void Bot::RobotPlan() {
     if (mFirstRun) {
         AT_Error("Bot::RobotPlan(): Bot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("Bot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
     }
 
     if (mIsSickToday && qPlayer.HasItem(ITEM_TABLETTEN)) {
-        GameMechanic::useItem(qPlayer, ITEM_TABLETTEN);
-        AT_Log("Bot::RobotPlan(): Cured sickness using item pills");
-        mIsSickToday = false;
+        if (useItem(ITEM_TABLETTEN)) {
+            mIsSickToday = false;
+        }
     }
 
     auto &qRobotActions = qPlayer.RobotActions;
@@ -241,6 +270,8 @@ void Bot::RobotPlan() {
         AT_Log("Bot.cpp: Leaving RobotPlan() (actions already planned)\n");
         return;
     }
+
+    routesRecalcNextStep();
 
     auto &qFirstAction = qRobotActions[1];
     auto &qSecondAction = qRobotActions[2];
@@ -293,7 +324,7 @@ void Bot::RobotPlan() {
                 qAction.walkingDistance);
     }*/
 
-    auto threshNoRun = (qPlayer.BotLevel >= 3 ? Prio::Low : (qPlayer.BotLevel >= 2 ? Prio::Medium : Prio::Top));
+    auto threshNoRun = (qPlayer.BotLevel > BotDifficultyLaidBack ? Prio::Low : Prio::Top);
 
     qFirstAction.ActionId = prioList[0].actionId;
     qFirstAction.Running = (prioList[0].prio > threshNoRun);
@@ -318,7 +349,7 @@ void Bot::RobotPlan() {
 void Bot::RobotExecuteAction() {
     if (mFirstRun) {
         AT_Error("Bot::RobotExecuteAction(): Bot was not initialized!");
-        RobotInit();
+        RobotInit(0);
         AT_Log("Bot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
         return;
     }
@@ -342,20 +373,25 @@ void Bot::RobotExecuteAction() {
     auto &qAction = qPlayer.RobotActions[0];
     LocalRandom.Rand(2); // Sicherheitshalber, damit wir immer genau ein Random ausführen
 
-    mNumActionsToday += 1;
+    auto p = static_cast<Bot::Prio>(qAction.Prio);
+    mActionCounter[p]++;
     AT_Info("Bot::RobotExecuteAction() for %s: Executing %s (#%d, %s), current time: %02ld:%02ld, money: %s $ (available: %s $)", qPlayer.Abk.c_str(),
-            Translate_ACTION(qAction.ActionId), mNumActionsToday, getPrioName(qAction.Prio), Sim.GetHour(), Sim.GetMinute(),
+            Translate_ACTION(qAction.ActionId), mActionCounter[p], getPrioName(qAction.Prio), Sim.GetHour(), Sim.GetMinute(),
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(getMoneyAvailable()).c_str());
 
     mOnThePhone = 0;
+
+    /*const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
+    if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
+        AT_Warn("Bot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway.", Translate_ACTION(qAction.ActionId),
+                static_cast<SLONG>(qPlayer.GetRoom()), wantRoom);
+    }*/
 
     __int64 moneyAvailable = getMoneyAvailable();
     if (condAll(qAction.ActionId) == Prio::None) {
         AT_Warn("Bot::RobotExecuteAction(): Conditions not met anymore.");
         qAction.ActionId = ACTION_NONE;
     }
-
-    qPlayer.WorkCountdown = 20 * 5;
 
     switch (qAction.ActionId) {
     case ACTION_NONE:
@@ -382,21 +418,22 @@ void Bot::RobotExecuteAction() {
         AT_Log("Bot::RobotExecuteAction(): Calling international using mobile phone.");
         actionCallInternational(false);
         mOnThePhone = 30;
+        if (Sim.bNetwork != 0) {
+            /* Only the host executes the action, the other peers have to be told to show the phone */
+            SIM::SendSimpleMessage(ATNET_ROBOT_PHONE, 0, qPlayer.PlayerNum, mOnThePhone);
+        }
         break;
 
     case ACTION_CHECKAGENT1:
         actionCheckLastMinute();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_CHECKAGENT2:
         actionCheckTravelAgency();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_CHECKAGENT3:
         actionCheckFreightDepot();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_UPGRADE_PLANES:
@@ -404,7 +441,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_BUYNEWPLANE:
-        actionBuyNewPlane(moneyAvailable);
+        actionBuyNewPlane(moneyAvailable - DEBT_LIMIT - kPlaneCashReserve);
         break;
 
     case ACTION_BUYUSEDPLANE:
@@ -416,7 +453,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_PERSONAL:
-        actionVisitHR();
+        actionVisitHR(moneyAvailable);
         break;
 
     case ACTION_BUY_KEROSIN:
@@ -444,7 +481,7 @@ void Bot::RobotExecuteAction() {
             targetDividend = 0;
         } else if (qPlayer.RobotUse(ROBOT_USE_HIGHSHAREPRICE)) {
             targetDividend = 25;
-        } else if (LocalRandom.Rand(10) == 0) {
+        } else {
             targetDividend++;
         }
 
@@ -456,13 +493,8 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_RAISEMONEY: {
-        __int64 limit = qPlayer.CalcCreditLimit();
-        __int64 moneyRequired = -getMoneyAvailable();
-        __int64 m = std::min(limit, moneyRequired);
-        m = std::max(m, 1000LL);
-        if (mRunToFinalObjective == FinalPhase::TargetRun) {
-            m = limit;
-        }
+        bool maxCredit = (mDoRoutesMaxCredit || (mRunToFinalObjective == FinalPhase::TargetRun));
+        __int64 m = howMuchMoneyToRaise(maxCredit);
         if (m > 0) {
             AT_Log("Bot::RobotExecuteAction(): Taking loan: %s $", Insert1000erDots64(m).c_str());
             GameMechanic::takeOutCredit(qPlayer, m);
@@ -471,7 +503,7 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_DROPMONEY: {
-        __int64 m = std::min({qPlayer.Credit, moneyAvailable, getWeeklyOpSaldo()});
+        __int64 m = std::min(qPlayer.Credit, moneyAvailable);
         AT_Log("Bot::RobotExecuteAction(): Paying back loan: %s $", Insert1000erDots64(m).c_str());
         GameMechanic::payBackCredit(qPlayer, m);
         moneyAvailable = getMoneyAvailable();
@@ -479,12 +511,10 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_EMITSHARES:
         actionEmitShares();
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_SELLSHARES:
         actionSellShares(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_BUYSHARES: {
@@ -498,7 +528,6 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_OVERTAKE_AIRLINE:
         actionOvertakeAirline();
-        qPlayer.WorkCountdown = 20 * 6;
         break;
 
     case ACTION_VISITMECH:
@@ -508,58 +537,73 @@ void Bot::RobotExecuteAction() {
     case ACTION_VISITNASA: {
         const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
         for (SLONG i = 0; i < qPrices.size(); i++) {
-            if ((qPlayer.RocketFlags & (1 << i)) == 0 && moneyAvailable >= qPrices[i]) {
-                qPlayer.ChangeMoney(-qPrices[i], 3400, "");
-                SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -qPrices[i], 3400);
-                PlayFanfare();
-                qPlayer.RocketFlags |= (1 << i);
+            if (!qPlayer.CheckRocketPart(i) && moneyAvailable >= qPrices[i]) {
+                if (Sim.Difficulty == DIFF_FINAL) {
+                    qPlayer.AddRocketPart(i);
+                } else {
+                    qPlayer.AddSpaceStationPart(i, 3400);
+                }
             }
             moneyAvailable = getMoneyAvailable();
         }
     } break;
 
     case ACTION_VISITTELESCOPE:
+        qPlayer.WorkCountdown = 2;
         break;
 
     case ACTION_VISITKIOSK:
+        qPlayer.WorkCountdown = 2;
         break;
 
     case ACTION_VISITMAKLER: {
-        auto list = findBestAvailablePlaneType(false, true);
-        mBestPlaneTypeId = list.empty() ? -1 : list[0];
+        auto list = findBestAvailablePlaneType();
+        if (!list.empty()) {
+            mBestPlaneTypeId = list[0];
+        }
 
         if (mItemAntiStrike == 0) {
-            if (GameMechanic::PickUpItemResult::PickedUp == GameMechanic::pickUpItem(qPlayer, ITEM_BH)) {
-                AT_Log("Bot::RobotExecuteAction(): Picked up item BH");
+            if (pickUpItem(ITEM_BH)) {
                 mItemAntiStrike = 1;
             }
+        } else if (list.empty()) {
+            qPlayer.WorkCountdown = 2;
         }
     } break;
 
     case ACTION_VISITARAB:
         if (mItemArabTrust == 1) {
-            if (GameMechanic::useItem(qPlayer, ITEM_MG)) {
+            if (useItem(ITEM_MG)) {
                 AT_Log("Bot::RobotExecuteAction(): Used item MG");
                 mItemArabTrust = 2;
             }
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
         break;
 
-    case ACTION_VISITRICK:
+    case ACTION_VISITRICK: {
+        bool idle = true;
         if (mItemAntiStrike == 3) {
-            if (GameMechanic::useItem(qPlayer, ITEM_HUFEISEN)) {
-                AT_Log("Bot::RobotExecuteAction(): Used item horse shoe");
+            if (useItem(ITEM_HUFEISEN)) {
                 mItemAntiStrike = 4;
             }
+            idle = false;
         }
-        if (qPlayer.StrikeHours > 0 && qPlayer.StrikeEndType == 0 && mItemAntiStrike == 4) {
+        if ((qPlayer.StrikeHours > 0) && (qPlayer.StrikeEndType == 0) && (qPlayer.TrinkerTrust == 1)) {
             AT_Log("Bot::RobotExecuteAction(): Ended strike using drunk guy");
             GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Drunk);
+            idle = false;
         }
-        break;
+        if (idle) {
+            qPlayer.WorkCountdown = 2;
+        }
+    } break;
 
     case ACTION_VISITDUTYFREE:
-        actionVisitDutyFree(moneyAvailable);
+        if (!actionVisitDutyFree(moneyAvailable)) {
+            qPlayer.WorkCountdown = 2;
+        }
         break;
 
     case ACTION_VISITAUFSICHT:
@@ -569,7 +613,6 @@ void Bot::RobotExecuteAction() {
     case ACTION_EXPANDAIRPORT:
         AT_Log("Bot::RobotExecuteAction(): Expanding Airport");
         GameMechanic::expandAirport(qPlayer);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITROUTEBOX:
@@ -578,12 +621,10 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_VISITROUTEBOX2:
         actionRentRoute();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITSECURITY:
         actionVisitSecurity(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITSECURITY2:
@@ -594,27 +635,22 @@ void Bot::RobotExecuteAction() {
         }
         mNeedToShutdownSecurity = false;
         mLastTimeInRoom.erase(ACTION_SABOTAGE); /* allow sabotage again */
-        qPlayer.WorkCountdown = 20 * 1;
         break;
 
     case ACTION_VISITDESIGNER:
         actionBuyDesignerPlane(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_WERBUNG_ROUTES:
         actionBuyAdsForRoutes(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_WERBUNG:
         actionBuyAds(moneyAvailable);
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     case ACTION_VISITADS:
         actionVisitAds();
-        qPlayer.WorkCountdown = 20 * 7;
         break;
 
     default:
@@ -623,16 +659,6 @@ void Bot::RobotExecuteAction() {
     }
 
     mLastTimeInRoom[qAction.ActionId] = Sim.Time;
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK_2) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
-    }
-
-    if (qPlayer.RobotUse(ROBOT_USE_WORKVERYQUICK) && qPlayer.WorkCountdown > 4) {
-        qPlayer.WorkCountdown /= 4;
-    } else if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK) && qPlayer.WorkCountdown > 2) {
-        qPlayer.WorkCountdown /= 2;
-    }
 
     AT_Log("");
 }
@@ -645,7 +671,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 100;
+    SLONG savegameVersion = 103;
     File << savegameVersion;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
@@ -653,7 +679,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
         File << i.first << i.second;
     }
 
-    File << bot.mNumActionsToday;
+    File << static_cast<SLONG>(bot.mActionCounter.size());
+    for (const auto &i : bot.mActionCounter) {
+        File << static_cast<SLONG>(i.first) << i.second;
+    }
 
     File << static_cast<SLONG>(bot.mPlanesForJobs.size());
     for (const auto &i : bot.mPlanesForJobs) {
@@ -682,6 +711,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << bot.mLongTermStrategy;
     File << bot.mBestPlaneTypeId << bot.mBestUsedPlaneIdx;
+    File << bot.mBestUsedPlanePilots << bot.mBestUsedPlaneCrew << bot.mBestUsedPlanePrice;
     File << bot.mBuyPlaneForRouteId << bot.mPlaneTypeForNewRoute;
 
     File << static_cast<SLONG>(bot.mPlanesForNewRoute.size());
@@ -690,14 +720,13 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     }
 
     File << bot.mWantToRentRouteId;
-    File << bot.mFirstRun << bot.mDayStarted << bot.mDoRoutes;
+    File << bot.mFirstRun << bot.mDayStarted << bot.mDoRoutes << bot.mDoRoutesMaxCredit;
     File << static_cast<SLONG>(bot.mRunToFinalObjective) << bot.mMoneyForFinalObjective;
-    File << bot.mOutOfGates;
     File << bot.mNeedToPlanJobs << bot.mNeedToPlanRoutes;
     File << bot.mMoneyReservedForRepairs << bot.mMoneyReservedForUpgrades;
     File << bot.mMoneyReservedForAuctions << bot.mMoneyReservedForFines;
     File << bot.mNemesis << bot.mNemesisScore << bot.mNeedToShutdownSecurity << bot.mUsingSecurity;
-    File << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage;
+    File << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage << bot.mWeeklyOperatingSaldo;
 
     File << bot.mBossNumCitiesAvailable;
     File << bot.mBossGateAvailable;
@@ -718,6 +747,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
             File << j;
         }
         File << i.canUpgrade;
+
+        File << i.numberOfPlanesTarget;
     }
 
     File << static_cast<SLONG>(bot.mRoutesSortedByOwnUtilization.size());
@@ -725,10 +756,11 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
         File << i;
     }
 
-    File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated;
+    File << bot.mRoutesUpdated << bot.mRoutesUtilizationUpdated << bot.mRoutesToRemove;
     File << static_cast<SLONG>(bot.mRoutesNextStep) << bot.mImproveRouteId;
+    File << bot.mRouteToSteal << bot.mRouteToStealFrom << bot.mSabotageSeed;
 
-    File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter;
+    File << bot.mNumEmployees << bot.mExtraPilots << bot.mExtraBegleiter << bot.mQualifiedCrewForHire;
 
     File << bot.mItemPills << bot.mItemAntiVirus << bot.mItemAntiStrike << bot.mItemArabTrust << bot.mIsSickToday;
 
@@ -766,6 +798,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mOptions.kMaximumRouteUtilization << bot.mOptions.kMaxTicketPriceFactor;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
 
+    File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay;
+
     SLONG magicnumber = 0x42;
     File << magicnumber;
 
@@ -787,7 +821,20 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
     assert(bot.mLastTimeInRoom.size() == size);
 
-    File >> bot.mNumActionsToday;
+    if (savegameVersion < 103) {
+        SLONG oldNumActionsToday;
+        File >> oldNumActionsToday;
+    } else {
+        File >> size;
+        bot.mActionCounter.clear();
+        for (SLONG i = 0; i < size; i++) {
+            SLONG key{};
+            SLONG value{};
+            File >> key >> value;
+            bot.mActionCounter[static_cast<Bot::Prio>(key)] = value;
+        }
+        assert(bot.mActionCounter.size() == size);
+    }
 
     File >> size;
     bot.mPlanesForJobs.resize(size);
@@ -821,6 +868,14 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mLongTermStrategy;
     File >> bot.mBestPlaneTypeId >> bot.mBestUsedPlaneIdx;
+    if (savegameVersion < 103) {
+        bot.mBestUsedPlaneIdx = -1;
+        bot.mBestUsedPlanePilots = 0;
+        bot.mBestUsedPlaneCrew = 0;
+        bot.mBestUsedPlanePrice = 0;
+    } else {
+        File >> bot.mBestUsedPlanePilots >> bot.mBestUsedPlaneCrew >> bot.mBestUsedPlanePrice;
+    }
     File >> bot.mBuyPlaneForRouteId >> bot.mPlaneTypeForNewRoute;
 
     File >> size;
@@ -831,15 +886,28 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mWantToRentRouteId;
     File >> bot.mFirstRun >> bot.mDayStarted >> bot.mDoRoutes;
+    if (savegameVersion < 102) {
+        bot.mDoRoutesMaxCredit = 0;
+    } else {
+        File >> bot.mDoRoutesMaxCredit;
+    }
     SLONG runToFinalObjective = 0;
     File >> runToFinalObjective >> bot.mMoneyForFinalObjective;
     bot.mRunToFinalObjective = static_cast<Bot::FinalPhase>(runToFinalObjective);
-    File >> bot.mOutOfGates;
+    if (savegameVersion < 102) {
+        bool outOfGates = false;
+        File >> outOfGates;
+    }
     File >> bot.mNeedToPlanJobs >> bot.mNeedToPlanRoutes;
     File >> bot.mMoneyReservedForRepairs >> bot.mMoneyReservedForUpgrades;
     File >> bot.mMoneyReservedForAuctions >> bot.mMoneyReservedForFines;
     File >> bot.mNemesis >> bot.mNemesisScore >> bot.mNeedToShutdownSecurity >> bot.mUsingSecurity;
     File >> bot.mNemesisSabotaged >> bot.mArabHintsTracker >> bot.mCurrentImage;
+    if (savegameVersion < 103) {
+        bot.mWeeklyOperatingSaldo = 0;
+    } else {
+        File >> bot.mWeeklyOperatingSaldo;
+    }
 
     File >> bot.mBossNumCitiesAvailable;
     File >> bot.mBossGateAvailable;
@@ -864,6 +932,12 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         }
         File >> info.canUpgrade;
 
+        if (savegameVersion < 103) {
+            info.numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[info.routeId], info.planeTypeId, 90);
+        } else {
+            File >> info.numberOfPlanesTarget;
+        }
+
         iter = info;
     }
 
@@ -874,11 +948,29 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     }
 
     File >> bot.mRoutesUpdated >> bot.mRoutesUtilizationUpdated;
+    if (savegameVersion < 101) {
+        bot.mRoutesToRemove = -1;
+    } else {
+        File >> bot.mRoutesToRemove;
+    }
     SLONG routesNextStep = 0;
     File >> routesNextStep >> bot.mImproveRouteId;
     bot.mRoutesNextStep = static_cast<Bot::RoutesNextStep>(routesNextStep);
+    if (savegameVersion < 101) {
+        /* sabotage was not yet implemented, so we read old values into the new variables with default values */
+        bot.mRouteToSteal = -1;
+        bot.mRouteToStealFrom = -1;
+        bot.mSabotageSeed = bot.LocalRandom.getRandInt(0, INT32_MAX);
+    } else {
+        File >> bot.mRouteToSteal >> bot.mRouteToStealFrom >> bot.mSabotageSeed;
+    }
 
     File >> bot.mNumEmployees >> bot.mExtraPilots >> bot.mExtraBegleiter;
+    if (savegameVersion < 103) {
+        bot.mQualifiedCrewForHire = 0;
+    } else {
+        File >> bot.mQualifiedCrewForHire;
+    }
 
     File >> bot.mItemPills >> bot.mItemAntiVirus >> bot.mItemAntiStrike >> bot.mItemArabTrust >> bot.mIsSickToday;
 
@@ -920,6 +1012,16 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mOptions.kSwitchToRoutesNumPlanesMin >> bot.mOptions.kSwitchToRoutesNumPlanesMax;
     File >> bot.mOptions.kMaximumRouteUtilization >> bot.mOptions.kMaxTicketPriceFactor;
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
+
+    if (savegameVersion < 103) {
+        /* airline image target did not exist yet: no airline image until the next day starts */
+        bot.mTicketsYesterday = 0;
+        bot.mImageDecayPerDay = 0;
+        bot.mImageAfterAds = 0;
+        bot.mImageAdsDay = -1;
+    } else {
+        File >> bot.mTicketsYesterday >> bot.mImageDecayPerDay >> bot.mImageAfterAds >> bot.mImageAdsDay;
+    }
 
     SLONG magicnumber = 0;
     File >> magicnumber;

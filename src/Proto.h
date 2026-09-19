@@ -21,6 +21,7 @@ void SetNetworkBitmap(SLONG Number, SLONG WaitingType = 0);
 void DisplayBroadcastMessage(CString String, SLONG FromPlayer = -1);
 void PumpBroadcastBitmap(bool bJustForEmergency = false);
 void PumpNetwork(void);
+void NetWaitWatchdog(void);
 CString GetMediumName(SLONG Medium);
 
 //--------------------------------------------------------------------------------------------
@@ -115,6 +116,7 @@ CString GetFilenameFromFullFilename(CString FullFilename);
 BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy);
 #endif
 DWORD AtGetTime(void);
+DWORD AtGetSeedTime(void);
 SLONG AtGetAsyncKeyState(SLONG vKey);
 DWORD AtGetTickCount(void);
 CString getCurrentDayString();

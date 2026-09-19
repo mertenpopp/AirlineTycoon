@@ -2,6 +2,8 @@
 // Sim.cpp : Routinen zur allgemeinen Simulationsverwaltung:
 //============================================================================================
 #include "AtNet.h"
+#include "AutoLobby.h"
+#include "NetTrace.h"
 #include "BotHelper.h"
 #include "Checkup.h"
 #include "GameMechanic.h"
@@ -48,6 +50,12 @@ static SLONG InitMoney[] = {1500000, 0,        2000000, 0,                      
 
 static SLONG MonthLength[] = {31, 28, 31, 30, 31, 30, 30, 31, 30, 31, 30, 31};
 
+/* Turns a point in game time (StartTime plus days) into a calendar date. localtime() depends on
+   the machine's time zone, and the host sends StartTime as seconds since 1970 - for a random
+   start day that is midnight UTC, so a peer west of UTC got the day before. The weekday decides
+   which rooms are closed, so all peers of a network game read the calendar in UTC. */
+static struct tm *GameCalendar(const time_t *Time) { return (Sim.bNetwork != 0) ? gmtime(Time) : localtime(Time); }
+
 char chRegKey[] = R"(Software\Spellbound Software\Airline Tycoon Deluxe\1.0)";
 // char chRegKeyOld[] = R"(Software\Spellbound Software\Airline Tycoon Evolution\1.0)";
 // char chRegKeyOld[] = "Software\\Spellbound Software\\Airline Tycoon FirstClass\\1.0";
@@ -59,7 +67,7 @@ void CalcPlayerMaximums(bool bForce);
 
 // Daten des aktuellen Savegames beim laden:
 SLONG SaveVersion = 1;
-SLONG SaveVersionSub = 202;
+SLONG SaveVersionSub = 204;
 
 // Öffnungszeiten:
 extern SLONG timeDutyOpen;
@@ -87,6 +95,8 @@ extern ULONG rChkPersonRandCreate, rChkPersonRandMisc, rChkHeadlineRand;
 extern ULONG rChkLMA, rChkRBA, rChkAA[MAX_CITIES], rChkFrachen;
 extern SLONG rChkGeneric, CheckGeneric;
 extern SLONG rChkActionId[5 * 4];
+extern SLONG rChkRobotSyncAge[4];
+extern SLONG gRobotSyncSlice[4];
 
 extern SLONG GenericSyncIds[4];
 extern SLONG GenericSyncIdPars[4];
@@ -369,8 +379,13 @@ void SIM::ChooseStartup() {
         rChkActionId[c] = 0;
     }
     for (c = 0; c < 4; c++) {
+        rChkRobotSyncAge[c] = 0;
+        gRobotSyncSlice[c] = -1;
+    }
+    for (c = 0; c < 4; c++) {
         GenericSyncIds[c] = GenericSyncIdPars[c] = 0;
     }
+    NetResetGenericSync();
     for (c = 0; c < 4 * 100; c++) {
         GenericAsyncIds[c] = GenericAsyncIdPars[c] = 0;
     }
@@ -424,7 +439,12 @@ void SIM::ChooseStartup() {
 
     // Bei Netzwerkspielen wird die Starttime schon in NewGamePopup erstellt:
     if (bNetwork == 0) {
-        if (Options.OptionRandomStartday != 0) {
+        if (gFixedSeed != 0) {
+            /* "/seed N": most of the game's randomness is derived from StartTime. Whole days from a
+               fixed Monday noon (2026-01-05 12:00 UTC), so the weekday and season still vary from
+               one seed to the next, as they would between real start dates. */
+            StartTime = time_t(1767614400) + time_t(gFixedSeed) * 60 * 60 * 24;
+        } else if (Options.OptionRandomStartday != 0) {
             StartTime = (rand() % 365) * 60 * 60 * 24;
         } else {
             StartTime = time(nullptr);
@@ -444,7 +464,7 @@ void SIM::ChooseStartup() {
     MoneyInBankTrash = static_cast<SLONG>((LocalRand.Rand(100)) > 75);
     FocusPerson = -1;
 
-    struct tm *pTimeStruct = localtime(&StartTime);
+    struct tm *pTimeStruct = GameCalendar(&StartTime);
     StartWeekday = ((pTimeStruct->tm_wday + 6) % 7);
 
     LastExpansionDate = 0;
@@ -806,7 +826,7 @@ void SIM::ChooseStartup() {
 
         if (GlobalUse(USE_TRAVELHOLDING) && Difficulty != DIFF_ADDON09) {
             if (bNetwork == 0) {
-                qPlayer.Auftraege.Random.SRand(AtGetTime());
+                qPlayer.Auftraege.Random.SRand(AtGetSeedTime());
             }
 
             a.RefillForBegin(0, &qPlayer.Auftraege.Random);
@@ -1159,6 +1179,11 @@ void SIM::ChooseStartup() {
     DumpAASeedSum(1002);
 
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
+    /* Loading a savegame starts from here too, but only to throw this state away again; it
+       fingerprints what it loaded at the end instead ("loaded"). */
+    if (!bgIsLoadingSavegame) {
+        NetTraceFingerprint("daystart");
+    }
 }
 
 //----------------------------------------------------------------------------------------
@@ -1355,6 +1380,9 @@ void SIM::DoTimeStep() {
             }
 
             GameMechanic::flightJobsRefill();
+
+            /* Orders another peer took after this refill (ATNET_PLAYER_TOOK). */
+            NetApplyPendingTook();
         }
 
         if (GetHour() >= 9 && GetHour() < 18 && (CallItADay == 0)) {
@@ -1376,6 +1404,11 @@ void SIM::DoTimeStep() {
                     for (d = 0; d < 5; d++) {
                         rChkActionId[c * 5 + d] = Players.Players[c].RobotActions[d].ActionId;
                     }
+
+                    /* How long ago the queue was handed over. Not yet today counts as just now: only
+                       the host plans a bot's first actions, and the clients learn them with the
+                       first hand-over. */
+                    rChkRobotSyncAge[c] = (gRobotSyncSlice[c] < 0 || gRobotSyncSlice[c] > TimeSlice) ? 0 : TimeSlice - gRobotSyncSlice[c];
                 }
             }
             if ((GetMinute() % 5) == 3) {
@@ -1395,9 +1428,18 @@ void SIM::DoTimeStep() {
                         Message << rChkActionId[c * 5 + d];
                     }
                 }
+                for (c = 0; c < 4; c++) {
+                    Message << rChkRobotSyncAge[c];
+                }
 
                 SIM::SendMemFile(Message);
             }
+        }
+
+        /* Twice a day is too coarse to tell where state diverged: after the humans went home, a
+           whole day runs without the hourly resends. At trace level 2, fingerprint every hour. */
+        if (GetHour() != OldHour && gNetTraceLevel >= 2) {
+            NetTraceFingerprint(bprintf("hour%02ld", static_cast<long>(GetHour())));
         }
 
         if (GetHour() == 18 && OldHour != 18) {
@@ -1415,16 +1457,35 @@ void SIM::DoTimeStep() {
         }
 
         // Verschiedene Sync's für's Netzwerk:
-        if ((CallItADay == 0) && (bNetwork != 0)) {
-            if (Minute >= 10 && OldMinute < 10 && Time >= 9 * 60000 && Time <= 18 * 60000) {
+        /* Only during the working day, as the day called off already was. NewDay() clears CallItADay
+           at midnight, so these ran all night too - while the host runs the night well ahead of the
+           clients. A client then applied the owner's image of 02:20 before its own 02:00, and booked
+           that owner's flights with it: more passengers than on the owner's peer, different route
+           usage, until the briefing. Nobody acts at night, and every peer simulates it alike. */
+        if ((CallItADay == 0) && (bNetwork != 0) && Time >= 9 * 60000 && Time <= 18 * 60000) {
+            if (Minute >= 10 && OldMinute < 10) {
                 PLAYER::NetSynchronizeMoney();
             }
             if (Minute >= 20 && OldMinute < 20) {
                 PLAYER::NetSynchronizeImage();
             }
+            if (Minute >= 40 && OldMinute < 40) {
+                PLAYER::NetSynchronizeStaff();
+            }
             if (Minute >= 30 && OldMinute < 30) {
                 PLAYER::NetSynchronizeRoutes();
             }
+            /* Items are otherwise only sent when they change, so a single one that went missing
+               stayed missing for the rest of the game. */
+            if (Minute >= 25 && OldMinute < 25) {
+                PLAYER::NetSynchronizeItems();
+            }
+        }
+
+        // The tank state is applied at the same flight on every peer (PLAYER::NetReceiveKerosin), so it
+        // is safe to send also while the day runs fast after being called off:
+        if ((bNetwork != 0) && Minute >= 50 && OldMinute < 50) {
+            PLAYER::NetSynchronizeKerosin();
         }
 
         // if (bNetwork && (Time<9*60000 || Time>18*60000 || CallItADay))
@@ -1472,6 +1533,10 @@ void SIM::DoTimeStep() {
                         bgWarp = FALSE;
                         if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                             qPlayer.GameSpeed = 0;
+                            /* The clock runs at the slowest human's speed, and the other peers only
+                               learn this one's from the message. Without it they ran on at full
+                               speed and got an hour ahead within a few minutes. */
+                            SIM::SendSimpleMessage(ATNET_SETSPEED, 0, qPlayer.PlayerNum, qPlayer.GameSpeed);
                         }
                     }
                 }
@@ -1498,6 +1563,7 @@ void SIM::DoTimeStep() {
                             qPlayer.StrikeEndType = 0;
                             if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                                 qPlayer.GameSpeed = 0;
+                                SIM::SendSimpleMessage(ATNET_SETSPEED, 0, qPlayer.PlayerNum, qPlayer.GameSpeed);
                             }
                         }
                     }
@@ -1508,14 +1574,26 @@ void SIM::DoTimeStep() {
         if (Minute < OldMinute) {
             // Streik vorbereiten?
             if (GetHour() == 10) {
-                PLAYER &qPlayer = qLocalPlayer;
+                /* Only humans go on strike, and only the peer that owns one decides it: the
+                   happiness this is judged by changes through messages - a salary cut, say -
+                   which reach the peers a moment apart, so peers judging for themselves started
+                   the strike on different days. The start is announced below. */
+                for (c = 0; c < 4; c++) {
+                    PLAYER &qPlayer = Players.Players[c];
 
-                if (qPlayer.StrikeHours == 0 && qPlayer.StrikePlanned == 0) {
-                    if ((Workers.GetAverageHappyness(localPlayer) - static_cast<SLONG>(Workers.GetMinHappyness(localPlayer) < 0) * 10 < 20 &&
-                         qPlayer.DaysWithoutStrike > 7) ||
-                        (Workers.GetAverageHappyness(localPlayer) - static_cast<SLONG>(Workers.GetMinHappyness(localPlayer) < 0) * 10 < 0 &&
-                         qPlayer.DaysWithoutStrike > 3)) {
-                        GameMechanic::planStrike(qPlayer);
+                    if (bNetwork == 0) {
+                        if (c != localPlayer) {
+                            continue;
+                        }
+                    } else if (qPlayer.Owner != 0 || qPlayer.IsOut != 0) {
+                        continue;
+                    }
+
+                    if (qPlayer.StrikeHours == 0 && qPlayer.StrikePlanned == 0) {
+                        if ((Workers.GetAverageHappyness(c) - static_cast<SLONG>(Workers.GetMinHappyness(c) < 0) * 10 < 20 && qPlayer.DaysWithoutStrike > 7) ||
+                            (Workers.GetAverageHappyness(c) - static_cast<SLONG>(Workers.GetMinHappyness(c) < 0) * 10 < 0 && qPlayer.DaysWithoutStrike > 3)) {
+                            GameMechanic::planStrike(qPlayer);
+                        }
                     }
                 }
             }
@@ -1525,7 +1603,12 @@ void SIM::DoTimeStep() {
                 if (Players.Players[c].IsOut == 0) {
                     PLAYER &qPlayer = Players.Players[c];
 
-                    if ((qPlayer.StrikePlanned != 0) && GetHour() > 9 && GetHour() < 18 && CallItADay == FALSE) {
+                    /* The owner decides when the planned strike starts and for how long, and
+                       GameMechanic::startStrike() tells the other peers. They run the clock on it
+                       themselves (below), so it ends everywhere in the same hour. */
+                    const bool bWeDecide = (bNetwork == 0) || qPlayer.NetIsAuthoritative();
+
+                    if ((qPlayer.StrikePlanned != 0) && bWeDecide && GetHour() > 9 && GetHour() < 18 && CallItADay == FALSE) {
                         SLONG c = 0;
                         SLONG AnyPlanes = FALSE;
 
@@ -1555,31 +1638,28 @@ void SIM::DoTimeStep() {
                         }
 
                         if (AnyPlanes != 0) {
-                            qPlayer.StrikePlanned = FALSE;
-                            qPlayer.StrikeEndCountdown = 0;
-                            qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
-
                             TEAKRAND LocalRand(Date + GetHour());
+                            SLONG Hours = 0;
 
+                            /* Single player judges by the human's staff even when a bot strikes
+                               (after a sabotage); a network game must not use localPlayer, which
+                               differs from peer to peer, so it judges by the striking player's. */
                             if (qPlayer.DaysWithoutStrike > 10) {
-                                qPlayer.StrikeHours = 2;
-                            } else if (Workers.GetAverageHappyness(localPlayer) < -10) {
-                                qPlayer.StrikeHours = 72;
+                                Hours = 2;
+                            } else if (Workers.GetAverageHappyness(bNetwork != 0 ? qPlayer.PlayerNum : localPlayer) < -10) {
+                                Hours = 72;
                             } else {
-                                qPlayer.StrikeHours = 4 + LocalRand.Rand(20);
+                                Hours = 4 + LocalRand.Rand(20);
                             }
 
-                            qPlayer.DaysWithoutStrike = 0;
-
-                            Headlines.AddOverride(1, bprintf(StandardTexte.GetS(TOKEN_MISC, 2090), qPlayer.AirlineX.c_str()), GetIdFromString("STREIK"),
-                                                  25 + static_cast<SLONG>(c == localPlayer) * 10);
-                            hprintf("Sim.cpp: %s: Strike started @%02ld:%02ld (for %ld hours)", (LPCTSTR)qPlayer.AirlineX, Sim.GetHour(), Sim.GetMinute(),
-                                    qPlayer.StrikeHours);
+                            GameMechanic::startStrike(qPlayer, Hours);
                         }
                     } else if (qPlayer.StrikeHours != 0) {
                         qPlayer.StrikeHours--;
 
-                        if (qPlayer.StrikeHours == 0 && (qPlayer.Owner == 0 || (qPlayer.Owner == 1 && !qPlayer.RobotUse(ROBOT_USE_FAKE_PERSONAL)))) {
+                        /* Every peer ends every human's strike itself (Owner 2 is a human on
+                           another peer), just as every peer started it. */
+                        if (qPlayer.StrikeHours == 0 && (qPlayer.Owner != 1 || !qPlayer.RobotUse(ROBOT_USE_FAKE_PERSONAL))) {
                             GameMechanic::endStrike(qPlayer, GameMechanic::EndStrikeMode::Waiting);
                         }
                     }
@@ -1588,76 +1668,89 @@ void SIM::DoTimeStep() {
 
             // Probleme bei einem Flugzeug auslösen:
             if ((CallItADay == 0) && (GetHour() > 5 && GetHour() < 17)) {
-                PLAYER &qPlayer = qLocalPlayer;
+                /* Every human's planes, on every peer. It was only rolled for the local player, so each
+                   human's peer grounded that human's planes on its own, the plane's flights were
+                   delayed there only (the delay check further down), and the peers flew different
+                   flight plans. The roll depends on nothing but the time and the plane, which every
+                   peer agrees on; the fax, the letter and the advice stay with the local player. */
+                for (SLONG p = 0; p < 4; p++) {
+                    if (bNetwork == 0 ? (p != localPlayer) : (Players.Players[p].Owner == 1 || Players.Players[p].IsOut != 0)) {
+                        continue;
+                    }
+                    PLAYER &qPlayer = Players.Players[p];
 
-                if (qPlayer.Planes.HasProblemPlane() == 0) {
-                    if (qPlayer.Planes.GetNumUsed() >= 2) {
-                        TEAKRAND LocalRand(Date + GetHour() + GetMinute());
+                    if (qPlayer.Planes.HasProblemPlane() == 0) {
+                        if (qPlayer.Planes.GetNumUsed() >= 2) {
+                            TEAKRAND LocalRand(Date + GetHour() + GetMinute());
 
-                        for (c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                            if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                                if (qPlayer.Planes[c].Ort == -5 && (qPlayer.Planes[c].GetFlugplanEintrag() != nullptr) &&
-                                    qPlayer.Planes[c].GetFlugplanEintrag()->Landedate == Date &&
-                                    qPlayer.Planes[c].GetFlugplanEintrag()->Landezeit == GetHour()) {
-                                    if (LocalRand.Rand(10) == 0 && (LocalRand.Rand(100)) > qPlayer.Planes[c].Zustand && qPlayer.Planes[c].Zustand < 90) {
-                                        SLONG Extra = 0;
+                            for (c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
+                                if (qPlayer.Planes.IsInAlbum(c) != 0) {
+                                    if (qPlayer.Planes[c].Ort == -5 && (qPlayer.Planes[c].GetFlugplanEintrag() != nullptr) &&
+                                        qPlayer.Planes[c].GetFlugplanEintrag()->Landedate == Date &&
+                                        qPlayer.Planes[c].GetFlugplanEintrag()->Landezeit == GetHour()) {
+                                        if (LocalRand.Rand(10) == 0 && (LocalRand.Rand(100)) > qPlayer.Planes[c].Zustand && qPlayer.Planes[c].Zustand < 90) {
+                                            SLONG Extra = 0;
 
-                                        qPlayer.Planes[c].Problem =
-                                            4 + (LocalRand.Rand(101 - qPlayer.Planes[c].Zustand)) / 3 + static_cast<SLONG>((LocalRand.Rand(4)) == 0) * 15;
+                                            qPlayer.Planes[c].Problem =
+                                                4 + (LocalRand.Rand(101 - qPlayer.Planes[c].Zustand)) / 3 + static_cast<SLONG>((LocalRand.Rand(4)) == 0) * 15;
 
-                                        if (qPlayer.Planes[c].GetFlugplanEintrag()->NachCity == static_cast<ULONG>(HomeAirportId)) {
-                                            qPlayer.Planes[c].Problem = max(4, qPlayer.Planes[c].Problem - 15);
-                                        } else if (qPlayer.Planes[c].Problem > 20) {
-                                            Extra = 1;
-                                        }
-
-                                        if (Extra != 0) {
-                                            if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
-                                                qPlayer.Letters.AddLetter(FALSE,
-                                                                          bprintf(StandardTexte.GetS(TOKEN_LETTER, 507), (LPCTSTR)qPlayer.Planes[c].Name,
-                                                                                  qPlayer.Planes[c].Problem, (LPCTSTR)Cities[HomeAirportId].Name,
-                                                                                  (LPCTSTR)Cities[qPlayer.Planes[c].GetFlugplanEintrag()->NachCity].Name),
-                                                                          "", "", 6);
+                                            if (qPlayer.Planes[c].GetFlugplanEintrag()->NachCity == static_cast<ULONG>(HomeAirportId)) {
+                                                qPlayer.Planes[c].Problem = max(4, qPlayer.Planes[c].Problem - 15);
+                                            } else if (qPlayer.Planes[c].Problem > 20) {
+                                                Extra = 1;
                                             }
+                                            NetTraceEvent("PLANEPROBLEM p=%ld plane=%s hours=%ld", static_cast<long>(p), qPlayer.Planes[c].Name.c_str(),
+                                                          static_cast<long>(qPlayer.Planes[c].Problem));
 
-                                            CAuftrag Auftrag;
-
-                                            Auftrag.VonCity = HomeAirportId;
-                                            Auftrag.NachCity = qPlayer.Planes[c].GetFlugplanEintrag()->NachCity;
-                                            Auftrag.Personen = 0;
-                                            Auftrag.Date = static_cast<UWORD>(Date);
-                                            Auftrag.BisDate = Date + ((qPlayer.Planes[c].Problem - (24 - GetHour())) / 24);
-                                            Auftrag.InPlan = 0;
-                                            Auftrag.Okay = 0;
-                                            Auftrag.Praemie = 0;
-                                            Auftrag.Strafe = 0;
-                                            qPlayer.Auftraege += Auftrag;
-                                        } else if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
-                                            qPlayer.Letters.AddLetter(
-                                                FALSE,
-                                                bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem), "",
-                                                "", 7);
-                                        }
-
-                                        if (qPlayer.LocationWin != nullptr) {
-                                            if (((qPlayer.LocationWin)->IsDialogOpen() == 0) && ((qPlayer.LocationWin)->MenuIsOpen() == 0) &&
-                                                (Options.OptionFax != 0) && (CallItADay == 0)) {
-                                                (qPlayer.LocationWin)->MenuStart(MENU_SABOTAGEFAX, 6 + Extra, c, qPlayer.Planes[c].Problem);
-                                                (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
-
-                                                qPlayer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
-
-                                                bgWarp = FALSE;
-                                                if (CheatTestGame == 0 && CheatAutoSkip == 0) {
-                                                    qLocalPlayer.GameSpeed = 0;
+                                            if (Extra != 0) {
+                                                if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
+                                                    qPlayer.Letters.AddLetter(FALSE,
+                                                                              bprintf(StandardTexte.GetS(TOKEN_LETTER, 507), (LPCTSTR)qPlayer.Planes[c].Name,
+                                                                                      qPlayer.Planes[c].Problem, (LPCTSTR)Cities[HomeAirportId].Name,
+                                                                                      (LPCTSTR)Cities[qPlayer.Planes[c].GetFlugplanEintrag()->NachCity].Name),
+                                                                              "", "", 6);
                                                 }
-                                            } else if (CallItADay == 0) {
-                                                qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                            bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
-                                            }
-                                        }
 
-                                        break;
+                                                CAuftrag Auftrag;
+
+                                                Auftrag.VonCity = HomeAirportId;
+                                                Auftrag.NachCity = qPlayer.Planes[c].GetFlugplanEintrag()->NachCity;
+                                                Auftrag.Personen = 0;
+                                                Auftrag.Date = static_cast<UWORD>(Date);
+                                                Auftrag.BisDate = Date + ((qPlayer.Planes[c].Problem - (24 - GetHour())) / 24);
+                                                Auftrag.InPlan = 0;
+                                                Auftrag.Okay = 0;
+                                                Auftrag.Praemie = 0;
+                                                Auftrag.Strafe = 0;
+                                                qPlayer.Auftraege += Auftrag;
+                                            } else if (qPlayer.Owner == 0 && (qPlayer.IsOut == 0)) {
+                                                qPlayer.Letters.AddLetter(
+                                                    FALSE,
+                                                    bprintf(StandardTexte.GetS(TOKEN_LETTER, 506), (LPCTSTR)qPlayer.Planes[c].Name, qPlayer.Planes[c].Problem),
+                                                    "", "", 7);
+                                            }
+
+                                            if (qPlayer.LocationWin != nullptr) {
+                                                if (((qPlayer.LocationWin)->IsDialogOpen() == 0) && ((qPlayer.LocationWin)->MenuIsOpen() == 0) &&
+                                                    (Options.OptionFax != 0) && (CallItADay == 0)) {
+                                                    (qPlayer.LocationWin)->MenuStart(MENU_SABOTAGEFAX, 6 + Extra, c, qPlayer.Planes[c].Problem);
+                                                    (qPlayer.LocationWin)->MenuSetZoomStuff(XY(320, 220), 0.17, FALSE);
+
+                                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL, StandardTexte.GetS(TOKEN_ADVICE, 2308));
+
+                                                    bgWarp = FALSE;
+                                                    if (CheatTestGame == 0 && CheatAutoSkip == 0) {
+                                                        qLocalPlayer.GameSpeed = 0;
+                                                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
+                                                    }
+                                                } else if (CallItADay == 0) {
+                                                    qPlayer.Messages.AddMessage(
+                                                        BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2309), (LPCTSTR)qPlayer.Planes[c].Name));
+                                                }
+                                            }
+
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -2076,6 +2169,7 @@ void SIM::DoTimeStep() {
                                                                  (LPCTSTR)Cities[qPlane.Flugplan.Flug[qPlane.Flugplan.NextFlight].VonCity].Name));
                                     Players.Players[c].Image -= 2;
                                     Limit(SLONG(-1000), Players.Players[c].Image, SLONG(1000));
+                                    NetTraceEvent("NOGATE p=%ld plane=%s departure", static_cast<long>(c), qPlane.Name.c_str());
                                     // log: hprintf ("Player[%li].Image! now = %li", c, (LPCTSTR)Players.Players[c].Image);
                                 }
                             }
@@ -2110,7 +2204,7 @@ SLONG SIM::GetHour() const { return (Time / 60000); }
 //--------------------------------------------------------------------------------------------
 SLONG SIM::GetSeason() const {
     time_t Time = StartTime + Date * 60 * 60 * 24;
-    struct tm *pTimeStruct = localtime(&Time);
+    struct tm *pTimeStruct = GameCalendar(&Time);
 
     SLONG MonthDay = pTimeStruct->tm_mday;
     SLONG Month = pTimeStruct->tm_mon + 1;
@@ -2213,7 +2307,7 @@ void SIM::NewDay() {
     // Wochentag für die Öffnungszeiten:
     {
         time_t Time = StartTime + Date * 60 * 60 * 24;
-        struct tm *pTimeStruct = localtime(&Time);
+        struct tm *pTimeStruct = GameCalendar(&Time);
         Weekday = pTimeStruct->tm_wday;
     }
 
@@ -2531,7 +2625,18 @@ void SIM::NewDay() {
 
     CallItADay = FALSE;
 
+    /* The session master's clock is only sent during the day, and the peers meet again at the
+       morning briefing anyway. What was left of yesterday's gap must not bend tomorrow's clock. */
+    gTimerCorrection = 0;
+
+    /* TimeSlice starts again at 0, so yesterday's hand-overs of the bots' action queues would look
+       like today's. */
+    for (c = 0; c < 4; c++) {
+        gRobotSyncSlice[c] = -1;
+    }
+
     Helper::printStatisticsLineForAllPlayers("BotStatistics", (Sim.Date == 0));
+    NetTraceFingerprint("dayend");
 }
 
 //--------------------------------------------------------------------------------------------
@@ -2544,17 +2649,26 @@ CPlane SIM::CreateRandomUsedPlane(SLONG seed) const {
 
     auto plane = CPlane(PlaneNames.GetUnused(&rnd), PlaneTypes.GetRandomExistingType(&rnd, CPlaneType::Available::MUSEUM), UBYTE(rnd.Rand(80) + 11), 1900);
 
-    // if (PlaneTypes[plane.TypeId].Erstbaujahr<1990)
+    bool isOldPlaneFromReleaseVersion = true;
     if (plane.ptErstbaujahr < 1990) {
-        // plane.Baujahr = 1990-rnd.Rand (1990-PlaneTypes[plane.TypeId].Erstbaujahr);
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1990);
     } else if (plane.ptErstbaujahr < 1996) {
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1996);
-    } else {
+    } else if (plane.ptErstbaujahr < 1999) {
         plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, 1999);
+    } else {
+        plane.Baujahr = rnd.getRandInt(plane.ptErstbaujahr + 1, std::max(plane.ptErstbaujahr + 1, kCurrentYear - 3));
+        plane.Baujahr = std::min(plane.Baujahr, kCurrentYear);
+        isOldPlaneFromReleaseVersion = false;
     }
 
-    plane.Zustand = UBYTE((plane.Baujahr - 1950) + 25 + rnd.Rand(40) - 20);
+    if (isOldPlaneFromReleaseVersion) {
+        /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+        /* Since we are now playing in kCurrentYear, we have to add kYearsSinceRelease to give the old planes the correct age. */
+        plane.Baujahr += kYearsSinceRelease;
+    }
+
+    plane.Zustand = UBYTE((plane.Baujahr - kYearsSinceRelease - 1950) + 25 + rnd.Rand(40) - 20);
     if (plane.Zustand < 20 || plane.Zustand > 200) {
         plane.Zustand = 20;
     }
@@ -2912,6 +3026,7 @@ BOOL SIM::LoadGame(SLONG Number) {
 
     VoiceScheduler.Clear();
     gTimerCorrection = 0;
+    NetResetGenericSync();
 
     if (DoesFileExist(Filename) == 0) {
         return (FALSE);
@@ -3180,6 +3295,10 @@ BOOL SIM::LoadGame(SLONG Number) {
         }
     }
 
+    /* Every peer loads its own copy of the savegame, so this is the first chance to see whether
+       they saved the same game. */
+    NetTraceFingerprint("loaded");
+
     return (TRUE);
 }
 
@@ -3199,7 +3318,7 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     SLONG NumSaveGameCities = Cities.AnzEntries();
 
     SaveVersion = 1;
-    SaveVersionSub = 202; // Version 1.6.1
+    SaveVersionSub = 204; // Version 1.9.1
 
     fs::path path{Filename.c_str()};
     fs::create_directory(path.parent_path());
@@ -3732,6 +3851,12 @@ void SIM::SaveHighscores() {
 #endif
     CString str;
     auto path = FullFilename("xmlmap.fla", MiscPath);
+    /* The measurement harness runs many games at once in the same game directory: one game reading
+       the file while another rewrites it gets a truncated line, and LoadHighscores() crashes on it
+       (atoll on the nullptr strtok returns). The harness has no use for highscores. */
+    if (gQuickTestRun > 0) {
+        return;
+    }
     try {
         TEAKFILE OutputFile(path, TEAKFILE_WRITE);
 
@@ -3781,6 +3906,9 @@ void SIM::SaveHighscores() {
 //
 //--------------------------------------------------------------------------------------------
 void SIM::LoadHighscores() {
+    if (gQuickTestRun > 0) {
+        return; /* see SaveHighscores() */
+    }
     try {
         auto path = FullFilename("xmlmap.fla", MiscPath);
         if (DoesFileExist(path) != 0) {
@@ -4106,6 +4234,13 @@ void COptions::ReadOptions() {
 // Schreibt die Optionen in die Registry:
 //--------------------------------------------------------------------------------------------
 void COptions::WriteOptions() {
+    /* Harness peers run with overridden options (slot, autosave, window mode). Persisting them
+       would leak one run's harness settings into the next normal game. */
+    if (AutoLobbyActive()) {
+        AT_Log("Not writing game options (multiplayer harness)");
+        return;
+    }
+
     AT_Log("Writing game options");
 
     SLONG tmp = Sim.MaxDifficulty;
@@ -4120,6 +4255,7 @@ void COptions::WriteOptions() {
     CRegistryAccess reg(chRegKey);
 
     // Modded
+    reg.WriteRegistryKeyEx_l(gLanguage, "OptionLanguage");
     reg.WriteRegistryKey_l(OptionFullscreen);
     reg.WriteRegistryKey_b(OptionKeepAspectRatio);
     reg.WriteRegistryKey_u(OptionTicketPriceIncrement);

@@ -6,8 +6,15 @@
 #include "defines.h"
 
 void NetGenericSync(SLONG SyncId);
+void NetResetGenericSync();
 void NetGenericSync(SLONG SyncId, SLONG Par);
 void NetGenericAsync(SLONG SyncId, SLONG Par, SLONG player = -1);
+
+/* The five-minute period the order boards were last refilled in (GameMechanic::flightJobsRefill),
+   counted from the start of the game - the same on every peer at the same game time. */
+SLONG NetJobsRefillEpoch();
+/* Marks the orders other peers took, once this peer's boards have reached the same refill. */
+void NetApplyPendingTook();
 
 // Messages for creating a new game
 static const ULONG ATNET_WANNAJOIN = 0xadaa0000;        // Server, I want to join, Please send list of players and their names
@@ -24,6 +31,7 @@ static const ULONG ATNET_BEGINGAMELOADING = 0xadaa0010; // Server: Okay, start t
 static const ULONG ATNET_WANNAJOIN2NO =
     0xadaa0011; // Server: Oops, now that I look at it: your savegame is not right! You're the wrong person. We can't accept you.
 static const ULONG ATNET_SORRYVERSION = 0xadaa0012; // Server: You don't have the right version to join the game
+static const ULONG ATNET_GAMERULES = 0xadaa0013;    // Server: This game runs with these settings (sent right before the start)
 
 // Messages for maintaining the game
 static const ULONG ATNET_ALIVE = 0xadaa0100;         // Hello all, I'm still with you
@@ -102,6 +110,7 @@ static const ULONG ATNET_SYNC_MEETING = 0xadaa1009;    // Die typischen Sachen v
 
 // Synchronizing the robots:
 static const ULONG ATNET_ROBOT_EXECUTE = 0xadaa1100; // Hey all, robot x is gonna act at hh:mm:ss sharp
+static const ULONG ATNET_ROBOT_PHONE = 0xadaa1101;   // Hey all, robot x is on the mobile phone for n steps
 
 // Synchronizing the players:
 static const ULONG ATNET_PLAYER_REFILL = 0xadaa1200; // Hey all, please refill lastminute/freight/...
@@ -112,7 +121,7 @@ static const ULONG ATNET_PLAYER_18UHR = 0xadaa1202;  // 18 Uhr, ende der Synchro
 static const ULONG ATNET_FP_UPDATE = 0xadaa1300;      // Broadcasts all flights of one plane when a human player updates his flighplan
 static const ULONG ATNET_TAKE_ORDER = 0xadaa1301;     // Hey all, I just took this order flight
 static const ULONG ATNET_TAKE_FREIGHT = 0xadaa1302;   // Hey all, I just took this freight order flight
-static const ULONG ATNET_TAKE_CITY = 0xadaa1303;      // Hey all, I just bid for a city or a gate
+static const ULONG ATNET_BID = 0xadaa1303;            // Hey all, I just bid this much for the city or gate on note x
 static const ULONG ATNET_TAKE_ROUTE = 0xadaa1304;     // Hey all, I just rented or dropped a route
 static const ULONG ATNET_ADVISOR = 0xadaa1305;        // Hey all, I have just <generic>, maybe your advisors should display that
 static const ULONG ATNET_BUY_USED = 0xadaa1306;       // Hey all, please mark the used plane x as sold
@@ -153,6 +162,12 @@ static const ULONG ATNET_SYNCKEROSIN = 0xadaa1802;     // Hello all, I here's my
 static const ULONG ATNET_SYNCGEHALT = 0xadaa1803;      // Hello all, I'm paying this much for workers
 static const ULONG ATNET_SYNCNUMFLUEGE = 0xadaa1804;   // Hello all, I've accepted this many flights
 static const ULONG ATNET_SYNCROUTECHANGE = 0xadaa1805; // Hello all, I've just change my route paramters
+static const ULONG ATNET_WORKER_HIRE = 0xadaa1806;     // Hello all, player x just hired worker y
+static const ULONG ATNET_WORKER_FIRE = 0xadaa1807;     // Hello all, player x just fired worker y
+static const ULONG ATNET_WORKER_SALARY = 0xadaa1808;   // Hello all, player x just changed the salary of worker y (-1 = all)
+static const ULONG ATNET_STRIKE = 0xadaa1809;          // Hello all, the strike at player x ended (0) or its hours were set (1)
+static const ULONG ATNET_KILL_CITY = 0xadaa180a;       // Hello all, player x just gave up the branch in city y
+static const ULONG ATNET_SYNC_STAFF = 0xadaa180b;      // Synchronizes what my people earn and how they feel
 
 static const ULONG ATNET_BOTSELECT = 0xadab0000;
 
@@ -170,6 +185,7 @@ DEFINE_NAME_ENTRY(ATNET_WANNAJOIN2, )
 DEFINE_NAME_ENTRY(ATNET_BEGINGAMELOADING, )
 DEFINE_NAME_ENTRY(ATNET_WANNAJOIN2NO, )
 DEFINE_NAME_ENTRY(ATNET_SORRYVERSION, )
+DEFINE_NAME_ENTRY(ATNET_GAMERULES, "This game runs with these settings")
 DEFINE_NAME_ENTRY(ATNET_ALIVE, )
 DEFINE_NAME_ENTRY(ATNET_PLAYERDROPOUT, )
 DEFINE_NAME_ENTRY(ATNET_DAYFINISH, )
@@ -226,13 +242,14 @@ DEFINE_NAME_ENTRY(ATNET_SYNC_OFFICEFLAG, )
 DEFINE_NAME_ENTRY(ATNET_SYNC_PLANES, )
 DEFINE_NAME_ENTRY(ATNET_SYNC_MEETING, )
 DEFINE_NAME_ENTRY(ATNET_ROBOT_EXECUTE, )
+DEFINE_NAME_ENTRY(ATNET_ROBOT_PHONE, "Robot x is on the mobile phone for n steps")
 DEFINE_NAME_ENTRY(ATNET_PLAYER_REFILL, )
 DEFINE_NAME_ENTRY(ATNET_PLAYER_TOOK, )
 DEFINE_NAME_ENTRY(ATNET_PLAYER_18UHR, )
 DEFINE_NAME_ENTRY(ATNET_FP_UPDATE, )
 DEFINE_NAME_ENTRY(ATNET_TAKE_ORDER, )
 DEFINE_NAME_ENTRY(ATNET_TAKE_FREIGHT, )
-DEFINE_NAME_ENTRY(ATNET_TAKE_CITY, )
+DEFINE_NAME_ENTRY(ATNET_BID, "I just bid for a city or a gate")
 DEFINE_NAME_ENTRY(ATNET_TAKE_ROUTE, )
 DEFINE_NAME_ENTRY(ATNET_ADVISOR, )
 DEFINE_NAME_ENTRY(ATNET_BUY_USED, )
@@ -263,5 +280,11 @@ DEFINE_NAME_ENTRY(ATNET_SYNCKEROSIN, "I here's my kerosine state")
 DEFINE_NAME_ENTRY(ATNET_SYNCGEHALT, "I'm paying this much for workers")
 DEFINE_NAME_ENTRY(ATNET_SYNCNUMFLUEGE, "I've accepted this many flights")
 DEFINE_NAME_ENTRY(ATNET_SYNCROUTECHANGE, "I've just change my route paramters")
+DEFINE_NAME_ENTRY(ATNET_WORKER_HIRE, "Player x just hired worker y")
+DEFINE_NAME_ENTRY(ATNET_WORKER_FIRE, "Player x just fired worker y")
+DEFINE_NAME_ENTRY(ATNET_WORKER_SALARY, "Player x just changed the salary of worker y")
+DEFINE_NAME_ENTRY(ATNET_STRIKE, "The strike at player x ended")
+DEFINE_NAME_ENTRY(ATNET_KILL_CITY, "Player x just gave up the branch in city y")
+DEFINE_NAME_ENTRY(ATNET_SYNC_STAFF, "What my people earn and how they feel")
 DEFINE_NAME_ENTRY(ATNET_BOTSELECT, "I've chosen bot difficulty")
 END_NAME_MAP

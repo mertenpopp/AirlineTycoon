@@ -725,6 +725,10 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     // Gesamtmenge an benötigten Kerosin
     Kerosin = CalculateFlightKerosin(VonCity, NachCity, Plane->ptVerbrauch, Plane->ptGeschwindigkeit);
 
+    // Network: A tank state the owner took before this flight, then one taken after it
+    qPlayer.NetApplyPendingKerosin();
+    qPlayer.NetTankFlightBooked();
+
     // Kerosin aus dem Vorrat:
     if (Sim.Players.Players[PlayerNum].TankOpen != 0) {
         KerosinAusTank = std::min(Sim.Players.Players[PlayerNum].TankInhalt, Kerosin);
@@ -749,7 +753,7 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     qPlayer.Bilanz.KerosinGespart += (AusgabenKerosinOhneTank - AusgabenKerosin);
 
     if (ObjectType == 1 || ObjectType == 2) {
-        AusgabenEssen += Passagiere * FoodCosts[Plane->Essen];
+        AusgabenEssen += (Passagiere + PassagiereFC) * FoodCosts[Plane->Essen];
     }
 
     Plane->Salden[0] -= AusgabenKerosin;
@@ -1010,7 +1014,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
 
     // Flugzeugabnutzung verbuchen:
     double faktorDistanz = (1 + 10.0 * Cities.CalcDistance(VonCity, NachCity) / 40040174);
-    double faktorBaujahr = (2015 - Plane->Baujahr);
+    double faktorBaujahr = (2015 + kYearsSinceRelease -
+                            Plane->Baujahr); /* original formular was (2015 - Plane->Baujahr). Also, all buyable planes were built no later than 2002. To ensure
+                                                code works the same when planes are built in kCurrentYear, we have to add kYearsSinceRelease.*/
     double faktorKerosin = 1.0;
     if (KerosinGesamtQuali > 1.0) {
         faktorKerosin += 10 * (KerosinGesamtQuali - 1.0) * (KerosinGesamtQuali - 1.0);
@@ -1025,6 +1031,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     if (Plane->Zustand > 200) {
         Plane->Zustand = 0;
     }
+
+    // Network: A tank state the owner took right after this flight
+    qPlayer.NetApplyPendingKerosin();
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1048,10 +1057,11 @@ SLONG CFlugplanEintrag::GetEinnahmen(SLONG PlayerNum, const CPlane &qPlane) cons
         break;
 
         // Leerflug:
-    case 3:
-        return (qPlane.ptPassagiere * Cities.CalcDistance(VonCity, NachCity) / 1000 / 40);
+    case 3: {
+        SLONG distance = Cities.CalcDistance(VonCity, NachCity) / 1000;
+        return (qPlane.ptPassagiere * distance / 40);
         break;
-
+    }
         // Frachtauftrag:
     case 4:
         return (Sim.Players.Players[PlayerNum].Frachten[ObjectId].Praemie);
