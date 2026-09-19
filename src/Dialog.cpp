@@ -12,6 +12,8 @@
 #include "Nasa.h"
 #include "Proto.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 
 CString Space = " ";
@@ -63,7 +65,9 @@ void printPostGameInfo() {
 
     if (gQuickTestRun > 0) {
         std::cout << "---" << std::endl;
-        exit(0);
+        /* std::_Exit rather than exit: see the auto-quit in CAufsicht::OnPaint(). */
+        fflush(nullptr);
+        std::_Exit(0);
     }
 }
 
