@@ -2086,6 +2086,16 @@ void NewGamePopup::CheckNetEvents() {
                 ULONG MessageType = 0;
                 ULONG Par1 = 0;
                 ULONG Par2 = 0;
+
+                /* Set once a message that starts the game has been read in full. What goes wrong
+                   after that (building the world, loading the savegame) is not the message's fault
+                   and must not be dropped like a malformed one. */
+                bool bMessageRead = false;
+
+                /* A malformed or truncated message throws out of the TEAKFILE reader. Drop that
+                   one message and stay in the lobby, as PumpNetwork() does in the game. */
+                try {
+
                 Message >> MessageType;
 
                 NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
@@ -2348,13 +2358,16 @@ void NewGamePopup::CheckNetEvents() {
                         SLONG Time = 0;
                         SLONG difficulty = 0;
 
+                        /* Read first, so that a truncated message leaves the lobby as it was. */
+                        Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> difficulty;
+                        bMessageRead = true;
+
                         PageNum = PAGE_TYPE::MP_LOADING;
                         PageSub = 0;
 
                         gNetworkSavegameLoading = -1;
                         NewgameWantsToLoad = FALSE;
 
-                        Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> difficulty;
                         Sim.Options.OptionAirport = Sim.HomeAirportId;
                         Sim.StartTime = time_t(Time);
 
@@ -2380,6 +2393,7 @@ void NewGamePopup::CheckNetEvents() {
                     SLONG difficulty = 0;
 
                     Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> Index >> difficulty;
+                    bMessageRead = true;
                     Sim.Options.OptionAirport = Sim.HomeAirportId;
                     Sim.StartTime = time_t(Time);
 
@@ -2498,6 +2512,15 @@ void NewGamePopup::CheckNetEvents() {
                     // It's okay to receive in-game messages, since we may try to join a running
                     // session and get kicked out a second later.
                     break;
+                }
+
+                } catch (TeakLibException &ex) {
+                    if (bMessageRead) {
+                        throw;
+                    }
+                    AT_Log_I("NET", "CheckNetEvents: dropping malformed message %s: %s", Translate_ATNET(MessageType), ex.what());
+                    NetTraceEvent("DROP name=%s reason=%s", Translate_ATNET(MessageType), ex.what());
+                    ex.caught();
                 }
             } else {
                 hprintf("Received no Message!");
