@@ -7,7 +7,10 @@
 #include "Synthese.h"
 #include "TeakLibW.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <vector>
 
 #define AT_Log(...) AT_Log_I("Sound", __VA_ARGS__)
 
@@ -495,68 +498,139 @@ void SetWaveVolume(SLONG volume) {
 }
 
 //--------------------------------------------------------------------------------------------
+// Die Musikstücke im Sound-Verzeichnis:
+//--------------------------------------------------------------------------------------------
+static std::vector<CString> MidiTracks;
+static std::vector<CString> OggTracks;
+
+//--------------------------------------------------------------------------------------------
+// Sucht im Sound-Verzeichnis nach allen MIDI- und OGG-Dateien:
+//--------------------------------------------------------------------------------------------
+void ScanMusicTracks() {
+    std::vector<std::string> midis;
+    std::vector<std::string> oggs;
+
+    const fs::path dir = fs::path{AppPath.c_str()} / SoundPath.c_str();
+    std::error_code ec;
+    for (auto it = fs::directory_iterator(dir, ec); !ec && it != fs::directory_iterator(); it.increment(ec)) {
+        if (!it->is_regular_file(ec)) {
+            continue;
+        }
+
+        std::string ext = it->path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (ext == ".mid" || ext == ".midi") {
+            midis.push_back(it->path().filename().string());
+        } else if (ext == ".ogg") {
+            oggs.push_back(it->path().filename().string());
+        }
+    }
+    if (ec) {
+        AT_Log("Could not scan music directory %s: %s", dir.string().c_str(), ec.message().c_str());
+    }
+
+    // Sortieren, damit ein Index immer dasselbe Stück liefert:
+    std::sort(midis.begin(), midis.end());
+    std::sort(oggs.begin(), oggs.end());
+
+    MidiTracks.clear();
+    for (const auto &name : midis) {
+        MidiTracks.emplace_back(name.c_str());
+    }
+    OggTracks.clear();
+    for (const auto &name : oggs) {
+        OggTracks.emplace_back(name.c_str());
+    }
+
+    AT_Log("Found %d MIDI and %d OGG music tracks", static_cast<SLONG>(MidiTracks.size()), static_cast<SLONG>(OggTracks.size()));
+}
+
+//--------------------------------------------------------------------------------------------
+// Die Liste der Musikstücke für den aktuellen Musik-Typ:
+//--------------------------------------------------------------------------------------------
+static const std::vector<CString> &GetMusicTracks() {
+    static const std::vector<CString> NoTracks;
+
+    switch (Sim.Options.OptionMusicType) {
+    case 1:
+        return MidiTracks;
+    case 2:
+        return OggTracks;
+    default:
+        return NoTracks;
+    }
+}
+
+SLONG GetNumMusicTracks() { return static_cast<SLONG>(GetMusicTracks().size()); }
+
+//--------------------------------------------------------------------------------------------
+// Das ausgewählte Stück (1..n) oder 0 für Zufall; ungültige Indizes bedeuten Zufall:
+//--------------------------------------------------------------------------------------------
+SLONG GetSelectedMusicTrack() {
+    if (Sim.Options.OptionLoopMusik >= 1 && Sim.Options.OptionLoopMusik <= GetNumMusicTracks()) {
+        return Sim.Options.OptionLoopMusik;
+    }
+    return 0;
+}
+
+//--------------------------------------------------------------------------------------------
+// Der Name des Stücks (1..n) ohne Dateiendung:
+//--------------------------------------------------------------------------------------------
+CString GetMusicTrackName(SLONG Index) {
+    const auto &tracks = GetMusicTracks();
+    if (Index < 1 || Index > static_cast<SLONG>(tracks.size())) {
+        return CString();
+    }
+    return CString(fs::path{tracks[Index - 1].c_str()}.stem().string().c_str());
+}
+
+//--------------------------------------------------------------------------------------------
 // Spielt das nächste Midi:
 //--------------------------------------------------------------------------------------------
 void NextMidi() {
     static BOOL WasHere = 0;
+    static TEAKRAND FewTracksRandom;
+    static SLONG LastIndex = -1;
 
-    if ((Sim.Options.OptionMusik != 0) && Sim.Options.OptionMusicType != 0) {
-        if (WasHere != 0) {
-            switch ((Sim.Options.OptionLoopMusik == 0) ? MidiRandom.Rand(1, 16) : Sim.Options.OptionLoopMusik) {
-            case 1:
-                PlayMidi("lating.mid");
-                break;
-            case 2:
-                PlayMidi("reggaeg.mid");
-                break;
-            case 3:
-                PlayMidi("shuffleg.mid");
-                break;
-            case 4:
-                PlayMidi("at2.mid");
-                break;
-            default:
-            /*case 5:*/
-                PlayMidi("funky2.mid");
-                break;
-            case 6:
-                PlayMidi("karibik.mid");
-                break;
-            case 7:
-                PlayMidi("reag1.mid");
-                break;
-            case 8:
-                PlayMidi("shuffle2.mid");
-                break;
-            case 9:
-                PlayMidi("swingin2.mid");
-                break;
-            case 10:
-                PlayMidi("swing.mid");
-                break;
-            case 11:
-                PlayMidi("reggae.mid");
-                break;
-            case 12:
-                PlayMidi("dream1g.mid");
-                break;
-            case 13:
-                PlayMidi("indust.mid");
-                break;
-            case 14:
-                PlayMidi("funk.mid");
-                break;
-            case 15:
-                PlayMidi("shuffle.mid");
-                break;
-            case 16:
-                PlayMidi("title.mid");
+    if ((Sim.Options.OptionMusik == 0) || Sim.Options.OptionMusicType == 0) {
+        return;
+    }
+
+    const auto &tracks = GetMusicTracks();
+    const SLONG numTracks = static_cast<SLONG>(tracks.size());
+    if (numTracks == 0) {
+        return;
+    }
+
+    SLONG index = GetSelectedMusicTrack() - 1;
+    if (index < 0) {
+        if (WasHere == 0) {
+            // Das erste Stück ist wie im Original "funky2", falls vorhanden:
+            for (SLONG c = 0; c < numTracks; c++) {
+                if (stricmp(fs::path{tracks[c].c_str()}.stem().string().c_str(), "funky2") == 0) {
+                    index = c;
+                    break;
+                }
             }
-        } else {
-            PlayMidi("funky2.mid");
-            WasHere = TRUE;
+        }
+        if (index < 0) {
+            if (numTracks > 3) {
+                index = MidiRandom.Rand(1, numTracks) - 1;
+            } else if (numTracks > 1) {
+                // Zu wenige Stücke für CUnrepeatedRandom; nur direkte Wiederholung vermeiden:
+                index = FewTracksRandom.Rand(numTracks - 1);
+                if (index >= LastIndex && LastIndex >= 0) {
+                    index++;
+                }
+            } else {
+                index = 0;
+            }
         }
     }
+
+    WasHere = TRUE;
+    LastIndex = index;
+    PlayMidi(tracks[index]);
 }
 
 //--------------------------------------------------------------------------------------------

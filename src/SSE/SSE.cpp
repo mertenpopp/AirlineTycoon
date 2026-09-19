@@ -617,24 +617,8 @@ SLONG MIDI::Load(const CString &file) {
         Free();
     }
 
-    fs::path path{file.c_str()};
-    fs::path rootPath{SoundPath.c_str()};
-    auto pathToMIDI = FullFilesystemPath(path, rootPath);
-    auto pathToOgg = FullFilesystemPath(path.replace_extension("ogg"), rootPath);
-
-    // Some versions ship with ogg music as well, use it as a fall-back
-    if (_mode == 1 && !fs::exists(pathToMIDI)) {
-        _mode = 2;
-    }
-    if (_mode != 1 && !fs::exists(pathToOgg)) {
-        _mode = 1;
-    }
-
-    if (_mode == 1) {
-        _musicData.file = pathToMIDI.string();
-    } else {
-        _musicData.file = pathToOgg.string();
-    }
+    // SDL_mixer detects the format (MIDI or OGG) from the file content
+    _musicData.file = FullFilesystemPath(fs::path{file.c_str()}, fs::path{SoundPath.c_str()}).string();
 
     _music = Mix_LoadMUS(_musicData.file.c_str());
     if (_music == nullptr) {
