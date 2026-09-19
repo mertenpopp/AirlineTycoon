@@ -348,9 +348,10 @@ int BotPlaner::applySolutionToGraph() {
                     }
                 }
 
-                /* check duration of any previous automatic flight */
+                /* check duration of any previous automatic flight - unless a job was skipped before it: the
+                   plan's automatic flight then starts where the skipped job ended, not where the graph is. */
                 auto actualDuration = g.adjMatrix[currentNode][nextNode].duration;
-                if (!(autoFlightDuration == actualDuration || (skippedNode && autoFlightDuration > actualDuration))) {
+                if (!skippedNode && autoFlightDuration != actualDuration) {
                     AT_Error("BotPlaner::applySolutionToGraph(): Duration of automatic flight does not match before FPE:");
                     Helper::printFPE(qFPE);
                     AT_Log("Is %d in plan, but %d in graph", autoFlightDuration, actualDuration);
@@ -361,8 +362,8 @@ int BotPlaner::applySolutionToGraph() {
 
                 autoFlightDuration = 0;
                 skippedNode = false;
-            } else if (qFPE.ObjectType == 3) {
-                assert(autoFlightDuration == 0 || skippedNode);
+            } else if (qFPE.ObjectType == 3 || qFPE.ObjectType == 1) {
+                /* a route leg can stand in for an automatic flight (Bot::replaceAutomaticFlights()). */
                 autoFlightDuration += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit - qFPE.Startzeit);
                 autoFlightDuration += kDurationExtra;
             }
