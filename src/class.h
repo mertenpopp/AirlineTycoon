@@ -17,6 +17,7 @@
 #include <vector>
 
 class Bot;
+class ClaudeBot;
 class CPlane;
 class CPlaner;
 class CStdRaum;
@@ -906,7 +907,7 @@ class /**/ CPlane {
     void DoOneStep(SLONG PlayerNum);
     BOOL CanBeSold(void); // Wird's zur Zeit verwendet?
     void UpdateGlobePos(UWORD EarthAlpha);
-    SLONG GetSaldo(void);
+    SLONG GetSaldo(void) const;
     SLONG GetMaxPassengerOpenFlight(SLONG PlayerNum);
     void ClearSaldo(void);
     void CalculateHappyPassengers(SLONG PlayerNum, SLONG mod, bool addToQueue = false, XY pos = XY());
@@ -1431,7 +1432,7 @@ class /**/ CLAN {
     friend class AIRPORT;
     friend class PLAYER;
     friend class GameMechanic;
-    friend class Bot;
+    friend class ClaudeBot;
     friend void UpdateHLinePool(void);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CLAN &Clan);
@@ -1530,7 +1531,7 @@ class /**/ PERSON {
     friend class SIM;
     friend class GameMechanic;
     friend class AIRPORT;
-    friend class Bot;
+    friend class ClaudeBot;
 };
 
 class /**/ PERSONS : public ALBUM_V<PERSON> {
@@ -1720,7 +1721,7 @@ class /**/ CWorker {
     SLONG TimeInPool{-1}; // Wie lange existiert der Arbeiter bereits?
                           // -1: Bleibt für immer im Pool
 
-    inline bool operator<(const CWorker &i) const {
+    inline bool operator<(const CWorker &i) const noexcept {
         if (Employer != i.Employer) {
             return (Employer < i.Employer);
         }
@@ -1731,7 +1732,8 @@ class /**/ CWorker {
     }
 
   public:
-    void Gehaltsaenderung(BOOL Art);
+    /* bFromNetwork: the change was ordered by another peer, so don't broadcast it again. */
+    void Gehaltsaenderung(BOOL Art, bool bFromNetwork = false);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const CWorker &Worker);
     friend TEAKFILE &operator>>(TEAKFILE &File, CWorker &Worker);
@@ -1749,11 +1751,14 @@ class /**/ CWorkers {
     CWorkers(const CString &TabFilename, const CString &TabFilename2);
 
     CString GetRandomName(BOOL Geschlecht) const;
+    /* Names of new applicants have to match on every peer: the pool is shared, and the hire and
+       fire messages name a worker by his place in it. */
+    CString GetRandomName(BOOL Geschlecht, TEAKRAND &NameRand) const;
 
     void CheckShortageAndSort(void);
     void ReInit(const CString &TabFilename, const CString &TabFilename2);
     void NewDay(void);
-    void Gehaltsaenderung(BOOL Art, SLONG PlayerNum);
+    void Gehaltsaenderung(BOOL Art, SLONG PlayerNum, bool bFromNetwork = false);
     SLONG GetQualityRatio(SLONG prs);
     SLONG GetAverageHappyness(SLONG PlayerNum);
     SLONG GetMaxHappyness(SLONG PlayerNum);
@@ -1768,9 +1773,9 @@ class /**/ CWorkers {
     friend TEAKFILE &operator>>(TEAKFILE &File, CWorkers &Workers);
 
   private:
-    CWorker createBerater(TEAKRAND &LocalRand, SLONG typ) const;
-    CWorker createPilot(TEAKRAND &LocalRand) const;
-    CWorker createStewardess(TEAKRAND &LocalRand) const;
+    CWorker createBerater(TEAKRAND &LocalRand, TEAKRAND &NameRand, SLONG typ) const;
+    CWorker createPilot(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
+    CWorker createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
     SLONG AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent);
 };
 
@@ -2014,6 +2019,23 @@ class PLAYER {
     BOOL TankOpen{};                             // Tanks sind zur Verwendung freigegeben
     SLONG TankInhalt{};                          // Soviel ist im Tank drin
     DOUBLE TankPreis{};                          // Korekt berechneter Preis; auch bei mix
+
+    /* Network: The tank state the owner sends is only right at the point of the flights where it
+       was taken, since every flight takes kerosine from the tank on every peer. So the flights
+       from the tank are counted per day, and a state from the owner is applied once we have
+       booked as many flights (see ATNET_SYNCKEROSIN). */
+    struct NetTankState {
+        SLONG Stamp{-1}; // -1 = nothing pending
+        SLONG Tank{};
+        BOOL TankOpen{};
+        SLONG TankInhalt{};
+        DOUBLE KerosinQuali{};
+        SLONG KerosinKind{};
+        DOUBLE TankPreis{};
+    };
+    SLONG NetTankFlightsDate{-1};
+    SLONG NetTankFlights{};
+    NetTankState NetTankPending;
     SLONG GameSpeed{};                           // 0..3
     SLONG ArabTrust{};                           // Sabotage möglich?
     SLONG ArabMode{};                            // Anschlag unterwegs?
@@ -2231,8 +2253,9 @@ class PLAYER {
     void DelayFlightsIfNecessary(void);
     void DoBodyguardRabatt(SLONG Money);
     void EnterRoom(SLONG RoomNum, bool bDontBroadcast = false);
-    void AddRocketPart(SLONG rocketPart, SLONG price);
-    void AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price);
+    BOOL CheckRocketPart(SLONG rocketPart) const { return (RocketFlags & (1 << rocketPart)) != 0; }
+    void AddRocketPart(SLONG rocketPart);
+    void AddSpaceStationPart(SLONG rocketPart, SLONG textId);
     UWORD GetRoom(void);                           // Gibt den aktuellen Raum zurück
     SLONG GetMissionRating(bool bAnderer = false); // Gibt aktuellen Missionserfolg als Zahl zurück
     SLONG HasBerater(SLONG Berater) const;
@@ -2267,7 +2290,7 @@ class PLAYER {
     void RouteWegnehmen(SLONG Routenindex, SLONG NeuerBesitzer = -1);
     void SackWorkers(void);
     void UpdateAuftragsUsage(void);
-    void UpdateFrachtauftragsUsage(void);
+    void UpdateFrachtauftragsUsage(SLONG Date = -1, SLONG Hour = -1);
     void UpdateWalkSpeed(void);
     void UpdateWaypoints(void);
     void UpdateWaypointWalkingDirection(void);
@@ -2290,15 +2313,23 @@ class PLAYER {
     static void NetSynchronizeItems(void);
     void NetSynchronizeSabotage(void) const;
     void NetSynchronizeKooperation(void) const;
+    void NetAddSympathie(SLONG Target, SLONG Delta);
+    static void NetSynchronizeStaff();
+    static void NetSynchronizeKerosin();
     void NetRouteUpdateTicketpreise(SLONG RouteId, SLONG Ticketpreis, SLONG TicketpreisFC) const;
     void NetUpdateFlightplan(SLONG Plane);
     void NetUpdateOrder(const CAuftrag &auftrag) const;
+    bool NetIsAuthoritative() const;
     void NetUpdatePlaneProps(SLONG Plane = -1);
     void NetUpdateFreightOrder(const CFracht &auftrag) const;
     void NetUpdateTook(SLONG Type, SLONG Index, SLONG City = 0) const;
     void NetUpdateRentRoute(SLONG Route1Id, SLONG Route2Id);
     void NetUpdateWorkers(void);
     void NetUpdateKerosin(void) const;
+    SLONG NetTankStamp() const;
+    void NetTankFlightBooked();
+    void NetReceiveKerosin(const NetTankState &State);
+    void NetApplyPendingKerosin();
     static void NetSynchronizePlanes(void);
     static void NetSynchronizeMeeting(void);
     void NetBuyXPlane(SLONG Anzahl, CXPlane &plane) const;
@@ -2307,8 +2338,11 @@ class PLAYER {
 
     /* methods and data for improved robot */
     bool IsSuperBot() const;
+    bool IsMertenBot() const;
+    bool IsClaudeBot() const;
     void ApplyMood(PERSON &qPerson);
     Bot *mBot{nullptr};
+    ClaudeBot *mClaudeBot{nullptr};
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player);
     friend TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player);
@@ -2527,6 +2561,17 @@ class SIM // Die Simulationswelt; alles was zur aktuellen Partie gehört
     BOOL bNetwork;       // Are we playing by Network rules?
     BOOL bIsHost{};      // Is this computer the network-host?
     CString SessionName; // The name of the current Session
+
+    /* The host's OptionRentOffice* (trigger percent, min, max), received at the start of a
+       network game: the branches on the board are shared state, so a client picks them with
+       the host's settings instead of its own. */
+    std::array<ULONG, 3> HostRentOffice{};
+    bool bHasHostRentOffice{};
+
+    ULONG RentOfficeTriggerPercent() const { return UseHostRentOffice() ? HostRentOffice[0] : Options.OptionRentOfficeTriggerPercent; }
+    ULONG RentOfficeMinAvailable() const { return UseHostRentOffice() ? HostRentOffice[1] : Options.OptionRentOfficeMinAvailable; }
+    ULONG RentOfficeMaxAvailable() const { return UseHostRentOffice() ? HostRentOffice[2] : Options.OptionRentOfficeMaxAvailable; }
+    bool UseHostRentOffice() const { return bNetwork != 0 && bIsHost == 0 && bHasHostRentOffice; }
 
     BOOL bCheatedSession{};      // Wenn der Spieler cheatet, gibt's keine Highscore
     BOOL bReloadAirport;         // Reload the Airport over night because of the update

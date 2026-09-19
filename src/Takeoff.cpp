@@ -52,6 +52,8 @@
 #include "gltitel.h"
 
 #include "AtNet.h"
+#include "AutoLobby.h"
+#include "NetTrace.h"
 #include "SbLib.h"
 
 #include <SDL_ttf.h>
@@ -111,61 +113,7 @@ SLONG gTimerCorrection = 0; // Is it necessary to adapt the local clock to the s
 char *UCharToReadableAnsi(const unsigned char *pData, unsigned uLen);
 unsigned char *ReadableAnsiToUChar(const char *pData, unsigned uLen);
 
-#ifdef __cplusplus
-extern "C"
-#endif
-
-    int
-    main(int argc, char *argv[]) {
-
-#ifdef SENTRY
-    const bool disableSentry = DoesFileExist("no-sentry");
-
-    if (!disableSentry) {
-        sentry_options_t *options = sentry_options_new();
-        sentry_options_set_dsn(options, "https://6c9b29cfe559442b98417942e221250d@o4503905572225024.ingest.sentry.io/4503905573797888");
-        // This is also the default-path. For further information and recommendations:
-        // https://docs.sentry.io/platforms/native/configuration/options/#database-path
-        sentry_options_set_database_path(options, ".sentry-native");
-        sentry_options_set_release(options, VersionString);
-        sentry_options_set_debug(options, 0);
-        sentry_options_add_attachment(options, "debug.txt");
-
-        srand(time(nullptr));
-        int crashId = rand() % 1000 + rand() % 1000 * 1000;
-
-        sentry_options_set_on_crash(
-            options,
-            [](const sentry_ucontext_t *uctx, sentry_value_t event, void *closure) -> sentry_value_t {
-                TeakLibException *e = GetLastException();
-                if (e != nullptr) {
-                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AT - Exception", e->what(), nullptr);
-                }
-
-                const std::string id = std::to_string(*static_cast<int *>(closure));
-                const std::string msg = std::string("Airline Tycoon experienced an unexpected exception\nPress OK to send crash information to sentry\nPress "
-                                                    "Abort to not send the crash to sentry\n\nCustom Crash ID is: ") +
-                                        id;
-                AT_Log_I("CRASH", msg);
-                fs::copy_file("debug.txt", "crash-" + id + ".txt");
-                if (AbortMessageBox(MESSAGEBOX_ERROR, "Airline Tycoon Deluxe Crash Handler", msg.c_str(), nullptr)) {
-                    return sentry_value_new_null(); // Skip
-                }
-
-                return event;
-            },
-            &crashId);
-        sentry_init(options);
-
-        sentry_set_tag("Crash ID", std::to_string(crashId).c_str());
-    }
-
-    theApp.InitInstance(argc, argv);
-
-    if (!disableSentry) {
-        sentry_close();
-    }
-#else
+int main(int argc, char *argv[]) {
 
 #ifdef _DEBUG
     theApp.InitInstance(argc, argv);
@@ -176,8 +124,6 @@ extern "C"
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "AT - Exception", e.what(), nullptr);
         throw;
     }
-#endif
-
 #endif
 
     return 0;
@@ -333,7 +279,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
         if (stricmp(Argument, "/quick") == 0) {
             CheatAutoSkip = 1;
             gQuickTestRun = 1;
-            gAutoBotDiff = 3;
+            gAutoBotDiff = 2;
 
             i++;
             if (i < argc) {
@@ -341,15 +287,93 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             }
 
             if (gQuickTestRun == 1) {
-                gAutoQuitOnDay = 99; /* auto-quit in freegame */
+                gAutoQuitOnDay = 59; /* auto-quit in freegame */
             }
         }
-        if (stricmp(Argument, "/testbot") == 0) {
+        if (stricmp(Argument, "/quicker") == 0) {
+            CheatAutoSkip = 1;
+            gQuickTestRun = 1;
+            gAutoBotDiff = 2;
+            gAutoQuitOnDay = 5;
+        }
+        // Unattended multiplayer for the test harness, see AutoLobby.h
+        if (stricmp(Argument, "/mphost") == 0) {
+            gAutoLobbyRole = AutoLobbyRole::HOST;
+            if (i + 1 < argc) {
+                gAutoLobbySlot = atoi(argv[++i]);
+            }
+            if (i + 1 < argc) {
+                gAutoLobbyHumans = atoi(argv[++i]);
+            }
+            /* Bot levels are optional, so only take the next argument when it is one. */
+            if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+                gAutoLobbyBots = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpjoin") == 0) {
+            gAutoLobbyRole = AutoLobbyRole::JOIN;
+            if (i + 1 < argc) {
+                gAutoLobbyHostIP = argv[++i];
+            }
+            if (i + 1 < argc) {
+                gAutoLobbySlot = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpdays") == 0) {
+            if (i + 1 < argc) {
+                gAutoQuitOnDay = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mptimeout") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyTimeout = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpgohome") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyGoHome = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpcutsalaries") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyCutSalaries = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpactions") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbyActions = atoi(argv[++i]);
+            }
+        }
+        if (stricmp(Argument, "/mpseed") == 0) {
+            if (i + 1 < argc) {
+                gAutoLobbySeed = atoi(argv[++i]);
+            }
+        }
+
+        // Trace the multiplayer protocol into the game log, see NetTrace.h
+        if (stricmp(Argument, "/nettrace") == 0) {
+            gNetTraceLevel = 1;
+
+            /* Only swallow the next argument when it really is a level, so that a bare
+               "/nettrace" followed by another switch keeps working. */
+            if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+                i++;
+                gNetTraceLevel = atoi(argv[i]);
+            }
+        }
+        // Repeatable games for paired measurements: the same N gives the same game
+        if (stricmp(Argument, "/seed") == 0) {
+            if (i + 1 < argc) {
+                gFixedSeed = atoi(argv[++i]);
+                srand(static_cast<unsigned>(gFixedSeed));
+            }
+        }
+        if (stricmp(Argument, "/setbotlevel") == 0) {
             gAutoBotDiff = 3;
 
             i++;
             if (i < argc) {
-                // gAutoBotDiff = atoi(argv[i]);
+                gAutoBotDiff = atoi(argv[i]);
             }
         }
     }
@@ -359,7 +383,7 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
 // CTakeOffApp Read Options from various places (file, registry, cli)
 //--------------------------------------------------------------------------------------------
 void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
-    AT_Log("Reading video options");
+    AT_Log("Reading options");
 
     // Die Standardsprachen:
     // #define LANGUAGE_D       0             //D-Deutsch, inklusive
@@ -383,20 +407,29 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
     // #define LANGUAGE_9      18             //U-noch frei
     // #define LANGUAGE_10     19             //V-noch frei
 
-    gLanguage = LANGUAGE_E;
-    CString sabbelPath{FullFilename("sabbel.dat", "misc")};
-    std::ifstream ifil = std::ifstream(sabbelPath);
-    if (ifil.is_open()) {
-        AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
-        ifil.read(reinterpret_cast<char *>(&gLanguage), 1);
-        ifil.close();
-    } else {
-        AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
-    }
-
     // gUpdatingPools = TRUE; //Zum testen; für Release auskommentieren
-
     CRegistryAccess reg(chRegKey);
+
+    gLanguage = LANGUAGE_E;
+
+    CString sabbelPath{FullFilename("sabbel.dat", "misc")};
+    const bool foundLanguageSetting = reg.ReadRegistryKeyEx_l(gLanguage, "OptionLanguage");
+    if (!foundLanguageSetting) {
+        // Old method of fetching language...
+        std::ifstream ifil = std::ifstream(sabbelPath);
+        if (ifil.is_open()) {
+            AT_Log("Found sabbel.dat at %s", sabbelPath.c_str());
+            ifil.read(reinterpret_cast<char *>(&gLanguage), 1);
+            ifil.close();
+
+            AT_Log("Language was not set in options file, reading from sabbel: %li", gLanguage);
+        } else {
+            AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
+        }
+
+        // Write to settings file:
+        reg.WriteRegistryKeyEx_l(gLanguage, "OptionLanguage");
+    }
 
     SLONG bConfigNoVgaRam = 0;
     SLONG bConfigNoSpeedyMouse = 0;
@@ -426,7 +459,7 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
 
     // Write registry and move on
 
-    if (gQuickTestRun == 0) {
+    if (gQuickTestRun == 0 && !AutoLobbyActive()) {
         reg.WriteFile();
     }
 }
@@ -446,6 +479,7 @@ void CTakeOffApp::CreateVideo() {
     if (Mix_Init(MIX_INIT_OGG) < 0) {
         printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", TTF_GetError());
     }
+    AT_Log("SDL version: %s", SDL_GetRevision());
     hasVideo = true;
 }
 
@@ -479,7 +513,9 @@ void CTakeOffApp::InitInstance(int argc, char *argv[]) {
         static_cast<SLONG>((DoesFileExist(FullFilename("builds.csv", ExcelPath)) == 0) && (DoesFileExist(FullFilename("relation.csv", ExcelPath))) == 0);
 
     Sim.LoadOptions();
-    if (gQuickTestRun == 0) {
+    NetTraceSetMainThread();
+    AutoLobbyApplyOptions();
+    if (gQuickTestRun == 0 && !AutoLobbyActive()) {
         Sim.SaveOptions();
     }
 
@@ -976,6 +1012,9 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
     Sim.TimeSlice = 0;
 
     while (bLeaveGameLoop == 0) {
+        AutoLobbyPollQuit();
+        AutoLobbyPumpDay();
+        AutoLobbyPumpActions();
         Time = SDL_GetTicks();
 
         if (LastTime == 0xffffffff || (bgJustDidLotsOfWork != 0) || bActive == FALSE) {
@@ -1091,7 +1130,16 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         Sim.IsTutorial = FALSE;
                         // Sim.bNoTime = FALSE;
                         // Sim.DayState = 2;
-                        Sim.Players.Players[Sim.localPlayer].GameSpeed = 5;
+                        /* 5 is outside GameSpeed's 0..3 range, a fast-forward for the unattended
+                           single player runs. A network game draws gClockBms[GameSpeed + 8] in the
+                           status line, and gClockBms only holds 12 bitmaps, so 5 read past its end
+                           and crashed every peer on the first paint of the airport. The effective
+                           network speed is the minimum over all humans anyway, so 3 costs nothing. */
+                        Sim.Players.Players[Sim.localPlayer].GameSpeed = (Sim.bNetwork != 0) ? 3 : 5;
+                        /* The other peers still had this human at 0. As long as everybody is in,
+                           that is the slowest speed anyway, but once one human went home the peers
+                           ran the rest at different speeds and got minutes apart. */
+                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, Sim.Players.Players[Sim.localPlayer].GameSpeed);
                     } else {
                         if (Sim.Difficulty == DIFF_TUTORIAL) {
                             for (c = 0; c < Sim.Players.AnzPlayers; c++) {
@@ -1440,7 +1488,18 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                     MyPrivateRandom++;
 
-                    if (((MyPrivateRandom & 1) == 0 && abs(gTimerCorrection) > 10) || (MyPrivateRandom & 7) == 0) {
+                    /* One step every other frame evens out the jitter of a few steps, but not a
+                       peer that ran at another speed for a while: at 20 frames a second it made up
+                       ten steps a second, and a peer an hour ahead stayed ahead all day. Close a
+                       large gap by a tenth per frame instead; a peer that is ahead can at most stand
+                       still for the frame. */
+                    if (abs(gTimerCorrection) > 100) {
+                        SLONG Delta = gTimerCorrection / 10;
+                        Delta = min(Delta, SLONG(40));
+                        Delta = max(Delta, -SLONG(NumSimSteps));
+                        NumSimSteps += Delta;
+                        gTimerCorrection -= Delta;
+                    } else if (((MyPrivateRandom & 1) == 0 && abs(gTimerCorrection) > 10) || (MyPrivateRandom & 7) == 0) {
                         if (gTimerCorrection > 0) {
                             NumSimSteps++;
                             gTimerCorrection--;
@@ -1460,6 +1519,17 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                     while (NumSimSteps > 0 &&
                            (SimStepsCounter < 400 || (SimStepsCounter < 1600 && ((Sim.CallItADay != 0) || Sim.Time > 18 * 60000 || Sim.Time < 9 * 60000)))) {
+                        /* "/seed N": game logic draws from rand() (e.g. the computer players' sabotage
+                           choice), and so does drawing, once per frame. How many frames fall between two
+                           steps depends on the wall clock, so reseed at every step from the game clock:
+                           every step then sees the same numbers however much was drawn in between.
+                           Not from TimeSlice: the clock stands still at 9:00 until the idle human leaves
+                           the boss office on a painted frame, and TimeSlice keeps counting meanwhile. */
+                        if (gFixedSeed != 0) {
+                            srand(static_cast<unsigned>(gFixedSeed) * 2654435761U ^ static_cast<unsigned>(Sim.Date) * 40503U ^
+                                  static_cast<unsigned>(Sim.Time) * 2246822519U);
+                        }
+
                         // Synchronisierung beim Feierabend:
                         if (Sim.GetHour() >= 9 && Sim.GetHour() < 18 && Sim.CallItADay == 1 && (Sim.bIsHost != 0) && NumSimStepsBegin != 1) {
                             for (c = 0; c < 4; c++) {
@@ -1754,8 +1824,14 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 Sim.UpdateRoomUsage();
                                             }
                                         }
-                                    } else if (Sim.Players.Players[c].Owner == 1) // Und das gleiche für Roboter:
+                                    } else if (Sim.Players.Players[c].Owner == 1 && Sim.Players.Players[c].IsOut == 0) // Und das gleiche für Roboter:
                                     {
+                                        /* Not for a computer player that is out. It goes out in the morning briefing and
+                                           keeps sitting in that room, and it has no figure in the airport from the next
+                                           day on. When CalcRoom() threw it out of the room after two hours, leaving it
+                                           asked the album for that figure, which ended a network game on the host with
+                                           "Album: Persons [] failed!". Rooms of players that are out count for nothing
+                                           anyway (see SIM::UpdateRoomUsage()). */
                                         for (d = 0; d < 10; d++) {
                                             if ((qPlayer.Locations[d] & ROOM_LEAVING) != 0) {
                                                 switch (qPlayer.Locations[d] & (~ROOM_LEAVING)) {
@@ -1798,7 +1874,9 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 }
 
                                                 qPlayer.Locations[d] = 0;
-                                                qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                if (d > 0) {
+                                                    qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                }
                                                 qPlayer.CalcRoom();
 
                                                 if ((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
@@ -2185,6 +2263,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
             }
 
             PumpNetwork();
+            NetWaitWatchdog();
         }
 
         /*for (c=0; c<Sim.Players.AnzPlayers; c++)

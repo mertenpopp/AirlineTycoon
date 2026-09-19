@@ -13,7 +13,6 @@
 #include <vector>
 
 extern const int kAvailTimeExtra;
-extern const int kDurationExtra;
 extern const int kScheduleForNextDays;
 
 extern int kNumToAdd;
@@ -340,8 +339,8 @@ class BotPlaner {
     std::vector<Graph> mGraphs{};
 
     /* randomness source */
-    std::random_device mRD;
-    std::mt19937 mMT{mRD()};
+    static unsigned makeSeed(const PLAYER &qPlayer);
+    std::mt19937 mMT{makeSeed(qPlayer)};
 };
 
 #endif // BOT_PLANER_H_

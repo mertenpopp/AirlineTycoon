@@ -5,12 +5,13 @@
 //============================================================================================
 #include "Personal.h"
 
+#include "AtNet.h"
 #include "global.h"
 #include "glpers.h"
 #include "helper.h"
 #include "Proto.h"
 
-#define AT_Log(...) // AT_Log_I("Personal", __VA_ARGS__)
+#define AT_Log(...) AT_Log_I("Personal", __VA_ARGS__)
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -473,20 +474,22 @@ void CWorkers::NewDay() {
             auto &qPlayer = Sim.Players.Players[Workers[c].Employer];
 
             // Worker u.U. mehrfach um 1%-Punkt unglücklicher machen
-            if (qPlayer.Owner != 2) {
-                if (qPlayer.Image < 500) {
-                    Workers[c].Happyness--;
-                }
-                if (qPlayer.Image < 0) {
-                    Workers[c].Happyness--;
-                }
-                if (qPlayer.Image < -500) {
-                    Workers[c].Happyness--;
-                }
+            /* For every employer, humans on other peers (Owner 2) included: this used to skip
+               them, so their staff's happiness drifted apart between the peers - and with it
+               who quits below and whether a strike starts. Nothing synchronizes happiness, but
+               every peer knows the image. */
+            if (qPlayer.Image < 500) {
+                Workers[c].Happyness--;
+            }
+            if (qPlayer.Image < 0) {
+                Workers[c].Happyness--;
+            }
+            if (qPlayer.Image < -500) {
+                Workers[c].Happyness--;
+            }
 
-                if (qPlayer.Image >= 750) {
-                    Workers[c].Happyness++;
-                }
+            if (qPlayer.Image >= 750) {
+                Workers[c].Happyness++;
             }
 
             // Happyness verändert sich nach Gehalt
@@ -527,11 +530,28 @@ void CWorkers::NewDay() {
         }
     }
 
-    SLONG AnzahlBerater = 5 + LocalRand.Rand(2);
-    SLONG AnzahlPiloten = 10 + LocalRand.Rand(3);
-    SLONG AnzahlStewardessen = 25 + LocalRand.Rand(5);
+    std::array<std::pair<SLONG, SLONG>, 9> AnzahlBerater{{{BERATERTYP_PERSONAL, 0},
+                                                          {BERATERTYP_KEROSIN, 0},
+                                                          {BERATERTYP_ROUTE, 0},
+                                                          {BERATERTYP_AUFTRAG, 0},
+                                                          {BERATERTYP_GELD, 0},
+                                                          {BERATERTYP_INFO, 0},
+                                                          {BERATERTYP_FLUGZEUG, 0},
+                                                          {BERATERTYP_FITNESS, 0},
+                                                          {BERATERTYP_SICHERHEIT, 0}}};
+    for (auto &berater : AnzahlBerater) {
+        if (berater.first == BERATERTYP_PERSONAL || berater.first == BERATERTYP_ROUTE || berater.first == BERATERTYP_FLUGZEUG) {
+            berater.second = LocalRand.Rand(0, 2) / 2; /* not terribly useful: Make them rarer (33% chance) */
+        } else {
+            berater.second = LocalRand.Rand(0, 1); /* 50% chance */
+        }
+    }
 
-    while (AnzahlBerater > 0 || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
+    SLONG AnzahlPiloten = 10 + LocalRand.Rand(3);
+    SLONG AnzahlStewardessen = 50 + LocalRand.Rand(5);
+    bool GibtNochBerater = true;
+
+    while (GibtNochBerater || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
         m = LocalRand.Rand(Workers.AnzEntries());
 
         SLONG d = 0;
@@ -553,11 +573,17 @@ void CWorkers::NewDay() {
                 Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
                 break;
             }
-            if (AnzahlBerater > 0) {
-                AnzahlBerater--;
-                Workers[idx].Employer = WORKER_JOBLESS;
-                Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
-                break;
+
+            GibtNochBerater = false;
+            for (auto &berater : AnzahlBerater) {
+                if (berater.second > 0) {
+                    GibtNochBerater = true;
+                }
+                if (Workers[idx].Typ == berater.first && berater.second > 0) {
+                    berater.second--;
+                    Workers[idx].Employer = WORKER_JOBLESS;
+                    Workers[idx].Gehalt = Workers[idx].OriginalGehalt;
+                }
             }
         }
 
@@ -570,9 +596,17 @@ void CWorkers::NewDay() {
 //--------------------------------------------------------------------------------------------
 // Erhöht oder erniedrigt einer Personen das Gehalt
 //--------------------------------------------------------------------------------------------
-void CWorker::Gehaltsaenderung(BOOL Art) {
+void CWorker::Gehaltsaenderung(BOOL Art, bool bFromNetwork) {
     if (Employer == WORKER_RESERVE || Employer == WORKER_JOBLESS || Employer == WORKER_EXPIRED) {
         return;
+    }
+
+    /* Every peer books a bot's salaries itself each night, and a worker's happiness - which
+       decides whether he quits - follows his salary. So the peer that owns the employer
+       tells the others, who repeat the same change. Taken before the change: a cut can make
+       the worker quit, and then he no longer has an employer. */
+    if (!bFromNetwork && Sim.Players.Players[Employer].NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, Employer, static_cast<SLONG>(this - &Workers.Workers[0]), Art);
     }
 
     if (Art != 0) {
@@ -623,13 +657,20 @@ CString CWorkers::GetRandomName(BOOL Geschlecht) const {
     return (FNames[rand() % FNames.AnzEntries()] + " " + LNames[rand() % LNames.AnzEntries()]);
 }
 
+CString CWorkers::GetRandomName(BOOL Geschlecht, TEAKRAND &NameRand) const {
+    if (Geschlecht != 0) {
+        return (MNames[NameRand.Rand(MNames.AnzEntries())] + " " + LNames[NameRand.Rand(LNames.AnzEntries())]);
+    }
+    return (FNames[NameRand.Rand(FNames.AnzEntries())] + " " + LNames[NameRand.Rand(LNames.AnzEntries())]);
+}
+
 //--------------------------------------------------------------------------------------------
 // Verhindert, dass es zu wenig Piloten oder Stewardessen gibt:
 //--------------------------------------------------------------------------------------------
-CWorker CWorkers::createBerater(TEAKRAND &LocalRand, SLONG typ) const {
+CWorker CWorkers::createBerater(TEAKRAND &LocalRand, TEAKRAND &NameRand, SLONG typ) const {
     CWorker worker;
     worker.Geschlecht = static_cast<BOOL>((LocalRand.Rand(100)) > 20);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = typ;
     worker.Gehalt = (30 + LocalRand.Rand(80)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
@@ -642,10 +683,10 @@ CWorker CWorkers::createBerater(TEAKRAND &LocalRand, SLONG typ) const {
     worker.OriginalGehalt = worker.Gehalt;
     return worker;
 }
-CWorker CWorkers::createPilot(TEAKRAND &LocalRand) const {
+CWorker CWorkers::createPilot(TEAKRAND &LocalRand, TEAKRAND &NameRand) const {
     CWorker worker;
     worker.Geschlecht = static_cast<BOOL>((LocalRand.Rand(100)) > 20);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = WORKER_PILOT;
     worker.Gehalt = (30 + LocalRand.Rand(83)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt / 200 + LocalRand.Rand(30) + 20);
@@ -658,10 +699,10 @@ CWorker CWorkers::createPilot(TEAKRAND &LocalRand) const {
     worker.OriginalGehalt = worker.Gehalt;
     return worker;
 }
-CWorker CWorkers::createStewardess(TEAKRAND &LocalRand) const {
+CWorker CWorkers::createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) const {
     CWorker worker;
-    worker.Geschlecht = static_cast<BOOL>((rand() % 100) > 80);
-    worker.Name = GetRandomName(worker.Geschlecht);
+    worker.Geschlecht = static_cast<BOOL>((NameRand.Rand(100)) > 80);
+    worker.Name = GetRandomName(worker.Geschlecht, NameRand);
     worker.Typ = WORKER_STEWARDESS;
     worker.Gehalt = (30 + LocalRand.Rand(60)) * 100;
     worker.Talent = std::min(SLONG(100), worker.Gehalt * 100 / 80 / 200 + LocalRand.Rand(30) + 20);
@@ -675,6 +716,13 @@ CWorker CWorkers::createStewardess(TEAKRAND &LocalRand) const {
     return worker;
 }
 SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent) {
+    /* Names and a stewardess' gender used to come from the global rand(), which runs at its own
+       pace on every machine: the peers ended up with different names for the same applicant, and
+       a player could not tell a colleague whom to hire. A generator of its own, seeded like
+       LocalRand but apart from it, keeps every other draw - and with it single player - as it
+       was. */
+    TEAKRAND NameRand(Sim.Date + Sim.StartTime + 0x4e414d45 + typ * 7919);
+
     SLONG nExpired = 0;
     SLONG anz = 0;
     SLONG anzKompetent = 0;
@@ -713,11 +761,11 @@ SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompet
             }
 
             if (typ >= BERATERTYP_PERSONAL && typ <= BERATERTYP_SICHERHEIT) {
-                Workers[c] = createBerater(LocalRand, typ);
+                Workers[c] = createBerater(LocalRand, NameRand, typ);
             } else if (typ == WORKER_STEWARDESS) {
-                Workers[c] = createStewardess(LocalRand);
+                Workers[c] = createStewardess(LocalRand, NameRand);
             } else if (typ == WORKER_PILOT) {
-                Workers[c] = createPilot(LocalRand);
+                Workers[c] = createPilot(LocalRand, NameRand);
             } else {
                 TeakLibW_Exception(FNL, ExcNever);
                 return nExpired;
@@ -745,7 +793,7 @@ void CWorkers::CheckShortageAndSort() {
         nExpired += AddToPool(i, LocalRand, 5);
     }
     nExpired += AddToPool(WORKER_PILOT, LocalRand, 80);
-    nExpired += AddToPool(WORKER_STEWARDESS, LocalRand, 80);
+    nExpired += AddToPool(WORKER_STEWARDESS, LocalRand, 160);
 
     std::sort(Workers.begin(), Workers.end());
 
@@ -763,10 +811,15 @@ void CWorkers::CheckShortageAndSort() {
 //--------------------------------------------------------------------------------------------
 // Erhöht oder erniedrigt allen Personen das Gehalt
 //--------------------------------------------------------------------------------------------
-void CWorkers::Gehaltsaenderung(BOOL Art, SLONG PlayerNum) {
+void CWorkers::Gehaltsaenderung(BOOL Art, SLONG PlayerNum, bool bFromNetwork) {
+    /* One message for the whole staff rather than one per worker. */
+    if (!bFromNetwork && Sim.Players.Players[PlayerNum].NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, PlayerNum, -1, Art);
+    }
+
     for (SLONG c = 0; c < Workers.AnzEntries(); c++) {
         if (Workers[c].Employer == PlayerNum) {
-            Workers[c].Gehaltsaenderung(Art);
+            Workers[c].Gehaltsaenderung(Art, true);
         }
     }
 }

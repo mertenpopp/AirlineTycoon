@@ -171,6 +171,7 @@ extern BOOL bLeaveGameLoop;      // Hauptschleife verlassen?
 extern BOOL bFirstClass;
 extern SLONG gAutoQuitOnDay; // Exit game on specified game
 extern SLONG gAutoBotDiff;
+extern SLONG gFixedSeed; // "/seed N": replay the same game for the same N (0 = seeded from the clock)
 
 //--------------------------------------------------------------------------------------------
 // Das Spiel höchstpersönlich:
@@ -489,3 +490,6 @@ extern const SLONG BTARGET_DAYS7;      // Spielziel ATFS-Level 7
 extern const SLONG BTARGET_VERBRAUCH;  // Spielziel ATFS-Level 8
 extern const SLONG BTARGET_NDAYS9;     // Spielziel ATFS-Level 9
 extern const SLONG BTARGET_NDAYS10;    // Spielziel ATFS-Level 10
+
+inline constexpr SLONG kCurrentYear{2026};
+inline constexpr SLONG kYearsSinceRelease{kCurrentYear - 2002};

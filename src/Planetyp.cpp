@@ -5,6 +5,7 @@
 #include "class.h"
 #include "global.h"
 #include "helper.h"
+#include "NetTrace.h"
 #include "Proto.h"
 
 // Preise verstehen sich pro Sitzplatz:
@@ -240,6 +241,8 @@ CPlane::CPlane(const CString &Name, ULONG TypeId, UBYTE Zustand, SLONG Baujahr) 
     if (TypeId != -1) {
         CPlane::MaxPassagiere = PlaneTypes[TypeId].Passagiere * 6 / 8;
         CPlane::MaxPassagiereFC = PlaneTypes[TypeId].Passagiere * 1 / 8;
+        CPlane::MaxPassagiereTarget = CPlane::MaxPassagiere;
+        CPlane::MaxPassagiereTargetFC = CPlane::MaxPassagiereFC;
         CPlane::MaxBegleiter = PlaneTypes[TypeId].AnzBegleiter;
 
         CPlaneType &qPlaneType = PlaneTypes[TypeId];
@@ -273,7 +276,9 @@ CPlane::CPlane(const CString &Name, ULONG TypeId, UBYTE Zustand, SLONG Baujahr) 
 //--------------------------------------------------------------------------------------------
 SLONG CPlane::CalculatePrice() const {
     // SLONG rc = SLONG(__int64(PlaneTypes[TypeId].Preis) * Zustand/10000 * Zustand * (Baujahr-1900) / 120);
-    auto rc = SLONG(__int64(ptPreis) * Zustand / 10000 * Zustand * (Baujahr - 1900) / 120);
+    auto rc = SLONG(__int64(ptPreis) * Zustand / 10000 * Zustand * (Baujahr - kYearsSinceRelease - 1900) / 120);
+    /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+    /* We have added kYearsSinceRelease to all build years and have to subtract it here to get the same value as before. */
 
     if (Sponsored != 0) {
         rc /= 10;
@@ -344,6 +349,9 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                     }
                     qPlayer.Image -= 2;
                     Limit(SLONG(-1000), qPlayer.Image, SLONG(1000));
+                    NetTraceEvent("NOGATE p=%ld plane=%s landing start=%ld/%ld land=%ld/%ld", static_cast<long>(PlayerNum), Name.c_str(),
+                                  static_cast<long>(fpe->Startdate), static_cast<long>(fpe->Startzeit), static_cast<long>(fpe->Landedate),
+                                  static_cast<long>(fpe->Landezeit));
 
                     if ((pRoute != nullptr) && (qPlayer.Image) % 10 == 0) {
                         if (pRoute->Image > 1) {
@@ -572,6 +580,13 @@ void CPlane::DoOneStep(SLONG PlayerNum) {
                 Delta = (SicherheitCosts[SicherheitTarget] - SicherheitCosts[Sicherheit] / 2);
                 Costs += Delta;
                 Sicherheit = SicherheitTarget;
+            }
+
+            if (MaxPassagiere != MaxPassagiereTarget) {
+                MaxPassagiere = MaxPassagiereTarget;
+            }
+            if (MaxPassagiereFC != MaxPassagiereTargetFC) {
+                MaxPassagiereFC = MaxPassagiereTargetFC;
             }
 
             if (Costs != 0) {
@@ -1058,7 +1073,7 @@ void CPlane::UpdateGlobePos(UWORD EarthAlpha) {
 //--------------------------------------------------------------------------------------------
 // Berechnet den Saldo einer Woche:
 //--------------------------------------------------------------------------------------------
-SLONG CPlane::GetSaldo() {
+SLONG CPlane::GetSaldo() const {
     SLONG c = 0;
     SLONG Summe = 0;
 
@@ -1354,10 +1369,12 @@ void CPlane::UpdatePersonalQuality(SLONG PlayerNum) {
 
     Saldo = 0;
 
+    auto &qPlayer = Sim.Players.Players[PlayerNum];
     for (c = n = 0; c < Workers.Workers.AnzEntries(); c++) {
-        if (Workers.Workers[c].Employer == PlayerNum && Workers.Workers[c].PlaneId != -1 &&
-            (&Sim.Players.Players[PlayerNum].Planes[Workers.Workers[c].PlaneId]) == this) {
-            Saldo += Workers.Workers[c].Talent;
+        auto &qWorker = Workers.Workers[c];
+        if (qWorker.Employer == PlayerNum && qWorker.PlaneId != -1 && qPlayer.Planes.IsInAlbum(qWorker.PlaneId) != 0 &&
+            (&qPlayer.Planes[qWorker.PlaneId]) == this) {
+            Saldo += qWorker.Talent;
             n++;
         }
     }
@@ -1427,6 +1444,9 @@ TEAKFILE &operator<<(TEAKFILE &File, const CPlane &Plane) {
         File << Plane.OhneSitze;
         File << Plane.PersonalQuality;
     }
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
+        File << Plane.MaxPassagiereTarget << Plane.MaxPassagiereTargetFC;
+    }
 
     File << Plane.ptHersteller << Plane.ptErstbaujahr << Plane.ptName << Plane.ptReichweite << Plane.ptGeschwindigkeit << Plane.ptPassagiere
          << Plane.ptAnzPiloten << Plane.ptAnzBegleiter << Plane.ptTankgroesse << Plane.ptVerbrauch << Plane.ptPreis << Plane.ptWartungsfaktor
@@ -1451,6 +1471,10 @@ TEAKFILE &operator>>(TEAKFILE &File, CPlane &Plane) {
     File >> Plane.WorstZustand;
     File >> Plane.Baujahr >> Plane.AnzPiloten >> Plane.AnzBegleiter;
     File >> Plane.MaxBegleiter;
+
+    if (SaveVersionSub < 203) {
+        Plane.Baujahr += kYearsSinceRelease;
+    }
 
     File >> Plane.Sitze >> Plane.SitzeTarget;
     File >> Plane.Essen >> Plane.EssenTarget;
@@ -1484,6 +1508,12 @@ TEAKFILE &operator>>(TEAKFILE &File, CPlane &Plane) {
         Plane.Elektronik = Plane.ElektronikTarget = 0;
         Plane.Sicherheit = Plane.SicherheitTarget = 0;
         Plane.OhneSitze = 0;
+    }
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
+        File >> Plane.MaxPassagiereTarget >> Plane.MaxPassagiereTargetFC;
+    } else {
+        Plane.MaxPassagiereTarget = Plane.MaxPassagiere;
+        Plane.MaxPassagiereTargetFC = Plane.MaxPassagiereFC;
     }
 
     File >> Plane.ptHersteller >> Plane.ptErstbaujahr >> Plane.ptName >> Plane.ptReichweite >> Plane.ptGeschwindigkeit >> Plane.ptPassagiere >>

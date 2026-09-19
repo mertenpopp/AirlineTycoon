@@ -10,6 +10,7 @@
 #include "ColorFx.h"
 #include "CVideo.h"
 #include "global.h"
+#include "NetTrace.h"
 #include "glbasis.h"
 #include "glpause.h"
 #include "helper.h"
@@ -460,6 +461,34 @@ void GameFrame::ProcessEvent(const SDL_Event &event) const {
     switch (event.type) {
     case SDL_WINDOWEVENT: {
         if (event.window.windowID == SDL_GetWindowID(FrameWnd->m_hWnd)) {
+            /* For the multiplayer harness: record focus and visibility changes, so that a run
+               which only progresses once a window is clicked shows what the click changed. */
+            switch (event.window.event) {
+            case SDL_WINDOWEVENT_SHOWN:
+                NetTraceEvent("WINDOW shown");
+                break;
+            case SDL_WINDOWEVENT_HIDDEN:
+                NetTraceEvent("WINDOW hidden");
+                break;
+            case SDL_WINDOWEVENT_EXPOSED:
+                NetTraceEvent("WINDOW exposed");
+                break;
+            case SDL_WINDOWEVENT_MINIMIZED:
+                NetTraceEvent("WINDOW minimized");
+                break;
+            case SDL_WINDOWEVENT_RESTORED:
+                NetTraceEvent("WINDOW restored");
+                break;
+            case SDL_WINDOWEVENT_FOCUS_GAINED:
+                NetTraceEvent("WINDOW focus_gained");
+                break;
+            case SDL_WINDOWEVENT_FOCUS_LOST:
+                NetTraceEvent("WINDOW focus_lost");
+                break;
+            default:
+                break;
+            }
+
             if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
                 SDL_Quit();
                 Sim.Gamestate = GAMESTATE_QUIT;
@@ -736,7 +765,7 @@ void GameFrame::OnPaint() {
                     }
                 }
 
-                ColorFX.BlitWhiteTrans(FALSE, gToolTipBm.pBitmap, &PrimaryBm.PrimaryBm, XY(px, py));
+                ColorFX.BlitWhiteTrans(gToolTipBm.pBitmap, &PrimaryBm.PrimaryBm, XY(px, py));
             }
 
             if (gUseWindowsMouse == 0) {
@@ -1688,7 +1717,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 
         if (memcmp(TypeBuffer + 30 - 6, strCheatMentat + 1, 6) == 0) {
             if ((Sim.bAllowCheating != 0) || (Sim.bNetwork == 0)) {
-                CheatBerater += 100;
+                CheatBerater = (CheatBerater < 100) ? 100 : 0;
                 CheatSound();
 
                 SIM::SendChatBroadcast(bprintf(StandardTexte.GetS(TOKEN_MISC, 7010), (LPCTSTR)Sim.Players.Players[Sim.localPlayer].NameX));
