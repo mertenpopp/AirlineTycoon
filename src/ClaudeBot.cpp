@@ -41,6 +41,9 @@ static const SLONG kMaxAgencyVisitsPerDay = 10;
  * reach its start) for a job to be worth accepting. */
 static const SLONG kMinJobGain = 1000;
 
+/* Smallest loan GameMechanic::takeOutCredit() accepts. Asking for less is rejected. */
+static const SLONG kMinCredit = 1000;
+
 /* Hours left free at the end of an idle window a job is fitted into. A job that overruns
  * its window pushes the following route leg later, which costs a sixth of its passengers
  * per night hour, so the window is never filled to the brim. */
@@ -713,8 +716,28 @@ bool ClaudeBot::canUseAction(SLONG actionId) const {
     if (!Helper::checkRoomOpen(actionId)) {
         return false;
     }
+
+    /* The freight depot is a per-mission feature. Helper::checkRoomOpen() only looks at the
+     * mission number, but the flag below is what decides whether the room is there at all,
+     * and in the missions that switch it off (the base game and Sanierung) the hall may be
+     * missing from the airport. */
+    if (actionId == ACTION_CHECKAGENT3 && !qPlayer.RobotUse(ROBOT_USE_FRACHT)) {
+        return false;
+    }
+
     /* -1 means "no room", which RobotPump() cannot walk to */
-    return Helper::getRoomFromAction(qPlayer.PlayerNum, actionId) != -1;
+    SLONG roomId = Helper::getRoomFromAction(qPlayer.PlayerNum, actionId);
+    if (roomId == -1) {
+        return false;
+    }
+    if (roomId == 0) {
+        return true; /* no walking needed, so there is no entrance to look for */
+    }
+
+    /* Not every mission builds every room. Walking to a room the airport does not have
+     * throws inside GetRandomTypedRune() and takes the whole game down with it, so no
+     * action may be planned for a room without an entrance. */
+    return Airport.DoesRuneExist(RUNE_2SHOP, static_cast<UBYTE>(roomId)) != 0;
 }
 
 SLONG ClaudeBot::pickFillerAction() {
@@ -797,7 +820,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     /* 3) Borrow to the limit, every day. Loan interest is not part of the operating
      *    result and the game has no bankruptcy, so leverage is free: the cash buys
      *    planes, which are the only thing that scales revenue. */
-    if (!mVisitedBankToday && qPlayer.CalcCreditLimit() > 0 && canUseAction(ACTION_RAISEMONEY)) {
+    if (!mVisitedBankToday && qPlayer.CalcCreditLimit() >= kMinCredit && canUseAction(ACTION_RAISEMONEY)) {
         out.push_back(ACTION_RAISEMONEY);
     }
 
@@ -2404,8 +2427,10 @@ void ClaudeBot::executeUpgrades() {
 void ClaudeBot::executeBank() {
     mVisitedBankToday = true;
 
+    /* GameMechanic::takeOutCredit() refuses anything below 1000, so a limit under that is
+     * the same as no credit at all. */
     SLONG limit = qPlayer.CalcCreditLimit();
-    if (limit <= 0) {
+    if (limit < kMinCredit) {
         return;
     }
     if (GameMechanic::takeOutCredit(qPlayer, limit)) {

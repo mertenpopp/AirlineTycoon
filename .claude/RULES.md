@@ -1095,6 +1095,80 @@ The following shall only be used when implementing ClaudeBot for missions instea
 - `Sim.MissionCities`: Array of cities relevant for a specific mission.
 - `RocketPrices` and `StationPrices`: Array listing prices for various rocket and space station parts.
 
+Game missions
+=============
+
+The game has several mission where a specific target has to be met. There are also some rule changes in some missions. Use the function `PLAYER::GetMissionRating()`: to determine how much of the goal has been completed. Analyze `PLAYER::HasWon()` to see the actual win condition for each mission.
+
+DIFF_TUTORIAL:
+    Target: Complete 10 regular jobs first
+    No postcard / cloth / floppy / darts
+    No access to route box / arab air
+    No access to ads
+    Max. two gates
+
+DIFF_FIRST:
+
+DIFF_EASY:
+    Target: Transport 2500 passengers first
+    Different starting planes
+    No floppy / darts
+    No access to ads
+    Max. two gates
+
+DIFF_NORMAL:
+    Target: Generate a profit of 5 million first
+    Different starting planes
+    Max. two gates
+    Higher chance to rent mission cities
+
+DIFF_ADDON01:
+
+    All planes Zustand = 60
+
+DIFF_ADDON02:
+
+    First time freight access
+
+DIFF_ADDON03:
+
+    Generating special freight jobs
+
+DIFF_ADDON06:
+
+    No travel holding
+    Starting image is 30%
+
+DIFF_ADDON07
+
+    All planes Zustand = 35
+
+DIFF_ADDON09
+
+    Generating Uhrig flights
+    No initial 2 jobs in planner
+
+DIFF_ATFS06:
+
+    Additional sabotage
+
+DIFF_ATFS09 / DIFF_ATFS10:
+
+    Computer gets kerosene tanks
+    Kerosene price manipulations
+
+DIFF_ATFS10:
+
+    No flight premiums between days 20 - 30.
+    No freight premiums between days 25 - 35.
+    Stock price drops 80% on day 18.
+    Image drops by 20% on day 55.
+    Random plane lost on day 40.
+    All planes damaged by 40% on day 35.
+    All workers made unhappy by 45% on day 20 and day 45.
+    No used planes between days 40 and 50.
+
+
 Notes regarding code base
 =========================
 
