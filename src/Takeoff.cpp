@@ -427,6 +427,11 @@ void CTakeOffApp::ReadOptions(int argc, char *argv[]) {
             AT_Log("No sabbel.dat found at %s", sabbelPath.c_str());
         }
 
+        if (gLanguage < LANGUAGE_D || gLanguage > LANGUAGE_B) {
+            AT_Log("Language setting %li is invalid, defaulting to English", gLanguage);
+            gLanguage = LANGUAGE_E;
+        }
+
         // Write to settings file:
         reg.WriteRegistryKeyEx_l(gLanguage, "OptionLanguage");
     }

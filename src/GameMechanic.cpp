@@ -2667,6 +2667,9 @@ bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
         return false;
     }
 
+    /* Note: Dropped check of currently booked passengers (GetMaxPassengerOpenFlight()) because seating reconfiguration now
+     * only happens when the plane is not in flight. */
+
     auto &qPlane = qPlayer.Planes[planeId];
     SLONG total = qPlane.ptPassagiere;
 
@@ -2693,6 +2696,9 @@ bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
         AT_Error("GameMechanic::decreaseFirstClassRatio(%s): Invalid plane index (%ld).", qPlayer.AirlineX.c_str(), planeId);
         return false;
     }
+
+    /* Note: Dropped check of currently booked passengers (GetMaxPassengerOpenFlight()) because seating reconfiguration now
+     * only happens when the plane is not in flight. */
 
     auto &qPlane = qPlayer.Planes[planeId];
     SLONG total = qPlane.ptPassagiere;

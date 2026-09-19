@@ -1132,9 +1132,10 @@ constexpr int BotDifficultySaboteur = 3;
 constexpr int BotDifficultyFreightBaron = 4;
 constexpr int BotDifficultyNemesis = 5; // last MertenBot
 constexpr int BotDifficultyTycoon = 6;  // first ClaudeBot
-constexpr int BotDifficultyTBD = 7;
-constexpr int BotDifficultyTBD2 = 8; // last ClaudeBot
-constexpr int BotDifficultyMax = 6;
+constexpr int BotDifficultyHurricane = 7;
+constexpr int BotDifficultyTBD = 8; // last ClaudeBot
+constexpr int BotDifficultyMaxFreegame = 7;
+constexpr int BotDifficultyMax = 5;
 
 // Die Netzwerk-Medien
 #define NET_MEDIUM_UNKNOWN 0

@@ -602,6 +602,7 @@ void NewGamePopup::RefreshKlackerField() {
 
             KlackerTafel.PrintAt(6, c * 2 + 2, (LPCTSTR)qPlayer.Name);
             if (qPlayer.Owner == 1) {
+                qPlayer.BotLevel = std::min(qPlayer.BotLevel, (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax));
                 KlackerTafel.PrintAt(6, c * 2 + 3, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel)); // Difficulty level of bot
             } else {
                 KlackerTafel.PrintAt(6, c * 2 + 3, StandardTexte.GetS(TOKEN_NEWGAME, 5000));
@@ -1706,7 +1707,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                         auto &qPlayer = Sim.Players.Players[c];
                         if (qPlayer.Owner == 1) {
                             qPlayer.BotLevel += 1;
-                            if (qPlayer.BotLevel > BotDifficultyMax) {
+                            if (qPlayer.BotLevel > (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax)) {
                                 qPlayer.BotLevel = 0;
                             }
                             SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
@@ -2059,7 +2060,7 @@ void NewGamePopup::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
                 if (qPlayer.Owner == 1) {
                     qPlayer.BotLevel -= 1;
                     if (qPlayer.BotLevel < 0) {
-                        qPlayer.BotLevel = BotDifficultyMax;
+                        qPlayer.BotLevel = (Sim.Difficulty == DIFF_FREEGAME ? BotDifficultyMaxFreegame : BotDifficultyMax);
                     }
                     SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, qPlayer.BotLevel);
                 }
@@ -2096,150 +2097,162 @@ void NewGamePopup::CheckNetEvents() {
                    one message and stay in the lobby, as PumpNetwork() does in the game. */
                 try {
 
-                Message >> MessageType;
+                    Message >> MessageType;
 
-                NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
-                // AT_Log_I("NET", "Received net event: %s (%x)", Translate_ATNET(MessageType), MessageType);
+                    NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
+                    // AT_Log_I("NET", "Received net event: %s (%x)", Translate_ATNET(MessageType), MessageType);
 
-                switch (MessageType) {
-                case ATNET_ENTERNAME:
-                    Message >> Par1;
-                    Message >> Sim.Players.Players[static_cast<SLONG>(Par1)].Name;
-                    PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_CLICK);
-                    RefreshKlackerField();
-                    break;
+                    switch (MessageType) {
+                    case ATNET_ENTERNAME:
+                        Message >> Par1;
+                        Message >> Sim.Players.Players[static_cast<SLONG>(Par1)].Name;
+                        PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_CLICK);
+                        RefreshKlackerField();
+                        break;
 
-                case ATNET_PUSHNAMES:
-                    Message >> Sim.UniqueGameId >> gNetworkSavegameLoading;
-                    Message >> Sim.Players.Players[static_cast<SLONG>(0)].Name >> Sim.Players.Players[static_cast<SLONG>(1)].Name >>
-                        Sim.Players.Players[static_cast<SLONG>(2)].Name >> Sim.Players.Players[static_cast<SLONG>(3)].Name >>
-                        Sim.Players.Players[static_cast<SLONG>(0)].NetworkID >> Sim.Players.Players[static_cast<SLONG>(1)].NetworkID >>
-                        Sim.Players.Players[static_cast<SLONG>(2)].NetworkID >> Sim.Players.Players[static_cast<SLONG>(3)].NetworkID;
+                    case ATNET_PUSHNAMES:
+                        Message >> Sim.UniqueGameId >> gNetworkSavegameLoading;
+                        Message >> Sim.Players.Players[static_cast<SLONG>(0)].Name >> Sim.Players.Players[static_cast<SLONG>(1)].Name >>
+                            Sim.Players.Players[static_cast<SLONG>(2)].Name >> Sim.Players.Players[static_cast<SLONG>(3)].Name >>
+                            Sim.Players.Players[static_cast<SLONG>(0)].NetworkID >> Sim.Players.Players[static_cast<SLONG>(1)].NetworkID >>
+                            Sim.Players.Players[static_cast<SLONG>(2)].NetworkID >> Sim.Players.Players[static_cast<SLONG>(3)].NetworkID;
 
-                    RefreshKlackerField();
-                    break;
+                        RefreshKlackerField();
+                        break;
 
-                case ATNET_WANNAJOIN2:
-                case ATNET_WANNAJOIN:
-                    if (bThisIsSessionMaster) {
-                        SLONG c = 0;
-                        SLONG AnzHumanPlayers = 0;
-                        ULONG SenderID = 0;
-                        Message >> SenderID;
+                    case ATNET_WANNAJOIN2:
+                    case ATNET_WANNAJOIN:
+                        if (bThisIsSessionMaster) {
+                            SLONG c = 0;
+                            SLONG AnzHumanPlayers = 0;
+                            ULONG SenderID = 0;
+                            Message >> SenderID;
 
-                        for (c = AnzHumanPlayers = 0; c < 4; c++) {
-                            if (Sim.Players.Players[c].Owner == 0 || Sim.Players.Players[c].Owner == 2) {
-                                AnzHumanPlayers++;
-                            }
-                        }
-
-                        if (AnzHumanPlayers >= 4) {
-                            TEAKFILE Message;
-
-                            Message.Announce(30);
-                            Message << ATNET_SORRYFULL;
-
-                            gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
-                        } else if (gNetworkSavegameLoading != -1 && MessageType == ATNET_WANNAJOIN) {
-                            TEAKFILE Message;
-
-                            Message.Announce(30);
-                            /* The version at the end lets the client refuse us, too: a 1.9.0 host never checks the
-                               version of a client rejoining a saved game, so a client has to check its host itself.
-                               Older clients read the first two fields only and ignore the rest. */
-                            Message << ATNET_SAVGEGAMECHECK << gNetworkSavegameLoading << Sim.GetSavegameUniqueGameId(gNetworkSavegameLoading, true)
-                                    << CString(VersionString);
-
-                            gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
-                        } else {
-                            SLONG WantedIndex = 0;
-                            Message >> WantedIndex;
-
-                            /* Both ways in carry the version: rejoining a saved game used to skip
-                               this, so two builds that do not speak the same protocol could sit in
-                               one game and drift apart without anybody being told. */
-                            /* Builds up to 1.9.0 send ATNET_WANNAJOIN2 without a version. Reading one anyway ran past the
-                               end of the message and threw out of the lobby. A missing version is a different build. */
-                            CString Version;
-
-                            if (Message.BytesRemaining() > 0) {
-                                Message >> Version;
-                            }
-
-                            if (Version.Compare(VersionString) != 0) {
-                                TEAKFILE Message;
-
-                                Message.Announce(30);
-                                Message << ATNET_SORRYVERSION;
-
-                                gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
-                                return;
-                            }
-
-                            if (Sim.Players.Players[WantedIndex].Owner != 3 && gNetworkSavegameLoading != -1) {
-                                TEAKFILE Message;
-
-                                Message.Announce(30);
-                                Message << ATNET_WANNAJOIN2NO;
-
-                                gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
-                                return;
-                            }
-
-                            if (Sim.Players.Players[WantedIndex].NetworkID == 0) {
-                                Sim.Players.Players[WantedIndex].NetworkID = SenderID;
-                                Sim.Players.Players[WantedIndex].Owner = 2;
-                            } else {
-                                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
-                                    if (Sim.Players.Players[c].NetworkID == 0) {
-                                        Sim.Players.Players[c].NetworkID = SenderID;
-                                        Sim.Players.Players[c].Owner = 2;
-                                        break;
-                                    }
+                            for (c = AnzHumanPlayers = 0; c < 4; c++) {
+                                if (Sim.Players.Players[c].Owner == 0 || Sim.Players.Players[c].Owner == 2) {
+                                    AnzHumanPlayers++;
                                 }
                             }
 
-                            PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_JOIN);
+                            if (AnzHumanPlayers >= 4) {
+                                TEAKFILE Message;
+
+                                Message.Announce(30);
+                                Message << ATNET_SORRYFULL;
+
+                                gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
+                            } else if (gNetworkSavegameLoading != -1 && MessageType == ATNET_WANNAJOIN) {
+                                TEAKFILE Message;
+
+                                Message.Announce(30);
+                                /* The version at the end lets the client refuse us, too: a 1.9.0 host never checks the
+                                   version of a client rejoining a saved game, so a client has to check its host itself.
+                                   Older clients read the first two fields only and ignore the rest. */
+                                Message << ATNET_SAVGEGAMECHECK << gNetworkSavegameLoading << Sim.GetSavegameUniqueGameId(gNetworkSavegameLoading, true)
+                                        << CString(VersionString);
+
+                                gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
+                            } else {
+                                SLONG WantedIndex = 0;
+                                Message >> WantedIndex;
+
+                                /* Both ways in carry the version: rejoining a saved game used to skip
+                                   this, so two builds that do not speak the same protocol could sit in
+                                   one game and drift apart without anybody being told. */
+                                /* Builds up to 1.9.0 send ATNET_WANNAJOIN2 without a version. Reading one anyway ran past the
+                                   end of the message and threw out of the lobby. A missing version is a different build. */
+                                CString Version;
+
+                                if (Message.BytesRemaining() > 0) {
+                                    Message >> Version;
+                                }
+
+                                if (Version.Compare(VersionString) != 0) {
+                                    TEAKFILE Message;
+
+                                    Message.Announce(30);
+                                    Message << ATNET_SORRYVERSION;
+
+                                    gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
+                                    return;
+                                }
+
+                                if (Sim.Players.Players[WantedIndex].Owner != 3 && gNetworkSavegameLoading != -1) {
+                                    TEAKFILE Message;
+
+                                    Message.Announce(30);
+                                    Message << ATNET_WANNAJOIN2NO;
+
+                                    gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
+                                    return;
+                                }
+
+                                if (Sim.Players.Players[WantedIndex].NetworkID == 0) {
+                                    Sim.Players.Players[WantedIndex].NetworkID = SenderID;
+                                    Sim.Players.Players[WantedIndex].Owner = 2;
+                                } else {
+                                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                                        if (Sim.Players.Players[c].NetworkID == 0) {
+                                            Sim.Players.Players[c].NetworkID = SenderID;
+                                            Sim.Players.Players[c].Owner = 2;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_JOIN);
+                                RefreshKlackerField();
+                                PushNames();
+                            }
+                        }
+                        break;
+
+                    case ATNET_SAVGEGAMECHECK: {
+                        SLONG SavegameIndex = 0;
+                        DWORD UniqueGameId = 0;
+
+                        Message >> SavegameIndex >> UniqueGameId;
+
+                        /* Hosts up to 1.9.0 send no version here and would let us rejoin whatever we are. */
+                        CString HostVersion;
+                        if (Message.BytesRemaining() > 0) {
+                            Message >> HostVersion;
+                        }
+
+                        if (HostVersion.Compare(VersionString) != 0) {
+                            PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                            if (pNetworkConnections == nullptr) {
+                                pNetworkConnections = gNetwork.GetConnectionList();
+                            }
+                            gNetwork.StartGetSessionListAsync();
                             RefreshKlackerField();
-                            PushNames();
+                            MenuStart(MENU_REQUEST, MENU_REQUEST_NET_VERSION);
+                        } else if (Sim.GetSavegameUniqueGameId(SavegameIndex, true) == UniqueGameId) {
+                            BOOL bOld = Sim.bNetwork;
+                            Sim.bNetwork = 1;
+
+                            /* Like joining a new game, and with the same layout: the host refuses us if
+                               we do not speak its protocol. The saved game we both load says nothing
+                               about that, and two builds that disagree would drift apart silently. */
+                            TEAKFILE JoinMessage;
+                            JoinMessage.Announce(128);
+                            JoinMessage << ATNET_WANNAJOIN2 << gNetwork.GetLocalPlayerID() << Sim.GetSavegameLocalPlayer(SavegameIndex)
+                                        << CString(VersionString);
+                            SIM::SendMemFile(JoinMessage);
+
+                            Sim.bNetwork = bOld;
+                        } else {
+                            PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                            if (pNetworkConnections == nullptr) {
+                                pNetworkConnections = gNetwork.GetConnectionList();
+                            }
+                            gNetwork.StartGetSessionListAsync();
+                            RefreshKlackerField();
+                            MenuStart(MENU_REQUEST, MENU_REQUEST_NET_LOADTHIS);
                         }
-                    }
-                    break;
+                    } break;
 
-                case ATNET_SAVGEGAMECHECK: {
-                    SLONG SavegameIndex = 0;
-                    DWORD UniqueGameId = 0;
-
-                    Message >> SavegameIndex >> UniqueGameId;
-
-                    /* Hosts up to 1.9.0 send no version here and would let us rejoin whatever we are. */
-                    CString HostVersion;
-                    if (Message.BytesRemaining() > 0) {
-                        Message >> HostVersion;
-                    }
-
-                    if (HostVersion.Compare(VersionString) != 0) {
-                        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
-                        if (pNetworkConnections == nullptr) {
-                            pNetworkConnections = gNetwork.GetConnectionList();
-                        }
-                        gNetwork.StartGetSessionListAsync();
-                        RefreshKlackerField();
-                        MenuStart(MENU_REQUEST, MENU_REQUEST_NET_VERSION);
-                    } else if (Sim.GetSavegameUniqueGameId(SavegameIndex, true) == UniqueGameId) {
-                        BOOL bOld = Sim.bNetwork;
-                        Sim.bNetwork = 1;
-
-                        /* Like joining a new game, and with the same layout: the host refuses us if
-                           we do not speak its protocol. The saved game we both load says nothing
-                           about that, and two builds that disagree would drift apart silently. */
-                        TEAKFILE JoinMessage;
-                        JoinMessage.Announce(128);
-                        JoinMessage << ATNET_WANNAJOIN2 << gNetwork.GetLocalPlayerID() << Sim.GetSavegameLocalPlayer(SavegameIndex) << CString(VersionString);
-                        SIM::SendMemFile(JoinMessage);
-
-                        Sim.bNetwork = bOld;
-                    } else {
+                    case ATNET_WANNAJOIN2NO:
                         PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
                         if (pNetworkConnections == nullptr) {
                             pNetworkConnections = gNetwork.GetConnectionList();
@@ -2247,127 +2260,142 @@ void NewGamePopup::CheckNetEvents() {
                         gNetwork.StartGetSessionListAsync();
                         RefreshKlackerField();
                         MenuStart(MENU_REQUEST, MENU_REQUEST_NET_LOADTHIS);
-                    }
-                } break;
+                        break;
 
-                case ATNET_WANNAJOIN2NO:
-                    PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
-                    if (pNetworkConnections == nullptr) {
-                        pNetworkConnections = gNetwork.GetConnectionList();
-                    }
-                    gNetwork.StartGetSessionListAsync();
-                    RefreshKlackerField();
-                    MenuStart(MENU_REQUEST, MENU_REQUEST_NET_LOADTHIS);
-                    break;
+                    case ATNET_SELECTPLAYER: {
+                        SLONG OldIndex = 0;
+                        SLONG NewIndex = 0;
+                        ULONG PlayerNetworkID = 0;
 
-                case ATNET_SELECTPLAYER: {
-                    SLONG OldIndex = 0;
-                    SLONG NewIndex = 0;
-                    ULONG PlayerNetworkID = 0;
-
-                    Message >> OldIndex >> NewIndex >> PlayerNetworkID;
-
-                    for (auto &UnselectedNetworkID : UnselectedNetworkIDs) {
-                        if (UnselectedNetworkID == PlayerNetworkID) {
-                            UnselectedNetworkID = 0;
-                        }
-                    }
-
-                    if (OldIndex != -1) {
-                        memswap(&Sim.Players.Players[OldIndex].NetworkID, &Sim.Players.Players[NewIndex].NetworkID, sizeof(ULONG));
-                    }
-
-                    PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_CLICK);
-                    Sim.Players.Players[NewIndex].Owner = 2;
-                    Sim.Players.Players[NewIndex].NetworkID = PlayerNetworkID;
-                    RefreshKlackerField();
-                } break;
-
-                case ATNET_UNSELECTPLAYER: {
-                    SLONG PlayerIndex = 0;
-                    ULONG PlayerNetworkID = 0;
-
-                    Message >> PlayerIndex >> PlayerNetworkID;
-
-                    Sim.Players.Players[PlayerIndex].NetworkID = 0;
-                    Sim.Players.Players[PlayerIndex].Owner = 1;
-
-                    for (auto &UnselectedNetworkID : UnselectedNetworkIDs) {
-                        if (UnselectedNetworkID == 0) {
-                            UnselectedNetworkID = PlayerNetworkID;
-                            break;
-                        }
-                    }
-                    RefreshKlackerField();
-                } break;
-
-                case ATNET_BOTSELECT: {
-                    if (!bThisIsSessionMaster) {
-                        PageNum = PAGE_TYPE::SELECT_BOT_NETWORK;
-
-                        SLONG BotIndex = 0;
-                        ULONG BotDifficulty = 0;
-                        Message >> BotIndex >> BotDifficulty;
-
-                        if (BotIndex >= 0 && BotIndex < 4) {
-                            Sim.Players.Players[BotIndex].Owner = 1;
-                            Sim.Players.Players[BotIndex].BotLevel = BotDifficulty;
-                        }
-
-                        RefreshKlackerField();
-                    }
-                } break;
-
-                case ATNET_WANNALEAVE:
-                    if (bThisIsSessionMaster) {
-                        ULONG SenderID = 0;
-                        Message >> SenderID;
-
-                        for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
-                            if (Sim.Players.Players[c].NetworkID == SenderID) {
-                                Sim.Players.Players[c].NetworkID = 0;
-
-                                if (gNetworkSavegameLoading != -1) {
-                                    Sim.Players.Players[c].Owner = 3;
-                                }
-                            }
-                        }
+                        Message >> OldIndex >> NewIndex >> PlayerNetworkID;
 
                         for (auto &UnselectedNetworkID : UnselectedNetworkIDs) {
-                            if (UnselectedNetworkID == SenderID) {
+                            if (UnselectedNetworkID == PlayerNetworkID) {
                                 UnselectedNetworkID = 0;
                             }
                         }
 
-                        PushNames();
-                    }
-                    break;
+                        if (OldIndex != -1) {
+                            memswap(&Sim.Players.Players[OldIndex].NetworkID, &Sim.Players.Players[NewIndex].NetworkID, sizeof(ULONG));
+                        }
 
-                case ATNET_GAMERULES: {
-                    SLONG TriggerPercent = 0;
-                    SLONG MinAvailable = 0;
-                    SLONG MaxAvailable = 0;
+                        PlayerReadyAt = max(PlayerReadyAt, AtGetTime() + READYTIME_CLICK);
+                        Sim.Players.Players[NewIndex].Owner = 2;
+                        Sim.Players.Players[NewIndex].NetworkID = PlayerNetworkID;
+                        RefreshKlackerField();
+                    } break;
 
-                    Message >> TriggerPercent >> MinAvailable >> MaxAvailable;
-                    Sim.HostRentOffice = {static_cast<ULONG>(TriggerPercent), static_cast<ULONG>(MinAvailable), static_cast<ULONG>(MaxAvailable)};
-                    Sim.bHasHostRentOffice = true;
-                } break;
+                    case ATNET_UNSELECTPLAYER: {
+                        SLONG PlayerIndex = 0;
+                        ULONG PlayerNetworkID = 0;
 
-                case ATNET_BEGINGAME:
-                    if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
+                        Message >> PlayerIndex >> PlayerNetworkID;
+
+                        Sim.Players.Players[PlayerIndex].NetworkID = 0;
+                        Sim.Players.Players[PlayerIndex].Owner = 1;
+
+                        for (auto &UnselectedNetworkID : UnselectedNetworkIDs) {
+                            if (UnselectedNetworkID == 0) {
+                                UnselectedNetworkID = PlayerNetworkID;
+                                break;
+                            }
+                        }
+                        RefreshKlackerField();
+                    } break;
+
+                    case ATNET_BOTSELECT: {
+                        if (!bThisIsSessionMaster) {
+                            PageNum = PAGE_TYPE::SELECT_BOT_NETWORK;
+
+                            SLONG BotIndex = 0;
+                            ULONG BotDifficulty = 0;
+                            Message >> BotIndex >> BotDifficulty;
+
+                            if (BotIndex >= 0 && BotIndex < 4) {
+                                Sim.Players.Players[BotIndex].Owner = 1;
+                                Sim.Players.Players[BotIndex].BotLevel = BotDifficulty;
+                            }
+
+                            RefreshKlackerField();
+                        }
+                    } break;
+
+                    case ATNET_WANNALEAVE:
+                        if (bThisIsSessionMaster) {
+                            ULONG SenderID = 0;
+                            Message >> SenderID;
+
+                            for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                                if (Sim.Players.Players[c].NetworkID == SenderID) {
+                                    Sim.Players.Players[c].NetworkID = 0;
+
+                                    if (gNetworkSavegameLoading != -1) {
+                                        Sim.Players.Players[c].Owner = 3;
+                                    }
+                                }
+                            }
+
+                            for (auto &UnselectedNetworkID : UnselectedNetworkIDs) {
+                                if (UnselectedNetworkID == SenderID) {
+                                    UnselectedNetworkID = 0;
+                                }
+                            }
+
+                            PushNames();
+                        }
+                        break;
+
+                    case ATNET_GAMERULES: {
+                        SLONG TriggerPercent = 0;
+                        SLONG MinAvailable = 0;
+                        SLONG MaxAvailable = 0;
+
+                        Message >> TriggerPercent >> MinAvailable >> MaxAvailable;
+                        Sim.HostRentOffice = {static_cast<ULONG>(TriggerPercent), static_cast<ULONG>(MinAvailable), static_cast<ULONG>(MaxAvailable)};
+                        Sim.bHasHostRentOffice = true;
+                    } break;
+
+                    case ATNET_BEGINGAME:
+                        if (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK) {
+                            SLONG Time = 0;
+                            SLONG difficulty = 0;
+
+                            /* Read first, so that a truncated message leaves the lobby as it was. */
+                            Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> difficulty;
+                            bMessageRead = true;
+
+                            PageNum = PAGE_TYPE::MP_LOADING;
+                            PageSub = 0;
+
+                            gNetworkSavegameLoading = -1;
+                            NewgameWantsToLoad = FALSE;
+
+                            Sim.Options.OptionAirport = Sim.HomeAirportId;
+                            Sim.StartTime = time_t(Time);
+
+                            Sim.bNetwork = 1;
+                            bNetworkUnderway = 0;
+                            Sim.Difficulty = difficulty; // DIFF_ATFS07;//DIFF_FREEGAME;
+                            Sim.bWatchForReady = TRUE;
+
+                            for (SLONG c = 0; c < 4; c++) {
+                                Sim.Players.Players[c].bReadyForMorning = 0;
+                            }
+
+                            Sim.bThisIsSessionMaster = bThisIsSessionMaster;
+                            Routen.ReInit("routen.csv", true);
+                            Sim.ChooseStartup();
+                            RefreshKlackerField();
+                        }
+                        break;
+
+                    case ATNET_BEGINGAMELOADING: {
                         SLONG Time = 0;
+                        SLONG Index = 0;
                         SLONG difficulty = 0;
 
-                        /* Read first, so that a truncated message leaves the lobby as it was. */
-                        Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> difficulty;
+                        Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> Index >> difficulty;
                         bMessageRead = true;
-
-                        PageNum = PAGE_TYPE::MP_LOADING;
-                        PageSub = 0;
-
-                        gNetworkSavegameLoading = -1;
-                        NewgameWantsToLoad = FALSE;
-
                         Sim.Options.OptionAirport = Sim.HomeAirportId;
                         Sim.StartTime = time_t(Time);
 
@@ -2381,138 +2409,112 @@ void NewGamePopup::CheckNetEvents() {
                         }
 
                         Sim.bThisIsSessionMaster = bThisIsSessionMaster;
-                        Routen.ReInit("routen.csv", true);
-                        Sim.ChooseStartup();
+
                         RefreshKlackerField();
-                    }
-                    break;
-
-                case ATNET_BEGINGAMELOADING: {
-                    SLONG Time = 0;
-                    SLONG Index = 0;
-                    SLONG difficulty = 0;
-
-                    Message >> Sim.bAllowCheating >> Time >> Sim.HomeAirportId >> Index >> difficulty;
-                    bMessageRead = true;
-                    Sim.Options.OptionAirport = Sim.HomeAirportId;
-                    Sim.StartTime = time_t(Time);
-
-                    Sim.bNetwork = 1;
-                    bNetworkUnderway = 0;
-                    Sim.Difficulty = difficulty; // DIFF_ATFS07;//DIFF_FREEGAME;
-                    Sim.bWatchForReady = TRUE;
-
-                    for (SLONG c = 0; c < 4; c++) {
-                        Sim.Players.Players[c].bReadyForMorning = 0;
-                    }
-
-                    Sim.bThisIsSessionMaster = bThisIsSessionMaster;
-
-                    RefreshKlackerField();
-                    NewgameWantsToLoad = 1;
-                    nWaitingForPlayer += Sim.GetSavegameNumHumans(Index) - 1;
-                    SetNetworkBitmap(3, 1);
-                    FrameWnd->Invalidate();
-                    MessagePump();
-                    FrameWnd->Invalidate();
-                    MessagePump();
-                    Sim.LoadGame(Index);
-                    SIM::SendSimpleMessage(ATNET_WAITFORPLAYER, 0, -1, Sim.localPlayer);
-                    gNetworkSavegameLoading = -1;
-                    NewgameWantsToLoad = FALSE;
-                } break;
-
-                case ATNET_SORRYVERSION:
-                    MenuStart(MENU_REQUEST, MENU_REQUEST_NET_VERSION);
-                    if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+                        NewgameWantsToLoad = 1;
+                        nWaitingForPlayer += Sim.GetSavegameNumHumans(Index) - 1;
+                        SetNetworkBitmap(3, 1);
+                        FrameWnd->Invalidate();
+                        MessagePump();
+                        FrameWnd->Invalidate();
+                        MessagePump();
+                        Sim.LoadGame(Index);
+                        SIM::SendSimpleMessage(ATNET_WAITFORPLAYER, 0, -1, Sim.localPlayer);
                         gNetworkSavegameLoading = -1;
+                        NewgameWantsToLoad = FALSE;
+                    } break;
+
+                    case ATNET_SORRYVERSION:
+                        MenuStart(MENU_REQUEST, MENU_REQUEST_NET_VERSION);
+                        if (PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) {
+                            gNetworkSavegameLoading = -1;
+                            gNetwork.CloseSession();
+                            PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                            gNetwork.StartGetSessionListAsync();
+                            RefreshKlackerField();
+                        }
+                        break;
+
+                    case ATNET_WAITFORPLAYER:
+                        Message >> Par1 >> Par2;
+                        nWaitingForPlayer += Par1;
+                        /* Never below zero: the game clock only runs at exactly zero. */
+                        if (nWaitingForPlayer < 0) {
+                            nWaitingForPlayer = 0;
+                        }
+                        nPlayerWaiting[static_cast<SLONG>(Par2)] += Par1;
+                        if (nPlayerWaiting[static_cast<SLONG>(Par2)] < 0) {
+                            nPlayerWaiting[static_cast<SLONG>(Par2)] = 0;
+                        }
+                        SetNetworkBitmap(static_cast<SLONG>(nWaitingForPlayer > 0) * 3);
+                        break;
+
+                    case ATNET_SORRYFULL:
+                    case DPSYS_SESSIONLOST:
                         gNetwork.CloseSession();
-                        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
-                        gNetwork.StartGetSessionListAsync();
-                        RefreshKlackerField();
+                        if (bThisIsSessionMaster) {
+                            PageNum = PAGE_TYPE::MULTIPLAYER_CREATE_SESSION;
+                            RefreshKlackerField();
+                        } else {
+                            PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                            gNetwork.StartGetSessionListAsync();
+                            RefreshKlackerField();
+                        }
+                        break;
+
+                    case DPSYS_HOST:
+                        if ((PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) || (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK)) {
+                            gNetwork.CloseSession();
+                            PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
+                            gNetwork.StartGetSessionListAsync();
+                            RefreshKlackerField();
+                        } else {
+                            bThisIsSessionMaster = true;
+                        }
+                        break;
+
+                    case ATNET_READYFORMORNING:
+                        Message >> Par1;
+                        Sim.Players.Players[SLONG(Par1)].bReadyForMorning = 1;
+                        break;
+
+                    /* The host sends its speed right after ATNET_BEGINGAMELOADING, and a client still
+                       loading the savegame reads it here. It advances the game clock by it every step
+                       and the savegame does not keep it, so a client dropping it ran on at its own last
+                       value (30 for a freshly started game) and fell behind a host set to another speed. */
+                    case ATNET_SETGAMESPEED:
+                        Message >> Par1 >> Par2;
+                        Sim.ServerGameSpeed = Par1;
+                        break;
+
+                        // Microsoft and SBLib internal codes:
+                    case 0x0003:
+                    case 0x0005:
+                    case 0x0007:
+                    case 0x0021:
+                    case 0x0102:
+                    case 0x0103:
+                    case 0x0104:
+                    case 0x0105:
+                    case 0x0106:
+                    case 0x0107:
+                    case 0x0108:
+                    case 0x0109:
+                    case 0x010A:
+                    case 0x010D:
+                    case 0xDEADBEEF:
+                        break;
+
+                        // Don't care:
+                    case ATNET_ACTIVATEAPP:
+                        break;
+
+                    default:
+                        hprintf("NGP: Unknown Message: %lx", MessageType);
+                        // It's okay to receive in-game messages, since we may try to join a running
+                        // session and get kicked out a second later.
+                        break;
                     }
-                    break;
-
-                case ATNET_WAITFORPLAYER:
-                    Message >> Par1 >> Par2;
-                    nWaitingForPlayer += Par1;
-                    /* Never below zero: the game clock only runs at exactly zero. */
-                    if (nWaitingForPlayer < 0) {
-                        nWaitingForPlayer = 0;
-                    }
-                    nPlayerWaiting[static_cast<SLONG>(Par2)] += Par1;
-                    if (nPlayerWaiting[static_cast<SLONG>(Par2)] < 0) {
-                        nPlayerWaiting[static_cast<SLONG>(Par2)] = 0;
-                    }
-                    SetNetworkBitmap(static_cast<SLONG>(nWaitingForPlayer > 0) * 3);
-                    break;
-
-                case ATNET_SORRYFULL:
-                case DPSYS_SESSIONLOST:
-                    gNetwork.CloseSession();
-                    if (bThisIsSessionMaster) {
-                        PageNum = PAGE_TYPE::MULTIPLAYER_CREATE_SESSION;
-                        RefreshKlackerField();
-                    } else {
-                        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
-                        gNetwork.StartGetSessionListAsync();
-                        RefreshKlackerField();
-                    }
-                    break;
-
-                case DPSYS_HOST:
-                    if ((PageNum == PAGE_TYPE::SELECT_PLAYER_MULTIPLAYER) || (PageNum == PAGE_TYPE::SELECT_BOT_NETWORK)) {
-                        gNetwork.CloseSession();
-                        PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
-                        gNetwork.StartGetSessionListAsync();
-                        RefreshKlackerField();
-                    } else {
-                        bThisIsSessionMaster = true;
-                    }
-                    break;
-
-                case ATNET_READYFORMORNING:
-                    Message >> Par1;
-                    Sim.Players.Players[SLONG(Par1)].bReadyForMorning = 1;
-                    break;
-
-                /* The host sends its speed right after ATNET_BEGINGAMELOADING, and a client still
-                   loading the savegame reads it here. It advances the game clock by it every step
-                   and the savegame does not keep it, so a client dropping it ran on at its own last
-                   value (30 for a freshly started game) and fell behind a host set to another speed. */
-                case ATNET_SETGAMESPEED:
-                    Message >> Par1 >> Par2;
-                    Sim.ServerGameSpeed = Par1;
-                    break;
-
-                    // Microsoft and SBLib internal codes:
-                case 0x0003:
-                case 0x0005:
-                case 0x0007:
-                case 0x0021:
-                case 0x0102:
-                case 0x0103:
-                case 0x0104:
-                case 0x0105:
-                case 0x0106:
-                case 0x0107:
-                case 0x0108:
-                case 0x0109:
-                case 0x010A:
-                case 0x010D:
-                case 0xDEADBEEF:
-                    break;
-
-                    // Don't care:
-                case ATNET_ACTIVATEAPP:
-                    break;
-
-                default:
-                    hprintf("NGP: Unknown Message: %lx", MessageType);
-                    // It's okay to receive in-game messages, since we may try to join a running
-                    // session and get kicked out a second later.
-                    break;
-                }
 
                 } catch (TeakLibException &ex) {
                     if (bMessageRead) {

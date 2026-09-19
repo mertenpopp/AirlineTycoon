@@ -5156,6 +5156,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 }
                 break;
             case 5002:
+                /* dropped dependency to rocket part 1 on purpose */
                 if (qPlayer.CheckRocketPart(2)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
                 } else if (qPlayer.Money < RocketPrices[2]) {

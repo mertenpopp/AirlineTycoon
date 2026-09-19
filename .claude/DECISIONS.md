@@ -753,7 +753,7 @@ it only receives after paying.
 
 ## 2026-09-18 - Hurricane (BotLevel 7): first implementation of sabotage
 
-New play style "Hurricane" = Tycoon economy plus sabotage, gated on `BotLevel == BotDifficultyTBD`,
+New play style "Hurricane" = Tycoon economy plus sabotage, gated on `BotLevel == BotDifficultyHurricane`,
 so Tycoon (level 6) is unchanged (smoke test: no Hurricane code runs).
 
 - Trust: buy ITEM_MG at duty free, hand it over at the Arab Air counter (the game grants the trust

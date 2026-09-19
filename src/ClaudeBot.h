@@ -100,7 +100,7 @@ class ClaudeBot {
          * could reach nothing else. scheduleRouteFlights() hides it from every aeroplane
          * that has a proper pair in range - see the comment there. */
         bool castaway{false};
-        SLONG anzPax{0};  /* passengers the route wants per day, CRoute::AnzPassagiere() */
+        SLONG anzPax{0}; /* passengers the route wants per day, CRoute::AnzPassagiere() */
         bool pricesSet{false};
     };
 
@@ -135,7 +135,7 @@ class ClaudeBot {
      * qPlayer.BilanzGestern, which RULES.md gates on the office and a financial advisor. */
     void cacheFuelBurn();
 
-    /* --- Hurricane (BotLevel == BotDifficultyTBD): the Tycoon economy plus sabotage --- */
+    /* --- Hurricane (BotLevel == BotDifficultyHurricane): the Tycoon economy plus sabotage --- */
     bool isHurricane() const;
     bool sabotageVisitWorthIt() const;
     void executeDutyFree();

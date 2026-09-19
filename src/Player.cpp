@@ -1690,6 +1690,7 @@ void PLAYER::NewDay() {
 
             SLONG Improvement = 0;
 
+            /* maintenance cost now reset every day. This is on purpose. */
             Planes[c].Wartungskosten = 0;
 
             Planes[c].FlugplaeneFortfuehren(PlayerNum);
@@ -7152,7 +7153,7 @@ void PLAYER::BroadcastPosition(bool bForce) {
 
 bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > BotDifficultyClassic); }
 bool PLAYER::IsMertenBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyLaidBack) && (BotLevel <= BotDifficultyNemesis); }
-bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyTycoon) && (BotLevel <= BotDifficultyTBD2); }
+bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyTycoon) && (BotLevel <= BotDifficultyTBD); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
         return;
@@ -7833,7 +7834,7 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 
     File >> Player.HasFlownRoutes >> Player.NumPassengers >> Player.NumAuftraege;
     File >> Player.Gewinn >> Player.NumMissionRoutes;
-    File >> Player.RocketFlags >> Player.LastRocketFlags;
+    File >> Player.RocketFlags >> Player.LastRocketFlags; /* flags were reordered, this will cause smaller issues with older saves. We tolerate this for now */
     File >> Player.Statistiken;
 
     Player.Statistiken.ReSize(STAT_ANZ);

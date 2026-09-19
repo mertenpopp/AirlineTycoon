@@ -140,7 +140,6 @@ static const AdvisorWanted kAdvisors[] = {
  * wear elevenfold (faktorKerosin = 1 + 10 * (quali - 1)^2, Schedule.cpp:1017). */
 static const SLONG kKerosinGrade = 1;
 
-
 /* Kerosene is now bought when it is cheap, not when the calendar says so.
  *
  * Under the seven-day objective the whole point of the tank was that `KerosinVorrat` landed
@@ -599,21 +598,11 @@ struct SabotageJob {
     const char *name;
 };
 static const SabotageJob kSabotageJobs[] = {
-    {0, 1, 2, true, false, "salted food"},
-    {0, 2, 4, true, false, "broken movie theatre"},
-    {0, 3, 10, true, false, "flat tire"},
-    {0, 4, 20, true, false, "engine breakdown"},
-    {0, 5, 100, true, false, "plane crash"},
-    {1, 1, 8, false, false, "bacteria in the coffee"},
-    {1, 2, 0, false, false, "laptop virus"},
-    {1, 3, 25, false, false, "office bomb"},
-    {1, 4, 40, false, false, "strike"},
-    {2, 1, 8, false, false, "brochures"},
-    {2, 2, 15, false, false, "cut telephones"},
-    {2, 3, 25, false, false, "false press release"},
-    {2, 4, 30, false, false, "bank hack"},
-    {2, 5, 50, true, false, "ground aeroplane"},
-    {2, 6, 70, false, true, "route theft"},
+    {0, 1, 2, true, false, "salted food"},       {0, 2, 4, true, false, "broken movie theatre"}, {0, 3, 10, true, false, "flat tire"},
+    {0, 4, 20, true, false, "engine breakdown"}, {0, 5, 100, true, false, "plane crash"},        {1, 1, 8, false, false, "bacteria in the coffee"},
+    {1, 2, 0, false, false, "laptop virus"},     {1, 3, 25, false, false, "office bomb"},        {1, 4, 40, false, false, "strike"},
+    {2, 1, 8, false, false, "brochures"},        {2, 2, 15, false, false, "cut telephones"},     {2, 3, 25, false, false, "false press release"},
+    {2, 4, 30, false, false, "bank hack"},       {2, 5, 50, true, false, "ground aeroplane"},    {2, 6, 70, false, true, "route theft"},
 };
 
 static const SabotageJob *findSabotageJob(SLONG type, SLONG number) {
@@ -675,8 +664,7 @@ ClaudeBot::ClaudeBot(PLAYER &player) : qPlayer(player) {}
  * were only feeding a log line; the balance is logged from the office instead, where it
  * is legal, and the inventory is gone. */
 void ClaudeBot::RobotInit(SLONG randomSeed) {
-    AT_Info("ClaudeBot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $", qPlayer.Abk.c_str(), Sim.Date,
-            Insert1000erDots64(qPlayer.Money).c_str());
+    AT_Info("ClaudeBot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $", qPlayer.Abk.c_str(), Sim.Date, Insert1000erDots64(qPlayer.Money).c_str());
 
     if (mFirstRun) {
         AT_Log("ClaudeBot::RobotInit(): First run.");
@@ -1871,7 +1859,6 @@ void ClaudeBot::executeRouteBox() {
         }
     }
 
-
     /* No aeroplane may be left without a pair it can reach.
      *
      * scheduleRouteFlights() lays a leg only on a pair inside the aeroplane's own range, and
@@ -2167,7 +2154,6 @@ void ClaudeBot::executeBuyPlane() {
     AT_Log("ClaudeBot::executeBuyPlane(): Bought %ld x %s %s for %s each (%ld/h), cash now %s.", amount, PlaneTypes[bestType].Hersteller.c_str(),
            PlaneTypes[bestType].Name.c_str(), Insert1000erDots64(PlaneTypes[bestType].Preis).c_str(), bestValue, Insert1000erDots64(qPlayer.Money).c_str());
 }
-
 
 //--------------------------------------------------------------------------------------------
 // Boss: gates.
@@ -2795,8 +2781,8 @@ void ClaudeBot::executeOffice() {
         mBalanceLoggedDay = Sim.Date;
         auto balance = qPlayer.BilanzWoche.Hole();
         AT_Info("ClaudeBot::executeOffice(): %s day %d: money %s $, week op saldo %s = %s %s", qPlayer.Abk.c_str(), Sim.Date,
-                Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(),
-                Insert1000erDots64(balance.GetOpGewinn()).c_str(), Insert1000erDots64(balance.GetOpVerlust()).c_str());
+                Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
+                Insert1000erDots64(balance.GetOpVerlust()).c_str());
     }
 
     /* A grounded plane will not fly anything in its plan, and every job left on it turns
@@ -3435,7 +3421,7 @@ SLONG ClaudeBot::schedulePendingFreight() {
 
 /* --- Hurricane: the Tycoon economy plus sabotage ---------------------------------------- */
 
-bool ClaudeBot::isHurricane() const { return qPlayer.BotLevel == BotDifficultyTBD; }
+bool ClaudeBot::isHurricane() const { return qPlayer.BotLevel == BotDifficultyHurricane; }
 
 /* Whether a walk to the saboteur can order anything. While we save hints for a job, the only
  * thing that could be ordered is the virus, so the walk waits until the saved-for job fits or
@@ -3637,7 +3623,8 @@ void ClaudeBot::executeSabotage() {
         if (mSabotageHints + qJob->hints > kMaxSabotageHints) {
             qSavingFor = qJob;
             mSavingForHints = qJob->hints;
-            AT_Log("ClaudeBot::executeSabotage(): Saving hints for '%s' (%ld needed, %ld in hand).", qJob->name, qJob->hints, kMaxSabotageHints - mSabotageHints);
+            AT_Log("ClaudeBot::executeSabotage(): Saving hints for '%s' (%ld needed, %ld in hand).", qJob->name, qJob->hints,
+                   kMaxSabotageHints - mSabotageHints);
             continue;
         }
         if (qJob->type == 1 && qJob->number == 2) {
