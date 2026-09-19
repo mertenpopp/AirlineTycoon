@@ -221,7 +221,11 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
             gShowAllPools = TRUE;
         }
         if (stricmp(Argument, "/load") == 0) {
-            gLoadGameNumber = atoi(strtok(nullptr, " "));
+            /* The slot is the next argument. It used to be read with strtok(nullptr, ...) without a
+               string to continue from, which crashed before anything was loaded. */
+            if (i + 1 < argc) {
+                gLoadGameNumber = atoi(argv[++i]);
+            }
         }
         if (stricmp(Argument, "/savegamelocal") == 0) {
             SavegamePath = "d:\\Savegame\\%s";
@@ -1117,6 +1121,12 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                 if (gLoadGameNumber > -1) {
                     Sim.LoadGame(gLoadGameNumber - 1);
+
+                    /* An unattended run ("/quick ... /load N") fast-forwards a loaded game just like
+                       a new one (below); otherwise it plays at the speed the savegame was left at. */
+                    if (CheatAutoSkip == 1 && Sim.bNetwork == 0) {
+                        Sim.Players.Players[Sim.localPlayer].GameSpeed = 5;
+                    }
                 }
 
                 if (gLoadGameNumber == -1) {
