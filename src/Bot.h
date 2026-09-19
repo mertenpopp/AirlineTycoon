@@ -227,8 +227,7 @@ class Bot {
     void actionBuyKerosineTank(__int64 moneyAvailable);
     void actionSabotage(__int64 moneyAvailable);
     void actionVisitSaboteur();
-    static __int64 calcBuyShares(__int64 moneyAvailable, DOUBLE kurs);
-    static __int64 calcSellShares(__int64 moneyToGet, DOUBLE kurs);
+    __int64 calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const;
     static __int64 calcNumOfFreeShares(SLONG playerId);
     __int64 calcAmountToBuy(SLONG buyFromPlayerId, SLONG desiredRatio, __int64 moneyAvailable) const;
     void actionEmitShares();
