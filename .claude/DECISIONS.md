@@ -806,3 +806,15 @@ Paired against `tycoon_ref` (Tycoon, seed base 0, 300 games, taken before 79dc91
 - The ClaudeBot edits in 1b589497 only reformat code and rename Hurricane's level constant.
 
 No regression. `tycoon_ref` stays a valid reference.
+
+## 2026-09-19 - Release tests and fixes (branch dev)
+
+Tycoon on the final build (2e30dc28), paired against `tycoon_ref`: +0.01% (t +1.0), identical game
+by game to the run before the fixes - the classic bots' share purchase fix never triggers in a
+59-day free game. 0 core dumps in 300 games (the exit crash fix; each batch left 15-50 before).
+
+Tested: all 26 missions x bot levels 000/111/222/333/444/555 (scripts/run_missions.sh), savegame
+formats 202/203/204 (scripts/run_loadtest.sh), five 3-day network games (harness) with Saboteur,
+Nemesis, Tycoon and Hurricane, strikes and room actions. Fixed: harness exit crash, /load, classic
+bot share purchases, stock dry-run logging, network version for preview peers, route usage /
+route image / airline image syncs racing flights booked in the same minute.
