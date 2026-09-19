@@ -1187,7 +1187,7 @@ void CPlaner::DoPollingStuff() {
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,
@@ -1315,7 +1315,7 @@ void CPlaner::DoPollingStuff() {
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,

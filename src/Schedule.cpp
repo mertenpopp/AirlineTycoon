@@ -753,7 +753,7 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     qPlayer.Bilanz.KerosinGespart += (AusgabenKerosinOhneTank - AusgabenKerosin);
 
     if (ObjectType == 1 || ObjectType == 2) {
-        AusgabenEssen += Passagiere * FoodCosts[Plane->Essen];
+        AusgabenEssen += (Passagiere + PassagiereFC) * FoodCosts[Plane->Essen];
     }
 
     Plane->Salden[0] -= AusgabenKerosin;
