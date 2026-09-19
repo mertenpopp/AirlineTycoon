@@ -1570,14 +1570,14 @@
   D::Tycoon
 >NewG
 >>0005008
-  B::TBD
-  E::TBD
-  F::TBD
-  I::TBD
-  N::TBD
-  O::TBD
-  S::TBD
-  D::TBD
+  B::Hurricane
+  E::Hurricane
+  F::Hurricane
+  I::Hurricane
+  N::Hurricane
+  O::Hurricane
+  S::Hurricane
+  D::Hurricane
 >NewG
 >>0005009
   B::TBD

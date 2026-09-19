@@ -11,7 +11,7 @@
 #include "helper.h"
 #include "Proto.h"
 
-#define AT_Log(...) AT_Log_I("Personal", __VA_ARGS__)
+#define AT_Log(...) // AT_Log_I("Personal", __VA_ARGS__)
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
