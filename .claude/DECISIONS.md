@@ -794,3 +794,15 @@ Paired against Tycoon (level 6), seed base 0, 300 games. Tycoon reference 2.1409
 
 Open design question for the user: how much of its own score may Hurricane give up for earlier
 and stronger sabotage (early sabotage hurts a human most).
+
+## 2026-09-19 - Release check: Tycoon after the 1.9.1 fixes
+
+Paired against `tycoon_ref` (Tycoon, seed base 0, 300 games, taken before 79dc91e3), HEAD dfadf990:
++0.01% (t +1.0), 2.1411e9 vs 2.1409e9. 199 of 300 games identical, the other 101 within
+-0.03%..+0.2%, except game 111 at +3.1%, where the run went a different way after a small change.
+
+- Food for first-class passengers (2d6ccdfa) costs Tycoon about 1,700 over 59 days (Essen
+  -19.93M either way): it carries almost no first-class passengers.
+- The ClaudeBot edits in 1b589497 only reformat code and rename Hurricane's level constant.
+
+No regression. `tycoon_ref` stays a valid reference.
