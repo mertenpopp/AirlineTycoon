@@ -3205,6 +3205,19 @@ class RobotFlightplanWatch {
     const bool bActive;
     std::map<SLONG, unsigned long long> Before;
 };
+
+//--------------------------------------------------------------------------------------------
+// The classic bot sizes a share purchase by today's share price. GameMechanic::buyStock() prices
+// it in chunks of 2000 shares at a rising price, so a large order costs more than that estimate
+// and was refused as a whole. Shrinks the order to what can be afforded instead; an order that
+// fits is left as it is.
+//--------------------------------------------------------------------------------------------
+SLONG AffordableStockAmount(PLAYER &qPlayer, SLONG Airline, SLONG Amount) {
+    while (Amount > 0 && !GameMechanic::buyStock(qPlayer, Airline, Amount, false).first) {
+        Amount = Amount * 9 / 10 / 100 * 100;
+    }
+    return Amount;
+}
 } // namespace
 
 void PLAYER::RobotPump() {
@@ -5022,6 +5035,7 @@ void PLAYER::RobotExecuteAction() {
                     Anz = min(Anz, SLONG((Money - 3000000) / Sim.Players.Players[dislike].Kurse[0] / 100 * 100));
                 }
 
+                Anz = AffordableStockAmount(*this, dislike, Anz);
                 if (Anz != 0) {
                     GameMechanic::buyStock(*this, dislike, Anz, true);
                 }
@@ -5042,6 +5056,7 @@ void PLAYER::RobotExecuteAction() {
                     Anz = min(Anz, SLONG((Money - 3000000) / Kurse[0] / 100 * 100));
                 }
 
+                Anz = AffordableStockAmount(*this, PlayerNum, Anz);
                 if (Anz != 0) {
                     GameMechanic::buyStock(*this, PlayerNum, Anz, true);
                 }
