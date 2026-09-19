@@ -24,6 +24,11 @@ It is therefore *not* open-source in the free software sense, for more informati
 1. Buy and install a version of the game (for example on [GOG.com](https://www.gog.com/en/game/airline_tycoon_deluxe) or on [Steam](https://store.steampowered.com/app/331920/Airline_Tycoon_Deluxe/))
 2. Download the latest release of this mod for your platform (Windows, macOS or Linux)
 3. Unpack the archive into the folder where the old game executable is (for example At.exe on Windows)
+
+    3.1 **For ARM-based macOS machines**, you will need the x86_64 (Intel) binary versions of SDL2. The simplest way to install them is by using Homebrew running under Rosetta 2:
+    ```
+    arch -x86_64 /usr/local/bin/brew install sdl2 sdl2_ttf sdl2_mixer sdl2_image
+    ```
 4. Start the game using the new game executable (AT.exe on Windows, AT on macOS and Linux)
 5. Enjoy!
 

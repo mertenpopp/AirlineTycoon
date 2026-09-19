@@ -2,6 +2,7 @@
 name: build and package
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master", "develop" ]
   pull_request:
@@ -66,14 +67,16 @@ jobs:
       # 1. <Windows, Release or Debug, latest MSVC compiler toolchain on the default runner image, default generator>
       # 2. <Linux, Release or Debug, latest GCC compiler toolchain on the default runner image, default generator>
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-latest]
         name: ['linux', 'windows', 'macos']
         build_type:
           - ${{ needs.env.outputs.build-type }}
         c_compiler: [gcc, cl]
+        cpp_compiler: [g++, cl]
         exclude: # exclude all by default
           - os: windows-latest
           - os: ubuntu-latest
+          - os: macos-15-intel
           - os: macos-latest
         include: # only include the configurations we want
           - os: windows-latest
@@ -86,11 +89,17 @@ jobs:
             cpp_compiler: g++
             name: 'linux'
             build_type: ${{ needs.env.outputs.build-type }}
+          - os: macos-15-intel
+            c_compiler: gcc
+            cpp_compiler: g++
+            name: 'macos-x64'
+            build_type: ${{ needs.env.outputs.build-type }}
           - os: macos-latest
             c_compiler: gcc
             cpp_compiler: g++
             name: 'macos'
             build_type: ${{ needs.env.outputs.build-type }}
+            
 
     # Execute this for each matrix
     # Warning: Don't get ${{ github.workspace }} from elsewhere! (like precomputed from env job)
@@ -107,12 +116,12 @@ jobs:
         sudo apt-get install libjansson-dev libsdl2-dev libsdl2-gfx-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev libsdl2-ttf-dev
 
     - name: Setup homebrew (macOS)
-      if: matrix.name == 'macos'
+      if: matrix.name == 'macos' || matrix.name == 'macos-x64'
       id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@master
+      uses: Homebrew/actions/setup-homebrew@2026.09.13.1
 
     - name: Install macOS dependencies
-      if: matrix.name == 'macos'
+      if: matrix.name == 'macos' || matrix.name == 'macos-x64'
       run: |
          # Temporary fix, see https://github.com/actions/setup-python/issues/577
          rm /usr/local/bin/2to3-3.12 || true
@@ -125,7 +134,13 @@ jobs:
          rm /usr/local/bin/pydoc3 || true
          rm /usr/local/bin/python3 || true
          rm /usr/local/bin/python3-config || true
-         brew install cmake sdl2 sdl2_mixer sdl2_image sdl2_ttf jansson
+         # Update Homebrew and cleanup
+         brew update
+         brew cleanup
+         # Install dependencies
+         brew install cmake
+         brew install jansson
+         brew install sdl2-compat sdl2_mixer sdl2_image sdl2_ttf
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -169,7 +184,7 @@ jobs:
     # Package the build results (linux)
     - name: Package artifact
       id: artifact-linux
-      if: matrix.name == 'linux' || matrix.name == 'macos'
+      if: matrix.name == 'linux' || matrix.name == 'macos' || matrix.name == 'macos-x64'
       run: |
         echo "Building linux ${{ needs.env.outputs.artifact-name }}-${{ matrix.name }}.tar"
         ARTIFACT_NAME=${{ needs.env.outputs.artifact-name }}-${{ matrix.name }}.tar
