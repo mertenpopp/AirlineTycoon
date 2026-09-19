@@ -11,6 +11,9 @@
 #include "global.h"
 #include "Proto.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
@@ -731,7 +734,12 @@ void CAufsicht::OnPaint() {
                 AutoLobbyScheduleQuit(2000);
             }
         } else {
-            exit(0);
+            /* std::_Exit rather than exit, as in AutoLobbyPollQuit(): exit() runs the static
+               destructors from inside this paint, and ~SBPRIMARYBM then destroys the renderer
+               while the GL driver is being torn down - a segfault and a core dump at the end of
+               every other harness game. The statistics are all written by now. */
+            fflush(nullptr);
+            std::_Exit(0);
         }
     }
     if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
