@@ -1125,6 +1125,17 @@ DEFINE_NAME_ENTRY(ROBOT_UHRIG_FLIGHTS_AUTO, )
 DEFINE_NAME_ENTRY(ROBOT_TRY_TO_RESPECT_RULES, )
 END_NAME_MAP
 
+constexpr int BotDifficultyClassic = 0;
+constexpr int BotDifficultyLaidBack = 1; // first MertenBot
+constexpr int BotDifficultyChallenger = 2;
+constexpr int BotDifficultySaboteur = 3;
+constexpr int BotDifficultyFreightBaron = 4;
+constexpr int BotDifficultyNemesis = 5; // last MertenBot
+constexpr int BotDifficultyTycoon = 6;  // first ClaudeBot
+constexpr int BotDifficultyTBD = 7;
+constexpr int BotDifficultyTBD2 = 8; // last ClaudeBot
+constexpr int BotDifficultyMax = 6;
+
 // Die Netzwerk-Medien
 #define NET_MEDIUM_UNKNOWN 0
 #define NET_MEDIUM_SERIAL 1
@@ -1190,16 +1201,5 @@ END_NAME_MAP
 
 #define HTNOWHERE 0
 #define HTCLIENT 1
-
-constexpr int BotDifficultyClassic = 0;
-constexpr int BotDifficultyLaidBack = 1; // first MertenBot
-constexpr int BotDifficultyChallenger = 2;
-constexpr int BotDifficultySaboteur = 3;
-constexpr int BotDifficultyFreightBaron = 4;
-constexpr int BotDifficultyNemesis = 5; // last MertenBot
-constexpr int BotDifficultyTycoon = 6;  // first ClaudeBot
-constexpr int BotDifficultyTBD = 7;
-constexpr int BotDifficultyTBD2 = 8; // last ClaudeBot
-constexpr int BotDifficultyMax = 6;
 
 #endif
