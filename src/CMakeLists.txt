@@ -162,9 +162,6 @@ if(MSVC)
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
     # Release configurations
-    #target_compile_definitions(AT PRIVATE "$<$<CONFIG:Release>:SENTRY;WIN32;_WINDOWS>")
-    #target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/include/>")
-    #target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/lib/sentry.lib>")
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
 endif()
 
@@ -234,7 +231,6 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/copy_if_different.cmake" "${PATCH_FOLDER}" "$<TARGET_FILE_DIR:AT>/patch"
     COMMAND $<TARGET_FILE:AT> /update-patched-files-only
     COMMAND ${CMAKE_COMMAND} -E rm -f $<TARGET_FILE_DIR:AT>/debug.txt
-    COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_FILE_DIR:AT>/.sentry-native
     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/cleanup_folder.cmake" "$<TARGET_FILE_DIR:AT>/patch" ".txt"
     #BYPRODUCTS "$<TARGET_FILE_DIR:AT>/patch/dlg_ger.patched.res"
     #DEPENDS "${PATCH_FOLDER}/dlg_ger.patched.res.txt"

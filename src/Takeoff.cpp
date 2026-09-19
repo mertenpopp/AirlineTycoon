@@ -63,10 +63,6 @@
 #include <filesystem>
 #include <fstream>
 
-#ifdef SENTRY
-#include "sentry.h"
-#endif
-
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Takeoff", __VA_ARGS__)
 #define AT_Warn(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_WARN, "Takeoff", __VA_ARGS__)
 #define AT_Info(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_INFO, "Takeoff", __VA_ARGS__)
