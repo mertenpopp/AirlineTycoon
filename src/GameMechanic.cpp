@@ -817,8 +817,14 @@ std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNu
         freeAmount -= Sim.Players.Players[c].OwnsAktien[qPlayerBuyFrom.PlayerNum];
     }
     if (amount > freeAmount) {
-        AT_Error("GameMechanic::buyStock(%s): Limiting amount bought to %ld (was %ld).", qPlayer.AirlineX.c_str(), freeAmount, amount);
+        /* Only for a real purchase: the bank's preview asks on every repaint (commit == false). */
+        if (commit) {
+            AT_Error("GameMechanic::buyStock(%s): Limiting amount bought to %ld (was %ld).", qPlayer.AirlineX.c_str(), freeAmount, amount);
+        }
         amount = freeAmount;
+    }
+    if (amount <= 0) {
+        return {false, qPlayer.Money}; /* nothing left to buy - and no fee for buying nothing */
     }
 
     /* Gesamtpreis berechnen */
@@ -840,7 +846,9 @@ std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNu
 
     __int64 totalPrice = stockValue + stockValue / 10 + 100;
     if (qPlayer.Money - totalPrice < DEBT_LIMIT) {
-        AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
+        if (commit) {
+            AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
+        }
         return {false, qPlayer.Money};
     }
 
@@ -890,8 +898,13 @@ std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineN
         return {false, qPlayer.Money};
     }
     if (amount > qPlayer.OwnsAktien[airlineNum]) {
-        AT_Error("GameMechanic::sellStock(%s): Limiting amount sold to %ld (was %ld).", qPlayer.AirlineX.c_str(), qPlayer.OwnsAktien[airlineNum], amount);
+        if (commit) {
+            AT_Error("GameMechanic::sellStock(%s): Limiting amount sold to %ld (was %ld).", qPlayer.AirlineX.c_str(), qPlayer.OwnsAktien[airlineNum], amount);
+        }
         amount = qPlayer.OwnsAktien[airlineNum];
+    }
+    if (amount <= 0) {
+        return {false, qPlayer.Money};
     }
 
     auto &qPlayerSellFrom = Sim.Players.Players[airlineNum];
