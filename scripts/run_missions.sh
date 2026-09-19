@@ -7,13 +7,14 @@
 #
 # Each botlevels value is what /setbotlevel gets: hundreds = FL, tens = PT, ones = HA (the idle
 # human is SA). Default: every MertenBot level for all three computer players, and the classic bot.
+# MISSIONS and TIMEOUT (seconds per game, default 900) can be set to run a subset.
 # The game is started exactly as threadpool.rb starts it ("./AT /quick <mission> /seed <n> ..."),
 # at most as many games at once as it runs.
 
-MISSIONS="0 1 2 3 4 5 11 12 13 14 15 16 17 18 19 20 41 42 43 44 45 46 47 48 49 50"
+MISSIONS="${MISSIONS:-0 1 2 3 4 5 11 12 13 14 15 16 17 18 19 20 41 42 43 44 45 46 47 48 49 50}"
 LEVELS="${*:-000 111 222 333 444 555}"
 SEED=1
-TIMEOUT=900
+TIMEOUT="${TIMEOUT:-900}"
 
 ./scripts/run_build.sh
 cd "/media/LINUX/GOG Games/Airline Tycoon Deluxe/game/" || exit 1
