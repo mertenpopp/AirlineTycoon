@@ -5160,9 +5160,11 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 }
                 break;
             case 5002:
-                /* dropped dependency to rocket part 1 on purpose */
+                /* changed the dependency to platform base */
                 if (qPlayer.CheckRocketPart(2)) {
                     MakeSayWindow(0, TOKEN_NASA, 5098, pFontPartner);
+                } else if ((qPlayer.RocketFlags & ROCKET_BASE) == 0) {
+                    MakeSayWindow(0, TOKEN_NASA, 5096, pFontPartner);
                 } else if (qPlayer.Money < RocketPrices[2]) {
                     MakeSayWindow(0, TOKEN_NASA, 7000, pFontPartner);
                 } else {
