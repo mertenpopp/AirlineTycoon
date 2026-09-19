@@ -938,8 +938,23 @@ void Bot::actionVisitSaboteur() {
     }
 }
 
-__int64 Bot::calcBuyShares(__int64 moneyAvailable, DOUBLE kurs) { return static_cast<__int64>(std::floor((moneyAvailable - 100) / (1.1 * kurs))); }
-__int64 Bot::calcSellShares(__int64 moneyToGet, DOUBLE kurs) { return static_cast<__int64>(std::floor((moneyToGet + 100) / (0.9 * kurs))); }
+__int64 Bot::calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const {
+    __int64 amountLow = 0;
+    __int64 amountHigh = qPlayer.OwnsAktien[sellFromPlayerId];
+
+    while (amountLow < amountHigh) {
+        __int64 mid = amountLow + (amountHigh - amountLow) / 2;
+        auto res = GameMechanic::sellStock(qPlayer, sellFromPlayerId, mid, false);
+        bool transactionOK = res.first;
+        __int64 amountGained = res.second - qPlayer.Money;
+        if (transactionOK && (amountGained >= moneyToGet)) {
+            amountHigh = mid;
+        } else {
+            amountLow = mid + 1;
+        }
+    }
+    return amountLow;
+}
 
 __int64 Bot::calcNumOfFreeShares(SLONG playerId) {
     auto &player = Sim.Players.Players[playerId];
@@ -955,8 +970,22 @@ __int64 Bot::calcAmountToBuy(SLONG buyFromPlayerId, SLONG desiredRatio, __int64 
     __int64 targetAmount = player.AnzAktien * desiredRatio / 100;
     __int64 amountWanted = targetAmount - qPlayer.OwnsAktien[buyFromPlayerId];
     __int64 amountFree = calcNumOfFreeShares(buyFromPlayerId);
-    __int64 amountCanAfford = calcBuyShares(moneyAvailable, player.Kurse[0]);
-    return std::min({amountFree, amountWanted, amountCanAfford});
+
+    __int64 amountLow = 0;
+    __int64 amountHigh = std::min(amountWanted, amountFree);
+
+    while (amountLow < amountHigh) {
+        __int64 mid = amountLow + (amountHigh - amountLow + 1) / 2;
+        auto res = GameMechanic::buyStock(qPlayer, buyFromPlayerId, mid, false);
+        bool transactionOK = res.first;
+        __int64 amountSpent = qPlayer.Money - res.second;
+        if (transactionOK && (amountSpent <= moneyAvailable)) {
+            amountLow = mid;
+        } else {
+            amountHigh = mid - 1;
+        }
+    }
+    return amountLow;
 }
 
 void Bot::actionEmitShares() {
@@ -1046,7 +1075,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
         auto res = howToGetMoney().first;
         if (res == HowToGetMoney::SellOwnShares) {
             SLONG c = qPlayer.PlayerNum;
-            __int64 sellsNeeded = calcSellShares(howMuchToRaise, qPlayer.Kurse[0]);
+            __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
             __int64 sellsMax = std::max(0, qPlayer.OwnsAktien[c] - qPlayer.AnzAktien / 2 - 1);
             auto sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
@@ -1055,7 +1084,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
             }
         } else if (res == HowToGetMoney::SellAllOwnShares) {
             SLONG c = qPlayer.PlayerNum;
-            __int64 sellsNeeded = calcSellShares(howMuchToRaise, qPlayer.Kurse[0]);
+            __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
             __int64 sellsMax = qPlayer.OwnsAktien[c];
             auto sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
@@ -1068,7 +1097,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
                     continue;
                 }
 
-                __int64 sellsNeeded = calcSellShares(howMuchToRaise, Sim.Players.Players[c].Kurse[0]);
+                __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
                 __int64 sellsMax = qPlayer.OwnsAktien[c];
                 __int64 sells = std::min(sellsMax, sellsNeeded);
                 AT_Log("Bot::actionSellShares(): Selling stock from player %d: %lld", c, sells);

@@ -894,9 +894,6 @@ std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineN
         AT_Error("GameMechanic::sellStock(%s): Negative amount (%ld).", qPlayer.AirlineX.c_str(), amount);
         return {false, qPlayer.Money};
     }
-    if (amount == 0) {
-        return {false, qPlayer.Money};
-    }
     if (amount > qPlayer.OwnsAktien[airlineNum]) {
         if (commit) {
             AT_Error("GameMechanic::sellStock(%s): Limiting amount sold to %ld (was %ld).", qPlayer.AirlineX.c_str(), qPlayer.OwnsAktien[airlineNum], amount);
