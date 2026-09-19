@@ -878,7 +878,12 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
         auto res = GameMechanic::checkPrerequisitesForSaboteurJob(qPlayer, sabotageMode.getCategory(), sabotageMode.getJobNumber(), FALSE).result;
         switch (res) {
         case GameMechanic::CheckSabotageResult::Ok:
-            GameMechanic::activateSaboteurJob(qPlayer, FALSE);
+            if (!GameMechanic::activateSaboteurJob(qPlayer, FALSE)) {
+                AT_Error("Bot::actionSabotage(): Failed to sabotage %s %s with '%s' (hint cost: %d, job cost: %lld)",
+                         (target == mNemesis) ? "nemesis" : "enemy", targetName.c_str(), sabotageMode.getName().c_str(), sabotageMode.getJobHints(),
+                         sabotageMode.getJobCost());
+                return;
+            }
             AT_Log("Bot::actionSabotage(): Sabotaging %s %s with '%s' (hint cost: %d, job cost: %lld)", (target == mNemesis) ? "nemesis" : "enemy",
                    targetName.c_str(), sabotageMode.getName().c_str(), sabotageMode.getJobHints(), sabotageMode.getJobCost());
 
