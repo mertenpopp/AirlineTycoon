@@ -100,6 +100,8 @@ void InitPathVars() {
 // Initialisiert die Digital-Sache:
 //--------------------------------------------------------------------------------------------
 void InitSoundSystem(SDL_Window *AppWnd) {
+    ScanMusicTracks();
+
     gpSSE = new SSE(AppWnd, 44100, 1, 16);
     gpSSE->EnableDS();
 
