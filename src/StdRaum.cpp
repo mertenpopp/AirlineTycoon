@@ -2687,12 +2687,12 @@ void CStdRaum::PostPaint() {
                 if (OnscreenBitmap.pBitmap != nullptr) {
                     if (RoomBm.Size.x > 0) {
                         if (DisplayThisBubble != 0) {
-                            ColorFX.BlitWhiteTrans(TRUE, OnscreenBitmap.pBitmap, RoomBm.pBitmap, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
+                            ColorFX.BlitWhiteTrans(OnscreenBitmap.pBitmap, RoomBm.pBitmap, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
                                                    &BubbleRect);
                         }
                     } else {
                         if (DisplayThisBubble != 0) {
-                            ColorFX.BlitWhiteTrans(TRUE, OnscreenBitmap.pBitmap, &PrimaryBm.PrimaryBm, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
+                            ColorFX.BlitWhiteTrans(OnscreenBitmap.pBitmap, &PrimaryBm.PrimaryBm, XY(WinP1.x + BubbleRect.left, WinP1.y + BubbleRect.top),
                                                    &BubbleRect);
                         }
                     }
@@ -3035,7 +3035,7 @@ void CStdRaum::PostPaint() {
             }
 
             if (qMessages.Messages[static_cast<SLONG>(0)].Message.GetLength() > 0 && qMessages.AktuellerBeraterTyp < 100) {
-                ColorFX.BlitWhiteTrans(TRUE, qMessages.SprechblaseBm.pBitmap, &PrimaryBm.PrimaryBm,
+                ColorFX.BlitWhiteTrans(qMessages.SprechblaseBm.pBitmap, &PrimaryBm.PrimaryBm,
                                        XY(640 - BeraterBms[qMessages.AktuelleBeraterBitmap][0].Size.x +
                                               BeraterSprechblasenOffset[qMessages.AktuelleBeraterBitmap].x - qMessages.SprechblaseBm.Size.x,
                                           qMessages.BeraterPosY + BeraterSprechblasenOffset[qMessages.AktuelleBeraterBitmap].y));
@@ -3062,9 +3062,9 @@ void CStdRaum::PostPaint() {
     }
 
     if (gBroadcastBm.Size.y > 10) {
-        ColorFX.BlitWhiteTrans(TRUE, gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10, 10));
+        ColorFX.BlitWhiteTrans(gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10, 10));
     } else if (gBroadcastBm.Size.y > 0) {
-        ColorFX.BlitWhiteTrans(TRUE, gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10 - (10 - gBroadcastBm.Size.y) * 20, 10 + (10 - gBroadcastBm.Size.y) * 5));
+        ColorFX.BlitWhiteTrans(gBroadcastBm.pBitmap, &PrimaryBm.PrimaryBm, XY(10 - (10 - gBroadcastBm.Size.y) * 20, 10 + (10 - gBroadcastBm.Size.y) * 5));
     }
 
     if (bHandy == FALSE) {
@@ -4086,7 +4086,11 @@ void CStdRaum::MenuStart(SLONG MenuType, SLONG MenuPar1, SLONG MenuPar2, SLONG M
             pMenuLib1 = nullptr;
         }
 
-        OnscreenBitmap.ReSize(MenuBms[0].Size);
+        /* Without network3.gli (the GOG data has none) this only works because the request
+           menu that leads here left its bitmaps loaded; never index an empty list. */
+        if (MenuBms.AnzEntries() > 0) {
+            OnscreenBitmap.ReSize(MenuBms[0].Size);
+        }
         break;
 
     default:
@@ -4932,17 +4936,15 @@ void CStdRaum::MenuRepaint() {
                                    240, 86, 325, 139);
 
             // Neuer Kontostand:
-            auto aktienWert = __int64(Sim.Players.Players[MenuPar1].Kurse[0] * MenuInfo);
-            __int64 gesamtPreis = 0;
+            __int64 kontoNeu = 0;
             if (MenuPar2 == 0) {
-                gesamtPreis = aktienWert + aktienWert / 10 + 100;
+                kontoNeu = GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, false).second;
             } else {
-                gesamtPreis = aktienWert - aktienWert / 10 - 100;
-                gesamtPreis = -gesamtPreis;
+                kontoNeu = GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo, false).second;
             }
 
             OnscreenBitmap.PrintAt(StandardTexte.GetS(TOKEN_AKTIE, 3030), qFontBankBlack, TEC_FONT_LEFT, 30, 111, 325, 139);
-            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString64(__int64(qPlayer.Money - gesamtPreis)), qFontBankBlack, TEC_FONT_LEFT, 220, 111, 325, 139);
+            OnscreenBitmap.PrintAt(Einheiten[EINH_DM].bString64(kontoNeu), qFontBankBlack, TEC_FONT_LEFT, 220, 111, 325, 139);
         }
         break;
 
@@ -6018,6 +6020,15 @@ void CStdRaum::MenuLeftClick(XY Pos) {
 
                         // Die Figur aus der Animation rausreissen:
                         Sim.Players.Players[MouseClickPar2].DisplayAsTelefoning();
+
+                        // The host moves the bot and has to stop it, too. The others show it with the phone:
+                        if (Sim.bNetwork != 0) {
+                            PERSON &qBotPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(MouseClickPar2)];
+
+                            SIM::SendSimpleMessage(ATNET_DIALOG_LOCK, 0, MouseClickPar2);
+                            qOther.BroadcastPosition();
+                            SIM::SendSimpleMessage(ATNET_PLAYERLOOK, 0, MouseClickPar2, qBotPerson.Phase);
+                        }
                     }
                 }
             }
@@ -6794,13 +6805,13 @@ void CStdRaum::MenuLeftClick(XY Pos) {
 
                 MenuStop();
 
-                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo)) {
+                if (MenuInfo > 0 && !GameMechanic::buyStock(qPlayer, MenuPar1, MenuInfo, true).first) {
                     MakeSayWindow(0, TOKEN_BANK, 6000, pFontPartner);
                 }
             } else if (MenuPar2 == 1) // verkaufen
             {
                 MenuStop();
-                GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo);
+                GameMechanic::sellStock(qPlayer, MenuPar1, MenuInfo, true);
             }
         }
 

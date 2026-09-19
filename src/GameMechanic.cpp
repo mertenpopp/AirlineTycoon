@@ -359,7 +359,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode = -qPlayer.ArabMode;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice[qPlayer.ArabMode - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice[qPlayer.ArabMode - 1], 2080);
@@ -400,7 +400,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode2 = -qPlayer.ArabMode2;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode2 + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode2 + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice2[qPlayer.ArabMode2 - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice2[qPlayer.ArabMode2 - 1], 2080);
@@ -445,7 +445,7 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
         if (fremdSabotage) {
             qPlayer.ArabMode3 = -qPlayer.ArabMode3;
         } else {
-            qPlayer.ArabTrust = min(6, qPlayer.ArabMode3 + 1);
+            qPlayer.ArabTrust = max(qPlayer.ArabTrust, min(6, qPlayer.ArabMode3 + 1));
 
             qPlayer.ChangeMoney(-SabotagePrice3[qPlayer.ArabMode3 - 1], 2080, "");
             SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -SabotagePrice3[qPlayer.ArabMode3 - 1], 2080);
@@ -472,6 +472,13 @@ bool GameMechanic::paySaboteurFine(SLONG player, SLONG opfer) {
     if (opfer < 0 || opfer >= Sim.Players.Players.AnzEntries()) {
         AT_Error("GameMechanic::paySaboteurFine: Invalid victim ID (%ld).", opfer);
         return false;
+    }
+
+    /* The boss tells every player about the sabotage in their own morning briefing, so every peer
+       runs this. Only the peer that owns the saboteur books the fine and tells the others, or the
+       fine is paid once per human player - each time when that player has their briefing. */
+    if (Sim.bNetwork != 0 && !Sim.Players.Players[player].NetIsAuthoritative()) {
+        return true;
     }
 
     auto fine = Sim.Players.Players[player].ArabHints * 10000;
@@ -785,23 +792,23 @@ std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filen
     return planeIds;
 }
 
-bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
+std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit) {
     if (airlineNum < 0 || airlineNum >= 4) {
         AT_Error("GameMechanic::buyStock(%s): Invalid airline (%ld).", qPlayer.AirlineX.c_str(), airlineNum);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount < 0) {
         AT_Error("GameMechanic::buyStock(%s): Negative amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount == 0) {
-        return false;
+        return {false, qPlayer.Money};
     }
 
     auto &qPlayerBuyFrom = Sim.Players.Players[airlineNum];
     if (qPlayerBuyFrom.IsOut != 0) {
         AT_Error("GameMechanic::buyStock(%s): Airline already gone.", qPlayer.AirlineX.c_str());
-        return false;
+        return {false, qPlayer.Money};
     }
 
     /* Anzahl freier Aktien */
@@ -809,41 +816,55 @@ bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
     for (SLONG c = 0; c < 4; c++) {
         freeAmount -= Sim.Players.Players[c].OwnsAktien[qPlayerBuyFrom.PlayerNum];
     }
-
     if (amount > freeAmount) {
         AT_Error("GameMechanic::buyStock(%s): Limiting amount bought to %ld (was %ld).", qPlayer.AirlineX.c_str(), freeAmount, amount);
         amount = freeAmount;
     }
 
-    /* Handel durchführen */
-    auto aktienWert = static_cast<__int64>(qPlayerBuyFrom.Kurse[0]) * amount;
-    auto gesamtPreis = aktienWert + aktienWert / 10 + 100;
-    if (qPlayer.Money - gesamtPreis < DEBT_LIMIT) {
-        AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+    /* Gesamtpreis berechnen */
+    __int64 stockValue = 0;
+    DOUBLE sharePrice = qPlayerBuyFrom.Kurse[0];
+    SLONG remainingAmount = amount;
+    while (remainingAmount > 0) {
+        SLONG buyAmount = min(remainingAmount, 2000);
+        stockValue += static_cast<__int64>(std::round(sharePrice * buyAmount));
+        remainingAmount -= buyAmount;
+
+        /* aktualisiere Aktienkurs */
+        auto anzAktien = static_cast<DOUBLE>(qPlayerBuyFrom.AnzAktien);
+        sharePrice *= anzAktien / (anzAktien - buyAmount / 2.0);
+        if (sharePrice < 1.0) {
+            sharePrice = 1.0;
+        }
     }
 
-    qPlayer.ChangeMoney(-gesamtPreis, 3150, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -gesamtPreis, 3150);
+    __int64 totalPrice = stockValue + stockValue / 10 + 100;
+    if (qPlayer.Money - totalPrice < DEBT_LIMIT) {
+        AT_Error("GameMechanic::buyStock(%s): Player cannot afford to buy this amount (%ld).", qPlayer.AirlineX.c_str(), amount);
+        return {false, qPlayer.Money};
+    }
+
+    if (!commit) {
+        return {true, qPlayer.Money - totalPrice};
+    }
+
+    /* Handel durchführen */
+    qPlayer.ChangeMoney(-totalPrice, 3150, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -totalPrice, 3150);
 
     qPlayer.OwnsAktien[airlineNum] += amount;
 
-    /* aktualisiere Aktienwert */
-    qPlayer.AktienWert[airlineNum] += aktienWert;
-
     /* aktualisiere Aktienkurs */
-    auto anzAktien = static_cast<DOUBLE>(qPlayerBuyFrom.AnzAktien);
-    qPlayerBuyFrom.Kurse[0] *= anzAktien / (anzAktien - amount / 2.0);
-    if (qPlayerBuyFrom.Kurse[0] < 0) {
-        qPlayerBuyFrom.Kurse[0] = 0;
-    }
+    qPlayerBuyFrom.Kurse[0] = sharePrice;
 
-    if (gesamtPreis != 0) {
+    /* aktualisiere Aktienwert */
+    qPlayer.AktienWert[airlineNum] = static_cast<__int64>(std::round(qPlayer.OwnsAktien[airlineNum] * qPlayerBuyFrom.Kurse[0]));
+
+    if (totalPrice != 0) {
         if ((Sim.bNetwork != 0) && qPlayerBuyFrom.Owner == 2) {
             SIM::SendSimpleMessage(ATNET_ADVISOR, qPlayerBuyFrom.NetworkID, 4, qPlayer.PlayerNum, airlineNum);
         }
     }
-
     PLAYER::NetSynchronizeMoney();
 
     if (qPlayer.Owner == 1) {
@@ -853,21 +874,20 @@ bool GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
                 BERATERTYP_INFO, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9005), qPlayer.NameX.c_str(), qPlayer.AirlineX.c_str(), amount));
         }
     }
-
-    return true;
+    return {true, qPlayer.Money};
 }
 
-bool GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
+std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit) {
     if (airlineNum < 0 || airlineNum >= 4) {
         AT_Error("GameMechanic::sellStock(%s): Invalid airline (%ld).", qPlayer.AirlineX.c_str(), airlineNum);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount < 0) {
         AT_Error("GameMechanic::sellStock(%s): Negative amount (%ld).", qPlayer.AirlineX.c_str(), amount);
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount == 0) {
-        return false;
+        return {false, qPlayer.Money};
     }
     if (amount > qPlayer.OwnsAktien[airlineNum]) {
         AT_Error("GameMechanic::sellStock(%s): Limiting amount sold to %ld (was %ld).", qPlayer.AirlineX.c_str(), qPlayer.OwnsAktien[airlineNum], amount);
@@ -877,31 +897,46 @@ bool GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount) {
     auto &qPlayerSellFrom = Sim.Players.Players[airlineNum];
     if (qPlayerSellFrom.IsOut != 0) {
         AT_Error("GameMechanic::sellStock(%s): Airline already gone.", qPlayer.AirlineX.c_str());
-        return false;
+        return {false, qPlayer.Money};
     }
 
-    /* aktualisiere Aktienwert */
-    {
-        auto num = static_cast<DOUBLE>(qPlayer.OwnsAktien[airlineNum]);
-        qPlayer.AktienWert[airlineNum] *= (num - amount) / num;
+    /* Gesamtpreis berechnen */
+    __int64 stockValue = 0;
+    DOUBLE sharePrice = qPlayerSellFrom.Kurse[0];
+    SLONG remainingAmount = amount;
+    while (remainingAmount > 0) {
+        SLONG sellAmount = min(remainingAmount, 2000);
+        stockValue += static_cast<__int64>(std::round(sharePrice * sellAmount));
+        remainingAmount -= sellAmount;
+
+        /* aktualisiere Aktienkurs */
+        auto anzAktien = static_cast<DOUBLE>(qPlayerSellFrom.AnzAktien);
+        sharePrice *= (anzAktien - sellAmount / 2.0) / anzAktien;
+        if (sharePrice < 1.0) {
+            sharePrice = 1.0;
+        }
+    }
+
+    __int64 totalPrice = stockValue - stockValue / 10 - 100;
+    if (!commit) {
+        return {true, qPlayer.Money + totalPrice};
     }
 
     /* Handel durchführen */
-    auto aktienWert = static_cast<__int64>(qPlayerSellFrom.Kurse[0]) * amount;
-    auto gesamtPreis = aktienWert - aktienWert / 10 - 100;
-    qPlayer.ChangeMoney(gesamtPreis, 3151, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, gesamtPreis, 3151);
+    qPlayer.ChangeMoney(totalPrice, 3151, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, totalPrice, 3151);
+
     qPlayer.OwnsAktien[airlineNum] -= amount;
 
     /* aktualisiere Aktienkurs */
-    auto anzAktien = static_cast<DOUBLE>(qPlayerSellFrom.AnzAktien);
-    qPlayerSellFrom.Kurse[0] *= (anzAktien - amount / 2.0) / anzAktien;
-    if (qPlayerSellFrom.Kurse[0] < 0) {
-        qPlayerSellFrom.Kurse[0] = 0;
-    }
+    qPlayerSellFrom.Kurse[0] = sharePrice;
+
+    /* aktualisiere Aktienwert */
+    qPlayer.AktienWert[airlineNum] = static_cast<__int64>(std::round(qPlayer.OwnsAktien[airlineNum] * qPlayerSellFrom.Kurse[0]));
 
     PLAYER::NetSynchronizeMoney();
-    return true;
+
+    return {true, qPlayer.Money};
 }
 
 GameMechanic::OvertakeAirlineResult GameMechanic::canOvertakeAirline(PLAYER &qPlayer, SLONG targetAirline) {
@@ -1120,7 +1155,7 @@ bool GameMechanic::bidOnGate(PLAYER &qPlayer, SLONG idx) {
         qGate.WasInterested = TRUE;
     }
 
-    _syncTafelData();
+    _announceBid(qGate);
 
     return true;
 }
@@ -1159,23 +1194,37 @@ bool GameMechanic::bidOnCity(PLAYER &qPlayer, SLONG idx) {
         qCity.WasInterested = TRUE;
     }
 
-    _syncTafelData();
+    _announceBid(qCity);
 
     return true;
 }
 
-void GameMechanic::_syncTafelData() {
-    TEAKFILE Message;
-    Message.Announce(1024);
-
-    Message << ATNET_TAKE_CITY;
-
-    for (SLONG c = 0; c < 7; c++) {
-        Message << TafelData.City[c].Player << TafelData.City[c].Preis;
-        Message << TafelData.Gate[c].Player << TafelData.Gate[c].Preis;
+/* Announces one bid rather than the whole board. Two peers can bid in the same moment - the
+   flight supervisor's office holds everybody at 9:00, and the host's bots bid on their own - and
+   a whole-board snapshot then left each peer with whichever snapshot arrived last: they ended up
+   with different holders, and one bid was gone. A single bid can be merged in any order, see the
+   ATNET_BID handler. */
+void GameMechanic::_announceBid(const CTafelZettel &qNote) {
+    /* Which of the seven notes this is, found by address. Subtracting the two pointers would say
+       the same thing in one line, but only as long as the note really lies in the array picked by
+       its type - and pointer arithmetic across two different arrays is undefined, so the range
+       check afterwards would not be a guard at all. Comparing addresses is well defined either
+       way, and says "not in there" instead of a number that means nothing. */
+    const auto &Notes = (qNote.Type == CTafelZettel::Type::CITY) ? TafelData.City : TafelData.Gate;
+    SLONG Slot = -1;
+    for (SLONG c = 0; c < SLONG(Notes.size()); c++) {
+        if (&Notes[c] == &qNote) {
+            Slot = c;
+            break;
+        }
     }
 
-    SIM::SendMemFile(Message);
+    if (Slot < 0) {
+        AT_Error("GameMechanic::_announceBid: Note is not on the board.");
+        return;
+    }
+
+    SIM::SendSimpleMessage(ATNET_BID, 0, static_cast<SLONG>(qNote.Type), Slot, qNote.Player, qNote.Preis);
 }
 
 SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode) {
@@ -1188,8 +1237,14 @@ SLONG GameMechanic::setMechMode(PLAYER &qPlayer, SLONG mode) {
     return gRepairPrice[qPlayer.MechMode] * qPlayer.Planes.GetNumUsed() / 30;
 }
 
-void GameMechanic::increaseAllSalaries(PLAYER &qPlayer) {
-    Workers.Gehaltsaenderung(1, qPlayer.PlayerNum);
+void GameMechanic::increaseAllSalaries(PLAYER &qPlayer, bool bFromNetwork) {
+    /* The other peers repeat all of this, the happiness top-up included (Art 2), rather
+       than just the raise Workers.Gehaltsaenderung() would announce. */
+    if (!bFromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, qPlayer.PlayerNum, -1, 2);
+    }
+
+    Workers.Gehaltsaenderung(1, qPlayer.PlayerNum, true);
     qPlayer.StrikePlanned = FALSE;
 
     while ((Workers.GetAverageHappyness(qPlayer.PlayerNum) - static_cast<SLONG>(Workers.GetMinHappyness(qPlayer.PlayerNum) < 0) * 10 < 20) ||
@@ -1206,7 +1261,34 @@ void GameMechanic::planStrike(PLAYER &qPlayer) {
     qPlayer.StrikeEndType = 0;
 }
 
-void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
+void GameMechanic::startStrike(PLAYER &qPlayer, SLONG hours, bool bFromNetwork) {
+    qPlayer.StrikePlanned = FALSE;
+    qPlayer.StrikeEndCountdown = 0;
+    qPlayer.StrikeNotified = FALSE; // Dem Spieler bei nächster Gelegenheit bescheid sagen
+
+    /* How the last strike ended is only cleared once its owner has been told, on the owner's peer
+       - but endStrike() refuses to end a strike while it is set. So every peer clears it here. */
+    if (Sim.bNetwork != 0) {
+        qPlayer.StrikeEndType = 0;
+    }
+
+    qPlayer.StrikeHours = hours;
+    qPlayer.DaysWithoutStrike = 0;
+
+    /* The priority was written as 25 + (c == localPlayer) * 10 with a c that the loop above had
+       left at -1, so it has always been 25. */
+    Sim.Headlines.AddOverride(1, bprintf(StandardTexte.GetS(TOKEN_MISC, 2090), qPlayer.AirlineX.c_str()), GetIdFromString("STREIK"), 25);
+    AT_Log("GameMechanic::startStrike(%s): @%02ld:%02ld for %ld hours", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute(), qPlayer.StrikeHours);
+
+    /* The hour the strike is over, not how many hours are left: the message can reach a peer
+       just before or just after its own change of hour, and a peer that counted the hours itself
+       from there would stop a whole hour early or late. */
+    if (!bFromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 2, Sim.Date * 24 + Sim.GetHour() + hours, Sim.Date * 24 + Sim.GetHour());
+    }
+}
+
+void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork) {
     if (qPlayer.StrikeEndType != 0) {
         AT_Error("GameMechanic::endStrike(%s): Strike already ended.", qPlayer.AirlineX.c_str());
         return;
@@ -1215,7 +1297,7 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
     if (mode == EndStrikeMode::Salary) {
         qPlayer.StrikeEndType = 2; // Streik beendet durch Gehaltserhöhung
         qPlayer.StrikeEndCountdown = 2;
-        increaseAllSalaries(qPlayer);
+        increaseAllSalaries(qPlayer, true); // the other peers repeat it as part of the ATNET_STRIKE below
         AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via salary increase.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
     } else if (mode == EndStrikeMode::Threat) {
         qPlayer.StrikeEndType = 1; // Streik beendet durch Drohung
@@ -1223,7 +1305,7 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
         Workers.AddHappiness(qPlayer.PlayerNum, -20);
         AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via threat.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
     } else if (mode == EndStrikeMode::Drunk) {
-        if (qPlayer.TrinkerTrust == TRUE) {
+        if (qPlayer.TrinkerTrust == TRUE || bFromNetwork) {
             qPlayer.StrikeEndType = 3; // Streik beendet durch Trinker
             qPlayer.StrikeEndCountdown = 4;
             AT_Log("GameMechanic::endStrike(%s): @%02ld:%02ld via help from the drunk.", qPlayer.AirlineX.c_str(), Sim.GetHour(), Sim.GetMinute());
@@ -1243,6 +1325,14 @@ void GameMechanic::endStrike(PLAYER &qPlayer, EndStrikeMode mode) {
         }
     } else {
         AT_Error("GameMechanic::endStrike: Invalid EndStrikeMode (%ld).", qPlayer.AirlineX.c_str(), mode);
+    }
+
+    /* A strike runs on every peer, since it delays the player's departures everywhere. Waiting
+       it out ends it on every peer by itself; a dialog or a bot ends it only where it happens,
+       so that has to be announced. StrikeEndType is only set if it actually ended. The hour goes
+       along because the countdown above counts changes of hour, see ATNET_STRIKE. */
+    if (!bFromNetwork && mode != EndStrikeMode::Waiting && qPlayer.StrikeEndType != 0 && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_STRIKE, 0, qPlayer.PlayerNum, 0, static_cast<SLONG>(mode), Sim.Date * 24 + Sim.GetHour());
     }
 }
 
@@ -1670,7 +1760,9 @@ bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item) {
     qPlayer.ReformIcons();
     if (qPlayer.HasItem(ITEM_LAPTOP) == 0) {
         qPlayer.SecurityFlags &= ~(1 << 1);
+        PLAYER::NetSynchronizeFlags();
     }
+    PLAYER::NetSynchronizeItems();
     AT_Log("GameMechanic::removeItem(%s): Removed item (%ld).", qPlayer.AirlineX.c_str(), item);
     return true;
 }
@@ -2022,6 +2114,19 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         AT_Error("GameMechanic.cpp: Default case should not be reached.");
         DebugBreak();
     }
+
+    /* Most branches above use the item up by clearing its slot, and none of them told the other
+       peers: an item a bot used stayed in everybody else's copy of its inventory for good, and
+       what a player carries decides what a saboteur may do. One message covers whichever branch
+       ran. Several items also change what ATNET_SYNC_FLAGS carries - the floppy disk cures the
+       laptop, the pills the sickness, the coffee and the stink bomb set their timers - and the other
+       peers only saw that when something else happened to send the flags. A laptop cured by the
+       floppy disk was never sent at all: a client planning for the bot used its next disk, too. */
+    if (Sim.bNetwork != 0) {
+        PLAYER::NetSynchronizeItems();
+        PLAYER::NetSynchronizeFlags();
+    }
+
     return true;
 }
 
@@ -2149,6 +2254,16 @@ bool GameMechanic::canCallInternational(PLAYER &qPlayer, SLONG cityId) {
         }
     }
     return false;
+}
+
+void GameMechanic::bookCallCost(PLAYER &qPlayer, SLONG numberOfCitiesCalled, bool areWeInOffice) {
+    SLONG cost = numberOfCitiesCalled;
+    if (!areWeInOffice) {
+        cost += numberOfCitiesCalled / 7;
+    }
+    qPlayer.ChangeMoney(-cost, 3204 + (areWeInOffice ? 0 : 1), "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, -cost, 3204 + (areWeInOffice ? 0 : 1));
+    qPlayer.History.AddCallCost(cost);
 }
 
 bool GameMechanic::takeInternationalFlightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId) {
@@ -2304,6 +2419,12 @@ bool GameMechanic::removeFromFlightPlan(PLAYER &qPlayer, SLONG planeId, SLONG id
     qPlan.UpdateNextFlight();
     qPlan.UpdateNextStart();
 
+    qPlayer.UpdateAuftragsUsage();
+    qPlayer.UpdateFrachtauftragsUsage();
+    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
+    qPlayer.Blocks.RepaintAll = TRUE;
+
+    /* Sent after the check, which still changes the plan: the other peers take it as it is. */
     if (Sim.bNetwork != 0) {
         SLONG key = planeId;
 
@@ -2313,11 +2434,6 @@ bool GameMechanic::removeFromFlightPlan(PLAYER &qPlayer, SLONG planeId, SLONG id
 
         qPlayer.NetUpdateFlightplan(key);
     }
-
-    qPlayer.UpdateAuftragsUsage();
-    qPlayer.UpdateFrachtauftragsUsage();
-    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
-    qPlayer.Blocks.RepaintAll = TRUE;
 
     return true;
 }
@@ -2356,6 +2472,12 @@ bool GameMechanic::clearFlightPlanFrom(PLAYER &qPlayer, SLONG planeId, SLONG dat
     qPlan.UpdateNextFlight();
     qPlan.UpdateNextStart();
 
+    qPlayer.UpdateAuftragsUsage();
+    qPlayer.UpdateFrachtauftragsUsage();
+    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
+    qPlayer.Blocks.RepaintAll = TRUE;
+
+    /* Sent after the check, which still changes the plan: the other peers take it as it is. */
     if (Sim.bNetwork != 0) {
         SLONG key = planeId;
 
@@ -2365,11 +2487,6 @@ bool GameMechanic::clearFlightPlanFrom(PLAYER &qPlayer, SLONG planeId, SLONG dat
 
         qPlayer.NetUpdateFlightplan(key);
     }
-
-    qPlayer.UpdateAuftragsUsage();
-    qPlayer.UpdateFrachtauftragsUsage();
-    qPlayer.Planes[planeId].CheckFlugplaene(qPlayer.PlayerNum, FALSE);
-    qPlayer.Blocks.RepaintAll = TRUE;
 
     return true;
 }
@@ -2388,9 +2505,9 @@ bool GameMechanic::refillFlightJobs(SLONG cityNum, SLONG minimum) {
 
 bool GameMechanic::flightJobsInitialFill() {
     if (Sim.bNetwork == 0) {
-        gFrachten.Random.SRand(AtGetTime());
-        LastMinuteAuftraege.Random.SRand(AtGetTime());
-        ReisebueroAuftraege.Random.SRand(AtGetTime());
+        gFrachten.Random.SRand(AtGetSeedTime());
+        LastMinuteAuftraege.Random.SRand(AtGetSeedTime());
+        ReisebueroAuftraege.Random.SRand(AtGetSeedTime());
     } else {
         gFrachten.Random.SRand(Sim.Date);
         LastMinuteAuftraege.Random.SRand(Sim.Date + 1);
@@ -2407,8 +2524,8 @@ bool GameMechanic::flightJobsInitialFill() {
 
     for (SLONG c = 0; c < Cities.AnzEntries(); c++) {
         if (Sim.bNetwork == 0) {
-            AuslandsAuftraege[c].Random.SRand(AtGetTime());
-            AuslandsFrachten[c].Random.SRand(AtGetTime());
+            AuslandsAuftraege[c].Random.SRand(AtGetSeedTime());
+            AuslandsFrachten[c].Random.SRand(AtGetSeedTime());
         } else {
             AuslandsAuftraege[c].Random.SRand(Sim.Date + c + 3);
             AuslandsFrachten[c].Random.SRand(Sim.Date + c + 3);
@@ -2544,7 +2661,67 @@ bool GameMechanic::_planFlightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID
     return true;
 }
 
-bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {
+bool GameMechanic::increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
+    if (!qPlayer.Planes.IsInAlbum(planeId)) {
+        AT_Error("GameMechanic::increaseFirstClassRatio(%s): Invalid plane index (%ld).", qPlayer.AirlineX.c_str(), planeId);
+        return false;
+    }
+
+    /* Note: Dropped check of currently booked passengers (GetMaxPassengerOpenFlight()) because seating reconfiguration now
+     * only happens when the plane is not in flight. */
+
+    auto &qPlane = qPlayer.Planes[planeId];
+    SLONG total = qPlane.ptPassagiere;
+
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereTargetFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
+    prozent = std::min(prozent + 10.0f, 100.0f);
+    SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
+
+    if (newMaxPassagiereFC >= (total / 2)) {
+        newMaxPassagiereFC = total / 2;
+    } else if ((newMaxPassagiereFC == qPlane.MaxPassagiereTargetFC)) {
+        newMaxPassagiereFC++;
+    }
+
+    SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
+
+    qPlane.MaxPassagiereTarget = newMaxPassagiere;
+    qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    qPlayer.NetUpdatePlaneProps(planeId); // the refit to the new seating happens on every peer
+    return true;
+}
+
+bool GameMechanic::decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId) {
+    if (!qPlayer.Planes.IsInAlbum(planeId)) {
+        AT_Error("GameMechanic::decreaseFirstClassRatio(%s): Invalid plane index (%ld).", qPlayer.AirlineX.c_str(), planeId);
+        return false;
+    }
+
+    /* Note: Dropped check of currently booked passengers (GetMaxPassengerOpenFlight()) because seating reconfiguration now
+     * only happens when the plane is not in flight. */
+
+    auto &qPlane = qPlayer.Planes[planeId];
+    SLONG total = qPlane.ptPassagiere;
+
+    FLOAT prozent = static_cast<FLOAT>(qPlane.MaxPassagiereTargetFC) * 2.0f * 100.0f / static_cast<FLOAT>(total);
+    prozent = std::max(0.0f, prozent - 10.0f);
+    SLONG newMaxPassagiereFC = static_cast<SLONG>(std::round(static_cast<FLOAT>(total) * (prozent) / 2.0f / 100.0f));
+
+    if (newMaxPassagiereFC <= 0) {
+        newMaxPassagiereFC = 0;
+    } else if ((newMaxPassagiereFC == qPlane.MaxPassagiereTargetFC)) {
+        newMaxPassagiereFC--;
+    }
+
+    SLONG newMaxPassagiere = total - newMaxPassagiereFC * 2;
+
+    qPlane.MaxPassagiereTarget = newMaxPassagiere;
+    qPlane.MaxPassagiereTargetFC = newMaxPassagiereFC;
+    qPlayer.NetUpdatePlaneProps(planeId); // the refit to the new seating happens on every peer
+    return true;
+}
+
+bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork) {
     if (workerId < 0 || workerId >= Workers.Workers.size()) {
         AT_Error("GameMechanic::hireWorker(%s): Invalid worker id (%ld).", qPlayer.AirlineX.c_str(), workerId);
         return false;
@@ -2559,10 +2736,18 @@ bool GameMechanic::hireWorker(PLAYER &qPlayer, SLONG workerId) {
     qWorker.PlaneId = -1;
     qPlayer.MapWorkers(TRUE);
 
+    /* The worker pool is shared world state, but hiring only ever ran on the peer that did it:
+       bot actions execute on the host alone, a human hires on their own machine. The other peers
+       kept the worker as unemployed, booked a different salary for the player every night, and
+       offered someone already taken. Tell them. */
+    if ((Sim.bNetwork != 0) && !fromNetwork) {
+        SIM::SendSimpleMessage(ATNET_WORKER_HIRE, 0, qPlayer.PlayerNum, workerId);
+    }
+
     return true;
 }
 
-bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId) {
+bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork) {
     if (workerId < 0 || workerId >= Workers.Workers.size()) {
         AT_Error("GameMechanic::fireWorker(%s): Invalid worker id (%ld).", qPlayer.AirlineX.c_str(), workerId);
         return false;
@@ -2580,13 +2765,24 @@ bool GameMechanic::fireWorker(PLAYER &qPlayer, SLONG workerId) {
     }
     qPlayer.MapWorkers(TRUE);
 
+    /* See hireWorker(). */
+    if ((Sim.bNetwork != 0) && !fromNetwork) {
+        SIM::SendSimpleMessage(ATNET_WORKER_FIRE, 0, qPlayer.PlayerNum, workerId);
+    }
+
     return true;
 }
 
-bool GameMechanic::killCity(PLAYER &qPlayer, SLONG cityID) {
+bool GameMechanic::killCity(PLAYER &qPlayer, SLONG cityID, bool fromNetwork) {
     if (cityID < 0 || cityID >= qPlayer.RentCities.RentCities.size()) {
         AT_Error("GameMechanic::killCity(%s): Invalid cityID (%ld).", qPlayer.AirlineX.c_str(), cityID);
         return false;
+    }
+
+    /* Nothing else carries a branch's rank to the other peers: without this they keep the
+       branch for good, and with it its rent and its effect on the player's flights. */
+    if (!fromNetwork && qPlayer.NetIsAuthoritative()) {
+        SIM::SendSimpleMessage(ATNET_KILL_CITY, 0, qPlayer.PlayerNum, cityID);
     }
 
     BLOCKS &qBlocks = qPlayer.Blocks;
@@ -2653,7 +2849,7 @@ bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA) {
     /* find route in reverse direction */
     SLONG routeB = findRouteInReverse(qPlayer, routeA);
     if (-1 == routeB) {
-        AT_Error("GameMechanic::rentRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
+        AT_Error("GameMechanic::killRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
         return false;
     }
 
@@ -3007,7 +3203,7 @@ void GameMechanic::executeAirlineOvertake() {
         // Aktien verkaufen:
         for (c = 0; c < 4; c++) {
             if (Overtaken.OwnsAktien[c] != 0) {
-                GameMechanic::sellStock(Overtaken, c, Overtaken.OwnsAktien[c]);
+                GameMechanic::sellStock(Overtaken, c, Overtaken.OwnsAktien[c], true);
             }
         }
 
@@ -3258,6 +3454,7 @@ void GameMechanic::executeSabotageMode1() {
                 bgWarp = FALSE;
                 if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                     qLocalPlayer.GameSpeed = 0;
+                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                 }
             } else {
                 gUniversalFx.Stop();
@@ -3267,6 +3464,7 @@ void GameMechanic::executeSabotageMode1() {
                 bgWarp = FALSE;
                 if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                     qLocalPlayer.GameSpeed = 0;
+                    SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                 }
 
                 delete qLocalPlayer.DialogWin;
@@ -3292,6 +3490,7 @@ void GameMechanic::executeSabotageMode1() {
                     bgWarp = FALSE;
                     if (CheatTestGame == 0 && CheatAutoSkip == 0) {
                         qLocalPlayer.GameSpeed = 0;
+                        SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, qLocalPlayer.GameSpeed);
                     }
                 } else if (Sim.CallItADay == 0) {
                     qOpfer.Messages.AddMessage(

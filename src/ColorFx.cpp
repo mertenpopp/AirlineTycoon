@@ -485,7 +485,7 @@ void SB_CColorFX::ApplyOn2(SLONG Step, SB_CBitmapCore *SrcBitmap, SLONG Step2, S
 //--------------------------------------------------------------------------------------------
 // Blitten mit transparenten Whitespaces:
 //--------------------------------------------------------------------------------------------
-void SB_CColorFX::BlitWhiteTrans(BOOL DoMessagePump, SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, const CRect *SrcRect,
+void SB_CColorFX::BlitWhiteTrans(SB_CBitmapCore *SrcBitmap, SB_CBitmapCore *TgtBitmap, const XY &TargetPos, const CRect *SrcRect,
                                  SLONG Grade) {
     SLONG cx = 0;
     SLONG cy = 0;
@@ -497,7 +497,6 @@ void SB_CColorFX::BlitWhiteTrans(BOOL DoMessagePump, SB_CBitmapCore *SrcBitmap, 
     BUFFER_V<UWORD> PixelBuffer(640);
 
     IsPaintingTextBubble = TRUE;
-    gRoomJustLeft = FALSE;
 
     // DDSURFACEDESC DDSurfaceDesc;
     BOOL bVgaRam = FALSE;
@@ -559,46 +558,13 @@ void SB_CColorFX::BlitWhiteTrans(BOOL DoMessagePump, SB_CBitmapCore *SrcBitmap, 
     sizex = Rect.right - Rect.left + 1;
 
     if (sizex > 0 && sizex <= 640) {
+        /* No message pump in here any more. It used to run one every 16 lines while both bitmaps
+           were locked. A click handled in there could close or rebuild the text bubble, which
+           freed the bitmap being copied from, and the locks were then released on a surface that
+           was gone - a segfault when quickly clicking through dialog options. The caller pumps
+           right after painting (CStdRaum::PostPaint()), where nothing is locked. */
         for (cy = 0; cy < Rect.bottom - Rect.top + 1; cy++) {
-            // Zwischendurch mal einen Message-Pump einlegen:
-            if ((cy & 15) == 15 && (DoMessagePump != 0)) {
-                // delete Key; delete Key2;
-
-                SLONG LastSize = SrcBitmap->GetXSize();
-
-                MessagePump();
-
-                if ((gRoomJustLeft != 0) || TgtBitmap->GetXSize() == 0 || SrcBitmap->GetXSize() == 0) {
-                    IsPaintingTextBubble = FALSE;
-                    return;
-                }
-
-                if (LastSize != SrcBitmap->GetXSize()) {
-                    IsPaintingTextBubble = FALSE;
-                    return;
-                }
-
-                Key2 = SB_CBitmapKey(*SrcBitmap);
-
-                // Falls der Key nicht mehr erhältlich ist, wurde die Sprechblase inzwischen geschlossen:
-                if (Key2.Bitmap == nullptr) {
-                    // delete Key2;
-                    IsPaintingTextBubble = FALSE;
-                    return;
-                }
-
-                Key = SB_CBitmapKey(*TgtBitmap);
-
-                // Falls der Key nicht mehr erhältlich ist, wurde die Sprechlblase inzwischen geschlossen:
-                if (Key.Bitmap == nullptr || Key2.Bitmap == nullptr) {
-                    // delete Key;
-                    // delete Key2;
-                    IsPaintingTextBubble = FALSE;
-                    return;
-                }
-            }
-
-            p = reinterpret_cast<UWORD *>((static_cast<char *>(Key.Bitmap)) + t.x * 2 + (cy + t.y) * Key.lPitch);
+            p =reinterpret_cast<UWORD *>((static_cast<char *>(Key.Bitmap)) + t.x * 2 + (cy + t.y) * Key.lPitch);
             pp = reinterpret_cast<UWORD *>((static_cast<char *>(Key2.Bitmap)) + Rect.left * 2 + (cy + Rect.top) * Key2.lPitch);
 
             if (bVgaRam != 0) {

@@ -5,9 +5,7 @@
 #include "SbLib.h"
 
 ENetNetwork::ENetNetwork() : mServer(), mHost(nullptr), mMaster(nullptr), mSocket() {
-    TEAKRAND rand;
-    rand.SRandTime();
-    mLocalID = rand.Rand();
+    mLocalID = GenerateLocalPeerID();
 
     ENetNetworkPlayer *player = new ENetNetworkPlayer();
     player->ID = mLocalID;

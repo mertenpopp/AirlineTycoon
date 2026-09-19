@@ -71,8 +71,8 @@ class GameMechanic {
     static std::vector<SLONG> buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount);
 
     /* Bank */
-    static bool buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount);
-    static bool sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount);
+    static std::pair<bool, __int64> buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit);
+    static std::pair<bool, __int64> sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit);
 
     enum class OvertakeAirlineResult { Ok, DeniedInvalidParam, DeniedYourAirline, DeniedAlreadyGone, DeniedNoStock, DeniedNotEnoughStock, DeniedEnemyStock };
     static OvertakeAirlineResult canOvertakeAirline(PLAYER &qPlayer, SLONG targetAirline);
@@ -95,11 +95,15 @@ class GameMechanic {
     static SLONG setMechMode(PLAYER &qPlayer, SLONG mode);
 
     /* HR */
-    static void increaseAllSalaries(PLAYER &qPlayer);
+    static void increaseAllSalaries(PLAYER &qPlayer, bool bFromNetwork = false);
     static void decreaseAllSalaries(PLAYER &qPlayer);
     static void planStrike(PLAYER &qPlayer);
+    /* A strike runs on every peer, since it delays the player's departures everywhere. Only the
+       peer that owns the player decides that it starts and how long it lasts; startStrike() tells
+       the others, which apply it with bFromNetwork set. */
+    static void startStrike(PLAYER &qPlayer, SLONG hours, bool bFromNetwork = false);
     enum class EndStrikeMode { Salary, Threat, Drunk, Waiting };
-    static void endStrike(PLAYER &qPlayer, EndStrikeMode mode);
+    static void endStrike(PLAYER &qPlayer, EndStrikeMode mode, bool bFromNetwork = false);
 
     /* Ads */
     static bool buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG adCampaignSize, SLONG routeA = -1);
@@ -119,6 +123,7 @@ class GameMechanic {
     static bool takeLastMinuteJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId);
     static bool takeFreightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId);
     static bool canCallInternational(PLAYER &qPlayer, SLONG cityId);
+    static void bookCallCost(PLAYER &qPlayer, SLONG numberOfCitiesCalled, bool areWeInOffice);
     static bool takeInternationalFlightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId);
     static bool takeInternationalFreightJob(PLAYER &qPlayer, SLONG cityId, SLONG jobId, SLONG &outObjectId);
     static bool killFlightJob(PLAYER &qPlayer, SLONG par1, bool payFine);
@@ -133,12 +138,18 @@ class GameMechanic {
     static bool planFreightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time);
     static bool planRouteJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG date, SLONG time);
 
+    /* Planes */
+    static bool increaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId);
+    static bool decreaseFirstClassRatio(PLAYER &qPlayer, SLONG planeId);
+
     /* Crew */
-    static bool hireWorker(PLAYER &qPlayer, SLONG workerId);
-    static bool fireWorker(PLAYER &qPlayer, SLONG workerId);
+    /* fromNetwork: the change arrived from the peer that made it and must not be broadcast
+       again. Everybody else leaves it at false. */
+    static bool hireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork = false);
+    static bool fireWorker(PLAYER &qPlayer, SLONG workerId, bool fromNetwork = false);
 
     /* Routes */
-    static bool killCity(PLAYER &qPlayer, SLONG cityID);
+    static bool killCity(PLAYER &qPlayer, SLONG cityID, bool fromNetwork = false);
     static BUFFER_V<BOOL> getBuyableRoutes(PLAYER &qPlayer);
     static bool killRoute(PLAYER &qPlayer, SLONG routeA);
     static bool rentRoute(PLAYER &qPlayer, SLONG routeA);
@@ -155,7 +166,7 @@ class GameMechanic {
 
   private:
     static bool _planFlightJob(PLAYER &qPlayer, SLONG planeID, SLONG objectID, SLONG objectType, SLONG date, SLONG time);
-    static void _syncTafelData();
+    static void _announceBid(const CTafelZettel &qNote);
 };
 
 #endif // GAMEMECHANIC_H_

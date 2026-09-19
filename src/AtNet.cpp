@@ -4,15 +4,21 @@
 // Link: "AtNet.h"
 //============================================================================================
 #include "AtNet.h"
+#include "NetTrace.h"
 
+#include "Bot.h"
 #include "Buero.h"
+#include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
 #include "network.h"
 #include "Proto.h"
 #include "SbLib.h"
 
+#include <algorithm>
 #include <cmath>
+#include <deque>
+#include <vector>
 
 #define AT_Log(...) AT_Log_I("AtNet", __VA_ARGS__)
 
@@ -32,8 +38,11 @@ ULONG rChkPersonRandCreate = 0, rChkPersonRandMisc = 0, rChkHeadlineRand = 0;
 ULONG rChkLMA = 0, rChkRBA = 0, rChkAA[MAX_CITIES], rChkFrachen = 0;
 SLONG rChkGeneric, CheckGeneric = 0;
 SLONG rChkActionId[5 * 4];
+SLONG rChkRobotSyncAge[4];
+SLONG gRobotSyncSlice[4] = {-1, -1, -1, -1}; // Sim.TimeSlice when a bot's action queue was last handed over (host) or received (client)
 
 SLONG GenericSyncIds[4] = {0, 0, 0, 0};
+static std::deque<SLONG> GenericSyncReceived[4]; // ATNET_GENERICSYNC ids per player, not yet waited for
 SLONG GenericSyncIdPars[4] = {0, 0, 0, 0};
 SLONG GenericAsyncIds[4 * 100] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -53,6 +62,103 @@ SLONG GenericAsyncIdPars[4 * 100] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+//--------------------------------------------------------------------------------------------
+// Player numbers arrive straight from the network and are used to index both
+// Sim.Players.Players (a BUFFER_V, whose operator[] is unchecked in release builds) and
+// several fixed 4-element globals. A desynced or corrupt message could therefore read and
+// write outside those arrays. Validate before use: the exception is caught by
+// PumpNetwork(), which logs and drops the offending message.
+//--------------------------------------------------------------------------------------------
+static SLONG NetCheckPlayerNum(SLONG PlayerNum, ULONG MessageType);
+
+SLONG NetJobsRefillEpoch() { return Sim.Date * 24 * 12 + (Sim.GetHour() * 60 + Sim.GetMinute()) / 5; }
+
+namespace {
+
+struct PendingTook {
+    SLONG Type;
+    SLONG Index;
+    SLONG City;
+    SLONG Epoch;
+};
+
+/* Orders taken on another peer that this peer's boards have not yet been refilled up to. */
+std::deque<PendingTook> gPendingTook;
+
+/* Marks an order on a shared board as taken: the next refill replaces it. */
+void NetApplyTook(SLONG Type, SLONG Index, SLONG City) {
+    /* Which order somebody took, by its place in a shared list. If the lists had drifted apart the
+       lookup throws (and ends a release build) or, for the foreign cities, indexes a vector out of
+       range. */
+    if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsFrachten.size()))) {
+        NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(ATNET_PLAYER_TOOK), static_cast<long>(City));
+        return;
+    }
+
+    bool bKnown = false;
+    switch (Type) {
+    case 1:
+        bKnown = (LastMinuteAuftraege.IsInAlbum(Index) != 0);
+        break;
+    case 2:
+        bKnown = (ReisebueroAuftraege.IsInAlbum(Index) != 0);
+        break;
+    case 3:
+        bKnown = (gFrachten.IsInAlbum(Index) != 0);
+        break;
+    case 4:
+        bKnown = (AuslandsAuftraege[City].IsInAlbum(Index) != 0);
+        break;
+    case 5:
+        bKnown = (AuslandsFrachten[City].IsInAlbum(Index) != 0);
+        break;
+    default:
+        break;
+    }
+    if (!bKnown) {
+        NetTraceEvent("DROP name=%s reason=order %ld of type %ld unknown", Translate_ATNET(ATNET_PLAYER_TOOK), static_cast<long>(Index), static_cast<long>(Type));
+        return;
+    }
+
+    switch (Type) {
+    case 1:
+        LastMinuteAuftraege[Index].Praemie = -1;
+        break;
+    case 2:
+        ReisebueroAuftraege[Index].Praemie = -1;
+        break;
+    case 3:
+        gFrachten[Index].Praemie = -1;
+        break;
+    case 4:
+        AuslandsAuftraege[City][Index].Praemie = -1;
+        break;
+    case 5:
+        AuslandsFrachten[City][Index].Praemie = -1;
+        break;
+    default:
+        break;
+    }
+}
+
+} // namespace
+
+void NetApplyPendingTook() {
+    const SLONG Mine = NetJobsRefillEpoch();
+    while (!gPendingTook.empty() && gPendingTook.front().Epoch <= Mine) {
+        const PendingTook Took = gPendingTook.front();
+        gPendingTook.pop_front();
+        NetApplyTook(Took.Type, Took.Index, Took.City);
+    }
+}
+
+static SLONG NetCheckPlayerNum(SLONG PlayerNum, ULONG MessageType) {
+    if (PlayerNum < 0 || PlayerNum >= 4) {
+        TeakLibW_Exception(FNL, "Invalid player number %ld in message %s", static_cast<long>(PlayerNum), Translate_ATNET(MessageType));
+    }
+    return PlayerNum;
+}
 
 //--------------------------------------------------------------------------------------------
 // Sets the bitmap for the network to display: (0=none; 1=player in options, 2=player in windows; 3=waiting for player)
@@ -208,6 +314,69 @@ void PumpBroadcastBitmap(bool bJustForEmergency) {
 //--------------------------------------------------------------------------------------------
 // Look for new messages:
 //--------------------------------------------------------------------------------------------
+/* Each of these counts how many peers are currently keeping the game from running: somebody in
+   the options, somebody whose window lost focus, somebody busy saving. The clock runs only while
+   they are all exactly zero (CTakeOffApp::GameLoop), so a count below zero stops the game as
+   surely as one above it - and the peers send only the change, never the state. A peer that
+   was not yet in the session when somebody opened the options receives only the "closed again"
+   half of the pair. Hold them at zero from below; the peer that is really blocked keeps its own
+   count. */
+static void NetClampBlockers() {
+    if (nOptionsOpen < 0) {
+        nOptionsOpen = 0;
+    }
+    if (nAppsDisabled < 0) {
+        nAppsDisabled = 0;
+    }
+    for (SLONG c = 0; c < 4; c++) {
+        if (nPlayerOptionsOpen[c] < 0) {
+            nPlayerOptionsOpen[c] = 0;
+        }
+        if (nPlayerAppsDisabled[c] < 0) {
+            nPlayerAppsDisabled[c] = 0;
+        }
+    }
+}
+
+/* A frozen multiplayer game is the hardest thing to tell from a bug report, because nothing in
+   the log says what the game is waiting for. The clock only runs while nobody is holding it up
+   (CTakeOffApp::GameLoop), so while somebody is, say so - and say who - every half minute.
+   Players send us their debug.txt, and this turns "it froze" into a name. Sim.bPause is left
+   out: that one is the local player's own doing. */
+void NetWaitWatchdog() {
+    static DWORD WaitingSince = 0;
+    static DWORD LastReported = 0;
+
+    if (Sim.bNetwork == 0 || Sim.Gamestate != (GAMESTATE_PLAYING | GAMESTATE_WORKING) ||
+        (nWaitingForPlayer == 0 && nOptionsOpen == 0 && nAppsDisabled == 0)) {
+        WaitingSince = 0;
+        return;
+    }
+
+    const DWORD Now = AtGetTime();
+    if (WaitingSince == 0) {
+        WaitingSince = Now;
+        LastReported = Now;
+        return;
+    }
+
+    if (Now - LastReported < 30000) {
+        return;
+    }
+    LastReported = Now;
+
+    AT_Log("The clock has been standing for %lu s at day %ld %02ld:%02ld: waiting=%ld (%ld/%ld/%ld/%ld) options=%ld (%ld/%ld/%ld/%ld) apps=%ld",
+           static_cast<unsigned long>((Now - WaitingSince) / 1000), static_cast<long>(Sim.Date), static_cast<long>(Sim.GetHour()),
+           static_cast<long>(Sim.GetMinute()), static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]),
+           static_cast<long>(nPlayerWaiting[1]), static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]),
+           static_cast<long>(nOptionsOpen), static_cast<long>(nPlayerOptionsOpen[0]), static_cast<long>(nPlayerOptionsOpen[1]),
+           static_cast<long>(nPlayerOptionsOpen[2]), static_cast<long>(nPlayerOptionsOpen[3]), static_cast<long>(nAppsDisabled));
+    NetTraceEvent("STILLWAITING seconds=%lu waiting=%ld p0=%ld p1=%ld p2=%ld p3=%ld options=%ld apps=%ld", static_cast<unsigned long>((Now - WaitingSince) / 1000),
+                  static_cast<long>(nWaitingForPlayer), static_cast<long>(nPlayerWaiting[0]), static_cast<long>(nPlayerWaiting[1]),
+                  static_cast<long>(nPlayerWaiting[2]), static_cast<long>(nPlayerWaiting[3]), static_cast<long>(nOptionsOpen),
+                  static_cast<long>(nAppsDisabled));
+}
+
 void PumpNetwork() {
     SLONG c = 0;
     SLONG e = 0; // Universell, können von jedem case verwendet werden.
@@ -215,6 +384,7 @@ void PumpNetwork() {
     if (Sim.bNetwork == 0) {
         return;
     }
+    NetTraceCheckThread("PumpNetwork");
 
     if (Sim.bThisIsSessionMaster && Sim.Time > 9 * 60000 && Sim.Time < 18 * 60000 && (Sim.CallItADay == 0) && (Sim.CallItADayAt == 0)) {
         static DWORD LastTime = 0;
@@ -226,7 +396,16 @@ void PumpNetwork() {
     }
 
     bool bReturnAfterThisMessage = false;
+    /* GetMessageCount() reports every packet queued in the transport, including ones
+       Receive() puts back (lobby traffic) or drops. Without a bound this loop spins
+       forever on such a packet, which looks like a hard freeze with no log output. */
+    SLONG MessageBudget = 256;
     while ((gNetwork.GetMessageCount() != 0) && !bReturnAfterThisMessage) {
+        if (--MessageBudget < 0) {
+            AT_Log("PumpNetwork: message budget exhausted, %ld packets still queued", static_cast<long>(gNetwork.GetMessageCount()));
+            NetTraceEvent("BUDGET queued=%ld", static_cast<long>(gNetwork.GetMessageCount()));
+            break;
+        }
         TEAKFILE Message;
 
         if (SIM::ReceiveMemFile(Message)) {
@@ -234,8 +413,15 @@ void PumpNetwork() {
             SLONG Par1 = 0;
             SLONG Par2 = 0;
 
+            /* Any malformed message now throws out of the TEAKFILE reader instead of
+               silently producing garbage. Drop that one message and keep the session
+               alive rather than taking the whole game down. */
+            try {
+
             Message >> MessageType;
             // AT_Log_I("Net", "Received net event: %s", Translate_ATNET(MessageType));
+
+            NetTraceMessage("RECV", MessageType, gNetwork.GetLocalPlayerID(), static_cast<SLONG>(Message.MemBufferUsed), -1);
 
             switch (MessageType) {
             case ATNET_SETSPEED:
@@ -286,11 +472,13 @@ void PumpNetwork() {
             } break;
 
             case DPSYS_HOST:
+                NetTraceEvent("HOSTMIGRATION we are now host");
                 Sim.bIsHost = TRUE;
                 DisplayBroadcastMessage(StandardTexte.GetS(TOKEN_MISC, 7000));
                 break;
 
             case DPSYS_SESSIONLOST:
+                NetTraceEvent("SESSIONLOST humans=%ld", static_cast<long>(Sim.Players.GetAnzHumanPlayers()));
                 DisplayBroadcastMessage(StandardTexte.GetS(TOKEN_MISC, 7001));
                 for (c = 0; c < 4; c++) {
                     if (Sim.Players.Players[c].Owner == 2) {
@@ -329,19 +517,32 @@ void PumpNetwork() {
                             nAppsDisabled -= nPlayerAppsDisabled[c];
                             nWaitingForPlayer -= nPlayerWaiting[c];
 
+                            /* These per-player tallies have now been taken out of the global
+                               counters. They must be cleared, otherwise a second disconnect
+                               message for the same slot subtracts them again. */
+                            nPlayerOptionsOpen[c] = 0;
+                            nPlayerAppsDisabled[c] = 0;
+                            nPlayerWaiting[c] = 0;
+
+                            /* The two lower clamps used to reset nOptionsOpen as well, so
+                               nAppsDisabled and nWaitingForPlayer could stay negative. Both
+                               gate the main loop, and a stuck value freezes the game. */
                             if (nOptionsOpen < 0) {
                                 nOptionsOpen = 0;
                             }
                             if (nAppsDisabled < 0) {
-                                nOptionsOpen = 0;
+                                nAppsDisabled = 0;
                             }
                             if (nWaitingForPlayer < 0) {
-                                nOptionsOpen = 0;
+                                nWaitingForPlayer = 0;
                             }
 
                             if (nOptionsOpen == 0 && nAppsDisabled == 0 && Sim.bPause == 0) {
                                 SetNetworkBitmap(0);
                             }
+
+                            NetTraceEvent("PLAYERDROP p=%ld options=%ld apps=%ld waiting=%ld", static_cast<long>(c), static_cast<long>(nOptionsOpen),
+                                          static_cast<long>(nAppsDisabled), static_cast<long>(nWaitingForPlayer));
 
                             Sim.Players.Players[c].Owner = 1;
                             Sim.Players.Players[c].NetworkID = 0;
@@ -364,17 +565,21 @@ void PumpNetwork() {
 
             case ATNET_OPTIONS:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
+                NetClampBlockers();
                 SetNetworkBitmap(static_cast<SLONG>(nOptionsOpen > 0) * 1);
                 break;
 
             case ATNET_ACTIVATEAPP:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nAppsDisabled += Par1;
                 nOptionsOpen += Par1;
                 nPlayerOptionsOpen[Par2] += Par1;
                 nPlayerAppsDisabled[Par2] += Par1;
+                NetClampBlockers();
                 SetNetworkBitmap(static_cast<SLONG>(nOptionsOpen > 0) * 2);
                 break;
 
@@ -400,10 +605,15 @@ void PumpNetwork() {
                 SLONG LocalTime = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                 // if (Sim.Players.Players[PlayerNum].Owner!=1) hprintf ("Received Message ATNET_PLAYERPOS (%li)", PlayerNum);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(PlayerNum)];
+
+                // A position sent before the player got on the phone must not take the phone away:
+                bool bTelefoning = (qPlayer.IsTalking != 0) && qPerson.LookDir == 8 && qPerson.Phase >= 4;
+                UBYTE TelefoningPhase = qPerson.Phase;
 
                 // Read the message data:
                 Message >> qPlayer.PrimaryTarget.x >> qPlayer.PrimaryTarget.y;
@@ -418,6 +628,12 @@ void PumpNetwork() {
                 Message >> qPerson.StatePar >> qPerson.Running;
                 Message >> qPerson.Dir >> qPerson.LookDir;
                 Message >> qPerson.Phase;
+
+                if (bTelefoning) {
+                    qPerson.Dir = 8;
+                    qPerson.LookDir = 8;
+                    qPerson.Phase = TelefoningPhase;
+                }
 
                 qPlayer.UpdateWaypointWalkingDirection();
 
@@ -454,6 +670,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -473,6 +690,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Message >> Sim.Players.Players[PlayerNum].Koffein;
             } break;
@@ -482,6 +700,7 @@ void PumpNetwork() {
                 SLONG Mode = 0;
 
                 Message >> PlayerNum >> Mode;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
 
@@ -506,6 +725,7 @@ void PumpNetwork() {
                 SLONG Dir = 0;
 
                 Message >> PlayerNum >> Dir;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))].LookAt(Dir);
             } break;
@@ -514,6 +734,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Players.Players[PlayerNum].WalkStopEx();
             } break;
@@ -523,6 +744,7 @@ void PumpNetwork() {
                 SLONG RoomEntered = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -606,6 +828,7 @@ void PumpNetwork() {
                 SLONG RoomLeft = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -662,6 +885,7 @@ void PumpNetwork() {
                 SLONG Cheat = 0;
 
                 Message >> PlayerNum >> Cheat;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -688,6 +912,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -717,6 +942,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -743,6 +969,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
@@ -752,6 +979,30 @@ void PumpNetwork() {
                             qPlayer.RentRouten.RentRouten[d].Image >> qPlayer.RentRouten.RentRouten[d].Miete >> qPlayer.RentRouten.RentRouten[d].Ticketpreis >>
                             qPlayer.RentRouten.RentRouten[d].TicketpreisFC >> qPlayer.RentRouten.RentRouten[d].TageMitVerlust >>
                             qPlayer.RentRouten.RentRouten[d].TageMitGering;
+                    }
+
+                    SLONG Rented = 0;
+                    Message >> Rented;
+
+                    while (Rented > 0) {
+                        SLONG RouteId = 0;
+
+                        Message >> RouteId;
+                        /* RouteId indexes a plain array below, where out of range is not an error
+                           but a write into whatever happens to lie there. */
+                        if (RouteId < 0 || RouteId >= Routen.AnzEntries()) {
+                            NetTraceEvent("DROP name=%s reason=route %ld out of range", Translate_ATNET(MessageType), static_cast<long>(RouteId));
+                            Anz = 0; // The rest of the message cannot be read any more either
+                            break;
+                        }
+
+                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[RouteId];
+                        Message >> qRoute.Auslastung >> qRoute.AuslastungFC >> qRoute.RoutenAuslastung >> qRoute.HeuteBefoerdert;
+                        for (d = 0; d < 7; d++) {
+                            Message >> qRoute.WocheBefoerdert[d];
+                        }
+
+                        Rented--;
                     }
 
                     Anz--;
@@ -766,12 +1017,16 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                     Message >> qPlayer.SickTokay >> qPlayer.RunningToToilet >> qPlayer.PlayerSmoking >> qPlayer.Stunned >> qPlayer.OfficeState >>
                         qPlayer.Koffein >> qPlayer.NumFlights >> qPlayer.WalkSpeed >> qPlayer.WerbeBroschuere >> qPlayer.TelephoneDown >>
                         qPlayer.Presseerklaerung >> qPlayer.SecurityFlags >> qPlayer.PlayerStinking >> qPlayer.RocketFlags >> qPlayer.LastRocketFlags;
+                    /* Whether the laptop has a virus: the floppy disk cures it on its owner's peer
+                       only, and the other peers kept the virus for good. */
+                    Message >> qPlayer.LaptopVirus;
 
                     Anz--;
                 }
@@ -782,9 +1037,21 @@ void PumpNetwork() {
 
                 Message >> PlayerNum;
 
+                /* 55 is not a player: it is how sabotageSecurityOffice() says "the security
+                   office is out", so it has to be recognised before the range check drops it.
+                   The sabotage also switches off everybody's security measures, but the
+                   saboteur's peer can only broadcast the flags of the players it owns - every
+                   other peer has to clear its own, or its next flag sync turns them back on. */
                 if (PlayerNum == 55) {
                     Message >> Sim.nSecOutDays;
+
+                    for (c = 0; c < 4; c++) {
+                        if (Sim.Players.Players[c].IsOut == 0) {
+                            Sim.Players.Players[c].SecurityFlags = 0;
+                        }
+                    }
                 } else {
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                     Message >> qPlayer.OfficeState;
@@ -799,6 +1066,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -818,6 +1086,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -835,6 +1104,7 @@ void PumpNetwork() {
 
                 while (Anz > 0) {
                     Message >> PlayerNum;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -859,6 +1129,8 @@ void PumpNetwork() {
                 SLONG SympathieTarget = 0;
 
                 Message >> PlayerNum >> SympathieTarget >> Anz;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                SympathieTarget = NetCheckPlayerNum(SympathieTarget, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -873,8 +1145,16 @@ void PumpNetwork() {
                 SLONG TicketpreisFC = 0;
 
                 Message >> PlayerNum >> RouteId >> Ticketpreis >> TicketpreisFC;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* Routen() looks the route up and throws when it does not know it. */
+                if (Routen.IsInAlbum(RouteId) == 0) {
+                    NetTraceEvent("DROP name=%s reason=route %ld unknown", Translate_ATNET(MessageType), static_cast<long>(RouteId));
+                    break;
+                }
+
                 if (qPlayer.RentRouten.RentRouten[Routen(RouteId)].Ticketpreis != Ticketpreis) {
                     DebugBreak();
                 }
@@ -893,16 +1173,41 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                SLONG WaitWorkTill = 0;
 
-                Message >> qPlayer.WaitWorkTill >> qPlayer.WaitWorkTill2;
+                Message >> WaitWorkTill >> qPlayer.WaitWorkTill2;
+
+                /* The host sends this also after planning, merely to hand over the new action
+                   queue, and then its own WaitWorkTill is -1 because it has already executed the
+                   action. That must not cancel the execution still pending here: after the day is
+                   called off the host waits for our ATNET_READYFORMORNING, which we only send when
+                   we execute it, and we wait for the host - the game froze during fast-forward. */
+                if (WaitWorkTill != -1 || qPlayer.WaitWorkTill == -1) {
+                    qPlayer.WaitWorkTill = WaitWorkTill;
+                }
 
                 for (c = 0; c < 4; c++) {
                     Message >> qPlayer.Sympathie[c];
                 }
                 for (c = 0; c < qPlayer.RobotActions.AnzEntries(); c++) {
                     Message >> qPlayer.RobotActions[c];
+                }
+                gRobotSyncSlice[PlayerNum] = Sim.TimeSlice;
+            } break;
+
+            case ATNET_ROBOT_PHONE: {
+                SLONG PlayerNum = 0;
+                SLONG Steps = 0;
+
+                Message >> PlayerNum >> Steps;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                if (qPlayer.IsMertenBot() && qPlayer.mBot != nullptr && Steps >= 0 && Steps <= 100) {
+                    qPlayer.mBot->setOnThePhone(Steps);
                 }
             } break;
 
@@ -916,6 +1221,13 @@ void PumpNetwork() {
                 SLONG Time = 0;
 
                 Message >> Type >> City >> Delta >> Time;
+
+                /* City indexes plain vectors below, where out of range is not an error but a
+                   write into whatever happens to lie there. */
+                if ((Type == 4 || Type == 5) && (City < 0 || City >= SLONG(AuslandsAuftraege.size()) || City >= SLONG(AuslandsRefill.size()))) {
+                    NetTraceEvent("DROP name=%s reason=city %ld out of range", Translate_ATNET(MessageType), static_cast<long>(City));
+                    break;
+                }
 
                 switch (Type) {
                 case 1:
@@ -949,28 +1261,30 @@ void PumpNetwork() {
                 SLONG City = 0;
                 SLONG Index = 0;
                 SLONG PlayerNum = 0;
+                SLONG Epoch = 0;
 
-                Message >> PlayerNum >> Type >> Index >> City;
+                Message >> PlayerNum >> Type >> Index >> City >> Epoch;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                switch (Type) {
-                case 1:
-                    LastMinuteAuftraege[Index].Praemie = -1;
-                    break;
-                case 2:
-                    ReisebueroAuftraege[Index].Praemie = -1;
-                    break;
-                case 3:
-                    gFrachten[Index].Praemie = -1;
-                    break;
-                case 4:
-                    AuslandsAuftraege[City][Index].Praemie = -1;
-                    break;
-                case 5:
-                    AuslandsFrachten[City][Index].Praemie = -1;
-                    break;
-                default:
-                    hprintf("AtNet.cpp: Default case should not be reached.");
-                    DebugBreak();
+                /* A taken order stays on the board until the next refill replaces it, and the refill
+                   draws a new order for every one taken. A peer that marked it after its own refill
+                   of that five minutes - or before a refill the taker had already done - replaced a
+                   different set of orders and drew its random numbers differently, and its boards
+                   differed until the night. In a played session the host's bots took orders a good
+                   ten minutes ahead of the client's clock all day. So the order is marked once this
+                   peer's boards are refilled as far as the taker's were. */
+                const SLONG Mine = NetJobsRefillEpoch();
+                if (Epoch > Mine) {
+                    if (!gPendingTook.empty() && gPendingTook.back().Epoch > Epoch) {
+                        NetTraceEvent("TOOK out of order epoch=%ld last=%ld", static_cast<long>(Epoch), static_cast<long>(gPendingTook.back().Epoch));
+                    }
+                    gPendingTook.push_back({Type, Index, City, Epoch});
+                } else {
+                    if (Epoch < Mine) {
+                        NetTraceEvent("TOOK late type=%ld order=%ld theirs=%ld mine=%ld", static_cast<long>(Type), static_cast<long>(Index),
+                                      static_cast<long>(Epoch), static_cast<long>(Mine));
+                    }
+                    NetApplyTook(Type, Index, City);
                 }
             } break;
 
@@ -999,7 +1313,40 @@ void PumpNetwork() {
 
                 CPlane &qPlane = qPlayer.Planes[PlaneId];
 
+                /* Whether a flight has been booked is this peer's own bookkeeping: every peer books
+                   the flight itself when the plane takes off on its own clock. The sender's flag
+                   says where the sender's clock is. A plan from a peer a minute ahead came with the
+                   departure of that minute already booked, and this peer then refused to book it -
+                   the premium, the kerosine and the wear of that flight were lost here. From a peer
+                   behind, a flight already booked here would be booked a second time. So a flight
+                   keeps the flag it has here, and one this peer does not know yet is not booked. */
+                std::vector<CFlugplanEintrag> BookedHere;
+                for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+                    if (qPlane.Flugplan.Flug[e].ObjectType != 0 && (qPlane.Flugplan.Flug[e].FlightBooked != 0)) {
+                        BookedHere.push_back(qPlane.Flugplan.Flug[e]);
+                    }
+                }
+
                 Message >> qPlane.Flugplan;
+                SLONG PlanDate = 0;
+                SLONG PlanHour = 0;
+                Message >> PlanDate >> PlanHour;
+
+                for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+                    CFlugplanEintrag &qFlight = qPlane.Flugplan.Flug[e];
+                    if (qFlight.ObjectType == 0) {
+                        continue;
+                    }
+                    const bool bSame = std::any_of(BookedHere.begin(), BookedHere.end(), [&qFlight](const CFlugplanEintrag &qOld) {
+                        return qOld.ObjectType == qFlight.ObjectType && qOld.ObjectId == qFlight.ObjectId && qOld.VonCity == qFlight.VonCity &&
+                               qOld.NachCity == qFlight.NachCity && qOld.Startdate == qFlight.Startdate && qOld.Startzeit == qFlight.Startzeit;
+                    });
+                    if ((qFlight.FlightBooked != 0) != bSame) {
+                        NetTraceEvent("FLIGHTBOOKED p=%ld plane=%ld flight=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(PlaneId),
+                                      static_cast<long>(e), static_cast<long>(qFlight.FlightBooked), static_cast<long>(bSame));
+                    }
+                    qFlight.FlightBooked = bSame ? TRUE : FALSE;
+                }
 
                 // Daten aktualisieren
                 qPlane.Flugplan.UpdateNextFlight();
@@ -1035,8 +1382,21 @@ void PumpNetwork() {
                 }
 
                 qPlayer.UpdateAuftragsUsage();
-                qPlayer.UpdateFrachtauftragsUsage();
-                qPlayer.Planes[PlaneId].CheckFlugplaene(PlayerNum);
+                /* How much freight is still open leaves out the flights that have already taken off,
+                   judged by the hour. On this peer's clock a plan that arrived just after the change
+                   of hour counted one flight less than on the sender's, and the freight contract's
+                   open tons and whether it was fully planned differed until the next recount - in a
+                   played session for the rest of the day. */
+                qPlayer.UpdateFrachtauftragsUsage(PlanDate, PlanHour);
+
+                /* The sender has already checked the plan (CPlane::CheckFlugplaene) and sends the
+                   result; checking it again here did it on this peer's clock. That is not a no-op:
+                   automatic flights are placed relative to the current hour. A bot's plan the
+                   host sent unchanged because only a ticket price had changed was rearranged an
+                   hour later on the client, and the two peers flew different plans for the rest of
+                   the day. Only the gates are worked out again, since the sender may have moved
+                   other planes' gates without sending those planes. */
+                qPlayer.PlanGates();
             } break;
 
             case ATNET_TAKE_ORDER: {
@@ -1044,6 +1404,7 @@ void PumpNetwork() {
                 CAuftrag a;
 
                 Message >> PlayerNum >> a;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1059,6 +1420,7 @@ void PumpNetwork() {
                 CFracht a;
 
                 Message >> PlayerNum >> a;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1069,11 +1431,41 @@ void PumpNetwork() {
                 qPlayer.Frachten += a;
             } break;
 
-            case ATNET_TAKE_CITY: {
-                for (SLONG c = 0; c < 7; c++) {
-                    Message >> TafelData.City[c].Player >> TafelData.City[c].Preis;
-                    Message >> TafelData.Gate[c].Player >> TafelData.Gate[c].Preis;
+            case ATNET_BID: {
+                SLONG Type = 0;
+                SLONG Slot = 0;
+                SLONG PlayerNum = 0;
+                SLONG Preis = 0;
+
+                Message >> Type >> Slot >> PlayerNum >> Preis;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                if ((Type != CTafelZettel::Type::CITY && Type != CTafelZettel::Type::GATE) || Slot < 0 || Slot >= 7) {
+                    NetTraceEvent("BID out of range type=%ld slot=%ld", static_cast<long>(Type), static_cast<long>(Slot));
+                    break;
                 }
+
+                CTafelZettel &qNote = (Type == CTafelZettel::Type::CITY) ? TafelData.City[Slot] : TafelData.Gate[Slot];
+
+                /* Every bid raises the note's price by a tenth, so the higher price is the later
+                   bid, and two peers that bid in the same moment send the same price. Taking the
+                   higher price, and on equal prices the lower player number, leaves every peer
+                   with the same holder whichever order the bids arrive in - which a whole-board
+                   snapshot did not. */
+                if (Preis > qNote.Preis || (Preis == qNote.Preis && PlayerNum < qNote.Player)) {
+                    qNote.Preis = Preis;
+                    qNote.Player = PlayerNum;
+                }
+            } break;
+
+            case ATNET_KILL_CITY: {
+                SLONG PlayerNum = 0;
+                SLONG CityId = 0;
+
+                Message >> PlayerNum >> CityId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                GameMechanic::killCity(Sim.Players.Players[PlayerNum], CityId, true);
             } break;
 
             case ATNET_TAKE_ROUTE: {
@@ -1082,8 +1474,18 @@ void PumpNetwork() {
                 SLONG Route2Id = 0;
 
                 Message >> PlayerNum >> Route1Id >> Route2Id;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* Both index a plain vector, where out of range writes over whatever lies
+                   there - and a whole CRentRoute is written, not a single field. */
+                if (Route1Id < 0 || Route1Id >= qPlayer.RentRouten.RentRouten.AnzEntries() || Route2Id < 0 ||
+                    Route2Id >= qPlayer.RentRouten.RentRouten.AnzEntries()) {
+                    NetTraceEvent("DROP name=%s reason=routes %ld and %ld out of range", Translate_ATNET(MessageType), static_cast<long>(Route1Id),
+                                  static_cast<long>(Route2Id));
+                    break;
+                }
 
                 Message >> qPlayer.RentRouten.RentRouten[Route1Id];
                 Message >> qPlayer.RentRouten.RentRouten[Route2Id];
@@ -1097,12 +1499,19 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> Art >> From >> Generic1;
+                From = NetCheckPlayerNum(From, MessageType);
 
                 PLAYER &qFromPlayer = Sim.Players.Players[From];
 
                 switch (Art) {
                 // Tafel: Jemand hat einen überboten
                 case 0:
+                    /* The note on the board, by its place on it: a board that had drifted apart
+                       would index past the end here, and the lookup throws rather than returns. */
+                    if (Generic1 < 0 || Generic1 >= SLONG(TafelData.ByPositions.size())) {
+                        NetTraceEvent("ADVISOR out of range art=%ld note=%ld", static_cast<long>(Art), static_cast<long>(Generic1));
+                        break;
+                    }
                     if (qPlayer.HasBerater(BERATERTYP_INFO) >= rnd.Rand(100)) {
                         auto &qEntry = *TafelData.ByPositions[Generic1];
                         if (qEntry.Type == CTafelZettel::Type::GATE) {
@@ -1117,6 +1526,11 @@ void PumpNetwork() {
 
                     // Jemand kauft gebrauchtes Flugzeug:
                 case 1:
+                    /* The used plane somebody bought, by its place in the museum's list. */
+                    if (Sim.UsedPlanes.IsInAlbum(Generic1) == 0) {
+                        NetTraceEvent("ADVISOR out of range art=%ld usedplane=%ld", static_cast<long>(Art), static_cast<long>(Generic1));
+                        break;
+                    }
                     if (qPlayer.HasBerater(BERATERTYP_INFO) >= rnd.Rand(100)) {
                         qPlayer.Messages.AddMessage(BERATERTYP_INFO, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 9000), (LPCTSTR)qFromPlayer.NameX,
                                                                              (LPCTSTR)qFromPlayer.AirlineX, Sim.UsedPlanes[Generic1].CalculatePrice()));
@@ -1150,13 +1564,26 @@ void PumpNetwork() {
                 SLONG Time = 0;
 
                 Message >> PlayerNum >> PlaneIndex >> Time;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qFromPlayer = Sim.Players.Players[PlayerNum];
+
+                /* Which plane in the museum, by its place in the list: the lookup throws when
+                   this peer does not have it. */
+                if (Sim.UsedPlanes.IsInAlbum(PlaneIndex) == 0) {
+                    NetTraceEvent("DROP name=%s reason=used plane %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneIndex));
+                    break;
+                }
 
                 if (qFromPlayer.Planes.GetNumFree() < 2) {
                     qFromPlayer.Planes.ReSize(qFromPlayer.Planes.AnzEntries() + 10);
                 }
 
+                /* Prepare the plane exactly as the buyer did (GameMechanic::buyUsedPlane) before
+                   taking it over. WorstZustand decides the nightly repair bill, so a copy that
+                   skipped this charged the new owner differently on every other peer. */
+                Sim.UsedPlanes[PlaneIndex].WorstZustand = static_cast<UBYTE>(Sim.UsedPlanes[PlaneIndex].Zustand - 20);
+                Sim.UsedPlanes[PlaneIndex].GlobeAngle = 0;
                 qFromPlayer.Planes += Sim.UsedPlanes[PlaneIndex];
 
                 Sim.UsedPlanes[PlaneIndex].Name.Empty();
@@ -1168,8 +1595,14 @@ void PumpNetwork() {
                 SLONG PlaneId = 0;
 
                 Message >> PlayerNum >> PlaneId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                if (qPlayer.Planes.IsInAlbum(PlaneId) == 0) {
+                    NetTraceEvent("DROP name=%s reason=plane %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneId));
+                    break;
+                }
 
                 qPlayer.Planes -= PlaneId;
             } break;
@@ -1181,8 +1614,17 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> PlayerNum >> Anzahl >> Type;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                /* PLAYER::BuyPlane() looks the type up in an album, and an unknown key throws
+                   instead of returning - which ends a release build through the handler in
+                   main(). Peers with different plane data would take each other down. */
+                if (PlaneTypes.IsInAlbum(Type + 0x10000000) == 0) {
+                    NetTraceEvent("DROP name=%s reason=unknown plane type %ld", Translate_ATNET(MessageType), static_cast<long>(Type));
+                    break;
+                }
 
                 rnd.SRand(Sim.Date);
 
@@ -1198,6 +1640,7 @@ void PumpNetwork() {
                 TEAKRAND rnd;
 
                 Message >> PlayerNum >> Anzahl >> plane;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1214,6 +1657,7 @@ void PumpNetwork() {
                 SLONG n = 0;
 
                 Message >> PlayerNum >> m >> n;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
@@ -1246,6 +1690,7 @@ void PumpNetwork() {
                 SLONG PlaneId = 0;
 
                 Message >> PlayerNum >> PlaneId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
                 if (PlayerNum > 4) {
                     break;
                 }
@@ -1256,7 +1701,8 @@ void PumpNetwork() {
 
                     Message >> qPlane.Sitze >> qPlane.SitzeTarget >> qPlane.Essen >> qPlane.EssenTarget >> qPlane.Tabletts >> qPlane.TablettsTarget >>
                         qPlane.Deco >> qPlane.DecoTarget >> qPlane.Triebwerk >> qPlane.TriebwerkTarget >> qPlane.Reifen >> qPlane.ReifenTarget >>
-                        qPlane.Elektronik >> qPlane.ElektronikTarget >> qPlane.Sicherheit >> qPlane.SicherheitTarget;
+                        qPlane.Elektronik >> qPlane.ElektronikTarget >> qPlane.Sicherheit >> qPlane.SicherheitTarget >> qPlane.MaxPassagiereTarget >>
+                        qPlane.MaxPassagiereTargetFC;
 
                     Message >> qPlane.WorstZustand >> qPlane.Zustand >> qPlane.TargetZustand;
                     Message >> qPlane.AnzBegleiter >> qPlane.MaxBegleiter;
@@ -1281,6 +1727,7 @@ void PumpNetwork() {
                     qPlayer.IsTalking = TRUE;
 
                     Message >> qPerson.Phase >> RequestingPlayer >> qPerson.Position.x >> qPerson.Position.y;
+                    RequestingPlayer = NetCheckPlayerNum(RequestingPlayer, MessageType);
 
                     qPerson.Dir = 8;
                     qPerson.LookDir = 8;
@@ -1292,6 +1739,7 @@ void PumpNetwork() {
                     XY Dummy2;
 
                     Message >> Dummy >> RequestingPlayer >> Dummy2.x >> Dummy2.y;
+                    RequestingPlayer = NetCheckPlayerNum(RequestingPlayer, MessageType);
 
                     // Nein! Keine Interviews!
                     SIM::SendSimpleMessage(ATNET_DIALOG_NO, Sim.Players.Players[RequestingPlayer].NetworkID);
@@ -1304,6 +1752,7 @@ void PumpNetwork() {
                 SLONG Phase = 0;
 
                 Message >> TargetPlayer >> Phase;
+                TargetPlayer = NetCheckPlayerNum(TargetPlayer, MessageType);
 
                 Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(TargetPlayer))].Phase = UBYTE(Phase);
 
@@ -1319,6 +1768,7 @@ void PumpNetwork() {
                 auto *pRaum = qPlayer.LocationWin;
 
                 Message >> OtherPlayerNum;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 // Erneute Abfrage: Ist Spieler bereit, einen Dialog zu beginnen?
                 if (qPlayer.GetRoom() == ROOM_AIRPORT && (qPlayer.IsStuck == 0) && (pRaum != nullptr) && pRaum->MenuIsOpen() == FALSE &&
@@ -1405,6 +1855,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 qPlayer.IsTalking = TRUE;
@@ -1414,6 +1865,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 qPlayer.IsTalking = FALSE;
@@ -1438,6 +1890,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1449,6 +1902,7 @@ void PumpNetwork() {
                 SLONG Item = 0;
 
                 Message >> PlayerNum >> Item;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 Sim.Players.Players[PlayerNum].DropItem(UBYTE(Item));
             } break;
@@ -1462,6 +1916,7 @@ void PumpNetwork() {
                 SLONG bHandy = 0;
 
                 Message >> OtherPlayerNum >> bHandy;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 if (qPlayer.LocationWin != nullptr) {
                     CStdRaum &qRoom = *(qPlayer.LocationWin);
@@ -1505,6 +1960,7 @@ void PumpNetwork() {
                 SLONG bHandy = 0;
 
                 Message >> OtherPlayerNum >> bHandy;
+                OtherPlayerNum = NetCheckPlayerNum(OtherPlayerNum, MessageType);
 
                 if (qPlayer.LocationWin != nullptr) {
                     (qPlayer.LocationWin)->StartDialog(TALKER_COMPETITOR, MEDIUM_HANDY, OtherPlayerNum, 0);
@@ -1622,6 +2078,7 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
@@ -1631,7 +2088,17 @@ void PumpNetwork() {
 
             case ATNET_WAITFORPLAYER:
                 Message >> Par1 >> Par2;
+                Par2 = NetCheckPlayerNum(Par2, MessageType);
                 nWaitingForPlayer += Par1;
+                /* The clock only runs while this is exactly zero (CTakeOffApp::GameLoop), so a
+                   negative count stops the game just as a positive one does. A peer that
+                   reports "I am done waiting" twice, or once without this peer having counted
+                   its wait, used to leave everybody at -1 with the clock stopped for good. */
+                if (nWaitingForPlayer < 0) {
+                    nWaitingForPlayer = 0;
+                }
+                NetTraceEvent("WAITFORPLAYER p=%ld delta=%ld waiting=%ld", static_cast<long>(Par2), static_cast<long>(Par1),
+                              static_cast<long>(nWaitingForPlayer));
                 nPlayerWaiting[Par2] += Par1;
                 if (nPlayerWaiting[Par2] < 0) {
                     nPlayerWaiting[Par2] = 0;
@@ -1684,6 +2151,8 @@ void PumpNetwork() {
                 SLONG FromPlayer = 0;
 
                 Message >> FromPlayer;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
+                NetTraceEvent("DAYFINISH from=%ld", static_cast<long>(FromPlayer));
 
                 Sim.Players.Players[FromPlayer].CallItADay = TRUE;
             } break;
@@ -1692,12 +2161,14 @@ void PumpNetwork() {
                     SLONG FromPlayer = 0;
 
                     Message >> FromPlayer;
+                    FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                     Sim.Players.Players[FromPlayer].CallItADay = FALSE;
                 }
                 break;
             case ATNET_DAYFINISHALL: {
                 PLAYER &qPlayer = Sim.Players.Players[Sim.localPlayer];
+                NetTraceEvent("DAYFINISHALL");
 
                 if ((Sim.Options.OptionAutosave != 0) && (Sim.bNetwork != 0)) {
                     Sim.SaveGame(11, StandardTexte.GetS(TOKEN_MISC, 5000));
@@ -1746,6 +2217,7 @@ void PumpNetwork() {
                 DWORD UniqueGameId = 0;
 
                 Message >> FromPlayer >> Index >> UniqueGameId;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                 if (Sim.GetSavegameUniqueGameId(Index, true) == UniqueGameId) {
                     SIM::SendSimpleMessage(ATNET_IO_LOADREQUEST_OK, Sim.Players.Players[FromPlayer].NetworkID, Sim.localPlayer, Index);
@@ -1764,6 +2236,7 @@ void PumpNetwork() {
                 SLONG Index = 0;
 
                 Message >> FromPlayer >> Index;
+                FromPlayer = NetCheckPlayerNum(FromPlayer, MessageType);
 
                 Sim.Players.Players[FromPlayer].bReadyForBriefing = 1;
 
@@ -1828,6 +2301,114 @@ void PumpNetwork() {
                 for (c = 0; c < 20; c++) {
                     Message >> rActionId[c];
                 }
+                SLONG rRobotSyncAge[4];
+                for (c = 0; c < 4; c++) {
+                    Message >> rRobotSyncAge[c];
+                }
+
+                /* The comparison below is the game's own desync detector, but it only exists in
+                   debug builds. Report the same comparison through the trace, so that a release
+                   build under the multiplayer harness sees it too. Both sides capture at the same
+                   game minute; if the minutes differ the peers are several minutes apart, which
+                   is worth knowing but makes the seeds incomparable. */
+                if (gNetTraceLevel > 0) {
+                    if (rTime != rChkTime) {
+                        NetTraceEvent("RANDSKEW theirs_minute=%ld mine_minute=%ld", static_cast<long>(rTime), static_cast<long>(rChkTime));
+                    } else {
+                        auto Report = [&](const char *What, ULONG Theirs, ULONG Mine) {
+                            if (Theirs != Mine) {
+                                NetTraceEvent("DESYNC what=%s theirs=%lu mine=%lu", What, static_cast<unsigned long>(Theirs), static_cast<unsigned long>(Mine));
+                            }
+                        };
+                        Report("PersonRandCreate", rPersonRandCreate, rChkPersonRandCreate);
+                        Report("PersonRandMisc", rPersonRandMisc, rChkPersonRandMisc);
+                        Report("HeadlineRand", rHeadlineRand, rChkHeadlineRand);
+                        Report("LastMinute", rLMA, rChkLMA);
+                        Report("Reisebuero", rRBA, rChkRBA);
+                        Report("Fracht", rFrachen, rChkFrachen);
+
+                        SLONG CitiesOff = 0;
+                        SLONG FirstCity = -1;
+                        for (c = 0; c < MAX_CITIES; c++) {
+                            if (rAA[c] != rChkAA[c]) {
+                                if (FirstCity < 0) {
+                                    FirstCity = c;
+                                }
+                                CitiesOff++;
+                            }
+                        }
+                        if (CitiesOff > 0) {
+                            NetTraceEvent("DESYNC what=Ausland cities=%ld first=%ld theirs=%lu mine=%lu", static_cast<long>(CitiesOff), static_cast<long>(FirstCity),
+                                          static_cast<unsigned long>(rAA[FirstCity]), static_cast<unsigned long>(rChkAA[FirstCity]));
+                        }
+
+                        /* Bot action queues are not comparable slot by slot. Bots run on the host
+                           only: it broadcasts a freshly planned queue, then shifts it locally as
+                           each action starts, while clients keep the broadcast copy and only catch
+                           up when the action executes (see the "Manchmal kommen wir als Client hier
+                           an" shift in PLAYER::RobotExecuteAction). So between two broadcasts the
+                           client legitimately still holds actions the host has already consumed.
+                           Also only on the host, a bot that finds its room occupied puts the
+                           current action behind the secondary one and fills an empty secondary slot
+                           with ACTION_BUERO or ACTION_PERSONAL (PERSON::DoOnePlayerStep, "Raum schon
+                           besetzt?"). NetSyncRobot() hands the clients the host's whole queue again
+                           before the next action executes, so neither is a disagreement: accept
+                           when every pending host action, apart from at most one such filler, is
+                           still pending on the client, in any order. Anything else is a real
+                           disagreement about what a bot is going to do. */
+                        for (SLONG p = 0; p < 4; p++) {
+                            /* Both sides take the snapshot on the first step of the minute, each on its
+                               own clock, and the peers are a few steps apart. A queue handed over
+                               just before one snapshot and received just after the other is not a
+                               disagreement - in a played session the host planned 40 ticks before
+                               the minute and the client got the queue 20 ticks into it. Compare
+                               only queues that have been left alone for a while on both sides. */
+                            const SLONG kSettleSlices = 20;
+                            if (rRobotSyncAge[p] < kSettleSlices || rChkRobotSyncAge[p] < kSettleSlices) {
+                                continue;
+                            }
+
+                            const SLONG *Host = (Sim.bIsHost != 0) ? &rChkActionId[p * 5] : &rActionId[p * 5];
+                            const SLONG *Client = (Sim.bIsHost != 0) ? &rActionId[p * 5] : &rChkActionId[p * 5];
+
+                            std::vector<SLONG> HostPending;
+                            std::vector<SLONG> ClientPending;
+                            for (SLONG d = 0; d < 5; d++) {
+                                if (Host[d] != ACTION_NONE) {
+                                    HostPending.push_back(Host[d]);
+                                }
+                                if (Client[d] != ACTION_NONE) {
+                                    ClientPending.push_back(Client[d]);
+                                }
+                            }
+
+                            bool bLagOnly = true;
+                            bool bFillerSeen = false;
+                            for (const SLONG ActionId : HostPending) {
+                                const auto Match = std::find(ClientPending.begin(), ClientPending.end(), ActionId);
+                                if (Match != ClientPending.end()) {
+                                    ClientPending.erase(Match);
+                                } else if (!bFillerSeen && (ActionId == ACTION_BUERO || ActionId == ACTION_PERSONAL)) {
+                                    bFillerSeen = true;
+                                } else {
+                                    bLagOnly = false;
+                                    break;
+                                }
+                            }
+                            if (bLagOnly) {
+                                continue;
+                            }
+
+                            CString HostText;
+                            CString ClientText;
+                            for (SLONG d = 0; d < 5; d++) {
+                                HostText += CString(d > 0 ? "," : "") + (Host[d] == ACTION_NONE ? "-" : Translate_ACTION(Host[d]));
+                                ClientText += CString(d > 0 ? "," : "") + (Client[d] == ACTION_NONE ? "-" : Translate_ACTION(Client[d]));
+                            }
+                            NetTraceEvent("DESYNC what=RobotQueue player=%ld host=%s client=%s", static_cast<long>(p), HostText.c_str(), ClientText.c_str());
+                        }
+                    }
+                }
 
 #ifdef _DEBUG
                 if (rTime != rChkTime)
@@ -1863,7 +2444,9 @@ void PumpNetwork() {
                 SLONG localPlayer = 0;
 
                 Message >> localPlayer;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
                 Message >> GenericSyncIds[localPlayer];
+                GenericSyncReceived[localPlayer].push_back(GenericSyncIds[localPlayer]);
 
                 bReturnAfterThisMessage = true;
             } break;
@@ -1872,6 +2455,7 @@ void PumpNetwork() {
                 SLONG localPlayer = 0;
 
                 Message >> localPlayer;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
                 Message >> GenericSyncIds[localPlayer] >> GenericSyncIdPars[localPlayer];
 
                 bReturnAfterThisMessage = true;
@@ -1883,6 +2467,7 @@ void PumpNetwork() {
                 SLONG player = 0;
 
                 Message >> player;
+                player = NetCheckPlayerNum(player, MessageType);
                 Message >> SyncId >> Par;
 
                 bReturnAfterThisMessage = true;
@@ -1898,6 +2483,7 @@ void PumpNetwork() {
                 SLONG delta = 0;
 
                 Message >> localPlayer >> delta;
+                localPlayer = NetCheckPlayerNum(localPlayer, MessageType);
 
                 if (localPlayer != Sim.localPlayer) {
                     Sim.Players.Players[localPlayer].ChangeMoney(delta, 3130, "");
@@ -1911,7 +2497,9 @@ void PumpNetwork() {
 
                 Message >> Par1 >> Par2 >> Par3;
 
-                SLONG playerId = static_cast<SLONG>(Par1);
+                /* Par1 travels as 64 bit: range check before narrowing, or 0x100000001 would
+                   narrow to a perfectly valid-looking 1. */
+                SLONG playerId = NetCheckPlayerNum((Par1 < 0 || Par1 > 3) ? SLONG(-1) : static_cast<SLONG>(Par1), MessageType);
                 SLONG statistikid = static_cast<SLONG>(Par3);
 
                 Sim.Players.Players[playerId].ChangeMoney(Par2, statistikid, "");
@@ -1919,24 +2507,135 @@ void PumpNetwork() {
 
             case ATNET_SYNCKEROSIN: {
                 SLONG playerId = 0;
-                SLONG TankOpen = 0;
-                SLONG TankInhalt = 0;
-                DOUBLE KerosinQuali = 0;
-                SLONG KerosinKind = 0;
-                BOOL Tank = 0;
-                DOUBLE TankPreis = NAN;
+                PLAYER::NetTankState State;
 
-                Message >> playerId >> Tank >> TankOpen >> TankInhalt >> KerosinQuali >> KerosinKind >> TankPreis;
+                Message >> playerId >> State.Tank >> State.TankOpen >> State.TankInhalt >> State.KerosinQuali >> State.KerosinKind >> State.TankPreis >>
+                    State.Stamp;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
-                if (playerId != Sim.localPlayer) {
-                    PLAYER &qPlayer = Sim.Players.Players[playerId];
+                if (playerId != Sim.localPlayer && State.Stamp >= 0) {
+                    Sim.Players.Players[playerId].NetReceiveKerosin(State);
+                }
+            } break;
 
-                    qPlayer.Tank = Tank;
-                    qPlayer.TankOpen = TankOpen;
-                    qPlayer.TankInhalt = TankInhalt;
-                    qPlayer.KerosinQuali = KerosinQuali;
-                    qPlayer.KerosinKind = KerosinKind;
-                    qPlayer.TankPreis = TankPreis;
+            case ATNET_WORKER_HIRE:
+            case ATNET_WORKER_FIRE: {
+                SLONG PlayerNum = 0;
+                SLONG WorkerId = 0;
+
+                Message >> PlayerNum >> WorkerId;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                /* Same validation as a local hire or fire: if this peer's worker pool already
+                   disagreed, it logs an error instead of silently hiring the wrong person. */
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                const bool ok = (MessageType == ATNET_WORKER_HIRE) ? GameMechanic::hireWorker(qPlayer, WorkerId, true)
+                                                                   : GameMechanic::fireWorker(qPlayer, WorkerId, true);
+                if (!ok) {
+                    NetTraceEvent("WORKERSYNC failed name=%s p=%ld worker=%ld", Translate_ATNET(MessageType), static_cast<long>(PlayerNum),
+                                  static_cast<long>(WorkerId));
+                }
+            } break;
+
+            case ATNET_WORKER_SALARY: {
+                SLONG PlayerNum = 0;
+                SLONG WorkerId = 0;
+                SLONG Art = 0;
+
+                Message >> PlayerNum >> WorkerId >> Art;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                /* Repeat the owner's change rather than copying its result, so that a worker
+                   the cut drives out of the job leaves on this peer too. */
+                if (WorkerId == -1) {
+                    if (Art == 2) {
+                        GameMechanic::increaseAllSalaries(Sim.Players.Players[PlayerNum], true);
+                    } else {
+                        Workers.Gehaltsaenderung(Art, PlayerNum, true);
+                    }
+                } else if (WorkerId >= 0 && WorkerId < Workers.Workers.AnzEntries() && Workers.Workers[WorkerId].Employer == PlayerNum) {
+                    Workers.Workers[WorkerId].Gehaltsaenderung(Art, true);
+                } else {
+                    NetTraceEvent("WORKERSYNC failed name=%s p=%ld worker=%ld", Translate_ATNET(MessageType), static_cast<long>(PlayerNum),
+                                  static_cast<long>(WorkerId));
+                }
+            } break;
+
+            case ATNET_STRIKE: {
+                SLONG PlayerNum = 0;
+                SLONG Event = 0;
+                SLONG Par = 0;
+                SLONG SenderHour = 0;
+
+                Message >> PlayerNum >> Event >> Par >> SenderHour;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+
+                if (Event == 0 && Par >= static_cast<SLONG>(GameMechanic::EndStrikeMode::Salary) &&
+                    Par <= static_cast<SLONG>(GameMechanic::EndStrikeMode::Drunk)) {
+                    const bool bWasOn = (qPlayer.StrikeEndType == 0);
+                    GameMechanic::endStrike(qPlayer, static_cast<GameMechanic::EndStrikeMode>(Par), true);
+
+                    /* The countdown ends the strike after that many changes of hour. Count them
+                       from the owner's hour rather than from this peer's: a message that crosses
+                       the change of hour would otherwise keep the departures of that hour
+                       grounded on one peer only - and a delayed flight stays delayed. */
+                    if (bWasOn && qPlayer.StrikeEndType != 0 && qPlayer.StrikeEndCountdown > 0) {
+                        const SLONG Behind = SenderHour - (Sim.Date * 24 + Sim.GetHour());
+                        if (Behind >= -24 && Behind <= 24) {
+                            qPlayer.StrikeEndCountdown = max(1, qPlayer.StrikeEndCountdown + Behind);
+                        } else {
+                            NetTraceEvent("STRIKE end out of range p=%ld sender_hour=%ld", static_cast<long>(PlayerNum), static_cast<long>(SenderHour));
+                        }
+                    }
+                } else if (Event == 1) {
+                    qPlayer.StrikeHours = Par;
+                } else if (Event == 2) {
+                    /* The owner's peer decided that these people are striking until this hour
+                       (counted from the start of the game). Turning it back into hours against
+                       this peer's own clock lets the strike end in the same hour everywhere, even
+                       though the message arrives just before or just after the change of hour. */
+                    /* The longest strike the game hands out is 72 hours, and a peer that has not
+                       reached the sender's hour yet arrives at one more than that - which is why
+                       the bound is not 72. */
+                    const SLONG Hours = Par - (Sim.Date * 24 + Sim.GetHour());
+                    if (Hours > 0 && Hours <= 96) {
+                        GameMechanic::startStrike(qPlayer, Hours, true);
+                    } else {
+                        NetTraceEvent("STRIKE out of range p=%ld until=%ld hours=%ld", static_cast<long>(PlayerNum), static_cast<long>(Par),
+                                      static_cast<long>(Hours));
+                    }
+                }
+            } break;
+
+            case ATNET_SYNC_STAFF: {
+                SLONG Anz = 0;
+
+                Message >> Anz;
+
+                while (Anz > 0) {
+                    SLONG PlayerNum = 0;
+                    SLONG Workers2 = 0;
+
+                    Message >> PlayerNum >> Workers2;
+                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                    for (SLONG d = 0; d < Workers2; d++) {
+                        SLONG WorkerId = 0;
+                        SLONG Gehalt = 0;
+                        SLONG Happyness = 0;
+
+                        Message >> WorkerId >> Gehalt >> Happyness;
+
+                        /* Only for people this player really employs here: if the pools had drifted
+                           apart, writing by index alone would scramble somebody else's staff. */
+                        if (WorkerId >= 0 && WorkerId < Workers.Workers.AnzEntries() && Workers.Workers[WorkerId].Employer == PlayerNum) {
+                            Workers.Workers[WorkerId].Gehalt = Gehalt;
+                            Workers.Workers[WorkerId].Happyness = Happyness;
+                        }
+                    }
+
+                    Anz--;
                 }
             } break;
 
@@ -1945,6 +2644,7 @@ void PumpNetwork() {
                 SLONG gehalt = 0;
 
                 Message >> playerId >> gehalt;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
                 Sim.Players.Players[playerId].Statistiken[STAT_GEHALT].SetAtPastDay(gehalt);
             } break;
@@ -1956,6 +2656,7 @@ void PumpNetwork() {
                 SLONG fracht = 0;
 
                 Message >> playerId >> auftrag >> lm >> fracht;
+                playerId = NetCheckPlayerNum(playerId, MessageType);
 
                 Sim.Players.Players[playerId].Statistiken[STAT_AUFTRAEGE].SetAtPastDay(auftrag);
                 Sim.Players.Players[playerId].Statistiken[STAT_LMAUFTRAEGE].SetAtPastDay(lm);
@@ -1987,8 +2688,17 @@ void PumpNetwork() {
                 break;
             }
 
-            // if (Message.MemPointer!=Message.MemBufferUsed)
-            //   __asm { int 3 }
+            /* The original code wanted to break into the debugger when a handler did not
+               consume its message exactly; report it in the trace instead. A non-zero tail
+               means this receiver disagrees with the sender about the message layout, which
+               is how a session silently drifts apart. */
+            NetTraceTail(MessageType, static_cast<SLONG>(Message.MemBufferUsed) - Message.MemPointer);
+
+            } catch (TeakLibException &ex) {
+                AT_Log("PumpNetwork: dropping malformed message %s: %s", Translate_ATNET(MessageType), ex.what());
+                NetTraceEvent("DROP name=%s reason=%s", Translate_ATNET(MessageType), ex.what());
+                ex.caught();
+            }
         }
     }
 }
@@ -2013,20 +2723,61 @@ void NetGenericSync(SLONG SyncId) {
 
     GenericSyncIds[Sim.localPlayer] = SyncId;
 
+    /* Wait for SyncId in what every other human has sent us, not merely in the last thing
+       they sent. The morning briefing syncs twice in a row (0x4211014, then 0x4211015), and
+       with three or more humans a peer that got through the first one can send the second
+       before another peer has received the last human's first: that peer then saw
+       0x4211015 where it waited for 0x4211014 and waited forever - and everyone else with it
+       at the second sync. A resent packet on the internet is enough to open that window. */
+    /* This loop neither draws nor takes input, so a peer that never sends its half looks to the
+       player like a hung game - and left nothing in the log to say so. Name the players still
+       missing every five seconds. */
+    const DWORD WaitingSince = AtGetTime();
+    DWORD LastReported = WaitingSince;
+
     while (true) {
-        SLONG c = 0;
-        for (c = 0; c < 4; c++) {
-            if (Sim.Players.Players[c].Owner != 1 && GenericSyncIds[c] != SyncId && (Sim.Players.Players[c].IsOut == 0)) {
-                break;
+        bool bAllThere = true;
+        SLONG Missing = 0;
+        for (SLONG c = 0; c < 4; c++) {
+            if (c == Sim.localPlayer || Sim.Players.Players[c].Owner == 1 || (Sim.Players.Players[c].IsOut != 0)) {
+                continue;
+            }
+            const auto &Received = GenericSyncReceived[c];
+            if (std::find(Received.begin(), Received.end(), SyncId) == Received.end()) {
+                bAllThere = false;
+                Missing |= (1 << c);
             }
         }
 
-        if (c == 4) {
+        if (!bAllThere && AtGetTime() - LastReported >= 5000) {
+            LastReported = AtGetTime();
+            AT_Log("Still waiting for sync %lx from players 0x%lx after %lu s (day %ld %02ld:%02ld)", static_cast<unsigned long>(SyncId),
+                   static_cast<unsigned long>(Missing), static_cast<unsigned long>((AtGetTime() - WaitingSince) / 1000), static_cast<long>(Sim.Date),
+                   static_cast<long>(Sim.GetHour()), static_cast<long>(Sim.GetMinute()));
+            NetTraceEvent("STILLSYNCING id=%lx missing=0x%lx seconds=%lu", static_cast<unsigned long>(SyncId), static_cast<unsigned long>(Missing),
+                          static_cast<unsigned long>((AtGetTime() - WaitingSince) / 1000));
+        }
+
+        if (bAllThere) {
+            for (auto &Received : GenericSyncReceived) {
+                const auto Hit = std::find(Received.begin(), Received.end(), SyncId);
+                if (Hit != Received.end()) {
+                    Received.erase(Received.begin(), Hit + 1);
+                }
+            }
             return;
         }
 
         PumpNetwork();
     }
+}
+
+void NetResetGenericSync() {
+    for (auto &Received : GenericSyncReceived) {
+        Received.clear();
+    }
+    /* Orders taken in another game, or before the savegame was loaded, belong to other boards. */
+    gPendingTook.clear();
 }
 
 //--------------------------------------------------------------------------------------------

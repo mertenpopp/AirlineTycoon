@@ -105,7 +105,7 @@ class PlaneCandidate {
         mPlane.Save(fileName);
     }
 
-    bool operator<(const PlaneCandidate &other) const { return mScore > other.mScore; }
+    bool operator<(const PlaneCandidate &other) const noexcept { return mScore > other.mScore; }
 
     bool operator==(const PlaneCandidate &other) const {
         if (mScoreType != other.mScoreType) {

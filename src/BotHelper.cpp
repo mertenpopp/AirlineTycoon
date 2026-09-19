@@ -1,6 +1,7 @@
 #include "BotHelper.h"
 
 #include "Bot.h"
+#include "ClaudeBot.h"
 #include "Proto.h"
 #include "TeakLibW.h"
 #include "class.h"
@@ -38,6 +39,8 @@ extern SLONG timeReisClose;
 extern SLONG timeMaklClose;
 extern SLONG timeWerbOpen;
 
+const int kDurationExtra = 1;
+
 // #define PRINT_OVERALL 1
 
 TEAKFILE &operator<<(TEAKFILE &File, const PlaneTime &planeTime) {
@@ -54,6 +57,64 @@ TEAKFILE &operator>>(TEAKFILE &File, PlaneTime &planeTime) {
     planeTime = {date, time};
 
     return (File);
+}
+
+std::string SabotageMode::getName() const {
+    switch (mCategory) {
+    case SabotageCategory::Plane:
+        switch (static_cast<Plane>(mJobNumber)) {
+        case Plane::SaltedFood:
+            return "Salted Food";
+        case Plane::MovieTheatreBreak:
+            return "Movie Theatre Break";
+        case Plane::FlatTire:
+            return "Flat Tire";
+        case Plane::EngineBreakdown:
+            return "Engine Breakdown";
+        case Plane::PlaneCrash:
+            return "Plane Crash";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Personal:
+        switch (static_cast<Personal>(mJobNumber)) {
+        case Personal::CoffeeBacteria:
+            return "Coffee Bacteria";
+        case Personal::NotebookVirus:
+            return "Notebook Virus";
+        case Personal::OfficeBomb:
+            return "Office Bomb";
+        case Personal::ProvokeStrike:
+            return "Provoke Strike";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Special:
+        switch (static_cast<Special>(mJobNumber)) {
+        case Special::AircraftBrochures:
+            return "Aircraft Brochures";
+        case Special::CutTelephones:
+            return "Cut Telephones";
+        case Special::FalsePressRelease:
+            return "False Press Release";
+        case Special::BankHack:
+            return "Bank Hack";
+        case Special::GroundAircraft:
+            return "Ground Aircraft";
+        case Special::RouteTheft:
+            return "Route Theft";
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    AT_Error("SabotageMode::getName(): Invalid sabotage mode with category %d and job number %d", static_cast<int>(mCategory), mJobNumber);
+    DebugBreak();
+    return "INVALID";
 }
 
 inline void setColorForFlightJob(const PLAYER &qPlayer, const CFlugplanEintrag &qFPE) {
@@ -77,6 +138,24 @@ inline void setColorForFlightJob(const PLAYER &qPlayer, const CFlugplanEintrag &
 inline void resetColor() { std::cout << "\033[m"; }
 
 namespace Helper {
+
+static std::array<CString, 5> jobTypeStr{"normal", "later", "highriskreward", "scam", "no fine"};
+static std::array<CString, 6> jobSizeStr{"VIP", "S", "M", "L", "XL", "XXL"};
+CString getJobTypeStr(int jobType) {
+    if (jobType < 0 || jobType >= jobTypeStr.size()) {
+        AT_Error("Helper::getJobTypeStr(): Invalid job type: %d", jobType);
+        return "INVALID";
+    }
+    return jobTypeStr[jobType];
+}
+CString getJobSizeStr(int jobSize) {
+    if (jobSize < 0 || jobSize >= jobSizeStr.size()) {
+        AT_Error("Helper::getJobSizeStr(): Invalid job size: %d", jobSize);
+        return "INVALID";
+    }
+    return jobSizeStr[jobSize];
+}
+
 void ScheduleInfo::printGain() const {
     printf("Schedule (%s %d - %s %d) with %d planes gains %s $.\n", getWeekday(scheduleStart).c_str(), scheduleStart.getHour(), getWeekday(scheduleEnd).c_str(),
            scheduleEnd.getHour(), numPlanes, Insert1000erDots(gain).c_str());
@@ -96,18 +175,16 @@ void ScheduleInfo::printDetails() const {
     printf("%.1f %% of plane schedule are regular flights, %.1f %% are automatic flights (%.1f %% useful kerosene).\n", getRatioFlights(),
            getRatioAutoFlights(), getKeroseneRatio());
 
-    std::array<CString, 5> typeStr{"normal", "later", "highriskreward", "scam", "no fine"};
-    std::array<CString, 6> sizeStr{"VIP", "S", "M", "L", "XL", "XXL"};
     printf("Job types: ");
     for (SLONG i = 0; i < jobTypes.size(); i++) {
-        printf("%.0f %% %s", 100.0 * jobTypes[i] / (jobs + freightJobs), typeStr[i].c_str());
+        printf("%.0f %% %s", 100.0 * jobTypes[i] / (jobs + freightJobs), getJobTypeStr(i).c_str());
         if (i < jobTypes.size() - 1) {
             printf(", ");
         }
     }
     printf("\nJob sizes: ");
     for (SLONG i = 0; i < jobSizeTypes.size(); i++) {
-        printf("%.0f %% %s", 100.0 * jobSizeTypes[i] / (jobs + freightJobs), sizeStr[i].c_str());
+        printf("%.0f %% %s", 100.0 * jobSizeTypes[i] / (jobs + freightJobs), getJobSizeStr(i).c_str());
         if (i < jobSizeTypes.size() - 1) {
             printf(", ");
         }
@@ -124,8 +201,9 @@ void printJob(const CAuftrag &qAuftrag) {
     CString strDist(Einheiten[EINH_KM].bString(Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity) / 1000));
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
     CString strStrafe(Insert1000erDots(qAuftrag.Strafe));
-    printf("%s -> %s (%u) (%s, %s, %s $ / %s $)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Personen,
-           strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str());
+    printf("%s -> %s (%u) (%s, %s, %s $ / %s $) (%s %s)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Personen,
+           strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str(), getJobTypeStr(qAuftrag.jobType).c_str(),
+           getJobSizeStr(qAuftrag.jobSizeType).c_str());
 }
 
 void printRoute(const CRoute &qRoute) {
@@ -139,18 +217,29 @@ void printFreight(const CFracht &qAuftrag) {
     CString strDist(Einheiten[EINH_KM].bString(Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity) / 1000));
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
     CString strStrafe(Insert1000erDots(qAuftrag.Strafe));
-    printf("%s -> %s (%d tons total, %d left, %d open) (%s, %s, %s $ / %s $)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(),
-           qAuftrag.Tons, qAuftrag.TonsLeft, qAuftrag.TonsOpen, strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str());
+    printf("%s -> %s (%d tons total, %d left, %d open) (%s, %s, %s $ / %s $) (%s %s)\n", Cities[qAuftrag.VonCity].Name.c_str(),
+           Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Tons, qAuftrag.TonsLeft, qAuftrag.TonsOpen, strDist.c_str(), strDate.c_str(), strPraemie.c_str(),
+           strStrafe.c_str(), getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str());
 }
 
 std::string getRouteName(const CRoute &qRoute) { return {bprintf("%s -> %s", Cities[qRoute.VonCity].Name.c_str(), Cities[qRoute.NachCity].Name.c_str())}; }
 
-std::string getJobName(const CAuftrag &qAuftrag) {
-    return {bprintf("%s -> %s", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str())};
+std::string getJobName(const CAuftrag &qAuftrag, bool forDisplay) {
+    CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
+    return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
+                    getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
 
-std::string getFreightName(const CFracht &qAuftrag) {
-    return {bprintf("%s -> %s", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str())};
+std::string getFreightName(const CFracht &qAuftrag, bool forDisplay) {
+    CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
+    return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
+                    getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
 
 std::string getPlaneName(const CPlane &qPlane, int mode) {
@@ -610,9 +699,9 @@ void printAllSchedules(bool infoOnly) {
     }
 }
 
-bool checkRoomOpen(SLONG roomId) {
+bool checkRoomOpen(SLONG actionId) {
     SLONG time = Sim.Time;
-    switch (roomId) {
+    switch (actionId) {
     case ACTION_VISITDUTYFREE:
         return (time >= timeDutyOpen && ((Sim.Weekday != 5 && Sim.Weekday != 6) || time < timeDutyClose));
     case ACTION_BUY_KEROSIN:
@@ -870,7 +959,12 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     std::vector<__int64> values;
     auto balanceAvg = qPlayer.BilanzWoche.Hole();
     auto balance = qPlayer.BilanzGesamt;
-    auto moneyAvailable = qPlayer.IsSuperBot() ? qPlayer.mBot->getMoneyAvailable() : 0;
+    auto moneyAvailable = 0;
+    if (qPlayer.IsMertenBot()) {
+        moneyAvailable = qPlayer.mBot->getMoneyAvailable();
+    } else if (qPlayer.IsClaudeBot()) {
+        moneyAvailable = qPlayer.mClaudeBot->getMoneyAvailable();
+    }
     values.insert(values.end(), {Sim.Date, qPlayer.Money, qPlayer.Credit, moneyAvailable});
     values.insert(values.end(), {balance.GetOpSaldo(), balanceAvg.GetOpSaldo(), balanceAvg.GetOpGewinn(), balanceAvg.GetOpVerlust()});
     values.insert(values.end(), {balance.Tickets, balance.Auftraege, balance.FrachtAuftraege});

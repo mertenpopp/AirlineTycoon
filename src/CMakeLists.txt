@@ -64,6 +64,7 @@ add_executable (AT
     Askbrick.cpp
     AtNet.cpp
     Aufsicht.cpp
+    AutoLobby.cpp
     Auftrag.cpp
     Bank.cpp
     Block.cpp
@@ -78,6 +79,7 @@ add_executable (AT
     BotPlanerAlgo.cpp
     Brick.cpp
     Checkup.cpp
+    ClaudeBot.cpp
     ColorFx.cpp
     Credits.cpp
     DeltaVid.cpp
@@ -104,6 +106,7 @@ add_executable (AT
     Misc.cpp
     Museum.cpp
     Nasa.cpp
+    NetTrace.cpp
     NewGamePopup.cpp
     Options.cpp
     CVideo.cpp
@@ -159,9 +162,6 @@ if(MSVC)
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
     # Release configurations
-    target_compile_definitions(AT PRIVATE "$<$<CONFIG:Release>:SENTRY;WIN32;_WINDOWS>")
-    target_include_directories(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/include/>")
-    target_link_libraries(AT PRIVATE "$<$<CONFIG:Release>:${PROJECT_SOURCE_DIR}/../libs/CrashRpt/install/lib/sentry.lib>")
     set_target_properties(AT PROPERTIES WIN32_EXECUTABLE "true")
 endif()
 
@@ -171,7 +171,12 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_BUILD_TYPE Debug)
     add_compile_definitions(_DEBUG)
-    target_compile_options(common INTERFACE "-Wno-unused-variable")
+
+    if(MSVC)
+        target_compile_options(common INTERFACE /wd4101)
+    else()
+        target_compile_options(common INTERFACE -Wno-unused-variable)
+    endif()
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_BUILD_TYPE Release)
     add_compile_definitions(NDEBUG)
@@ -226,7 +231,6 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/copy_if_different.cmake" "${PATCH_FOLDER}" "$<TARGET_FILE_DIR:AT>/patch"
     COMMAND $<TARGET_FILE:AT> /update-patched-files-only
     COMMAND ${CMAKE_COMMAND} -E rm -f $<TARGET_FILE_DIR:AT>/debug.txt
-    COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_FILE_DIR:AT>/.sentry-native
     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_MODULE_PATH}/cleanup_folder.cmake" "$<TARGET_FILE_DIR:AT>/patch" ".txt"
     #BYPRODUCTS "$<TARGET_FILE_DIR:AT>/patch/dlg_ger.patched.res"
     #DEPENDS "${PATCH_FOLDER}/dlg_ger.patched.res.txt"
@@ -239,3 +243,6 @@ install(FILES "$<TARGET_FILE_DIR:AT>/patch/ein_ger.patched.res" DESTINATION "${P
 install(FILES "$<TARGET_FILE_DIR:AT>/patch/modded_ger.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
 install(FILES "$<TARGET_FILE_DIR:AT>/patch/std_ger.patched.res" DESTINATION "${PROJECT_INSTALL_DIR}/patch/")
 
+install(FILES "${PROJECT_SOURCE_DIR}/../scripts/concat.py" DESTINATION "${PROJECT_INSTALL_DIR}/")
+install(FILES "${PROJECT_SOURCE_DIR}/../scripts/threadpool.rb" DESTINATION "${PROJECT_INSTALL_DIR}/")
+install(FILES "${PROJECT_SOURCE_DIR}/../scripts/compare_paired.py" DESTINATION "${PROJECT_INSTALL_DIR}/")

@@ -1187,7 +1187,7 @@ void CPlaner::DoPollingStuff() {
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,
@@ -1315,7 +1315,7 @@ void CPlaner::DoPollingStuff() {
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,
@@ -1722,8 +1722,9 @@ void CPlaner::HandleLButtonDown() {
                 qPlayer.Planes[pBlock->SelectedId].ExtendFlugplaene(PlayerNum);
                 qPlayer.UpdateAuftragsUsage();
                 qPlayer.UpdateFrachtauftragsUsage();
-                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Planes[pBlock->SelectedId].CheckFlugplaene(PlayerNum, FALSE);
+                /* After the check, which still changes the plan: the other peers take it as it is. */
+                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Blocks[CurrentBlock].RefreshData(PlayerNum);
                 qPlayer.Blocks[CurrentBlock].Refresh(PlayerNum, IsLaptop);
             } else if ((MouseClickArea == ROOM_GLOBE || MouseClickArea == ROOM_LAPTOP) && MouseClickId == 151) // Flugplan löschen

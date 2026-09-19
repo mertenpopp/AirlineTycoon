@@ -5,7 +5,9 @@
 #include "SbLib.h"
 #include "TeakLibW.h"
 
+#include <chrono>
 #include <memory>
+#include <random>
 
 // Direct play identifiers
 constexpr auto DPPLAYERTYPE_GROUP = 0x0000;
@@ -22,6 +24,23 @@ constexpr auto KEY_GET_HOST_LIST = "GetHostList";
 #define NET_BROADCAST UNASSIGNED_RAKNET_GUID
 
 typedef DWORD DPID;
+
+/* Every peer of a session must have a distinct id: the lobby tells players apart by it, it is
+   the target of private messages, and host migration picks the lowest one. It used to come from
+   TEAKRAND::SRandTime() - seeded with AtGetTime(), a machine-wide millisecond clock - and was
+   limited to 16 bits, so two instances started in the same millisecond on one machine got the
+   same id and the session could never start; between machines it was a small but real
+   collision chance, and 0 (which means "no network id") was a possible draw.
+   Draw from the OS entropy source instead, mixed with a high resolution clock in case that
+   source is weak. Stay within 1..2^31-1: 0 is reserved, and the lobby passes ids through
+   SLONG message parameters. */
+inline ULONG GenerateLocalPeerID() {
+    std::random_device Entropy;
+    std::seed_seq Seed{static_cast<unsigned int>(Entropy()), static_cast<unsigned int>(Entropy()),
+                       static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count())};
+    std::mt19937 Generator(Seed);
+    return std::uniform_int_distribution<ULONG>(1, 0x7FFFFFFF)(Generator);
+}
 
 #pragma pack(push, 1)
 struct ATPacket {
