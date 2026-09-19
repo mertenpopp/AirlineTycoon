@@ -917,14 +917,32 @@ void PumpNetwork() {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
 
-                    Message >> qPlayer.Image >> qPlayer.ImageGotWorse;
+                    /* The airline's and the routes' images change with every flight. Taken only if
+                       both have booked the same flights of the player today, as the route usage
+                       (ATNET_SYNC_ROUTES); the owner sends them again within the hour. */
+                    SLONG Stamp = 0;
+                    SLONG Image = 0;
+                    BOOL ImageGotWorse = 0;
+                    Message >> Stamp >> Image >> ImageGotWorse;
+                    const bool bApply = (Stamp == qPlayer.NetTankStamp());
+                    if (bApply) {
+                        qPlayer.Image = Image;
+                        qPlayer.ImageGotWorse = ImageGotWorse;
+                    } else {
+                        NetTraceEvent("SKIP what=image player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
+                                      static_cast<long>(qPlayer.NetTankStamp()));
+                    }
 
                     for (d = 0; d < 4; d++) {
                         Message >> qPlayer.Sympathie[d];
                     }
 
                     for (d = Routen.AnzEntries() - 1; d >= 0; d--) {
-                        Message >> qPlayer.RentRouten.RentRouten[d].Image;
+                        UBYTE RouteImage = 0;
+                        Message >> RouteImage;
+                        if (bApply) {
+                            qPlayer.RentRouten.RentRouten[d].Image = RouteImage;
+                        }
                     }
                     for (d = Cities.AnzEntries() - 1; d >= 0; d--) {
                         Message >> qPlayer.RentCities.RentCities[d].Image;
@@ -974,26 +992,33 @@ void PumpNetwork() {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
 
-                    for (d = Routen.AnzEntries() - 1; d >= 0; d--) {
-                        Message >> qPlayer.RentRouten.RentRouten[d].Rang >> qPlayer.RentRouten.RentRouten[d].LastFlown >>
-                            qPlayer.RentRouten.RentRouten[d].Image >> qPlayer.RentRouten.RentRouten[d].Miete >> qPlayer.RentRouten.RentRouten[d].Ticketpreis >>
-                            qPlayer.RentRouten.RentRouten[d].TicketpreisFC >> qPlayer.RentRouten.RentRouten[d].TageMitVerlust >>
-                            qPlayer.RentRouten.RentRouten[d].TageMitGering;
-                    }
-
-                    SLONG Rented = 0;
+                    /* What the flights change - the day a route was last flown, its image and its
+                       usage - is taken from the owner only if both have booked the same flights of
+                       the player today: a state from before a flight we have booked already would
+                       undo it, one from after a flight we have still to book would count it twice.
+                       The owner sends it again every half hour. */
                     SLONG Stamp = 0;
-                    Message >> Rented >> Stamp;
-
-                    /* The usage follows from the flights. Taken from the owner only if both have
-                       booked the same flights of the player today: a state from before a flight we
-                       have booked already would undo it, one from after a flight we have still to
-                       book would count it twice. The owner sends it again every half hour. */
+                    Message >> Stamp;
                     const bool bApplyUsage = (Stamp == qPlayer.NetTankStamp());
-                    if (!bApplyUsage && Rented > 0) {
+                    if (!bApplyUsage) {
                         NetTraceEvent("SKIP what=routeusage player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
                                       static_cast<long>(qPlayer.NetTankStamp()));
                     }
+
+                    for (d = Routen.AnzEntries() - 1; d >= 0; d--) {
+                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
+                        SLONG LastFlown = 0;
+                        UBYTE RouteImage = 0;
+                        Message >> qRoute.Rang >> LastFlown >> RouteImage >> qRoute.Miete >> qRoute.Ticketpreis >> qRoute.TicketpreisFC >> qRoute.TageMitVerlust >>
+                            qRoute.TageMitGering;
+                        if (bApplyUsage) {
+                            qRoute.LastFlown = LastFlown;
+                            qRoute.Image = RouteImage;
+                        }
+                    }
+
+                    SLONG Rented = 0;
+                    Message >> Rented;
 
                     while (Rented > 0) {
                         SLONG RouteId = 0;
