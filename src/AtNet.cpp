@@ -982,7 +982,18 @@ void PumpNetwork() {
                     }
 
                     SLONG Rented = 0;
-                    Message >> Rented;
+                    SLONG Stamp = 0;
+                    Message >> Rented >> Stamp;
+
+                    /* The usage follows from the flights. Taken from the owner only if both have
+                       booked the same flights of the player today: a state from before a flight we
+                       have booked already would undo it, one from after a flight we have still to
+                       book would count it twice. The owner sends it again every half hour. */
+                    const bool bApplyUsage = (Stamp == qPlayer.NetTankStamp());
+                    if (!bApplyUsage && Rented > 0) {
+                        NetTraceEvent("SKIP what=routeusage player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
+                                      static_cast<long>(qPlayer.NetTankStamp()));
+                    }
 
                     while (Rented > 0) {
                         SLONG RouteId = 0;
@@ -996,10 +1007,21 @@ void PumpNetwork() {
                             break;
                         }
 
-                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[RouteId];
-                        Message >> qRoute.Auslastung >> qRoute.AuslastungFC >> qRoute.RoutenAuslastung >> qRoute.HeuteBefoerdert;
+                        CRentRoute Usage;
+                        Message >> Usage.Auslastung >> Usage.AuslastungFC >> Usage.RoutenAuslastung >> Usage.HeuteBefoerdert;
                         for (d = 0; d < 7; d++) {
-                            Message >> qRoute.WocheBefoerdert[d];
+                            Message >> Usage.WocheBefoerdert[d];
+                        }
+
+                        if (bApplyUsage) {
+                            CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[RouteId];
+                            qRoute.Auslastung = Usage.Auslastung;
+                            qRoute.AuslastungFC = Usage.AuslastungFC;
+                            qRoute.RoutenAuslastung = Usage.RoutenAuslastung;
+                            qRoute.HeuteBefoerdert = Usage.HeuteBefoerdert;
+                            for (d = 0; d < 7; d++) {
+                                qRoute.WocheBefoerdert[d] = Usage.WocheBefoerdert[d];
+                            }
                         }
 
                         Rented--;

@@ -165,7 +165,7 @@ void NetTraceFingerprint(const char *When) {
         const bool bDetail = (gNetTraceLevel >= 2);
         std::string PlanesText;
         std::string RoutesText;
-        char One[40];
+        char One[80];
 
         SLONG Routes = 0;
         for (SLONG d = 0; d < qPlayer.RentRouten.RentRouten.AnzEntries(); d++) {
@@ -179,13 +179,10 @@ void NetTraceFingerprint(const char *When) {
                 Routes++;
             }
             if (bDetail && (qRoute.Rang > 0 || qRoute.Auslastung > 0 || qRoute.RoutenAuslastung > 0)) {
-                Fingerprint RouteHash;
-                RouteHash.Add(qRoute.Rang);
-                RouteHash.Add(qRoute.Auslastung);
-                RouteHash.Add(qRoute.RoutenAuslastung);
-                RouteHash.Add(qRoute.Ticketpreis);
-                RouteHash.Add(qRoute.TicketpreisFC);
-                snprintf(One, sizeof(One), "%ld:%08lx,", static_cast<long>(d), static_cast<unsigned long>(RouteHash.Get()));
+                /* The values themselves rather than a hash of them: which one differs says which
+                   code changed it. rank/usage/route usage/price/price FC */
+                snprintf(One, sizeof(One), "%ld:%ld/%ld/%ld/%ld/%ld,", static_cast<long>(d), static_cast<long>(qRoute.Rang), static_cast<long>(qRoute.Auslastung),
+                         static_cast<long>(qRoute.RoutenAuslastung), static_cast<long>(qRoute.Ticketpreis), static_cast<long>(qRoute.TicketpreisFC));
                 RoutesText += One;
             }
         }
