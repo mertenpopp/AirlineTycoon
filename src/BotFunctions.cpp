@@ -460,8 +460,6 @@ void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
         mMood = 1;
     } else if (mPlanerSolution.gain > 1e4) {
         mMood = 2;
-    } else if (mPlanerSolution.gain <= 0) {
-        mMood = 4;
     } else {
         mMood = 3;
     }
