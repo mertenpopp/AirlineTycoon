@@ -1898,7 +1898,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                     TEAKFILE Message;
 
                     Message.Announce(30);
-                    Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << Sim.Options.OptionLastPlayer << CString(VersionString);
+                    Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << Sim.Options.OptionLastPlayer << CString(NetVersionString);
 
                     SIM::SendMemFile(Message);
 
@@ -2170,7 +2170,7 @@ void NewGamePopup::CheckNetEvents() {
                                    version of a client rejoining a saved game, so a client has to check its host itself.
                                    Older clients read the first two fields only and ignore the rest. */
                                 Message << ATNET_SAVGEGAMECHECK << gNetworkSavegameLoading << Sim.GetSavegameUniqueGameId(gNetworkSavegameLoading, true)
-                                        << CString(VersionString);
+                                        << CString(NetVersionString);
 
                                 gNetwork.Send(Message.MemBuffer, Message.MemBufferUsed, SenderID, false);
                             } else {
@@ -2188,7 +2188,7 @@ void NewGamePopup::CheckNetEvents() {
                                     Message >> Version;
                                 }
 
-                                if (Version.Compare(VersionString) != 0) {
+                                if (Version.Compare(NetVersionString) != 0) {
                                     TEAKFILE Message;
 
                                     Message.Announce(30);
@@ -2240,7 +2240,7 @@ void NewGamePopup::CheckNetEvents() {
                             Message >> HostVersion;
                         }
 
-                        if (HostVersion.Compare(VersionString) != 0) {
+                        if (HostVersion.Compare(NetVersionString) != 0) {
                             PageNum = PAGE_TYPE::MULTIPLAYER_SELECT_SESSION;
                             if (pNetworkConnections == nullptr) {
                                 pNetworkConnections = gNetwork.GetConnectionList();
@@ -2258,7 +2258,7 @@ void NewGamePopup::CheckNetEvents() {
                             TEAKFILE JoinMessage;
                             JoinMessage.Announce(128);
                             JoinMessage << ATNET_WANNAJOIN2 << gNetwork.GetLocalPlayerID() << Sim.GetSavegameLocalPlayer(SavegameIndex)
-                                        << CString(VersionString);
+                                        << CString(NetVersionString);
                             SIM::SendMemFile(JoinMessage);
 
                             Sim.bNetwork = bOld;
@@ -2673,7 +2673,7 @@ void NewGamePopup::AutoLobbyPump() {
         {
             TEAKFILE Message;
             Message.Announce(30);
-            Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << SLONG(gAutoLobbySlot) << CString(VersionString);
+            Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << SLONG(gAutoLobbySlot) << CString(NetVersionString);
             SIM::SendMemFile(Message);
         }
 
@@ -2862,7 +2862,7 @@ void NewGamePopup::PumpLobbyNetwork() {
                     TEAKFILE Message;
 
                     Message.Announce(30);
-                    Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << Sim.Options.OptionLastPlayer << CString(VersionString);
+                    Message << ATNET_WANNAJOIN << gNetwork.GetLocalPlayerID() << Sim.Options.OptionLastPlayer << CString(NetVersionString);
 
                     SIM::SendMemFile(Message);
 
