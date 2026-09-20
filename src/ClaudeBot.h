@@ -232,7 +232,14 @@ class ClaudeBot {
     /* The idle windows in a plane's flight plan. Only legal in the office. */
     std::vector<PlaneGap> collectGaps(const CPlane &qPlane) const;
     /* Fits a job into one idle window, return leg included. False if it does not fit. */
-    static bool fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain);
+    /* `alreadyOurs` changes what the gain means. Deciding whether to *take* a job off a board,
+     * the alternative is not having it, so the gain is the premium less the flight. Deciding
+     * which of the jobs we already hold gets a scarce window, the alternative is the fine, so
+     * flying it is worth the premium *and* the fine avoided. Ignoring that let ADDON09 - which
+     * pushes five jobs a day into the backlog, each with Strafe == Praemie - run up 11.7M of
+     * fines in two days and hit the debt floor by day 10. */
+    static bool fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain,
+                              bool alreadyOurs = false);
     /* One out-and-back into one idle window, for any city pair and date range. The kerosene
      * of the empty return the game inserts itself is part of outCost. */
     static bool fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
