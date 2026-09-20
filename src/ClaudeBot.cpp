@@ -1,5 +1,6 @@
 #include "ClaudeBot.h"
 
+#include "BotDesigner.h"
 #include "BotHelper.h"
 #include "Proto.h"
 #include "global.h"
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -69,6 +71,18 @@ static const SLONG kConditionGoal = 90;
 /* Aeroplanes a mission hands out, all of them damaged. Anything above this many is one we
  * bought ourselves, which means it was delivered at Zustand 100. */
 static const SLONG kMissionStartingPlanes = 2;
+
+/* Cash kept back when buying a designer plane, so that the purchase never leaves the airline
+ * unable to pay wages the same night. */
+static const __int64 kDesignerCashReserve = 1500000;
+
+/* How large the ordinary fleet may grow before every remaining mark is saved for designer planes.
+ *
+ * Set to the two planes a mission starts with, i.e. no catalogue plane is ever bought in these
+ * two missions. Measured on seed 1: letting the fleet grow to five bought zero Belugas in ATFS05,
+ * stopping at two bought two. MertenBot wins ATFS05 the same way, never leaving two planes and
+ * banking 47.7M by day 20. */
+static const SLONG kDesignerMinFleet = kMissionStartingPlanes;
 
 /* Hours left free at the end of an idle window a job is fitted into. A job that overruns
  * its window pushes the following route leg later, which costs a sixth of its passengers
@@ -787,10 +801,19 @@ void ClaudeBot::setupMission() {
         m.wantUpgrades = true;
         m.upgradePlanes = 5;
         break;
+    case DIFF_ATFS05:
+        /* Three planes carrying BTARGET_PLANESIZE passengers. No catalogue plane comes close, so
+         * they have to be designed. */
+        m.designerPlanes = 3;
+        break;
+    case DIFF_ATFS08:
+        /* Five planes under the BTARGET_VERBRAUCH fuel bar - again designer-only. */
+        m.designerPlanes = 5;
+        break;
     default:
         /* Every other mission is won by the ordinary economy - cash, company value,
          * passengers, jobs flown - or by a room the bot does not use yet (the NASA
-         * missions, the two that need the aeroplane designer). */
+         * missions). */
         break;
     }
 
@@ -798,6 +821,145 @@ void ClaudeBot::setupMission() {
 }
 
 bool ClaudeBot::routesAvailable() const { return !mMission.noRouteBox; }
+
+/* Builds the design this mission needs, once per game.
+ *
+ * The search reads the live part tables, which come from builds.csv and differ between data
+ * directories, so a design hardcoded for one table is valid everywhere but cheapest only where
+ * it was found - and price is what decides these two races. Pure computation over static
+ * tables, so it needs no room. */
+void ClaudeBot::prepareDesignerPlane() {
+    if (mDesignerPlaneReady || mMission.designerPlanes == 0) {
+        return;
+    }
+
+    const bool isLarge = (mMission.difficulty == DIFF_ATFS05);
+    CXPlane plane;
+    if (!BotDesigner().findBestPlaneForGoal(isLarge ? ScoreType::ClaudeMiss05 : ScoreType::ClaudeMiss08, plane)) {
+        AT_Error("ClaudeBot::prepareDesignerPlane(): Search found nothing, falling back to the reference design.");
+        plane = isLarge ? Helper::getHardcodedDesignerPlaneLarge() : Helper::getHardcodedDesignerPlaneEco();
+    }
+
+    /* Never take the search's word for it: a design that misses the bar would be bought over and
+     * over without ever advancing the goal. */
+    const SLONG speed = plane.CalcSpeed();
+    const bool qualifies = isLarge ? (plane.CalcPassagiere() >= BTARGET_PLANESIZE)
+                                   : (speed > 0 && plane.CalcVerbrauch() * 100 / speed <= BTARGET_VERBRAUCH);
+    if (!qualifies || !plane.IsBuildable()) {
+        AT_Error("ClaudeBot::prepareDesignerPlane(): Design does not clear the bar, falling back to the reference design.");
+        plane = isLarge ? Helper::getHardcodedDesignerPlaneLarge() : Helper::getHardcodedDesignerPlaneEco();
+    }
+
+    plane.Name = isLarge ? "Claude Beluga" : "Claude Ecomaster";
+    mDesignerPlane = plane;
+    mDesignerPlaneCost = mDesignerPlane.CalcCost();
+    mDesignerPlaneFile = FullFilename(isLarge ? "claudebot_atfs05.plane" : "claudebot_atfs08.plane", MyPlanePath);
+    mDesignerPlaneReady = true;
+
+    AT_Log("ClaudeBot::prepareDesignerPlane(): %s costs %s $, %ld passengers, %ld km, verbrauch %ld, speed %ld. Need %ld of them.",
+           mDesignerPlane.Name.c_str(), Insert1000erDots(mDesignerPlaneCost).c_str(), mDesignerPlane.CalcPassagiere(), mDesignerPlane.CalcReichweite(),
+           mDesignerPlane.CalcVerbrauch(), mDesignerPlane.CalcSpeed(), mMission.designerPlanes);
+}
+
+/* Mirrors the counting in PLAYER::HasWon() for the two designer missions. */
+SLONG ClaudeBot::countQualifyingPlanes() const {
+    if (mMission.designerPlanes == 0) {
+        return 0;
+    }
+    SLONG n = 0;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const CPlane &qPlane = qPlayer.Planes[c];
+        if (qPlane.TypeId != -1) {
+            continue; /* only self-designed planes count */
+        }
+        if (mMission.difficulty == DIFF_ATFS05) {
+            if (qPlane.ptPassagiere >= BTARGET_PLANESIZE) {
+                n++;
+            }
+        } else if (qPlane.ptPassagiere > 0 && qPlane.ptGeschwindigkeit > 0 && qPlane.ptVerbrauch * 100 / qPlane.ptGeschwindigkeit <= BTARGET_VERBRAUCH) {
+            n++;
+        }
+    }
+    return n;
+}
+
+bool ClaudeBot::savingForDesigner() const {
+    if (mMission.designerPlanes == 0 || !mDesignerPlaneReady || countQualifyingPlanes() >= mMission.designerPlanes) {
+        return false;
+    }
+
+    /* Everything the cash could go to instead is a designer plane postponed, and these missions
+     * are a race. Advertising is the sink that matters: an unguarded ATFS08 run spent 30.4M on it
+     * by day 34 while the plane it needed cost 13.6M.
+     *
+     * The broker is deliberately not gated on this - see designerFleetFull(). The ordinary fleet
+     * is what earns the money the designer planes are paid for, so starving it stalls the whole
+     * mission: gating the broker here too left the airline on three planes. */
+    return true;
+}
+
+bool ClaudeBot::designerFleetFull() const {
+    if (mMission.designerPlanes == 0 || !mDesignerPlaneReady || countQualifyingPlanes() >= mMission.designerPlanes) {
+        return false;
+    }
+    SLONG havePlanes = 0;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0) {
+            havePlanes++;
+        }
+    }
+    return havePlanes >= kDesignerMinFleet;
+}
+
+void ClaudeBot::executeDesigner() {
+    mVisitedDesignerToday = true;
+
+    if (!mDesignerPlaneReady) {
+        AT_Error("ClaudeBot::executeDesigner(): No design prepared.");
+        return;
+    }
+    if (countQualifyingPlanes() >= mMission.designerPlanes) {
+        return; /* goal already met - another one would only burn cash */
+    }
+    if (qPlayer.Money - mDesignerPlaneCost < kDesignerCashReserve) {
+        AT_Log("ClaudeBot::executeDesigner(): Cannot afford %s $ yet (have %s $).", Insert1000erDots(mDesignerPlaneCost).c_str(),
+               Insert1000erDots64(qPlayer.Money).c_str());
+        return;
+    }
+
+    /* buyXPlane() reads the design back from disk, and parallel games share myplanes/, so make
+     * sure the file really holds our design before buying from it. Every game writes the same
+     * bytes for the same mission, so rewriting always converges. */
+    if (!mDesignerPlaneSaved || DoesFileExist(mDesignerPlaneFile) == 0) {
+        std::error_code ec;
+        std::filesystem::create_directory(CString(AppPath + MyPlanePath).c_str(), ec);
+        mDesignerPlane.Save(mDesignerPlaneFile);
+        mDesignerPlaneSaved = true;
+    }
+    CXPlane onDisk;
+    onDisk.Load(mDesignerPlaneFile);
+    if (onDisk.CalcCost() != mDesignerPlaneCost) {
+        AT_Warn("ClaudeBot::executeDesigner(): %s did not hold our design, rewriting it.", mDesignerPlaneFile.c_str());
+        mDesignerPlane.Save(mDesignerPlaneFile);
+    }
+
+    const std::vector<SLONG> bought = GameMechanic::buyXPlane(qPlayer, mDesignerPlaneFile, 1);
+    if (bought.empty()) {
+        AT_Error("ClaudeBot::executeDesigner(): buyXPlane() bought nothing.");
+        return;
+    }
+
+    /* Planes.Sort() runs inside BuyPlane(), so every cached plane index is now stale. */
+    mPlaneStateStale = true;
+    mNeedSchedule = true;
+    AT_Log("ClaudeBot::executeDesigner(): Bought %s for %s $. Now own %ld of the %ld the mission wants, cash %s $.", mDesignerPlane.Name.c_str(),
+           Insert1000erDots(mDesignerPlaneCost).c_str(), countQualifyingPlanes(), mMission.designerPlanes, Insert1000erDots64(qPlayer.Money).c_str());
+}
+
+
 
 /* DIFF_NORMAL is won by connecting the mission cities, and a pair that scores a flag is
  * worth having whatever it earns - so it is ranked as though it earned a lot. The bonus is
@@ -881,6 +1043,9 @@ void ClaudeBot::startNewDay() {
     /* Constant for a whole mission, but this is the one place that runs before anything
      * else every day, and it costs nothing to re-read. */
     setupMission();
+    /* Costs a few seconds and runs once per game, so only the two missions that need a designed
+     * plane ever pay for it. */
+    prepareDesignerPlane();
     mJobsTakenToday = 0;
     mVisitedPersonalToday = false;
     mVisitedMechToday = false;
@@ -890,6 +1055,7 @@ void ClaudeBot::startNewDay() {
     mVisitedBrokerToday = false;
     mVisitedBankToday = false;
     mVisitedStockToday = false;
+    mVisitedDesignerToday = false;
     mUpgradedToday = false;
     mAgencyEmptyToday = false;
     mAgencyVisitsToday = 0;
@@ -971,14 +1137,23 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *    the cash is not needed elsewhere. */
     /* The Arab is only worth a walk on a cheap day: capacity is useless without stock, and
      * stock is only worth buying below kKerosinBuyBelow. */
-    if (kUseFuelArbitrage && fuelIsCheap() && qPlayer.Tank < fuelTankTarget() && !mVisitedTanksToday && canUseAction(ACTION_BUY_KEROSIN_TANKS)) {
+    if (kUseFuelArbitrage && !savingForDesigner() && fuelIsCheap() && qPlayer.Tank < fuelTankTarget() && !mVisitedTanksToday &&
+        canUseAction(ACTION_BUY_KEROSIN_TANKS)) {
         out.push_back(ACTION_BUY_KEROSIN_TANKS);
     }
     if (kUseFuelArbitrage && fuelIsCheap() && !mVisitedKerosinToday && qPlayer.Tank > 0 && canUseAction(ACTION_BUY_KEROSIN)) {
         out.push_back(ACTION_BUY_KEROSIN);
     }
 
-    if (!mVisitedBrokerToday && (!mRoutes.empty() || mMission.noRouteBox) && qPlayer.Money > kCashBuffer && canUseAction(ACTION_BUYNEWPLANE)) {
+    /* 5b) The aeroplane designer. ATFS05 and ATFS08 are won by owning planes no catalogue sells,
+     *     so this outranks anything else the cash could buy. */
+    if (mDesignerPlaneReady && !mVisitedDesignerToday && countQualifyingPlanes() < mMission.designerPlanes &&
+        qPlayer.Money - mDesignerPlaneCost >= kDesignerCashReserve && canUseAction(ACTION_VISITDESIGNER)) {
+        out.push_back(ACTION_VISITDESIGNER);
+    }
+
+    if (!mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || mMission.noRouteBox) && qPlayer.Money > kCashBuffer &&
+        canUseAction(ACTION_BUYNEWPLANE)) {
         out.push_back(ACTION_BUYNEWPLANE);
     }
 
@@ -1010,7 +1185,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
     }
 
-    if (!mVisitedAdsToday && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] && canUseAction(ACTION_WERBUNG)) {
+    if (!mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
+        canUseAction(ACTION_WERBUNG)) {
         out.push_back(ACTION_WERBUNG);
     }
 
@@ -1189,6 +1365,10 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_BUYNEWPLANE:
         executeBuyPlane();
+        break;
+
+    case ACTION_VISITDESIGNER:
+        executeDesigner();
         break;
 
     case ACTION_EXPANDAIRPORT:
