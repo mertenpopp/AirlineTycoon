@@ -1019,3 +1019,36 @@ off, every run dies at `TeakLibW/Bitmap.cpp:22 CreatePrimarySurface failed`, the
 of exiting, so `timeout` kills it with exit code 124 and the mission table reads "no result". Any
 measurement taken in that state is void. Do not reach for `SDL_VIDEODRIVER` - see the rule in
 CLAUDE.md and the GPU-load incident behind it.
+
+2026-09-20 (evening) - last minute jobs
+----------------------------------------
+
+**ClaudeBot had never entered the last minute counter.** `ACTION_CHECKAGENT1` appeared nowhere in
+ClaudeBot.cpp, so its only passenger-job source was the travel agency, whose jobs all start at the
+home airport. Last minute jobs run between any two cities and pay far more. The symptom was
+visible on EASY: same seed, same two planes, neither bot buying used planes, ClaudeBot flew 33
+flights and 49 jobs for a saldo of 604,185 while MertenBot flew 20 and 20 for 2,572,713 - its jobs
+averaged 229k against ClaudeBot's 77k.
+
+`takeJobsFromBoard()` now holds the greedy pass and both counters call it; they differ only in the
+board and the GameMechanic call, whose signatures are identical. Last minute is planned ahead of
+the agency (it shuts earlier and pays more).
+
+  free game day-59 SaldoGesamt  2,141,078,215 -> 2,149,433,048
+  mission wins                  9 -> 10 (ATFS09 L -> W)
+  EASY ratio 464 -> 326, ATFS01 900 -> 509
+
+**Two corrections to the previous entry.** Used planes are *not* the lever: MertenBot buys none
+(gated off under `mLongTermStrategy`) and still wins these missions on two planes. And the free
+game's job profit floor of 1,000 was badly wrong for missions - `kMissionJobGain` now uses 50,000
+where no routes are flown. Swept on EASY, day-9 saldo: 1,000 -> 604,185 with 49 jobs; 50,000 ->
+976,665 with 18; 150,000 -> 765,105 with 6; 400,000 -> the bot stops flying and ends at -111,104.
+
+Still open, in order:
+1. EASY is still lost at ratio 326, and ATFS01 at 509 - both are "first to a cash/profit figure",
+   so the early ramp is still the weak point.
+2. **International branch offices**: no `bidOnCity`, no `ACTION_CALL_INTERNATIONAL`. In ATFS05
+   MertenBot holds 32 offices and earns 41.6M from freight by day 20; ClaudeBot holds 1 and earns 0.
+3. ATFS05/ATFS08 designs are fine; the ramp is what is missing (see the designer entry).
+4. ATFS09's harness ratio (508) disagrees with its win flag (ClaudeBot won). Unexplained; the win
+   flag is what `PLAYER::HasWon()` reports, the ratio is a separate STAT_MISSIONSZIEL sample.
