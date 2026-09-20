@@ -1011,4 +1011,118 @@ void printStatisticsLineForAllPlayers(const CString &prefix, bool printHeader) {
     }
 }
 
+CXPlane getHardcodedDesignerPlaneLarge() {
+    CXPlane designerPlane;
+    designerPlane.Name = "Bot Beluga";
+    designerPlane.Parts.ReSize(7);
+    designerPlane.Parts.FillAlbum();
+    designerPlane.Parts[0].Pos2d.x = -35;
+    designerPlane.Parts[0].Pos2d.y = -95;
+    designerPlane.Parts[0].Pos3d.x = 308;
+    designerPlane.Parts[0].Pos3d.y = 69;
+    designerPlane.Parts[0].Shortname = "M7";
+    designerPlane.Parts[0].ParentShortname = "R6";
+    designerPlane.Parts[0].ParentRelationId = 298;
+    designerPlane.Parts[1].Pos2d.x = -90;
+    designerPlane.Parts[1].Pos2d.y = -103;
+    designerPlane.Parts[1].Pos3d.x = 216;
+    designerPlane.Parts[1].Pos3d.y = 55;
+    designerPlane.Parts[1].Shortname = "L6";
+    designerPlane.Parts[1].ParentShortname = "B2";
+    designerPlane.Parts[1].ParentRelationId = 92;
+    designerPlane.Parts[2].Pos2d.x = 107;
+    designerPlane.Parts[2].Pos2d.y = -152;
+    designerPlane.Parts[2].Pos3d.x = 62;
+    designerPlane.Parts[2].Pos3d.y = 9;
+    designerPlane.Parts[2].Shortname = "H3";
+    designerPlane.Parts[2].ParentShortname = "B2";
+    designerPlane.Parts[2].ParentRelationId = 39;
+    designerPlane.Parts[3].Pos2d.x = -107;
+    designerPlane.Parts[3].Pos2d.y = -120;
+    designerPlane.Parts[3].Pos3d.x = 174;
+    designerPlane.Parts[3].Pos3d.y = 99;
+    designerPlane.Parts[3].Shortname = "B2";
+    designerPlane.Parts[3].ParentShortname.clear();
+    designerPlane.Parts[3].ParentRelationId = 1;
+    designerPlane.Parts[4].Pos2d.x = -171;
+    designerPlane.Parts[4].Pos2d.y = -83;
+    designerPlane.Parts[4].Pos3d.x = 424;
+    designerPlane.Parts[4].Pos3d.y = 204;
+    designerPlane.Parts[4].Shortname = "C2";
+    designerPlane.Parts[4].ParentShortname = "B2";
+    designerPlane.Parts[4].ParentRelationId = 11;
+    designerPlane.Parts[5].Pos2d.x = -50;
+    designerPlane.Parts[5].Pos2d.y = -30;
+    designerPlane.Parts[5].Pos3d.x = 126;
+    designerPlane.Parts[5].Pos3d.y = 243;
+    designerPlane.Parts[5].Shortname = "M7";
+    designerPlane.Parts[5].ParentShortname = "R6";
+    designerPlane.Parts[5].ParentRelationId = 297;
+    designerPlane.Parts[6].Pos2d.x = -90;
+    designerPlane.Parts[6].Pos2d.y = -78;
+    designerPlane.Parts[6].Pos3d.x = 92;
+    designerPlane.Parts[6].Pos3d.y = 169;
+    designerPlane.Parts[6].Shortname = "R6";
+    designerPlane.Parts[6].ParentShortname = "B2";
+    designerPlane.Parts[6].ParentRelationId = 91;
+    return designerPlane;
+}
+
+CXPlane getHardcodedDesignerPlaneEco() {
+    CXPlane designerPlane;
+    designerPlane.Name = "Bot Ecomaster";
+    designerPlane.Parts.ReSize(7);
+    designerPlane.Parts.FillAlbum();
+    designerPlane.Parts[0].Pos2d.x = -53;
+    designerPlane.Parts[0].Pos2d.y = -93;
+    designerPlane.Parts[0].Pos3d.x = 408;
+    designerPlane.Parts[0].Pos3d.y = 82;
+    designerPlane.Parts[0].Shortname = "M2";
+    designerPlane.Parts[0].ParentShortname = "R4";
+    designerPlane.Parts[0].ParentRelationId = 244;
+    designerPlane.Parts[1].Pos2d.x = -40;
+    designerPlane.Parts[1].Pos2d.y = -108;
+    designerPlane.Parts[1].Pos3d.x = 290;
+    designerPlane.Parts[1].Pos3d.y = 41;
+    designerPlane.Parts[1].Shortname = "L4";
+    designerPlane.Parts[1].ParentShortname = "B1";
+    designerPlane.Parts[1].ParentRelationId = 66;
+    designerPlane.Parts[2].Pos2d.x = 45;
+    designerPlane.Parts[2].Pos2d.y = -121;
+    designerPlane.Parts[2].Pos3d.x = 168;
+    designerPlane.Parts[2].Pos3d.y = 52;
+    designerPlane.Parts[2].Shortname = "H4";
+    designerPlane.Parts[2].ParentShortname = "B1";
+    designerPlane.Parts[2].ParentRelationId = 33;
+    designerPlane.Parts[3].Pos2d.x = -44;
+    designerPlane.Parts[3].Pos2d.y = -75;
+    designerPlane.Parts[3].Pos3d.x = 247;
+    designerPlane.Parts[3].Pos3d.y = 137;
+    designerPlane.Parts[3].Shortname = "B1";
+    designerPlane.Parts[3].ParentShortname.clear();
+    designerPlane.Parts[3].ParentRelationId = 0;
+    designerPlane.Parts[4].Pos2d.x = -92;
+    designerPlane.Parts[4].Pos2d.y = -76;
+    designerPlane.Parts[4].Pos3d.x = 350;
+    designerPlane.Parts[4].Pos3d.y = 167;
+    designerPlane.Parts[4].Shortname = "C1";
+    designerPlane.Parts[4].ParentShortname = "B1";
+    designerPlane.Parts[4].ParentRelationId = 5;
+    designerPlane.Parts[5].Pos2d.x = -53;
+    designerPlane.Parts[5].Pos2d.y = -4;
+    designerPlane.Parts[5].Pos3d.x = 189;
+    designerPlane.Parts[5].Pos3d.y = 275;
+    designerPlane.Parts[5].Shortname = "M2";
+    designerPlane.Parts[5].ParentShortname = "R4";
+    designerPlane.Parts[5].ParentRelationId = 243;
+    designerPlane.Parts[6].Pos2d.x = -40;
+    designerPlane.Parts[6].Pos2d.y = -41;
+    designerPlane.Parts[6].Pos3d.x = 119;
+    designerPlane.Parts[6].Pos3d.y = 196;
+    designerPlane.Parts[6].Shortname = "R4";
+    designerPlane.Parts[6].ParentShortname = "B1";
+    designerPlane.Parts[6].ParentRelationId = 65;
+    return designerPlane;
+}
+
 } // namespace Helper

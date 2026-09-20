@@ -552,7 +552,14 @@ Use action ID ACTION_BUYUSEDPLANE to walk to the museum. Only there, the followi
 
 `bool GameMechanic::sellPlane(PLAYER &qPlayer, SLONG planeID)`: Sells a plane to the museum. Ensure that no flights are scheduled for this plane before selling. Use the function `CPlane::CanBeSold` to check. Value of a plane is calculated as `CPlane::ptPreis * CPlane::Zustand / 10000 * CPlane::Zustand * (CPlane::Baujahr - kYearsSinceRelease - 1900) / 120`. Value is reduced to only 10% if it is a starting plane (`CPlane::Sponsored != 0`).
 
-`std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount)`: Buys a designed plane. DO NOT USE CURRENTLY.
+Designer actions
+----------------
+
+Use the action ID ACTION_VISITDESIGNER to visit the plane designer room. Only while in this room, the following functions may be called.
+
+`std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filename, SLONG amount)`: Buys the specified amount of the designed plane defined in file `filename`.
+
+Reading the global array `gPlanePartRelations` is necessary to check if parts are compatible.
 
 Advertisement / marketing actions
 ---------------------------------
@@ -963,6 +970,31 @@ The following member function may be called:
 - `CPlane::CalculatePrice`: Current value of the plane. Call allowed while in museum.
 - `CPlane::CanBeSold`: Checks if plane has flights scheduled. Call allowed while in museum.
 
+### CXPlane object
+
+Describes a custom plane design. The following fields may be accessed:
+
+- `Name`: Name of the design. May be read and written.
+- `Cost`: Cost of the design. Read-only.
+- `Parts`: List of individual parts. May be read and written.
+- `CalcCost()`: May be called to get the cost of this design.
+- `CalcPassagiere()`: May be called to get the max. passenger count of this design.
+- `CalcReichweite()`: May be called to get the max. range of this design.
+- `CalcVerbrauch()`: May be called to get the fuel consumption of this design.
+- `CalcWeight()`: May be called to get the weight of this design.
+- `CalcPower()`: May be called to get the engine power of this design.
+- `CalcNoise()`: May be called to get the noise of this design.
+- `CalcWartung()`: May be called to get the maintenance cost factor of this design.
+- `CalcTank(bool bFaked = false)`: Use the default argument. May be called to get the tank volume of this design.
+- `CalcSpeed()`: May be called to get the max. speed of this design.
+- `CalcPiloten()`: May be called to get the required number of pilots of this design.
+- `CalcBegleiter()`: May be called to get the required number of stewardesses of this design.
+- `Load(const CString &Filename)`: Loads design from the specified file.
+- `Save(const CString &Filename)`: Stores design in the specified file.
+- `IsBuildable()`: Check if current design is valid and whether planes with this design can be bought.
+
+A plane is designed by filling the `Parts` array and check if it is buildable using `IsBuildable()`. The design needs to be saved in order to use it to buy planes with this design. Save plane designs to `AppPath + MyPlanePath`, create the folder if necessary.
+
 ### RentRouten objects
 
 Located in each `PLAYER` object at `qPlayer.RentRouten.RentRouten`. Contains an instance of type `CRentRoute` for every instance of `CRoute` in the global array `Routen` at the same index. `CRentRoute` describes whether `qPlayer` rents and flies the corresponding route.
@@ -1113,6 +1145,7 @@ DIFF_TUTORIAL:
 - No ITEM_POSTKARTE / ITEM_BH / ITEM_DISKETTE / ITEM_DART
 - No access to route box / arab air
 - No access to ads
+- No access to designer room or designed planes
 - Max. two gates / check-in-halls
 - No freight depot available
 
@@ -1120,6 +1153,7 @@ DIFF_FIRST:
 - Target: Transport 2500 passengers first
 - No ITEM_DISKETTE / ITEM_DART
 - No access to ads
+- No access to designer room or designed planes
 - Max. two gates / check-in-halls
 - No freight depot available
 
@@ -1128,6 +1162,7 @@ DIFF_EASY:
 - Different starting planes
 - No ITEM_DISKETTE / ITEM_DART
 - No access to ads
+- No access to designer room or designed planes
 - Max. two gates / check-in-halls
 - No freight depot available
 
@@ -1206,6 +1241,7 @@ DIFF_ATFS04:
 
 DIFF_ATFS05:
 - Target: Be first to have three planes that can transport 600 passengers (requires airplane designer: `Planes[d].TypeId == -1`)
+- A plane design that meets this expectation can be obtained from `Helper::getHardcodedDesignerPlaneLarge()`
 
 DIFF_ATFS06:
 - Target: Survive 15 days without becoming a victim of sabotage and have atleast 5 planes
@@ -1217,6 +1253,7 @@ DIFF_ATFS07:
 
 DIFF_ATFS08:
 - Target: Be first to have five planes that with `Planes[d].ptVerbrauch * 100 / Planes[d].ptGeschwindigkeit <= 500` (requires airplane designer: `Planes[d].TypeId == -1`)
+- A plane design that meets this expectation can be obtained from `Helper::getHardcodedDesignerPlaneEco()`
 
 DIFF_ATFS09:
 - Target: Highest company value after 45 days
@@ -1235,7 +1272,6 @@ DIFF_ATFS10:
 - All planes damaged by 40% on day 35.
 - All workers made unhappy by 45% on day 20 and day 45.
 - No used planes between days 40 and 50.
-
 
 Notes regarding code base
 =========================

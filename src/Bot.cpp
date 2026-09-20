@@ -165,12 +165,12 @@ void Bot::RobotInit(SLONG randomSeed) {
             if (Sim.Difficulty == DIFF_ATFS05) {
                 mOptions.kSwitchToRoutesNumPlanesMin = std::max(3, mOptions.kSwitchToRoutesNumPlanesMin);
                 mOptions.kSwitchToRoutesNumPlanesMax = std::max(3, mOptions.kSwitchToRoutesNumPlanesMax);
-                setHardcodedDesignerPlaneLarge();
+                mDesignerPlane = Helper::getHardcodedDesignerPlaneLarge();
                 mDesignerPlaneFile = FullFilename("botplane_atfs05_1.plane", MyPlanePath);
             } else if (Sim.Difficulty == DIFF_ATFS08) {
                 mOptions.kSwitchToRoutesNumPlanesMin = std::max(5, mOptions.kSwitchToRoutesNumPlanesMin);
                 mOptions.kSwitchToRoutesNumPlanesMax = std::max(5, mOptions.kSwitchToRoutesNumPlanesMax);
-                setHardcodedDesignerPlaneEco();
+                mDesignerPlane = Helper::getHardcodedDesignerPlaneEco();
                 mDesignerPlaneFile = FullFilename("botplane_atfs08_1.plane", MyPlanePath);
             }
             if (!mDesignerPlaneFile.empty()) {
