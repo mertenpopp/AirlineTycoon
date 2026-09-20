@@ -875,3 +875,72 @@ twice` (11x, mission 3).
 
 Next: decide whether ClaudeBot should get a route-free bootstrap (open-tail window with a
 forced return leg) - it is the one change that would also protect the free game.
+
+## 2026-09-20 - ClaudeBot learns to play missions (first cut)
+
+Two parts, as asked: stop missions breaking the bot, then aim it at the goal. Everything goes
+through one `ClaudeBot::Mission` struct read from `Sim.Difficulty` in `startNewDay()`; every
+flag in it is false in the free game, so the free game runs through the same code as before.
+Which of the two sources a flag comes from follows what the game keys on: room availability is
+a `PLAYER::RobotUse()` feature, because that is the table the airport is built from, and a win
+condition has no feature flag at all, so those are read off `Sim.Difficulty` like `HasWon()`.
+
+### Part 1: robustness
+
+- `canUseAction()` refuses any action whose room has no `RUNE_2SHOP` entrance, and honours
+  `ROBOT_USE_FRACHT`. This was the SIGABRT in mission 11 (committed separately) and would have
+  hit `ACTION_VISITTELESCOPE` -> `ROOM_RUSHMORE` next.
+- No loans below 1000, which `takeOutCredit()` refuses.
+- **The route-free deadlock.** `collectGaps()` only ever returned a window bounded by a
+  *following* flight, so with no route box the flight plans stayed empty, no window existed and
+  no job could ever be accepted: 76,590 agency visits over 2553 days of the tutorial, 0 jobs.
+  It now opens a tail window in those missions. Two things had to follow:
+  - The tail is not charged the empty return, because the game only inserts one *between* two
+    planned flights (Planetyp.cpp:700-760), and the plane stays where the job left it, so the
+    window's city moves with it.
+  - A plane may then depart from anywhere: the game repositions it before the first planned
+    flight, so the leg is paid for and waited out instead of refused. Without that the airline
+    seized up after one job each - every offer departs from the home airport, and a plane that
+    had flown once was stranded for good. That one change took the tutorial from day 73 to day 2.
+
+### Part 2: goals
+
+`wantDebtFree` (ADDON01) repays instead of borrowing; `wantImage` (HARD) buys past the payback
+saturation; `conditionPlanes` (ADDON07, ATFS02) and `wantUpgrades`/`upgradePlanes` (ADDON05,
+ATFS02) fit out only as many planes as the goal names; `wantFreight`/`wantFreeFreight`
+(ADDON02, ADDON03) rank contracts by tonnage, and ADDON03 now takes exactly the `Praemie == 0`
+contracts the old `Praemie <= 0` filter threw away; `wantMissionCities` (NORMAL) outranks
+everything at the route box.
+
+One measured correction: repairing the whole fleet to 100 bankrupted all three ClaudeBots by
+day 7 of ADDON07. A mission fleet starts at Zustand 35 with a million in the bank, and
+`Improvement * ptPreis / 110` was 3.7M and 6.3M for two planes in a single night. The repair
+target is now only raised while the last points are cheap (`WorstZustand + 20 >= 90`), and the
+cheap way to own a plane at 90 is to buy one - they are delivered at 100.
+
+### Result
+
+26 missions at seed 1, `scripts/run_missions.sh 666`: **17 won, 0 crashes, 0 non-zero exits**,
+against 12 won and one SIGABRT before. Missions that flipped: 0 (never -> day 2), 1 (never ->
+day 6), 4 (123 -> 63), 11 (crash -> 46), 12 (never -> 350), 18, 41, 42 (never -> 71), 43, 44,
+46, 47, 49.
+
+Free game unchanged, checked paired on six seeds: five byte-identical to the pre-change build.
+Seed 6 differed, but it is **not deterministic on its own** - two runs of the identical old
+build gave 85,573,300 and 28,375,854, the first matching the new build exactly. Worth knowing
+for the harness: a seed fixes the game, not the run, so `compare_paired.py` reduces the noise
+rather than removing it.
+
+### Still unwon, and why
+
+- **45 (ATFS05) and 48 (ATFS08) are unreachable**: both count only `Planes[d].TypeId == -1`,
+  a self-designed plane, and ClaudeBot never enters the designer.
+- **5 and 20** need the NASA room, which ClaudeBot never enters either.
+- **17 (ADDON07)** no longer goes bankrupt but stays poor: a 2.9M budget against a 9.9M
+  cheapest airframe, so it never buys the two planes the goal wants.
+- **3 (NORMAL)** still not won despite the mission-city bonus - the pairs are rented, so the
+  utilisation or the ten-flag count is what is missing.
+- **2, 19** and **16** (where the idle human wins on company value) are ordinary economy.
+
+Next: the aeroplane designer, which closes two missions outright, then mission 17's capital
+problem.

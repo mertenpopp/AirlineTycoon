@@ -44,6 +44,32 @@ static const SLONG kMinJobGain = 1000;
 /* Smallest loan GameMechanic::takeOutCredit() accepts. Asking for less is rejected. */
 static const SLONG kMinCredit = 1000;
 
+/* --- missions ---
+ *
+ * The free game never reads any of these: every one of them sits behind a ClaudeBot::Mission
+ * flag, and those are all false outside a mission. */
+
+/* What a route to one of Sim.MissionCities is worth on top of what it earns, in the same
+ * per-plane-hour units routeValuePerHour() returns. DIFF_NORMAL is won by holding ten such
+ * routes, so any of them beats the best ordinary pair. */
+static const SLONG kMissionCityBonus = 10000000;
+
+/* How far ahead a job may be placed when there are no routes to bound the windows with.
+ * Long enough that a long haul out-and-back fits, short enough that the plan stays close
+ * to what the travel agency is actually offering. */
+static const SLONG kJobOnlyHorizonDays = 4;
+
+/* Cash kept back when paying off the loan in DIFF_ADDON01. The goal is a zero balance at
+ * 09:00, not a zero balance all day, and an airline that cannot buy kerosene stops flying. */
+static const __int64 kDebtFreeCashReserve = 1500000;
+
+/* The condition DIFF_ADDON07 and DIFF_ATFS02 are won at. */
+static const SLONG kConditionGoal = 90;
+
+/* Aeroplanes a mission hands out, all of them damaged. Anything above this many is one we
+ * bought ourselves, which means it was delivered at Zustand 100. */
+static const SLONG kMissionStartingPlanes = 2;
+
 /* Hours left free at the end of an idle window a job is fitted into. A job that overruns
  * its window pushes the following route leg later, which costs a sixth of its passengers
  * per night hour, so the window is never filled to the brim. */
@@ -712,6 +738,92 @@ SLONG ClaudeBot::planeIndex(ULONG uid) const {
     return qPlayer.Planes.find(uid);
 }
 
+/* Reads the mission off Sim.Difficulty.
+ *
+ * Which of the two the flag comes from - the mission number or PLAYER::RobotUse() - follows
+ * what the game itself keys on. Room availability is a RobotUse() feature, because that is
+ * the table the game builds the airport from; a win condition has no feature flag at all,
+ * so those are read straight off Sim.Difficulty, matching PLAYER::HasWon(). */
+void ClaudeBot::setupMission() {
+    Mission m{};
+    m.difficulty = Sim.Difficulty;
+    m.isMission = (Sim.Difficulty != DIFF_FREEGAME && Sim.Difficulty != DIFF_FREEGAMEMAP);
+    if (!m.isMission) {
+        mMission = m;
+        return;
+    }
+
+    /* Helper::checkRoomOpen() answers this for the route box, and canUseAction() adds the
+     * airport's own answer on top; both are constant for a whole mission. */
+    m.noRouteBox = !canUseAction(ACTION_VISITROUTEBOX);
+
+    switch (Sim.Difficulty) {
+    case DIFF_HARD:
+        m.wantImage = true;
+        break;
+    case DIFF_NORMAL:
+        m.wantMissionCities = true;
+        break;
+    case DIFF_ADDON01:
+        m.wantDebtFree = true;
+        break;
+    case DIFF_ADDON02:
+        m.wantFreight = true;
+        break;
+    case DIFF_ADDON03:
+        m.wantFreight = true;
+        m.wantFreeFreight = true;
+        break;
+    case DIFF_ADDON05:
+        /* Service points are summed over the whole fleet, so every plane counts. */
+        m.wantUpgrades = true;
+        m.upgradePlanes = -1;
+        break;
+    case DIFF_ADDON07:
+        m.conditionPlanes = 2;
+        break;
+    case DIFF_ATFS02:
+        m.conditionPlanes = 5;
+        m.wantUpgrades = true;
+        m.upgradePlanes = 5;
+        break;
+    default:
+        /* Every other mission is won by the ordinary economy - cash, company value,
+         * passengers, jobs flown - or by a room the bot does not use yet (the NASA
+         * missions, the two that need the aeroplane designer). */
+        break;
+    }
+
+    mMission = m;
+}
+
+bool ClaudeBot::routesAvailable() const { return !mMission.noRouteBox; }
+
+/* DIFF_NORMAL is won by connecting the mission cities, and a pair that scores a flag is
+ * worth having whatever it earns - so it is ranked as though it earned a lot. The bonus is
+ * only ever added to the ranking, never to anything the economy is sized from. */
+SLONG ClaudeBot::missionRouteBonus(const CRoute &qRoute) const {
+    if (!mMission.wantMissionCities) {
+        return 0;
+    }
+    const ULONG home = Cities(Sim.HomeAirportId);
+    const ULONG von = Cities(qRoute.VonCity);
+    const ULONG nach = Cities(qRoute.NachCity);
+    ULONG other = nach;
+    if (von != home) {
+        if (nach != home) {
+            return 0; /* the flag only counts a route that starts at home */
+        }
+        other = von;
+    }
+    for (SLONG i = 0; i < Sim.MissionCities.AnzEntries(); i++) {
+        if (other == Cities(Sim.MissionCities[i])) {
+            return kMissionCityBonus;
+        }
+    }
+    return 0;
+}
+
 bool ClaudeBot::canUseAction(SLONG actionId) const {
     if (!Helper::checkRoomOpen(actionId)) {
         return false;
@@ -736,7 +848,14 @@ bool ClaudeBot::canUseAction(SLONG actionId) const {
 
     /* Not every mission builds every room. Walking to a room the airport does not have
      * throws inside GetRandomTypedRune() and takes the whole game down with it, so no
-     * action may be planned for a room without an entrance. */
+     * action may be planned for a room without an entrance.
+     *
+     * An airport with no runes at all has not been loaded yet rather than been built
+     * without rooms, and answering "no room exists" there would shut the bot down for the
+     * day. Trust the mission's own room table in that case. */
+    if (Airport.Runes.AnzEntries() == 0) {
+        return true;
+    }
     return Airport.DoesRuneExist(RUNE_2SHOP, static_cast<UBYTE>(roomId)) != 0;
 }
 
@@ -759,6 +878,9 @@ void ClaudeBot::startNewDay() {
         return;
     }
     mDay = Sim.Date;
+    /* Constant for a whole mission, but this is the one place that runs before anything
+     * else every day, and it costs nothing to re-read. */
+    setupMission();
     mJobsTakenToday = 0;
     mVisitedPersonalToday = false;
     mVisitedMechToday = false;
@@ -820,7 +942,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     /* 3) Borrow to the limit, every day. Loan interest is not part of the operating
      *    result and the game has no bankruptcy, so leverage is free: the cash buys
      *    planes, which are the only thing that scales revenue. */
-    if (!mVisitedBankToday && qPlayer.CalcCreditLimit() >= kMinCredit && canUseAction(ACTION_RAISEMONEY)) {
+    if (!mVisitedBankToday && canUseAction(ACTION_RAISEMONEY) &&
+        (mMission.wantDebtFree ? (qPlayer.Credit > 0 && qPlayer.Money > kDebtFreeCashReserve) : (qPlayer.CalcCreditLimit() >= kMinCredit))) {
         out.push_back(ACTION_RAISEMONEY);
     }
 
@@ -855,7 +978,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         out.push_back(ACTION_BUY_KEROSIN);
     }
 
-    if (!mVisitedBrokerToday && !mRoutes.empty() && qPlayer.Money > kCashBuffer && canUseAction(ACTION_BUYNEWPLANE)) {
+    if (!mVisitedBrokerToday && (!mRoutes.empty() || mMission.noRouteBox) && qPlayer.Money > kCashBuffer && canUseAction(ACTION_BUYNEWPLANE)) {
         out.push_back(ACTION_BUYNEWPLANE);
     }
 
@@ -887,7 +1010,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
     }
 
-    if (!mVisitedAdsToday && !mRoutes.empty() && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] && canUseAction(ACTION_WERBUNG)) {
+    if (!mVisitedAdsToday && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] && canUseAction(ACTION_WERBUNG)) {
         out.push_back(ACTION_WERBUNG);
     }
 
@@ -907,8 +1030,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     /* 7) Freight is a second pool of work for the same idle windows, so it is checked after
      *    the travel agency: a passenger job pays its whole premium on one flight, a freight
      *    contract only on its last one. */
-    if (kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < kMaxFreightPerDay &&
-        canUseAction(ACTION_CHECKAGENT3)) {
+    const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
+    if (kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3)) {
         out.push_back(ACTION_CHECKAGENT3);
     }
 }
@@ -1415,11 +1538,34 @@ void ClaudeBot::hireAdvisors() {
  * [fromDate, toDate] is the contract window the departure has to fall into. */
 bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
                               PlaneTime &outBack, SLONG &outCost) {
-    if (qGap.city < 0 || static_cast<ULONG>(qGap.city) != vonCity) {
-        return false; /* repositioning first would eat the premium and the window */
+    if (qGap.city < 0) {
+        return false;
     }
 
     PlaneTime start = qGap.start;
+    SLONG costReposition = 0;
+    if (static_cast<ULONG>(qGap.city) != vonCity) {
+        if (!qGap.openTail) {
+            return false; /* repositioning first would eat the premium and the window */
+        }
+        /* An open tail may serve a job departing from anywhere, because the game flies the
+         * aeroplane to the departure city itself before the first planned flight
+         * (Planetyp.cpp:700-717). It only has to pay for that empty leg and wait for it.
+         *
+         * Without this the airline seizes up after one job each: every offer the travel
+         * agency makes departs from the home airport, nothing follows a job to bring the
+         * plane back, and a plane that has flown once is stranded for the rest of the game. */
+        int costRep = 0;
+        int durationRep = 0;
+        int distRep = 0;
+        calcCostAndDuration(Cities.find(static_cast<ULONG>(qGap.city)), Cities.find(vonCity), qPlane, true, costRep, durationRep, distRep);
+        if (durationRep > 24) {
+            return false;
+        }
+        costReposition = costRep;
+        start = start + durationRep + 1;
+    }
+
     if (start.getDate() < fromDate) {
         start = PlaneTime{fromDate, 0};
     }
@@ -1457,13 +1603,27 @@ bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG 
     /* One idle hour after each landing, plus one hour of slack so a rounding difference
      * against CalcFlugdauer() cannot turn into a shifted route leg. */
     PlaneTime back = start + durationOut + 1 + durationBack + 1;
+    if (qGap.openTail) {
+        /* Nothing follows, so there is no return to make room for and none to pay for: the
+         * plane simply stays where the leg left it and the next one departs from there.
+         * Charging the return here would reject most of what the tutorial offers, because
+         * its premiums are small and a wide-body's empty return is not. */
+        back = start + durationOut + 1;
+        if (back + kJobGapSlack > qGap.end) {
+            return false;
+        }
+        outStart = start;
+        outBack = back;
+        outCost = costOut + costReposition;
+        return true;
+    }
     if (back + kJobGapSlack > qGap.end) {
         return false;
     }
 
     outStart = start;
     outBack = back;
-    outCost = costOut + costBack;
+    outCost = costOut + costBack + costReposition;
     return true;
 }
 
@@ -1605,6 +1765,27 @@ void ClaudeBot::executeMech() {
         GameMechanic::setMechMode(qPlayer, kMechMode);
     }
 
+    /* The planes a condition mission is going to rebuild: the ones already closest to the
+     * goal, so the least is paid for the points still missing.
+     *
+     * Rebuilding the whole fleet instead is what a first attempt did, and all three
+     * airlines were bankrupt by day 7 of DIFF_ADDON07: the mission hands out a fleet at
+     * Zustand 35 and a million in the bank, and every point above WorstZustand + 20 is
+     * charged Improvement * ptPreis / 110 that night. */
+    std::vector<SLONG> rebuild;
+    if (mMission.conditionPlanes > 0) {
+        for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+            if (qPlayer.Planes.IsInAlbum(c) != 0) {
+                rebuild.push_back(c);
+            }
+        }
+        std::sort(rebuild.begin(), rebuild.end(),
+                  [&](SLONG a, SLONG b) { return qPlayer.Planes[a].Zustand > qPlayer.Planes[b].Zustand; });
+        if (static_cast<SLONG>(rebuild.size()) > mMission.conditionPlanes) {
+            rebuild.resize(mMission.conditionPlanes);
+        }
+    }
+
     SLONG changed = 0;
     SLONG worst = 100;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
@@ -1614,7 +1795,16 @@ void ClaudeBot::executeMech() {
         const auto &qPlane = qPlayer.Planes[c];
         worst = std::min(worst, static_cast<SLONG>(qPlane.Zustand));
 
-        SLONG target = std::min<SLONG>(100, static_cast<SLONG>(qPlane.WorstZustand) + 20);
+        /* Normally the target trails WorstZustand, because a full rebuild is charged
+         * Improvement * ptPreis / 110 every night. The few planes a condition mission is
+         * won with are the exception: there the repair bill is the price of the mission. */
+        /* Only while the last points are cheap. Everything above WorstZustand + 20 is
+         * charged Improvement * ptPreis / 110 that night, and on a mission fleet starting at
+         * Zustand 35 that is 3.7 and 6.3 million for two aeroplanes in one night against a
+         * million in the bank. The cheap way to own an aeroplane at 90 is to buy one - they
+         * arrive at 100 - which is what executeBuyPlane() does for these missions. */
+        const bool forGoal = std::find(rebuild.begin(), rebuild.end(), c) != rebuild.end() && static_cast<SLONG>(qPlane.WorstZustand) + 20 >= kConditionGoal;
+        SLONG target = forGoal ? 100 : std::min<SLONG>(100, static_cast<SLONG>(qPlane.WorstZustand) + 20);
         if (static_cast<SLONG>(qPlane.TargetZustand) != target) {
             GameMechanic::setPlaneTargetZustand(qPlayer, c, target);
             changed++;
@@ -1808,7 +1998,7 @@ void ClaudeBot::executeRouteBox() {
             }
             nInRange++;
 
-            SLONG value = routeValuePerHour(qFor, qRoute);
+            SLONG value = routeValuePerHour(qFor, qRoute) + missionRouteBonus(qRoute);
             if (value > bestRejectedValue) {
                 bestRejectedValue = value;
                 bestRejected = r;
@@ -1961,10 +2151,6 @@ void ClaudeBot::executeRouteBox() {
 void ClaudeBot::executeBuyPlane() {
     mVisitedBrokerToday = true;
 
-    if (mRoutes.empty()) {
-        return; /* nothing to fly it on yet */
-    }
-
     /* Every plane drags scored cost behind it - kerosene, wages, maintenance, and via
      * wantRoutes another route pair's rent - while the cash that buys it is not scored.
      * Uncapped growth funded by share issues measured -914,252 against +1,472,113 for the
@@ -1976,6 +2162,77 @@ void ClaudeBot::executeBuyPlane() {
         }
     }
     if (havePlanes >= kMaxPlanes) {
+        return;
+    }
+
+    /* A new aeroplane is delivered at Zustand 100, and only the aeroplanes the mission
+     * hands out start damaged. So the missions won by owning a few aeroplanes in good
+     * condition are won at the broker, not at the mechanic - see executeMech(). Buy the
+     * cheapest thing on the lot until the starting fleet is outnumbered by new ones.
+     *
+     * Zustand may not be read here (RULES.md: the mechanic, the office or the laptop), so
+     * this counts aeroplanes rather than their condition. */
+    if (mMission.conditionPlanes > 0 && havePlanes < kMissionStartingPlanes + mMission.conditionPlanes) {
+        const __int64 goalBudget = qPlayer.Money - DEBT_LIMIT - kPlaneCashReserve;
+        SLONG cheapest = -1;
+        for (SLONG type : GameMechanic::getAvailablePlaneTypes()) {
+            if (PlaneTypes[type].Preis > goalBudget) {
+                continue;
+            }
+            if (cheapest < 0 || PlaneTypes[type].Preis < PlaneTypes[cheapest].Preis) {
+                cheapest = type;
+            }
+        }
+        if (cheapest >= 0 && !GameMechanic::buyPlane(qPlayer, cheapest, 1).empty()) {
+            mVisitedPersonalToday = false;
+            mPlaneStateStale = true;
+            mNeedSchedule = true;
+            AT_Log("ClaudeBot::executeBuyPlane(): Condition mission: bought %s for %s, fleet now %ld, cash %s.", PlaneTypes[cheapest].Name.c_str(),
+                   Insert1000erDots64(PlaneTypes[cheapest].Preis).c_str(), havePlanes + 1, Insert1000erDots64(qPlayer.Money).c_str());
+            return;
+        }
+    }
+
+    if (mRoutes.empty()) {
+        if (!mMission.noRouteBox) {
+            return; /* nothing to fly it on yet */
+        }
+
+        /* Missions without a route box are won by flying jobs, and a job is taken only if
+         * an idle aeroplane can carry it: capacity is the whole of it, and there is no
+         * route to size the aircraft against. Rank by cabin per crew member, which is the
+         * same scarce input the route-driven ranking above settles on, and buy one - the
+         * broker opens again tomorrow. */
+        const __int64 jobBudget = qPlayer.Money - DEBT_LIMIT - kPlaneCashReserve;
+        if (jobBudget <= 0) {
+            return;
+        }
+        SLONG jobType = -1;
+        SLONG jobValue = 0;
+        for (SLONG type : GameMechanic::getAvailablePlaneTypes()) {
+            const auto &qType = PlaneTypes[type];
+            if (qType.Preis > jobBudget) {
+                continue;
+            }
+            const SLONG crew = std::max<SLONG>(1, qType.AnzPiloten + qType.AnzBegleiter);
+            const SLONG value = qType.Passagiere / crew;
+            if (value <= jobValue) {
+                continue;
+            }
+            jobValue = value;
+            jobType = type;
+        }
+        if (jobType < 0) {
+            return;
+        }
+        if (GameMechanic::buyPlane(qPlayer, jobType, 1).empty()) {
+            return;
+        }
+        mVisitedPersonalToday = false;
+        mPlaneStateStale = true;
+        mNeedSchedule = true;
+        AT_Log("ClaudeBot::executeBuyPlane(): Mission without routes: bought %s %s for %s, cash now %s.", PlaneTypes[jobType].Hersteller.c_str(),
+               PlaneTypes[jobType].Name.c_str(), Insert1000erDots64(PlaneTypes[jobType].Preis).c_str(), Insert1000erDots64(qPlayer.Money).c_str());
         return;
     }
 
@@ -2323,6 +2580,13 @@ void ClaudeBot::executeAds() {
         target = 0;
     }
 
+    /* DIFF_HARD is won at Image >= TARGET_IMAGE, so there image is not an input to the
+     * economy that has to pay for itself - it is the whole game. Buy past the saturation
+     * point, with a margin for the erosion between two visits. */
+    if (mMission.wantImage) {
+        target = std::min<SLONG>(1000, TARGET_IMAGE + mImageDecayPerDay * daysToCover + 50);
+    }
+
     /* Airline image costs 50,000 a point and counts once; route image costs 30,000 and
      * counts four times, so a route point is worth six airline points. Airline image only
      * gets the cash a plane cannot use. */
@@ -2355,6 +2619,10 @@ void ClaudeBot::executeAds() {
 void ClaudeBot::executeUpgrades() {
     mUpgradedToday = true;
 
+    /* How many planes the mission's fitting goal has been spent on so far. Album indices
+     * are not contiguous, so the count cannot come from the loop variable. */
+    SLONG upgraded = 0;
+
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
         if (qPlayer.Planes.IsInAlbum(c) == 0) {
             continue;
@@ -2364,6 +2632,33 @@ void ClaudeBot::executeUpgrades() {
         /* Committing to an upgrade we cannot pay for when it is applied is a classic way
          * to go bankrupt, so check the running total after every step. */
         auto affordable = [&]() { return qPlayer.Money - qPlayer.CalcPlanePropSum() > kCashBuffer; };
+
+        /* DIFF_ADDON05 counts every fitting level as a service point, and DIFF_ATFS02 wants
+         * tyres, engines, safety and electronics at level 2. Both are bought here, subject
+         * to the same affordability rule as everything else - an upgrade committed to and
+         * not paid for when it is applied is the classic way to go bankrupt. */
+        if (mMission.wantUpgrades && (mMission.upgradePlanes < 0 || upgraded < mMission.upgradePlanes)) {
+            upgraded++;
+            auto raise = [&](UBYTE &target, UBYTE current) {
+                if (target == 2) {
+                    return;
+                }
+                target = 2;
+                if (!affordable()) {
+                    target = current;
+                }
+            };
+            raise(qPlane.ReifenTarget, qPlane.Reifen);
+            raise(qPlane.TriebwerkTarget, qPlane.Triebwerk);
+            raise(qPlane.SicherheitTarget, qPlane.Sicherheit);
+            raise(qPlane.ElektronikTarget, qPlane.Elektronik);
+            /* Only DIFF_ADDON05 scores the cabin; DIFF_ATFS02 asks for the four above. */
+            if (mMission.difficulty == DIFF_ADDON05) {
+                raise(qPlane.SitzeTarget, qPlane.Sitze);
+                raise(qPlane.TablettsTarget, qPlane.Tabletts);
+                raise(qPlane.DecoTarget, qPlane.Deco);
+            }
+        }
 
         if (kCabinUpgrades && qPlane.SitzeTarget != 2) {
             qPlane.SitzeTarget = 2;
@@ -2426,6 +2721,19 @@ void ClaudeBot::executeUpgrades() {
 //--------------------------------------------------------------------------------------------
 void ClaudeBot::executeBank() {
     mVisitedBankToday = true;
+
+    /* DIFF_ADDON01 is won by owing nothing, so the bank is where the mission is decided:
+     * borrowing more would move the goal away. Pay back whatever the account can spare and
+     * keep enough behind to keep flying. */
+    if (mMission.wantDebtFree) {
+        const __int64 spare = qPlayer.Money - kDebtFreeCashReserve;
+        const __int64 amount = std::min<__int64>(spare, qPlayer.Credit);
+        if (amount > 0 && GameMechanic::payBackCredit(qPlayer, amount)) {
+            AT_Log("ClaudeBot::executeBank(): Paid back %s, %s debt left, cash now %s.", Insert1000erDots64(amount).c_str(),
+                   Insert1000erDots64(qPlayer.Credit).c_str(), Insert1000erDots64(qPlayer.Money).c_str());
+        }
+        return;
+    }
 
     /* GameMechanic::takeOutCredit() refuses anything below 1000, so a limit under that is
      * the same as no credit at all. */
@@ -2499,7 +2807,10 @@ void ClaudeBot::executeCheckAgent2() {
         SLONG bestJob = -1;
         SLONG bestPlane = -1;
         SLONG bestGap = -1;
-        SLONG bestGain = kMinJobGain;
+        /* Missions without a route box are won by the jobs flown - ten of them in the
+         * tutorial, 2500 passengers in DIFF_FIRST - so there the premium only has to cover
+         * the flight, not clear the profit floor the free game ranks by. */
+        SLONG bestGain = mMission.noRouteBox ? 0 : kMinJobGain;
         PlaneTime bestStart{};
 
         for (SLONG i = 0; i < ReisebueroAuftraege.AnzEntries(); i++) {
@@ -2529,6 +2840,14 @@ void ClaudeBot::executeCheckAgent2() {
         }
 
         if (bestJob < 0) {
+            if (taken == 0 && mMission.isMission) {
+                SLONG gaps = 0;
+                for (const auto &qState : mPlanes) {
+                    gaps += static_cast<SLONG>(qState.gaps.size());
+                }
+                AT_Log("ClaudeBot::executeCheckAgent2(): Nothing fits: %ld offer(s), %ld aeroplane(s) with %ld window(s), best gain %ld against a floor of %ld.",
+                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, mMission.noRouteBox ? 0 : kMinJobGain);
+            }
             break;
         }
 
@@ -2551,8 +2870,12 @@ void ClaudeBot::executeCheckAgent2() {
         }
 
         /* Book it into the simulated state: the window is used up until the plane is back
-         * in the city it started from. */
+         * in the city it started from - or, in an open tail, until it lands, because it
+         * stays at the destination and the next job departs from there. */
         qGap.start = back;
+        if (qGap.openTail) {
+            qGap.city = static_cast<SLONG>(qJob.NachCity);
+        }
 
         mJobsTakenToday++;
         taken++;
@@ -2601,9 +2924,12 @@ void ClaudeBot::executeCheckAgent3() {
 
     /* Greedy, most profitable contract first, re-evaluated after every acceptance because
      * the windows the last one used are gone. */
-    while (mFreightTakenToday < kMaxFreightPerDay) {
+    const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
+    while (mFreightTakenToday < freightCap) {
         SLONG bestJob = -1;
-        SLONG bestGain = kMinFreightGain;
+        /* In a tonnage mission any contract we can fly in time is worth taking, so the
+         * profit floor becomes a floor of zero tons. */
+        SLONG bestGain = mMission.wantFreight ? 0 : kMinFreightGain;
         std::vector<FreightLeg> bestLegs;
 
         for (SLONG i = 0; i < gFrachten.AnzEntries(); i++) {
@@ -2611,7 +2937,14 @@ void ClaudeBot::executeCheckAgent3() {
                 continue;
             }
             const auto &qFreight = gFrachten[i];
-            if (qFreight.VonCity == qFreight.NachCity || qFreight.Praemie <= 0) {
+            if (qFreight.VonCity == qFreight.NachCity || qFreight.Praemie < 0) {
+                continue; /* RULES.md: a contract is valid at Praemie >= 0 */
+            }
+            /* A contract paying nothing normally earns us nothing and still risks the fine,
+             * so it is skipped. DIFF_ADDON03 inverts that: NumFrachtFree, the only thing
+             * that mission scores, counts tons of contracts with Praemie == 0 and nothing
+             * else, so there they are the only ones worth flying. */
+            if ((qFreight.Praemie == 0) != mMission.wantFreeFreight) {
                 continue;
             }
             if (qFreight.BisDate < Sim.Date || qFreight.Date > Sim.Date + kMaxPlanDate) {
@@ -2626,7 +2959,9 @@ void ClaudeBot::executeCheckAgent3() {
                 continue; /* a part delivery earns nothing and still risks the fine */
             }
 
-            const SLONG gain = qFreight.Praemie - cost;
+            /* Tonnage missions are won by the tons carried, not by what they pay, so there
+             * the contracts are ranked by size and the cost is what the mission costs. */
+            const SLONG gain = mMission.wantFreight ? qFreight.Tons : qFreight.Praemie - cost;
             if (gain <= bestGain) {
                 continue;
             }
@@ -2905,6 +3240,26 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
             free = end;
         }
         city = static_cast<SLONG>(qFPE.NachCity);
+    }
+
+    /* Without a route box the plan is never filled, so the rule above - a window has to be
+     * bounded by a following flight - leaves every aeroplane with no window at all, and the
+     * airline can never accept its first job. In the two missions that have no rent-a-route
+     * counter (the tutorial and DIFF_FIRST) the tail is therefore a window too.
+     *
+     * What the bounded rule buys elsewhere is that the game flies the empty return itself,
+     * and it only does that between two planned flights (Planetyp.cpp:700-760). Here it does
+     * not, so the aeroplane stays where the job left it - which is harmless, because `city`
+     * carries that city into the window and the next job simply departs from there. The cost
+     * estimate still charges the return leg, so a job is only ever accepted for less than it
+     * really earns. */
+    if (mMission.noRouteBox) {
+        PlaneGap tail;
+        tail.start = free;
+        tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
+        tail.city = city;
+        tail.openTail = true;
+        gaps.push_back(tail);
     }
 
     return gaps;

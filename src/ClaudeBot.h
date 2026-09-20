@@ -46,6 +46,11 @@ class ClaudeBot {
         PlaneTime start{};
         PlaneTime end{}; /* departure of the next planned flight */
         SLONG city{-1};  /* where the plane waits, i.e. where a job must depart */
+        /* The open end of a flight plan nothing follows, which only exists in a mission
+         * without a route box - see collectGaps(). Nothing has to fit back into it, so a
+         * leg placed here is not charged a return the game will never fly, and the plane
+         * stays at the destination: the window's city moves with it. */
+        bool openTail{false};
     };
 
     /* One leg of a freight job placed into an idle window. `slot` indexes the parallel
@@ -104,7 +109,41 @@ class ClaudeBot {
         bool pricesSet{false};
     };
 
+    /* What the current mission changes about the game.
+     *
+     * Missions differ in two ways that matter: which rooms the airport has at all, and what
+     * counts as winning. Everything the bot does differently in a mission goes through one
+     * of these flags, so the free game keeps running through exactly the same code with
+     * every flag false. Derived from Sim.Difficulty once a day, never serialised. */
+    struct Mission {
+        SLONG difficulty{DIFF_FREEGAME};
+        bool isMission{false};
+        /* Rent-a-route does not exist in this mission, so the flight plans stay empty
+         * unless jobs alone fill them - see collectGaps(). */
+        bool noRouteBox{false};
+        /* Goals. At most one is set; several missions share a goal. */
+        bool wantDebtFree{false};    /* ADDON01: Credit == 0 and Money >= 0 */
+        bool wantImage{false};       /* HARD: Image >= TARGET_IMAGE */
+        /* ADDON07, ATFS02: how many planes the goal wants at 90 or better, 0 for none.
+         * Only that many are repaired: the extra repair charge is Improvement * ptPreis /
+         * 110 a night, which is the largest bill in the game, and a mission fleet starts at
+         * Zustand 35 with a million in the bank. */
+        SLONG conditionPlanes{0};
+        bool wantUpgrades{false};    /* ADDON05, ATFS02: service points / the four fittings */
+        /* How many planes have to carry the fittings, or -1 for the whole fleet (ADDON05
+         * counts every level on every plane). */
+        SLONG upgradePlanes{0};
+        bool wantFreight{false};     /* ADDON02, ADDON03: tonnage is the goal */
+        bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
+        bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
+    };
+
     /* --- planning --- */
+    void setupMission();
+    /* Whether this mission has a rent-a-route counter at all. */
+    bool routesAvailable() const;
+    /* Extra weight on a route the mission goal asks for, 0 otherwise. Route box only. */
+    SLONG missionRouteBonus(const CRoute &qRoute) const;
     void collectActions(std::vector<SLONG> &out) const;
     SLONG pickFillerAction();
     bool canUseAction(SLONG actionId) const;
@@ -175,6 +214,9 @@ class ClaudeBot {
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
+
+    /* Derived from Sim.Difficulty, so it is rebuilt rather than loaded with a savegame. */
+    Mission mMission{};
 
     bool mFirstRun{true};
     bool mIsSickToday{false};
