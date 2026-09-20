@@ -1000,11 +1000,22 @@ gate left every plane with zero windows and took ADDON02 from 15 tons to 0. ADDO
 ADDON02 went 15 -> 550 tons of 1000, ADDON01 finishes day 29 instead of 46. Free game byte-identical.
 
 Next, in order of what the evidence shows:
-1. **Used planes.** ClaudeBot has no museum path at all (`ACTION_BUYUSEDPLANE` appears zero times).
-   In EASY it sits on 6.8M with two planes and buys nothing, because no *new* plane fits the early
-   mission budget - while the legacy bot reaches three planes and wins. This blocks every short
-   mission.
+1. **Throughput per plane, probably not used planes.** In EASY ClaudeBot sits on 6.8M with two
+   planes and buys nothing. That part is explained: the cheapest new type in planetyp.csv is the
+   Il 62 at **9,900,000**, and *no* type costs under 9.9M, so 6.8M buys nothing. ClaudeBot also has
+   no museum path at all (`ACTION_BUYUSEDPLANE` appears zero times), which looked like the fix -
+   but MertenBot gates used planes off under `mLongTermStrategy` and still wins these missions, so
+   a third plane is probably not what decides EASY. The legacy bot's three planes are not evidence
+   either: it cheats. The likelier lever is earning more with the two planes - in ATFS05 MertenBot
+   banks 3.3x more than ClaudeBot on an identical fleet. **Unverified**: the MertenBot-vs-ClaudeBot
+   EASY comparison could not be run (see below).
 2. **International branch offices.** No `bidOnCity`, no `ACTION_CALL_INTERNATIONAL`. In ATFS05
    MertenBot holds 32 offices and earns 41.6M from freight by day 20; ClaudeBot holds 1 and earns 0.
 3. ATFS05/ATFS08 still need a faster ramp - see the designer entry above; the designs are not the
    limit, the earning rate is.
+
+**Harness note (2026-09-20 evening): the game needs a real display.** With the monitor switched
+off, every run dies at `TeakLibW/Bitmap.cpp:22 CreatePrimarySurface failed`, then *hangs* instead
+of exiting, so `timeout` kills it with exit code 124 and the mission table reads "no result". Any
+measurement taken in that state is void. Do not reach for `SDL_VIDEODRIVER` - see the rule in
+CLAUDE.md and the GPU-load incident behind it.
