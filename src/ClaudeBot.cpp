@@ -135,6 +135,15 @@ static const SLONG kFreightLegOpportunityCost = 20000;
  * opportunity cost above) for a freight contract to be worth accepting. */
 static const SLONG kMinFreightGain = 20000;
 
+/* Profit floor for a job in a mission that flies no routes.
+ *
+ * Far above the free game's kMinJobGain, because there the fleet grows to ~78 planes and an idle
+ * window is nearly free, while a mission has two planes and a fortnight: a window spent on a
+ * small job is one a large job cannot have. Measured on EASY, day-9 saldo against a floor of
+ * 1,000: 604,185 with 49 jobs flown. At 50,000 it is 976,665 with 18, at 150,000 765,105 with 6,
+ * and at 400,000 the bot stops flying altogether and ends at -111,104. */
+static const SLONG kMissionJobGain = 50000;
+
 /* Advisors we employ.
  *
  * Only the highest Talent of a type counts (PLAYER::HasBerater, Player.cpp:2224), so one
@@ -3006,10 +3015,15 @@ void ClaudeBot::executeCheckAgent2() {
         SLONG bestJob = -1;
         SLONG bestPlane = -1;
         SLONG bestGap = -1;
-        /* Missions that do not fly routes are won by the jobs flown - ten of them in the
-         * tutorial, 2500 passengers in DIFF_FIRST - so there the premium only has to cover
-         * the flight, not clear the profit floor the free game ranks by. */
-        SLONG bestGain = routesAvailable() ? kMinJobGain : 0;
+        /* Missions scored on the jobs *flown* - ten of them in the tutorial, 2500 passengers in
+         * DIFF_FIRST - only need the premium to cover the flight, not to clear the profit floor
+         * the free game ranks by. That is the no-route-box missions specifically, not every
+         * mission where we happen not to fly routes: EASY and ADDON01 are scored on profit, and
+         * dropping the floor there just fills the two planes with marginal work. Measured on
+         * EASY: with the floor removed ClaudeBot flew 33 flights and 49 jobs for a saldo of
+         * 604,185, against MertenBot's 20 flights, 20 jobs and 2,572,713 on the same two
+         * planes. */
+        SLONG bestGain = mMission.noRouteBox ? 0 : (mMission.noRoutes ? kMissionJobGain : kMinJobGain);
         PlaneTime bestStart{};
 
         for (SLONG i = 0; i < ReisebueroAuftraege.AnzEntries(); i++) {
@@ -3045,7 +3059,7 @@ void ClaudeBot::executeCheckAgent2() {
                     gaps += static_cast<SLONG>(qState.gaps.size());
                 }
                 AT_Log("ClaudeBot::executeCheckAgent2(): Nothing fits: %ld offer(s), %ld aeroplane(s) with %ld window(s), best gain %ld against a floor of %ld.",
-                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, routesAvailable() ? kMinJobGain : 0);
+                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, mMission.noRouteBox ? 0 : kMinJobGain);
             }
             break;
         }
