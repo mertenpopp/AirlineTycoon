@@ -288,6 +288,8 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
 
             if (gQuickTestRun == 1) {
                 gAutoQuitOnDay = 59; /* auto-quit in freegame */
+            } else {
+                gAutoQuitOnDay = 500; /* hard cut-off for batch mode */
             }
         }
         if (stricmp(Argument, "/quicker") == 0) {

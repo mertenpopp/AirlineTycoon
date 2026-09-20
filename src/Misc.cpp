@@ -2,6 +2,7 @@
 // Misc.cpp : Diverse Sachen
 //============================================================================================
 
+#include "BotHelper.h"
 #include "ColorFx.h"
 #include "global.h"
 #include "helper.h"
@@ -2222,4 +2223,44 @@ CString getCurrentDayString() {
         output += StandardTexte.GetS(TOKEN_STAT, 9000);
     }
     return output;
+}
+
+void printPostGameInfo() {
+    Helper::printStatisticsLineForAllPlayers("BotStatistics2", true);
+
+    __int64 bestBot = 0;
+    __int64 bestEnemy = 0;
+    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        auto &qPlayer = Sim.Players.Players[c];
+        if (qPlayer.IsSuperBot()) {
+            bestBot = std::max(bestBot, qPlayer.Statistiken[STAT_MISSIONSZIEL].GetAtPastDay(0));
+        } else {
+            bestEnemy = std::max(bestEnemy, qPlayer.Statistiken[STAT_MISSIONSZIEL].GetAtPastDay(0));
+        }
+    }
+
+    printf("BotMission: Mission, Tage");
+    for (SLONG c = 0; c < 4; c++) {
+        printf(", Sieg%s", (LPCTSTR)Sim.Players.Players[c].Abk);
+    }
+    printf(", BesterGegner\n");
+
+    printf("BotMission: %d, %d", Sim.Difficulty, Sim.Date);
+    for (SLONG c = 0; c < 4; c++) {
+        auto &qPlayer = Sim.Players.Players[c];
+        printf(", %d", (qPlayer.HasWon() != 0 && qPlayer.IsOut == 0) ? 1 : 0);
+    }
+    if (bestBot != 0) {
+        auto bestRatio = static_cast<SLONG>(std::round(100.0F * bestEnemy / bestBot));
+        printf(", %d\n", bestRatio);
+    } else {
+        printf(", NaN\n");
+    }
+
+    if (gQuickTestRun > 0) {
+        std::cout << "---" << std::endl;
+        /* std::_Exit rather than exit: see the auto-quit in CAufsicht::OnPaint(). */
+        fflush(nullptr);
+        std::_Exit(0);
+    }
 }
