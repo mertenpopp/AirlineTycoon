@@ -1226,6 +1226,9 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     SLONG routeUtilization = 0;
     SLONG targetSharePercent = mOptions.kMaximumRouteUtilization;
     for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+        if (i == qPlayer.PlayerNum) {
+            continue;
+        }
         const auto &qqPlayer = Sim.Players.Players[i];
         if (qqPlayer.IsOut != 0) {
             continue;
