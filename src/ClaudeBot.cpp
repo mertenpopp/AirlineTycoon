@@ -1084,6 +1084,7 @@ void ClaudeBot::startNewDay() {
     mUpgradedToday = false;
     mAgencyEmptyToday = false;
     mAgencyVisitsToday = 0;
+    mLastMinuteVisitsToday = 0;
     mFreightVisitsToday = 0;
     mVisitedTanksToday = false;
     mVisitedKerosinToday = false;
@@ -1224,6 +1225,11 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *     burning it later is a straight transfer into the score. */
 
     /* 6) Pick up new work. Needs a fresh plane state to decide what we can fly. */
+    /* Last minute first: the counter shuts earlier than the agency and its jobs pay far more. */
+    if (mLastMinuteVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT1)) {
+        out.push_back(ACTION_CHECKAGENT1);
+    }
+
     if (mAgencyVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT2)) {
         out.push_back(ACTION_CHECKAGENT2);
     }
@@ -1406,6 +1412,10 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_UPGRADE_PLANES:
         executeUpgrades();
+        break;
+
+    case ACTION_CHECKAGENT1:
+        executeCheckAgent1();
         break;
 
     case ACTION_CHECKAGENT2:
@@ -2994,14 +3004,17 @@ void ClaudeBot::executeStock() {
 }
 
 //--------------------------------------------------------------------------------------------
-// Travel agency: take the jobs we can actually fly, most profitable first.
+// One greedy pass over a board of passenger jobs: repeatedly take the single most profitable
+// job that still fits an idle window, then shrink that window.
+//
+// Shared by the last minute counter and the travel agency, which differ only in the board
+// they read and the GameMechanic call that accepts a job.
 //--------------------------------------------------------------------------------------------
-void ClaudeBot::executeCheckAgent2() {
-    mAgencyVisitsToday++;
+void ClaudeBot::takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *who) {
 
     if (mPlaneStateStale) {
         /* No trustworthy view of the flight plans: accepting now risks a fine. */
-        AT_Log("ClaudeBot::executeCheckAgent2(): Plane state stale, taking nothing.");
+        AT_Log("ClaudeBot::%s(): Plane state stale, taking nothing.", who);
         return;
     }
 
@@ -3023,14 +3036,15 @@ void ClaudeBot::executeCheckAgent2() {
          * EASY: with the floor removed ClaudeBot flew 33 flights and 49 jobs for a saldo of
          * 604,185, against MertenBot's 20 flights, 20 jobs and 2,572,713 on the same two
          * planes. */
-        SLONG bestGain = mMission.noRouteBox ? 0 : (mMission.noRoutes ? kMissionJobGain : kMinJobGain);
+        const SLONG floor = mMission.noRouteBox ? 0 : (mMission.noRoutes ? kMissionJobGain : kMinJobGain);
+        SLONG bestGain = floor;
         PlaneTime bestStart{};
 
-        for (SLONG i = 0; i < ReisebueroAuftraege.AnzEntries(); i++) {
-            if (ReisebueroAuftraege.IsInAlbum(i) == 0) {
+        for (SLONG i = 0; i < board.AnzEntries(); i++) {
+            if (board.IsInAlbum(i) == 0) {
                 continue;
             }
-            const auto &qJob = ReisebueroAuftraege[i];
+            const auto &qJob = board[i];
             if (qJob.VonCity == qJob.NachCity || qJob.Praemie <= 0) {
                 continue;
             }
@@ -3058,13 +3072,13 @@ void ClaudeBot::executeCheckAgent2() {
                 for (const auto &qState : mPlanes) {
                     gaps += static_cast<SLONG>(qState.gaps.size());
                 }
-                AT_Log("ClaudeBot::executeCheckAgent2(): Nothing fits: %ld offer(s), %ld aeroplane(s) with %ld window(s), best gain %ld against a floor of %ld.",
-                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, mMission.noRouteBox ? 0 : kMinJobGain);
+                AT_Log("ClaudeBot::%s(): Nothing fits: %ld offer(s), %ld aeroplane(s) with %ld window(s), best gain %ld against a floor of %ld.", who,
+                       board.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, mMission.noRouteBox ? 0 : kMinJobGain);
             }
             break;
         }
 
-        const auto &qJob = ReisebueroAuftraege[bestJob];
+        const auto &qJob = board[bestJob];
         auto &qGap = mPlanes[bestPlane].gaps[bestGap];
         PlaneTime start{};
         PlaneTime back{};
@@ -3078,7 +3092,7 @@ void ClaudeBot::executeCheckAgent2() {
         }
 
         SLONG outObjectId = -1;
-        if (!GameMechanic::takeFlightJob(qPlayer, bestJob, outObjectId)) {
+        if (!take(qPlayer, bestJob, outObjectId)) {
             break;
         }
 
@@ -3096,7 +3110,29 @@ void ClaudeBot::executeCheckAgent2() {
         mNeedSchedule = true;
     }
 
-    AT_Log("ClaudeBot::executeCheckAgent2(): Took %ld job(s) worth %ld, %ld taken today.", taken, totalGain, mJobsTakenToday);
+    AT_Log("ClaudeBot::%s(): Took %ld job(s) worth %ld, %ld taken today.", who, taken, totalGain, mJobsTakenToday);
+}
+
+//--------------------------------------------------------------------------------------------
+// Last minute counter: the same greedy pass over a different board.
+//
+// LastMinuteAuftraege may only be read here. These jobs run between any two cities rather
+// than out of the home airport, and they pay far better than the travel agency's - which is
+// why ClaudeBot missing this room entirely showed up as jobs worth an average of 77k against
+// MertenBot's 229k on the same two aeroplanes. The counter shuts earlier than the agency
+// (timeLastClose) and is closed on Saturdays, both handled by Helper::checkRoomOpen().
+//--------------------------------------------------------------------------------------------
+void ClaudeBot::executeCheckAgent1() {
+    mLastMinuteVisitsToday++;
+    takeJobsFromBoard(LastMinuteAuftraege, &GameMechanic::takeLastMinuteJob, "executeCheckAgent1");
+}
+
+//--------------------------------------------------------------------------------------------
+// Travel agency: take the jobs we can actually fly, most profitable first.
+//--------------------------------------------------------------------------------------------
+void ClaudeBot::executeCheckAgent2() {
+    mAgencyVisitsToday++;
+    takeJobsFromBoard(ReisebueroAuftraege, &GameMechanic::takeFlightJob, "executeCheckAgent2");
 }
 
 //--------------------------------------------------------------------------------------------
@@ -4334,6 +4370,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mUpgradedToday;
     File << bot.mAgencyEmptyToday;
     File << bot.mAgencyVisitsToday;
+    File << bot.mLastMinuteVisitsToday;
     File << bot.mFreightVisitsToday;
     File << bot.mVisitedTanksToday;
     File << bot.mVisitedKerosinToday;
@@ -4417,6 +4454,7 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     File >> bot.mUpgradedToday;
     File >> bot.mAgencyEmptyToday;
     File >> bot.mAgencyVisitsToday;
+    File >> bot.mLastMinuteVisitsToday;
     File >> bot.mFreightVisitsToday;
     File >> bot.mVisitedTanksToday;
     File >> bot.mVisitedKerosinToday;
