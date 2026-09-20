@@ -45,6 +45,10 @@ class BotDesigner {
     SBBMS mPartBms;
 
     std::unordered_map<SLONG, std::vector<int>> mPlaneRelations;
+
+    /* Scratch buffer for buildPart(): the build index of each slot in the plane's parts album.
+     * mutable because buildPart() is const and this is a cache, not state. */
+    mutable std::vector<SLONG> mPlacedBuildIndex;
 };
 
 #endif // BOT_DESIGNER_H_

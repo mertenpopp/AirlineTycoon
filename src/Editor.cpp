@@ -2424,6 +2424,10 @@ bool CXPlane::IsBuildable() {
         return (false);
     }
 
+    if (CalcVerbrauch() <= 0) {
+        return (false);
+    }
+
     return (true);
 }
 
