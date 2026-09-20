@@ -770,6 +770,10 @@ std::vector<SLONG> GameMechanic::buyXPlane(PLAYER &qPlayer, const CString &filen
 
     CXPlane plane;
     plane.Load(filename);
+    if (!plane.IsBuildable()) {
+        AT_Error("GameMechanic::buyXPlane(%s): Plane is not buildable.", qPlayer.AirlineX.c_str());
+        return planeIds;
+    }
 
     __int64 price = plane.CalcCost();
     if (qPlayer.Money - price * amount < DEBT_LIMIT) {

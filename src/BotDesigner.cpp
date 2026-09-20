@@ -23,14 +23,47 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 extern std::vector<CPlanePartRelation> gPlanePartRelations;
 
 const SLONG kMaxBest = 5;
+
+/* Range beyond the longest flight the plane can ever be asked to make is worth nothing, and it is
+ * not free: range is CalcTank()/verbrauch*speed and the tank is 7x the wing weight, so buying more
+ * of it means heavier wings, which the power*4 >= weight rule then pays for again in engines.
+ * Left uncapped, the score rewards range without limit and always lands on the biggest wings. */
+const SLONG kUsefulReichweite = 11200;
 enum class ScoreType { Standard, FastPassengers, FastFast, VIP, Miss05, Miss08 };
+
+struct PlaneStats {
+    SLONG reichweite{};
+    SLONG speed{};
+    SLONG passagiere{};
+    SLONG verbrauch{};
+    SLONG preis{};
+    SLONG noise{};
+    DOUBLE wartung{};
+};
+
+static PlaneStats collectPlaneStats(CXPlane &plane) {
+    PlaneStats st;
+    st.speed = plane.CalcSpeed();
+    st.passagiere = plane.CalcPassagiere();
+    st.verbrauch = plane.CalcVerbrauch();
+    /* optimization: Replicate formula in plane.CalcReichweite() */
+    st.reichweite = (st.verbrauch > 0) ? plane.CalcTank() / st.verbrauch * st.speed : 0;
+    st.preis = plane.CalcCost();
+    st.noise = plane.CalcNoise();
+    st.wartung = (plane.CalcWartung() + 100.0) / 100.0;
+    return st;
+}
 
 class PlaneCandidate {
   public:
     PlaneCandidate() = default;
-    PlaneCandidate(const CXPlane &plane, const std::vector<PartIter> &config, ScoreType type) : mPlane(plane), mPartIter(config), mScoreType(type) {
-        calculatePlaneScore();
+    PlaneCandidate(const CXPlane &plane, const std::vector<PartIter> &config, ScoreType type, const PlaneStats &stats)
+        : mPlane(plane), mPartIter(config), mScoreType(type), reichweite(stats.reichweite), speed(stats.speed), passagiere(stats.passagiere),
+          verbrauch(stats.verbrauch), preis(stats.preis), noise(stats.noise), wartung(stats.wartung) {
+        mScore = calcScore(stats, type, &mBaseScore);
     }
+
+    DOUBLE getScore() const { return mScore; }
 
     void printPlaneInfo() {
         AT_Log("*** CXPlane %s ***", mPlane.Name.c_str());
@@ -39,7 +72,22 @@ class PlaneCandidate {
             ss << iter.formatPrefix() << "@" << iter.position << ", ";
         }
         AT_Log("Configuration: %s", ss.str().c_str());
-        AT_Log("Score = %f (BaseScore = %f)", mScore, mBaseScore);
+        std::stringstream ss2;
+        for (SLONG idx = 0; idx < mPlane.Parts.AnzEntries(); idx++) {
+            if (mPlane.Parts.IsInAlbum(idx) == 0) {
+                continue;
+            }
+            const auto &part = mPlane.Parts[idx];
+            ss2 << "designerPlane.Parts[" << idx << "].Pos2d.x = " << part.Pos2d.x << ";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].Pos2d.y = " << part.Pos2d.y << ";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].Pos3d.x = " << part.Pos3d.x << ";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].Pos3d.y = " << part.Pos3d.y << ";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].Shortname = \"" << part.Shortname << "\";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].ParentShortname = \"" << part.ParentShortname << "\";\n";
+            ss2 << "designerPlane.Parts[" << idx << "].ParentRelationId = " << part.ParentRelationId << ";\n";
+        }
+        AT_Log("PlaneParts: %s", ss2.str().c_str());
+        AT_Log("Score = %g (BaseScore = %g)", mScore, mBaseScore);
         AT_Log("Passagiere = %d", mPlane.CalcPassagiere());
         AT_Log("Reichweite = %d", mPlane.CalcReichweite());
         AT_Log("Verbrauch = %d", mPlane.CalcVerbrauch());
@@ -136,67 +184,94 @@ class PlaneCandidate {
         return true;
     }
 
-  private:
-    void calculatePlaneScore() {
-        speed = mPlane.CalcSpeed();
-        passagiere = mPlane.CalcPassagiere();
-        verbrauch = mPlane.CalcVerbrauch();
-        /* optimization: Replicate formula in mPlane.CalcReichweite() */
-        reichweite = mPlane.CalcTank() / verbrauch * speed;
-        preis = mPlane.CalcCost();
-        noise = std::max(0, std::min(mPlane.CalcNoise(), 111) - 60); /* can't get worse than 111, no impact when 60 or smaller */
-        wartung = (mPlane.CalcWartung() + 100.0) / 100.0;
+    static DOUBLE noiseFactor(SLONG laerm) {
+        const DOUBLE step = 1000.0 / 1100.0;
+        DOUBLE eco = 1.0;
+        DOUBLE fc = 1.0;
+        for (SLONG threshold : {60, 80, 100, 110}) {
+            if (laerm > threshold) {
+                eco *= step;
+            }
+        }
+        for (SLONG threshold : {40, 60, 80, 100}) {
+            if (laerm > threshold) {
+                fc *= step;
+            }
+        }
+        return (6.0 * eco + 2.0 * fc) / 8.0;
+    }
 
-        mScore = 1.0; /* multiplication (geometric mean) because values have wildly different ranges */
+    /* Pure function of the stats, so a candidate's score can be known before deciding whether the
+     * plane is worth copying into the best list. */
+    static DOUBLE calcScore(const PlaneStats &st, ScoreType scoreType, DOUBLE *baseScoreOut = nullptr) {
+        const SLONG reichweite = std::min(st.reichweite, kUsefulReichweite);
+
+        DOUBLE mScore = 1.0; /* multiplication (geometric mean) because values have wildly different ranges */
 
         /* basis score */
         mScore *= reichweite;
-        mScore /= sqrt(1 + noise / 10);
-        assert(!std::isinf(mScore));
-        mScore /= sqrt(1 + wartung);
+        mScore /= sqrt(1 + st.wartung);
         assert(!std::isinf(mScore));
 
-        mBaseScore = mScore;
-
-        /* more passengers or more speed? */
-        if (mScoreType == ScoreType::VIP) {
-            /* we only need to transport 1-2 people (rare jobs with a high premium) */
-            mScore *= speed;
-        } else {
-            mScore *= passagiere;
+        if (baseScoreOut != nullptr) {
+            *baseScoreOut = mScore;
         }
 
-        /* even more speed? */
-        if (mScoreType == ScoreType::FastFast) {
-            mScore *= speed;
-            mScore *= speed;
-        }
-
-        /* optimize for routes */
-        if (mScoreType == ScoreType::FastPassengers) {
-            mScore *= passagiere;
-            mScore *= speed;
-        }
-
-        /* economical considerations */
-        if (mScoreType != ScoreType::FastFast) {
-            mScore /= sqrt(preis); /* one time cost not that important */
-            mScore /= verbrauch;
-        }
-
-        if (mScoreType == ScoreType::Miss05) {
-            if (passagiere < BTARGET_PLANESIZE) {
+        switch (scoreType) {
+        case ScoreType::Standard:
+            mScore *= st.passagiere;
+            mScore *= noiseFactor(st.noise);
+            mScore /= sqrt(st.preis); /* one time cost not that important */
+            mScore /= st.verbrauch;
+            break;
+        case ScoreType::VIP:
+            /* no passenger, no noise: We optimize for this well-paying plane jobs with only a handful passengers */
+            mScore *= st.speed;
+            mScore /= sqrt(st.preis); /* one time cost not that important */
+            mScore /= st.verbrauch;
+            break;
+        case ScoreType::FastFast:
+            mScore *= st.passagiere;
+            mScore *= st.speed;
+            mScore *= st.speed;
+            /* we do not care about noise, verbrauch or preis */
+            break;
+        case ScoreType::FastPassengers:
+            mScore *= st.passagiere;
+            mScore *= st.passagiere; /* double weight for passengers */
+            mScore *= st.speed;
+            mScore *= noiseFactor(st.noise);
+            mScore /= sqrt(st.preis); /* one time cost not that important */
+            mScore /= st.verbrauch;
+            break;
+        case ScoreType::Miss05:
+            mScore *= st.passagiere;
+            mScore *= noiseFactor(st.noise);
+            mScore /= st.preis; /* cost very important to get required number of planes fast */
+            mScore /= st.preis;
+            mScore /= sqrt(st.verbrauch);
+            if (st.passagiere < BTARGET_PLANESIZE) {
                 mScore = 0;
             }
-        }
-
-        if (mScoreType == ScoreType::Miss08) {
-            if (verbrauch * 100 / speed > BTARGET_VERBRAUCH) {
+            break;
+        case ScoreType::Miss08:
+            mScore *= st.passagiere;
+            mScore *= noiseFactor(st.noise);
+            mScore /= st.preis; /* cost very important to get required number of planes fast */
+            mScore /= st.preis;
+            mScore /= sqrt(st.verbrauch);
+            if (st.verbrauch * 100 / st.speed > BTARGET_VERBRAUCH) {
                 mScore = 0;
             }
+            break;
+        default:
+            break;
         }
+
+        return mScore;
     }
 
+  private:
     CXPlane mPlane;
     std::vector<PartIter> mPartIter;
 
@@ -325,6 +400,16 @@ bool BotDesigner::buildPart(CXPlane &plane, const PartIter &partIter) const {
     XY GripAtPos2d{};
     XY GripAtPosB2d{};
 
+    /* One hash per placed part instead of one per (relation x placed part): the relation loop
+     * below walks every relation for this part type and re-hashed each placed part's shortname
+     * inside. The buffer grows to the album's size and is then reused, so this costs no
+     * allocation after the first call. */
+    const SLONG placedCount = plane.Parts.AnzEntries();
+    mPlacedBuildIndex.resize(placedCount);
+    for (SLONG d = 0; d < placedCount; d++) {
+        mPlacedBuildIndex[d] = (plane.Parts.IsInAlbum(d) != 0) ? GetPlaneBuildIndex(plane.Parts[d].Shortname) : -1;
+    }
+
     // Für alle Relations:
     SLONG position = partIter.position;
     auto it = mPlaneRelations.find(GetPlaneBuildIndex(PartUnderCursor));
@@ -351,15 +436,12 @@ bool BotDesigner::buildPart(CXPlane &plane, const PartIter &partIter) const {
             }
         } else {
             // Für alle eingebauten Planeparts:
-            for (SLONG d = 0; d < plane.Parts.AnzEntries(); d++) {
-                if (plane.Parts.IsInAlbum(d) == 0) {
+            for (SLONG d = 0; d < placedCount; d++) {
+                if (mPlacedBuildIndex[d] != qRelation.FromBuildIndex) {
                     continue;
                 }
 
                 const auto &qPart = plane.Parts[d];
-                if (qRelation.FromBuildIndex != GetPlaneBuildIndex(qPart.Shortname)) {
-                    continue;
-                }
 
                 GripToSpot = qPart.Pos3d + qRelation.Offset3d;
                 GripToSpot2d = qPart.Pos2d + qRelation.Offset2d;
@@ -443,8 +525,6 @@ bool BotDesigner::buildPart(CXPlane &plane, const PartIter &partIter) const {
         part.ParentShortname = plane.Parts[GripRelationPart].Shortname;
         part.ParentRelationId = GripRelationB;
         plane.Parts += std::move(part);
-
-        plane.Parts.Sort();
     }
 
     plane.Parts.Sort();
@@ -473,8 +553,6 @@ std::pair<BotDesigner::FailedWhy, SLONG> BotDesigner::buildPlane(CXPlane &plane)
         if (iter.position < 0) {
             continue;
         }
-        CString prefix(iter.formatPrefix());
-        plane.Name.append(bprintf("%s%d", prefix.c_str(), iter.position));
         if (!buildPart(plane, iter)) {
             return {FailedWhy::NoMorePositions, i};
         }
@@ -494,9 +572,12 @@ SLONG BotDesigner::findBestDesignerPlane() {
     bool endLoop = false;
     SLONG totalBuilds = 0;
     SLONG successfulBuilds = 0;
+
+    CXPlane plane{};
+    plane.Parts.ReSize(mPartIter.size() * 2); /* times two because engines and wings come in pairs */
+
     while (!endLoop) {
-        CXPlane plane{};
-        plane.Parts.ReSize(mPartIter.size() * 2); /* times two because engines and wings come in pairs */
+        plane.Parts.ClearAlbum();
 
         FailedWhy failedWhy = FailedWhy::DidNotFail;
         SLONG failedOn = -1;
@@ -510,8 +591,19 @@ SLONG BotDesigner::findBestDesignerPlane() {
                     AT_Log("Evaluated %d/%d builds so far!", successfulBuilds, totalBuilds);
                 }
 
+                PlaneStats stats = collectPlaneStats(plane);
+
                 for (SLONG i = 0; i < bestPlanes.size(); i++) {
-                    bestPlanes[i][kMaxBest] = {plane, mPartIter, scoresToCheck[i]};
+                    /* Cheap reject. CXPlane::operator=() serialises the plane through a TEAKFILE,
+                     * so both the assignment below and every move inside stable_sort() are
+                     * expensive; a plane that cannot reach the list must not pay for either.
+                     * Rejecting on a tie matches stable_sort(), which leaves the incumbent ahead
+                     * of an equal-scoring newcomer and drops the newcomer off the end. */
+                    if (PlaneCandidate::calcScore(stats, scoresToCheck[i]) <= bestPlanes[i][kMaxBest - 1].getScore()) {
+                        continue;
+                    }
+
+                    bestPlanes[i][kMaxBest] = {plane, mPartIter, scoresToCheck[i], stats};
 
                     bool doSort = true;
                     for (int j = 0; j < kMaxBest; j++) {
@@ -521,7 +613,7 @@ SLONG BotDesigner::findBestDesignerPlane() {
                         }
                     }
                     if (doSort) {
-                        std::sort(bestPlanes[i].begin(), bestPlanes[i].end());
+                        std::stable_sort(bestPlanes[i].begin(), bestPlanes[i].end());
                         /* doSort == false:
                          * We leave the new candidate at last position where it will be overwritten by the next candidate */
                     }
