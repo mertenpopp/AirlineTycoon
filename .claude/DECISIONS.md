@@ -975,3 +975,36 @@ day 34 for a 13.6M plane.
 Next: neither mission is won yet, and the gap is **not** the designer - on the same two planes
 ClaudeBot banks 14.3M by day 20 where MertenBot banks 47.7M. The earning rate in missions is the
 thing to attack, and it is the same lever as the free-game score.
+
+2026-09-20 (later) - winning missions, not the free game
+---------------------------------------------------------
+
+**The free game is already won.** At `/setbotlevel 6` against two legacy bots and the idle human,
+ClaudeBot ends day 59 with a company value of 1.71e9 against their ~53M, and has the highest
+company value in **80/80** games. Day-59 SaldoGesamt is 2.14e9. The place ClaudeBot loses is the
+missions: **8 of 26 won**, 13 lost, 5 that nobody ever wins so they run to the harness timeout.
+
+**Route ticket price is already at its optimum.** `kTicketPriceThresholdPercent` 190 was worth
+testing because pricing above the threshold costs 2 image points per flight and image scales
+route passengers hard (playerImage -247 gives a 0.364 multiplier against 0.545 at 0). But both
+`CalcPassengers` and `BookFlight` use the same threshold, and the passenger count is *also* capped
+by seats - so once the plane fills, revenue is linear in price and the high price wins outright.
+Measured day-59 SaldoGesamt: 95% -> 0.33e9, **190% -> 2.14e9**, 250% -> 0.94e9. Left alone.
+
+**Missions need a different game, not a better one.** Routes are an investment that a three-week
+mission never pays back, and each route flight consumes an idle window the goal needs. New
+`Mission::noRoutes` (EASY, ADDON01, ADDON02, ADDON03) routed through `routesAvailable()`, which
+had been dead code. The trap: `collectGaps()` only reports a window bounded by a *following*
+flight, with an open-tail fallback gated on `noRouteBox`; turning routes off without widening that
+gate left every plane with zero windows and took ADDON02 from 15 tons to 0. ADDON03 is now a win,
+ADDON02 went 15 -> 550 tons of 1000, ADDON01 finishes day 29 instead of 46. Free game byte-identical.
+
+Next, in order of what the evidence shows:
+1. **Used planes.** ClaudeBot has no museum path at all (`ACTION_BUYUSEDPLANE` appears zero times).
+   In EASY it sits on 6.8M with two planes and buys nothing, because no *new* plane fits the early
+   mission budget - while the legacy bot reaches three planes and wins. This blocks every short
+   mission.
+2. **International branch offices.** No `bidOnCity`, no `ACTION_CALL_INTERNATIONAL`. In ATFS05
+   MertenBot holds 32 offices and earns 41.6M from freight by day 20; ClaudeBot holds 1 and earns 0.
+3. ATFS05/ATFS08 still need a faster ramp - see the designer entry above; the designs are not the
+   limit, the earning rate is.
