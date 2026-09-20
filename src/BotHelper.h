@@ -360,6 +360,9 @@ inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlan
     }
 }
 
+CXPlane getHardcodedDesignerPlaneLarge();
+CXPlane getHardcodedDesignerPlaneEco();
+
 } // namespace Helper
 
 #endif // BOT_HELPER_H_
