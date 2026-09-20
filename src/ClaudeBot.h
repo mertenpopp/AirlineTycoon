@@ -144,6 +144,9 @@ class ClaudeBot {
          * Set for the short missions and for the ones scored on something routes do not
          * produce. */
         bool noRoutes{false};
+        /* FINAL and ADDON10: won by buying ten parts from NASA, in order, for 204M and 238M
+         * respectively. Routes stay on - that bill needs the full economy behind it. */
+        bool wantRocket{false};
         /* ATFS05, ATFS08: how many self-designed planes clearing the mission's bar the goal
          * wants, 0 for every other mission. The only way to get one is the aeroplane designer,
          * so this is the whole game in those two missions. */
@@ -185,6 +188,7 @@ class ClaudeBot {
     using JobTaker = bool (*)(PLAYER &, SLONG, SLONG &);
     /* One greedy pass over a board of passenger jobs; `who` only names the caller in the log. */
     void takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *who);
+    void executeNasa();
     void executeCheckAgent1();
     void executeCheckAgent2();
     void executeCheckAgent3();
@@ -304,6 +308,7 @@ class ClaudeBot {
     bool mAgencyEmptyToday{false};
     SLONG mAgencyVisitsToday{0};
     SLONG mLastMinuteVisitsToday{0};
+    bool mVisitedNasaToday{false};
     SLONG mFreightVisitsToday{0};
     bool mVisitedTanksToday{false};
     bool mVisitedKerosinToday{false};
