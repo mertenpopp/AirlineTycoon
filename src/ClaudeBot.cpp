@@ -778,15 +778,24 @@ void ClaudeBot::setupMission() {
     case DIFF_NORMAL:
         m.wantMissionCities = true;
         break;
+    case DIFF_EASY:
+        /* First to 5M profit, and the legacy bot gets there in about a week. */
+        m.noRoutes = true;
+        break;
     case DIFF_ADDON01:
         m.wantDebtFree = true;
+        /* Scored on clearing 10M of debt: renting more routes adds rent to the very thing
+         * being measured. */
+        m.noRoutes = true;
         break;
     case DIFF_ADDON02:
         m.wantFreight = true;
+        m.noRoutes = true;
         break;
     case DIFF_ADDON03:
         m.wantFreight = true;
         m.wantFreeFreight = true;
+        m.noRoutes = true;
         break;
     case DIFF_ADDON05:
         /* Service points are summed over the whole fleet, so every plane counts. */
@@ -820,7 +829,14 @@ void ClaudeBot::setupMission() {
     mMission = m;
 }
 
-bool ClaudeBot::routesAvailable() const { return !mMission.noRouteBox; }
+/* Whether this mission wants the fleet on routes at all.
+ *
+ * ADDON02 and ADDON03 are won by tonnage, and a mission fleet is two planes. Filling both with
+ * route flights leaves no idle window for a freight contract: ADDON02 visited the depot 142
+ * times in 14 days, took two contracts and carried 15 of the 1000 tons it needed. Routes are the
+ * right engine in the free game, where the fleet grows to ~78 planes; in a 21-day mission with
+ * two planes they crowd out the goal itself. */
+bool ClaudeBot::routesAvailable() const { return !mMission.noRouteBox && !mMission.noRoutes; }
 
 /* Builds the design this mission needs, once per game.
  *
@@ -1128,7 +1144,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
 
     /* 4) Routes are the long-term revenue engine: their image, and with it the passenger
      *    count, grows with every flight. Check the route box once a day. */
-    if (!mVisitedRouteBoxToday && canUseAction(ACTION_VISITROUTEBOX)) {
+    if (!mVisitedRouteBoxToday && routesAvailable() && canUseAction(ACTION_VISITROUTEBOX)) {
         out.push_back(ACTION_VISITROUTEBOX);
     }
 
@@ -1152,7 +1168,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         out.push_back(ACTION_VISITDESIGNER);
     }
 
-    if (!mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || mMission.noRouteBox) && qPlayer.Money > kCashBuffer &&
+    if (!mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || !routesAvailable()) && qPlayer.Money > kCashBuffer &&
         canUseAction(ACTION_BUYNEWPLANE)) {
         out.push_back(ACTION_BUYNEWPLANE);
     }
@@ -2373,12 +2389,15 @@ void ClaudeBot::executeBuyPlane() {
         }
     }
 
-    if (mRoutes.empty()) {
-        if (!mMission.noRouteBox) {
+    /* A mission can hand us a rented route on day 0, so mRoutes may be non-empty even where we
+     * never fly one. Sizing the aircraft against a route it will never serve is worse than
+     * sizing it for jobs, so the mode decides, not the list. */
+    if (mRoutes.empty() || !routesAvailable()) {
+        if (routesAvailable()) {
             return; /* nothing to fly it on yet */
         }
 
-        /* Missions without a route box are won by flying jobs, and a job is taken only if
+        /* Missions that do not fly routes are won by flying jobs, and a job is taken only if
          * an idle aeroplane can carry it: capacity is the whole of it, and there is no
          * route to size the aircraft against. Rank by cabin per crew member, which is the
          * same scarce input the route-driven ranking above settles on, and buy one - the
@@ -2987,10 +3006,10 @@ void ClaudeBot::executeCheckAgent2() {
         SLONG bestJob = -1;
         SLONG bestPlane = -1;
         SLONG bestGap = -1;
-        /* Missions without a route box are won by the jobs flown - ten of them in the
+        /* Missions that do not fly routes are won by the jobs flown - ten of them in the
          * tutorial, 2500 passengers in DIFF_FIRST - so there the premium only has to cover
          * the flight, not clear the profit floor the free game ranks by. */
-        SLONG bestGain = mMission.noRouteBox ? 0 : kMinJobGain;
+        SLONG bestGain = routesAvailable() ? kMinJobGain : 0;
         PlaneTime bestStart{};
 
         for (SLONG i = 0; i < ReisebueroAuftraege.AnzEntries(); i++) {
@@ -3026,7 +3045,7 @@ void ClaudeBot::executeCheckAgent2() {
                     gaps += static_cast<SLONG>(qState.gaps.size());
                 }
                 AT_Log("ClaudeBot::executeCheckAgent2(): Nothing fits: %ld offer(s), %ld aeroplane(s) with %ld window(s), best gain %ld against a floor of %ld.",
-                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, mMission.noRouteBox ? 0 : kMinJobGain);
+                       ReisebueroAuftraege.AnzEntries(), static_cast<SLONG>(mPlanes.size()), gaps, bestGain, routesAvailable() ? kMinJobGain : 0);
             }
             break;
         }
@@ -3422,10 +3441,13 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
         city = static_cast<SLONG>(qFPE.NachCity);
     }
 
-    /* Without a route box the plan is never filled, so the rule above - a window has to be
-     * bounded by a following flight - leaves every aeroplane with no window at all, and the
-     * airline can never accept its first job. In the two missions that have no rent-a-route
-     * counter (the tutorial and DIFF_FIRST) the tail is therefore a window too.
+    /* Whenever routes are not filling the plan, the rule above - a window has to be bounded by
+     * a following flight - leaves every aeroplane with no window at all, and the airline can
+     * never accept its first job. That is the case in the two missions with no rent-a-route
+     * counter, and equally in the tonnage missions where routes are deliberately left alone, so
+     * there the tail is a window too. Gating this on noRouteBox alone was why switching ADDON02
+     * off routes dropped it from 15 tons to 0: the depot was visited 140 times with no window
+     * to put a contract in.
      *
      * What the bounded rule buys elsewhere is that the game flies the empty return itself,
      * and it only does that between two planned flights (Planetyp.cpp:700-760). Here it does
@@ -3433,7 +3455,7 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
      * carries that city into the window and the next job simply departs from there. The cost
      * estimate still charges the return leg, so a job is only ever accepted for less than it
      * really earns. */
-    if (mMission.noRouteBox) {
+    if (!routesAvailable()) {
         PlaneGap tail;
         tail.start = free;
         tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
@@ -3455,7 +3477,8 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
  * Route flights always continue from where the plane already is, so no automatic flight
  * is ever inserted between them. Only legal in the office. */
 SLONG ClaudeBot::scheduleRouteFlights() {
-    if (mRoutes.empty()) {
+    /* A mission may hand us a route on day 0, so having one is not the same as wanting one. */
+    if (mRoutes.empty() || !routesAvailable()) {
         return 0;
     }
 

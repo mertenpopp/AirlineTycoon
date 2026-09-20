@@ -136,6 +136,13 @@ class ClaudeBot {
         bool wantFreight{false};     /* ADDON02, ADDON03: tonnage is the goal */
         bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
         bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
+        /* Routes are the free game's engine, but they are an investment: a pair has to be
+         * rented, priced, advertised and flown for days before the route image makes it pay.
+         * A mission that the legacy bot finishes in two or three weeks with two planes never
+         * gets that back, and every route flight is an idle window the goal could have used.
+         * Set for the short missions and for the ones scored on something routes do not
+         * produce. */
+        bool noRoutes{false};
         /* ATFS05, ATFS08: how many self-designed planes clearing the mission's bar the goal
          * wants, 0 for every other mission. The only way to get one is the aeroplane designer,
          * so this is the whole game in those two missions. */
