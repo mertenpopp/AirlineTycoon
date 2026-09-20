@@ -1052,3 +1052,106 @@ Still open, in order:
 3. ATFS05/ATFS08 designs are fine; the ramp is what is missing (see the designer entry).
 4. ATFS09's harness ratio (508) disagrees with its win flag (ClaudeBot won). Unexplained; the win
    flag is what `PLAYER::HasWon()` reports, the ratio is a separate STAT_MISSIONSZIEL sample.
+
+2026-09-20 (night) - NASA, Uhrig, the routes mission, and a batch cut-off
+--------------------------------------------------------------------------
+
+State at the end of the session: **12 of 26 missions won** at `/setbotlevel 006` (ClaudeBot as HA
+against two legacy bots and the idle human), and **every mission now terminates** - there is no
+"no result" row left anywhere.
+
+  won      TUTORIAL FINAL ADDON01 ADDON03 ADDON05 ADDON08 ADDON10
+           ATFS02 ATFS03 ATFS07 ATFS09 ATFS10
+  not won  FIRST 154, EASY 326, NORMAL 100(cutoff), HARD 1244, ADDON02 122,
+           ADDON04 305, ADDON06 104, ADDON07 119, ADDON09 1150, ATFS01 509,
+           ATFS04 403, ATFS05 152, ATFS06 800, ATFS08 500      (ratio, lower is better)
+
+Free game is unaffected by all of it: day-59 SaldoGesamt stayed at 2,149,433,048, and ClaudeBot
+already has the highest company value in 80/80 free games.
+
+### NASA closes two missions outright
+
+FINAL and ADDON10 are won by buying ten parts, and ClaudeBot had never entered the room, so
+neither could ever end. Parts must be bought **in order**, so only the first one not yet owned is
+ever on offer (`Player.cpp`, ACTION_VISITNASA is the reference). Ten parts cost 204M (rocket,
+`RocketPrices`) and 238M (station, `StationPrices`), which is why these two **keep their routes**
+where the tonnage missions do not - that bill needs the whole economy.
+
+  FINAL    never ended -> won on day 102
+  ADDON10  never ended -> won on day  97
+
+### ADDON09 may simply not be winnable on two planes
+
+Not "cannot reach 200": ClaudeBot was **bankrupt by day 10**, pinned at -10,000,000, having flown
+1 of 200. Fines went -818k on day 5 to **-11,667,894 on day 7**. Three things compound, all in
+`CAuftrag::RefillForUhrig`:
+
+- `Personen = 180` on every job, so it needs a large aeroplane.
+- `Strafe == Praemie` (type C, 15% of them: premium doubled *and* fine twice that, due next day).
+  `killFlightJob` pays the same fine, so there is no way to duck it - the only lever is flying.
+- `AreaType` per day is `[0,0,1,1,2]`, and case 0 draws **both** endpoints from a random region
+  with neither forced home: 2 of 5 jobs a day need empty legs at both ends. (Merten's own
+  MertenBot analysis reached the same conclusion independently.)
+
+The legacy bots cheat here and it is worth knowing how: with `ROBOT_UHRIG_FLIGHTS_AUTO` they never
+receive Uhrig jobs at all (`Add5UhrigFlights()` is skipped in Aufsicht.cpp) and instead **every
+ordinary job they fly** counts toward the goal, capped near 5/day. SuperBots are explicitly
+excluded (`Player.cpp:8450`), so MertenBot and ClaudeBot must fly the real thing.
+
+Two changes made, both right, both measured neutral: `Mission::noRoutes` for ADDON09 (4 jobs flown
+instead of 1) and a **fix to how a job in the backlog is valued**. `fitJobIntoGap()` used
+`Praemie - cost`, which is right when deciding whether to *take* a job off a board - the
+alternative is not having it. For a job already held the alternative is the fine, so it is worth
+`Praemie + Strafe - cost`; `schedulePendingJobs()` now passes `alreadyOurs`.
+
+### NORMAL (mission 3): ClaudeBot is not stuck, its *rating* is
+
+It reaches **310 billion and 200 planes by day 1000** while the flag count sits at 6 of 10 from
+day 50 for ever. `NumMissionRoutes` (`Aufsicht.cpp:101-125`) counts a rented pair only when one end
+is home, the other is a `Sim.MissionCities` entry, **and `RoutenAuslastung > 20`** - more than 20%
+of that pair's weekly demand. Pairs count in both directions, so `TARGET_FLAGS = 10` is five
+cities. Holding ~96 pairs spreads 200 aeroplanes so thin that only three clear 20%. **More flying
+makes this worse.** It is a concentration problem, not a capacity one.
+
+Tried and **reverted**: capping the mission to 8 pairs. The game did start terminating (day 135),
+but the fleet still grew to 179 aeroplanes with only 8 pairs to fly, and it went **bankrupt by day
+100**. The log also shows it renting pairs that can never score a flag (Johannesburg-Sydney,
+New York-Tokyo - neither touches home). A real fix needs three parts together: cap the pairs, cap
+the **fleet** alongside them, and refuse pairs that cannot earn a flag.
+
+### Route ticket price is at its optimum - do not touch it again
+
+Pricing above the threshold costs 2 image points per flight and image scales route passengers hard
+(playerImage -247 gives a 0.364 multiplier against 0.545 at 0), so 190% looked wrong. It is not:
+`CalcPassengers` caps passengers by **seats** as well, so once the plane fills, revenue is linear
+in price and the high price wins. Day-59 SaldoGesamt: 95% -> 0.33e9, **190% -> 2.14e9**, 250% ->
+0.94e9. Also note the free game's image is healthy (541); the -247 was mission-specific.
+
+### Harness: the batch cut-off (Merten's commit a05afa56)
+
+Runs now stop when every `Owner == 1` player is out, or at `gAutoQuitOnDay = 500` for batch mode,
+and the cut-off calls `printPostGameInfo()` so a stopped run emits a real `BotMission:` row instead
+of "no result" - a mission nobody can win is now visibly different from a run that died. Two traps
+found while reviewing it, both fixed before it landed:
+
+- The alive-check had `anyBotAlive = false` on the branch that proves a bot **is** alive, so
+  `giveUp` was true whenever any CPU slot existed and **every** batch run quit on day 0. It fails
+  silently: the scoreboard just prints `0` / `no result`, which looks exactly like the
+  display-off failure. Only a mission that *should* take 60 days tells them apart.
+- Without the `gQuickTestRun > 0` gate, a multiplayer table with `BOTS=0` has no `Owner == 1`
+  player at all and would quit on day 0.
+
+Still cosmetic: `printf("Triggering cutoff: ...")` has no `\n`, so it runs into the first
+`BotStatistics2` header line.
+
+### Next, in order of evidence
+
+1. **International branch offices** - still the largest missing subsystem. No `bidOnCity`, no
+   `ACTION_CALL_INTERNATIONAL`. In ATFS05 MertenBot holds 32 offices and earns 41.6M from freight
+   by day 20; ClaudeBot holds 1 and earns 0.
+2. **ADDON06 (104), ADDON07 (119), ADDON02 (122), ATFS05 (152)** are the closest losses and the
+   best return per unit of work.
+3. **NORMAL** needs the three-part fix above.
+4. **ADDON04** (most miles in 30 days) is untouched - miles are not modelled at all.
+5. ATFS09's harness ratio still disagrees with its win flag; unexplained, the win flag is what
+   `PLAYER::HasWon()` reports.
