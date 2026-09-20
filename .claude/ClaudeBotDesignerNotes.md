@@ -243,3 +243,29 @@ Practical consequences for ClaudeBot
   randomisation, then calls `Planes.Sort()` — cached plane indices go stale.
 
 See also `.claude/RULES.md` "Designer actions" and the CXPlane object section.
+
+How ClaudeBot gets its designs (decided 2026-09-20)
+---------------------------------------------------
+
+**Generated at runtime by the exhaustive search, not hardcoded.** The part economics live in
+`builds.csv` and differ between data dirs, so a hardcoded *choice of parts* is optimal for one
+table only; relation indices are stable, so such a design stays valid, just not good.
+
+- `BotDesigner::findBestPlaneForGoal(ScoreType, CXPlane &)` — one goal, no files, no logging.
+  `findBestDesignerPlane()` (F7) is unchanged: all six goals, saves and prints.
+- Goals `ScoreType::ClaudeMiss05` / `ClaudeMiss08` are ClaudeBot's own, so tuning them never
+  moves MertenBot's designs.
+- Score: `reichweite(cap 6000) / sqrt(1+wartung) * pax * noiseFactor / sqrt(verbrauch) / preis^2`,
+  with the mission bar as a hard filter. **No speed term** - tried, and it bought a 65.0M plane
+  over the 60.3M one, because `Schedule.cpp` caps route passengers at the player's share of
+  `qRoute.Bedarf`, so seats and trips are already over-supplied on a 600-seater.
+- Hull prune: a hull that cannot reach a goal's passenger floor, even with the largest possible
+  non-hull contribution read off the live table, fails on the hull iterator so backtracking skips
+  its whole subtree. ATFS05 8.8 s -> 2.77 s for an identical design. Applies only when every goal
+  in the run wants the passengers, so the F7 run stays exhaustive (verified: 1,738,530 builds).
+
+Measured on `de/data`, seed 1: ATFS05 **55.7M** (vs 60.3M reference), ATFS08 **13.6M** (vs 17.2M).
+Runtime 2.8 s / 8.8 s, once per game, only on those two missions.
+
+Open: the buying logic in ClaudeBot, and tuning `kClaudePriceExponent` / `kClaudeReichweiteCap`
+against day-to-win. The price exponent barely moves the pick; the range cap does most of the work.
