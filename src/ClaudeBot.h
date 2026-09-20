@@ -136,7 +136,26 @@ class ClaudeBot {
         bool wantFreight{false};     /* ADDON02, ADDON03: tonnage is the goal */
         bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
         bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
+        /* ATFS05, ATFS08: how many self-designed planes clearing the mission's bar the goal
+         * wants, 0 for every other mission. The only way to get one is the aeroplane designer,
+         * so this is the whole game in those two missions. */
+        SLONG designerPlanes{0};
     };
+
+    /* --- the aeroplane designer --- */
+    /* Builds the design this mission needs, once per game. Pure computation over the static
+     * part tables, so it needs no room and can run before the character is anywhere. */
+    void prepareDesignerPlane();
+    /* How many planes we already own that clear the mission's bar. */
+    SLONG countQualifyingPlanes() const;
+    /* True while the mission still wants designer planes we cannot yet pay for - the broker has
+     * to stop eating the cash they need. */
+    bool savingForDesigner() const;
+    /* True once the ordinary fleet is large enough that further catalogue planes only delay the
+     * designer planes. Separate from savingForDesigner(): the fleet has to keep growing for a
+     * while even after every other kind of spending has stopped. */
+    bool designerFleetFull() const;
+    void executeDesigner();
 
     /* --- planning --- */
     void setupMission();
@@ -217,6 +236,15 @@ class ClaudeBot {
 
     /* Derived from Sim.Difficulty, so it is rebuilt rather than loaded with a savegame. */
     Mission mMission{};
+
+    /* The design for this mission, its file (buyXPlane() loads from disk) and its price, which
+     * every affordability decision needs and which is only known once the design exists. */
+    CXPlane mDesignerPlane{};
+    CString mDesignerPlaneFile{};
+    SLONG mDesignerPlaneCost{0};
+    bool mDesignerPlaneReady{false};
+    bool mDesignerPlaneSaved{false};
+    bool mVisitedDesignerToday{false};
 
     bool mFirstRun{true};
     bool mIsSickToday{false};
