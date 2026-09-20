@@ -623,7 +623,7 @@ Bot::Prio Bot::condTakeOutLoan() {
 }
 
 Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - kMoneyReservePaybackCredit;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_DROPMONEY, 24)) {
         return Prio::None;
     }
@@ -637,8 +637,10 @@ Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
         return Prio::None; /* we deliberately keep the line drawn */
     }
 
-    if (moneyAvailable >= 1000) {
+    if (moneyAvailable >= 100000) {
         return Prio::Medium;
+    } else if (moneyAvailable >= 1000) {
+        return Prio::Low;
     }
     return Prio::None;
 }
