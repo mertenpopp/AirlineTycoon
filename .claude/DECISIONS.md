@@ -944,3 +944,34 @@ rather than removing it.
 
 Next: the aeroplane designer, which closes two missions outright, then mission 17's capital
 problem.
+
+2026-09-20 - the aeroplane designer
+-----------------------------------
+
+**BotDesigner is 5.7x faster, same output.** Profiled with `eu-stack` sampling (no `perf` on this
+box): 67% of the runtime sat in `CXPlane::operator=`, which serialises the whole plane through a
+30KB `TEAKFILE` and re-runs seven `Calc*()` just to write the file header - once per element move
+of `std::sort`, for every buildable plane, for each of six score types. Gating the best-list on
+the score, collecting the stats once per plane instead of once per plane and goal, dropping a dead
+`bprintf` name per part per attempt, and hoisting a string hash out of the relation x part loop
+took 54.9s to 9.5s with all 30 designs bit-identical.
+
+**ClaudeBot designs its own planes rather than reusing the hardcoded ones.** The part economics
+come from `builds.csv`, which differs between data dirs and moves the optimum, so a hardcoded
+choice of parts is valid everywhere but cheapest only where it was found - and price is what
+decides these races. New `ScoreType::ClaudeMiss05/08` and `findBestPlaneForGoal()`. A hull prune
+for passenger-floor goals cuts ATFS05 from 8.8s to 2.77s for an identical design.
+
+Scoring findings, all measured: a speed term bought a 65.0M plane over the 60.3M one, because
+`Schedule.cpp` caps route passengers at the player's share of `qRoute.Bedarf`; the price exponent
+barely moves the pick (1.5 to 3.0 went 60.3M to 59.3M) while the **range cap does the work**
+(11200 -> 6000 km gives 55.7M). Result: ATFS05 55.7M vs the 60.3M reference, ATFS08 13.6M vs 17.2M.
+
+**Buying implemented.** ATFS05 went 0 -> 2 of 3 Belugas, ATFS08 0 -> 1 of 5. Cash discipline was
+most of it: with advertising left on ATFS05 bought one instead of two and ATFS08 none instead of
+one; letting the fleet grow to five bought none. An unguarded ATFS08 run spent 30.4M on ads by
+day 34 for a 13.6M plane.
+
+Next: neither mission is won yet, and the gap is **not** the designer - on the same two planes
+ClaudeBot banks 14.3M by day 20 where MertenBot banks 47.7M. The earning rate in missions is the
+thing to attack, and it is the same lever as the free-game score.
