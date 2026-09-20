@@ -122,6 +122,7 @@ DWORD AtGetTickCount(void);
 CString getCurrentDayString();
 SLONG strchrcount(CString Text, char chr);
 SLONG strchrcount(char *str, const char delimiters[]);
+void printPostGameInfo();
 //--------------------------------------------------------------------------------------------
 // Zählt die Häufigkeit des Auftretens von Enumerationswerten in einem Zeichenfolgenwert,
 // basierend auf einer gegebenen Zuordnung von Zeichenfolgen zu Enumerationswerten.
