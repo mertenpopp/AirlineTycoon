@@ -84,6 +84,9 @@ static const __int64 kDesignerCashReserve = 1500000;
  * banking 47.7M by day 20. */
 static const SLONG kDesignerMinFleet = kMissionStartingPlanes;
 
+/* Cash kept back when buying a NASA part, so the purchase cannot leave wages unpaid. */
+static const __int64 kNasaCashReserve = 2000000;
+
 /* Hours left free at the end of an idle window a job is fitted into. A job that overruns
  * its window pushes the following route leg later, which costs a sixth of its passengers
  * per night hour, so the window is never filled to the brim. */
@@ -801,6 +804,11 @@ void ClaudeBot::setupMission() {
         m.wantFreight = true;
         m.noRoutes = true;
         break;
+    case DIFF_FINAL:
+        [[fallthrough]];
+    case DIFF_ADDON10:
+        m.wantRocket = true;
+        break;
     case DIFF_ADDON09:
         /* Five jobs land in the backlog every morning whether or not we can fly them, and an
          * unflown one is a fine. With both planes committed to routes they all expired: the
@@ -853,6 +861,38 @@ void ClaudeBot::setupMission() {
  * right engine in the free game, where the fleet grows to ~78 planes; in a 21-day mission with
  * two planes they crowd out the goal itself. */
 bool ClaudeBot::routesAvailable() const { return !mMission.noRouteBox && !mMission.noRoutes; }
+
+/* NASA: buy the next rocket or space station part.
+ *
+ * The parts must be bought in order, so only the first one we do not own is ever on offer -
+ * which is also how the game's own player does it (Player.cpp, ACTION_VISITNASA). Ten parts cost
+ * 204M for the rocket and 238M for the station, so unlike the tonnage missions this one keeps
+ * the routes: that bill needs the whole economy behind it.
+ *
+ * Only legal in the NASA room, which only these two missions have. */
+void ClaudeBot::executeNasa() {
+    mVisitedNasaToday = true;
+
+    const auto &qPrices = (Sim.Difficulty == DIFF_FINAL) ? RocketPrices : StationPrices;
+    for (SLONG c = 0; c < 10; c++) {
+        if (qPlayer.CheckRocketPart(c) != 0) {
+            continue;
+        }
+        if (qPlayer.Money - qPrices[c] < kNasaCashReserve) {
+            AT_Log("ClaudeBot::executeNasa(): Part %ld costs %s $, have %s $ - saving.", c, Insert1000erDots(qPrices[c]).c_str(),
+                   Insert1000erDots64(qPlayer.Money).c_str());
+            return;
+        }
+        if (Sim.Difficulty == DIFF_FINAL) {
+            qPlayer.AddRocketPart(c);
+        } else {
+            qPlayer.AddSpaceStationPart(c, 3400);
+        }
+        AT_Log("ClaudeBot::executeNasa(): Bought part %ld of 10 for %s $, cash now %s $.", c + 1, Insert1000erDots(qPrices[c]).c_str(),
+               Insert1000erDots64(qPlayer.Money).c_str());
+        return;
+    }
+}
 
 /* Builds the design this mission needs, once per game.
  *
@@ -1088,6 +1128,7 @@ void ClaudeBot::startNewDay() {
     mVisitedBankToday = false;
     mVisitedStockToday = false;
     mVisitedDesignerToday = false;
+    mVisitedNasaToday = false;
     mUpgradedToday = false;
     mAgencyEmptyToday = false;
     mAgencyVisitsToday = 0;
@@ -1176,6 +1217,12 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     }
     if (kUseFuelArbitrage && fuelIsCheap() && !mVisitedKerosinToday && qPlayer.Tank > 0 && canUseAction(ACTION_BUY_KEROSIN)) {
         out.push_back(ACTION_BUY_KEROSIN);
+    }
+
+    /* 5a) NASA. The only way to win FINAL and ADDON10, and the parts only get dearer, so it
+     *     outranks anything else the cash could buy. */
+    if (mMission.wantRocket && !mVisitedNasaToday && canUseAction(ACTION_VISITNASA)) {
+        out.push_back(ACTION_VISITNASA);
     }
 
     /* 5b) The aeroplane designer. ATFS05 and ATFS08 are won by owning planes no catalogue sells,
@@ -1403,6 +1450,10 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_BUYNEWPLANE:
         executeBuyPlane();
+        break;
+
+    case ACTION_VISITNASA:
+        executeNasa();
         break;
 
     case ACTION_VISITDESIGNER:
@@ -4382,6 +4433,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mAgencyEmptyToday;
     File << bot.mAgencyVisitsToday;
     File << bot.mLastMinuteVisitsToday;
+    File << bot.mVisitedNasaToday;
     File << bot.mFreightVisitsToday;
     File << bot.mVisitedTanksToday;
     File << bot.mVisitedKerosinToday;
@@ -4466,6 +4518,7 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     File >> bot.mAgencyEmptyToday;
     File >> bot.mAgencyVisitsToday;
     File >> bot.mLastMinuteVisitsToday;
+    File >> bot.mVisitedNasaToday;
     File >> bot.mFreightVisitsToday;
     File >> bot.mVisitedTanksToday;
     File >> bot.mVisitedKerosinToday;
