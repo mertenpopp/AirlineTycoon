@@ -8,6 +8,7 @@
 #include <vector>
 
 class PLAYER;
+class CAuftraege;
 class CFracht;
 
 extern const SLONG kRouteAvgDays;
@@ -180,6 +181,11 @@ class ClaudeBot {
     /* --- action implementations --- */
     void executePersonal();
     void hireAdvisors();
+    /* Signature shared by GameMechanic::takeLastMinuteJob() and takeFlightJob(). */
+    using JobTaker = bool (*)(PLAYER &, SLONG, SLONG &);
+    /* One greedy pass over a board of passenger jobs; `who` only names the caller in the log. */
+    void takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *who);
+    void executeCheckAgent1();
     void executeCheckAgent2();
     void executeCheckAgent3();
     void executeOffice();
@@ -290,6 +296,7 @@ class ClaudeBot {
     bool mUpgradedToday{false};
     bool mAgencyEmptyToday{false};
     SLONG mAgencyVisitsToday{0};
+    SLONG mLastMinuteVisitsToday{0};
     SLONG mFreightVisitsToday{0};
     bool mVisitedTanksToday{false};
     bool mVisitedKerosinToday{false};
