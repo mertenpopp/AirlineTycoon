@@ -1155,3 +1155,73 @@ Still cosmetic: `printf("Triggering cutoff: ...")` has no `\n`, so it runs into 
 4. **ADDON04** (most miles in 30 days) is untouched - miles are not modelled at all.
 5. ATFS09's harness ratio still disagrees with its win flag; unexplained, the win flag is what
    `PLAYER::HasWon()` reports.
+
+2026-09-20 - ADDON09: measured verdict and what would fix it
+------------------------------------------------------------
+
+Assessment session, no ClaudeBot change. All game-source edits below were made, measured and
+reverted; the tree is unchanged. Raw data and the feasibility model are gone with the scratchpad,
+the numbers are here.
+
+### The Uhrig stream is the same in every game
+
+`Sim.cpp:827` reads `if (GlobalUse(USE_TRAVELHOLDING) && Difficulty != DIFF_ADDON09)`, and the
+`Auftraege.Random.SRand(AtGetSeedTime())` call sits **inside** it. So in this mission no player's
+job generator is ever seeded: all four airlines get the identical stream and the stream is byte
+for byte the same for every `/seed`. Verified across 12 seeds - day 1 is TXL-BCN, TXL-MUC,
+ARN-WAW, HEL-FBU in all of them, for SA and HA alike.
+
+That makes the mission scripted rather than random, and one particular script entry decides it.
+
+### Why it is not winnable as shipped
+
+Replayed the generator for 60 days (300 jobs) on a copy of the RNG and measured it:
+
+- Supply is **5 jobs/day**, so 200 needs 40 perfect days. The legacy bots are credited for *any*
+  job they fly, capped at `5 - [(D+PN)%5==1] - [(D+PN)%11==2] - [(D+PN)%7==0] - (D+PN)%2`,
+  mean **4.07/day**, and they never receive Uhrig jobs at all (`Aufsicht.cpp:356`) nor pay fines
+  (`ROBOT_USE_NO_FINE`). A legacy bot wins on ~day 50-55 when its economy holds.
+- **59% of jobs touch neither end of the home airport**; only 1.00 job/day *departs* home. Median
+  home->pickup is 1,323 km, mean 3,418 km, and 28% of pickups are beyond one hop of the best
+  starting plane. Uhrig is the only job generator in the game that does not force an endpoint
+  home - `RefillForAusland`, which feeds the travel agency, always does.
+- **74% of jobs have a one-day window.**
+- Premium is 115% of reference *kerosene* for the revenue leg only (`CalculateFlightCost(.., 8000,
+  700, -1)`), so the positioning leg is unpaid. Flying all 300 jobs earns **39.5M** gross over 60
+  days; a perfect-foresight scheduler burns **37-57M** of fuel doing it, before crew, food, gate
+  fees and maintenance. Only 33% of jobs cover their own fuel including one positioning leg.
+- Per area type (mean margin per job, fuel only): AreaType 1 **+15,893**, AreaType 2 **-99,754**,
+  AreaType 0 **-164,429**. `Add5UhrigFlights` uses `[0,0,1,1,2]`, so the two worst are half the mix.
+- The scripted killer: **MNL->SYD, issued the morning of day 4, due day 5 only, 2 passengers,
+  fine 8.33M** (9.06M in the live game, kerosene price differs). Manila is 9,990 km from home,
+  past the 6,455 km range of the best starting plane. You hold 3,000,000 and `DEBT_GAMEOVER` is
+  -5,000,000. It is type C (`Praemie *= 2; Strafe = Praemie * 2`) crossed with the 1% 2-passenger
+  case (`Praemie *= 4; Strafe = Praemie * 4`), which compounds to **32x** the base premium.
+
+A scheduler with perfect foresight of the whole stream, no crew/food/gate/maintenance costs and
+no walking time still goes bankrupt on **day 6** with the two starting planes. ClaudeBot dies on
+day 7-8 in every seed at 8-18 of 200. With three legacy bots and no ClaudeBot, only 1 of 6 games
+produced a winner (day 55); the rest ran 107-130 days with the best bot at 38-61%.
+
+### What fixes it (measured, 3 seeds each, ClaudeBot untouched)
+
+| variant | change | HA wins |
+|---|---|---|
+| baseline | - | 0/3, bankrupt day 7 |
+| **A** | `Add5UhrigFlights`: area types `[1,1,1,1,2]` instead of `[0,0,1,1,2]` | **2/3** (day 83, 78) |
+| B | `RefillForUhrig`: `if (Strafe > Praemie) Strafe = Praemie;` | 1/3 (day 90) |
+| A+B | both | **2/3** (day 80, 53) |
+| A+B+C | plus `TARGET_NUM_UHRIG` 200 -> 150 | 2/3 (day 71, 40) |
+
+**A is the fix**: it is one line and it is the change that brings Uhrig in line with every other
+generator in the game. **B is a survival fix**: it removes the scripted day-5 knockout (seed 3
+went from -10M to +7.6M solvent) but adds no throughput on its own. **C mostly just shortens the
+game** - the opponents reach the lower target just as fast, so it did not change who won.
+
+The seed-3 loss survives A+B, but there ClaudeBot is solvent at 29% while the legacy bots finish
+on day 54. That is a bot-tuning problem now, not a mission-design one.
+
+Worth fixing regardless of difficulty: the missing `SRand` (above), and `CalcPlayerMaximums`
+feeding `RefillForUhrig` the fleet **maximum** - buying one big plane pushes 58% of jobs to 280+
+passengers and makes 22% of one-day jobs physically impossible, so expansion makes the mission
+harder. `PlayerMinPassagiere`/`PlayerMinLength` are already computed next door.
