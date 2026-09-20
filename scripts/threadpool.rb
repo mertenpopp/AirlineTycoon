@@ -333,20 +333,10 @@ end
 miss = (0..5).to_a()
 miss += (11..20).to_a()
 miss += (41..50).to_a()
-name = "_mission_test"
-miss.delete(19)
+name = "_mission_merten"
 
-#miss = (0..5).to_a().map{|i|5*i}
-#name = "_kMinimumOwnRouteUtilization"
-
-#miss = (1..20).to_a()
-#name = "kScheduling"
-
-miss = [-1]
-name = ""
-
-#miss = [1, 12, 13, 15, 41]
-#name = "_mission_new"
+#miss = [-1]
+#name = ""
 
 # File prefix for the per-run CSV/log files of the free game, "dataBOT" by default.
 # Override with "--prefix NAME" or "--prefix=NAME" on this script's own command line, e.g.
@@ -382,7 +372,7 @@ extra_args = " #{extra_args}" unless extra_args.empty?
 
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
-  (0...300).each do |j|
+  (0...50).each do |j|
     prefix = "dataMISS_#{i}#{name}_#{j}"
     prefix = "#{bot_prefix}_freegame#{name}_#{j}" if i == -1
     file = "#{prefix}.csv"
