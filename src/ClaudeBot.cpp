@@ -801,6 +801,13 @@ void ClaudeBot::setupMission() {
         m.wantFreight = true;
         m.noRoutes = true;
         break;
+    case DIFF_ADDON09:
+        /* Five jobs land in the backlog every morning whether or not we can fly them, and an
+         * unflown one is a fine. With both planes committed to routes they all expired: the
+         * airline was at the -10M floor by day 10 and had flown exactly one of the 200 the goal
+         * wants. The windows have to belong to the backlog here. */
+        m.noRoutes = true;
+        break;
     case DIFF_ADDON03:
         m.wantFreight = true;
         m.wantFreeFreight = true;
@@ -1843,12 +1850,16 @@ bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG 
 }
 
 /* Fits a passenger job into one idle window, return leg included. */
-bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain) {
+bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain,
+                              bool alreadyOurs) {
     SLONG cost = 0;
     if (!fitLegIntoGap(qGap, qPlane, qJob.VonCity, qJob.NachCity, static_cast<SLONG>(qJob.Date), static_cast<SLONG>(qJob.BisDate), outStart, outBack, cost)) {
         return false;
     }
     outGain = qJob.Praemie - cost;
+    if (alreadyOurs) {
+        outGain += qJob.Strafe; /* flying it is also the fine we do not pay */
+    }
     return true;
 }
 
@@ -3938,7 +3949,7 @@ SLONG ClaudeBot::schedulePendingJobs() {
                 PlaneTime start{};
                 PlaneTime back{};
                 SLONG gain = 0;
-                if (!fitJobIntoGap(planeGaps[p][g], qPlane, qJob, start, back, gain)) {
+                if (!fitJobIntoGap(planeGaps[p][g], qPlane, qJob, start, back, gain, true)) {
                     continue;
                 }
                 /* Earliest slot wins: the job is already owned, so the fine for letting it
