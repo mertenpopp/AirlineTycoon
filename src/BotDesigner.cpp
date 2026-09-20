@@ -29,7 +29,27 @@ const SLONG kMaxBest = 5;
  * of it means heavier wings, which the power*4 >= weight rule then pays for again in engines.
  * Left uncapped, the score rewards range without limit and always lands on the biggest wings. */
 const SLONG kUsefulReichweite = 11200;
-enum class ScoreType { Standard, FastPassengers, FastFast, VIP, Miss05, Miss08 };
+
+/* How hard ClaudeBot's designer score weighs the purchase price.
+ *
+ * Both designer missions are races: the winner is whoever first owns N planes that clear a
+ * pass/fail bar. Clearing it by more buys nothing, so what decides the race is how soon the bot
+ * can afford N of them - price - tempered by what a plane earns while the bot saves for the next
+ * one. This is the knob for that trade-off and is meant to be tuned against day-to-win.
+ *
+ * Deliberately no speed term: Schedule.cpp caps route passengers at the player's share of
+ * qRoute.Bedarf, so on the big mission planes seats and trips per day are already over-supplied
+ * and paying for speed only raises the bill. */
+const DOUBLE kClaudePriceExponent = 2.0;
+
+/* Range cap for ClaudeBot's mission planes, deliberately far below kUsefulReichweite.
+ *
+ * Those planes exist to satisfy a counter and to earn a little while the bot saves for the next
+ * one; they are not the fleet's long-haul workhorse. Of the 175 rentable routes 79% are shorter
+ * than this, and range is bought with wing weight, which the power*4 >= weight rule charges for
+ * again in engines - so rewarding range past what the plane will fly just raises the bill.
+ * Measured on de/data: at this cap ATFS05 designs a 55.7M plane, against 60.3M uncapped. */
+const SLONG kClaudeReichweiteCap = 6000;
 
 struct PlaneStats {
     SLONG reichweite{};
@@ -64,6 +84,7 @@ class PlaneCandidate {
     }
 
     DOUBLE getScore() const { return mScore; }
+    const CXPlane &getPlane() const { return mPlane; }
 
     void printPlaneInfo() {
         AT_Log("*** CXPlane %s ***", mPlane.Name.c_str());
@@ -118,6 +139,12 @@ class PlaneCandidate {
         case ScoreType::Miss08:
             mPlane.Name = bprintf("Bot Ecomaster %d", number);
             break;
+        case ScoreType::ClaudeMiss05:
+            mPlane.Name = bprintf("Claude Beluga %d", number);
+            break;
+        case ScoreType::ClaudeMiss08:
+            mPlane.Name = bprintf("Claude Ecomaster %d", number);
+            break;
         default:
             mPlane.Name = bprintf("Bot %d", number);
             break;
@@ -145,6 +172,12 @@ class PlaneCandidate {
             break;
         case ScoreType::Miss08:
             fileName = FullFilename(bprintf("botplane_atfs08_%d.plane", number), MyPlanePath);
+            break;
+        case ScoreType::ClaudeMiss05:
+            fileName = FullFilename(bprintf("claudeplane_atfs05_%d.plane", number), MyPlanePath);
+            break;
+        case ScoreType::ClaudeMiss08:
+            fileName = FullFilename(bprintf("claudeplane_atfs08_%d.plane", number), MyPlanePath);
             break;
         default:
             fileName = FullFilename(bprintf("botplane_unknown_%d.plane", number), MyPlanePath);
@@ -204,7 +237,8 @@ class PlaneCandidate {
     /* Pure function of the stats, so a candidate's score can be known before deciding whether the
      * plane is worth copying into the best list. */
     static DOUBLE calcScore(const PlaneStats &st, ScoreType scoreType, DOUBLE *baseScoreOut = nullptr) {
-        const SLONG reichweite = std::min(st.reichweite, kUsefulReichweite);
+        const bool isClaudeGoal = (scoreType == ScoreType::ClaudeMiss05 || scoreType == ScoreType::ClaudeMiss08);
+        const SLONG reichweite = std::min(st.reichweite, isClaudeGoal ? kClaudeReichweiteCap : kUsefulReichweite);
 
         DOUBLE mScore = 1.0; /* multiplication (geometric mean) because values have wildly different ranges */
 
@@ -261,6 +295,25 @@ class PlaneCandidate {
             mScore /= st.preis;
             mScore /= sqrt(st.verbrauch);
             if (st.verbrauch * 100 / st.speed > BTARGET_VERBRAUCH) {
+                mScore = 0;
+            }
+            break;
+        case ScoreType::ClaudeMiss05:
+            [[fallthrough]];
+        case ScoreType::ClaudeMiss08:
+            /* Seats are what the plane earns with, noiseFactor is the share of route passengers
+             * it actually keeps, and sqrt(verbrauch) prices the fuel without letting economy run
+             * away the way a straight /verbrauch does. All of it is then divided by the price,
+             * which is the constraint that actually decides the race. */
+            mScore *= st.passagiere;
+            mScore *= noiseFactor(st.noise);
+            mScore /= sqrt(st.verbrauch);
+            mScore /= pow(static_cast<DOUBLE>(st.preis), kClaudePriceExponent);
+            /* The mission bar itself. Everything below is unusable, however good it looks. */
+            if (scoreType == ScoreType::ClaudeMiss05 && st.passagiere < BTARGET_PLANESIZE) {
+                mScore = 0;
+            }
+            if (scoreType == ScoreType::ClaudeMiss08 && st.verbrauch * 100 / st.speed > BTARGET_VERBRAUCH) {
                 mScore = 0;
             }
             break;
@@ -366,6 +419,18 @@ BotDesigner::BotDesigner() {
             AT_Log("Dropping relation %d", qRelation.Id);
         }
     }
+
+    /* Most passengers a design can gain from parts other than the hull. Used to prune whole hull
+     * variants for a goal with a passenger floor, without assuming that only hulls carry seats. */
+    auto maxPaxOf = [](const char *prefix, SLONG first, SLONG last) {
+        SLONG best = 0;
+        for (SLONG v = first; v <= last; v++) {
+            best = std::max(best, GetPlaneBuild(CString(bprintf(prefix, v)).c_str()).Passagiere);
+        }
+        return std::max(0, best);
+    };
+    mMaxNonHullPax = maxPaxOf("C%d", 1, NUM_PLANE_COCKPIT) + maxPaxOf("H%d", 1, NUM_PLANE_HECK) + maxPaxOf("R%d", 1, NUM_PLANE_RWING) +
+                     maxPaxOf("L%d", 1, NUM_PLANE_LWING) + 8 * maxPaxOf("M%d", 1, NUM_PLANE_MOT);
 
     SLONG count = 0;
     for (const auto &iter : mPlaneRelations) {
@@ -532,6 +597,15 @@ bool BotDesigner::buildPart(CXPlane &plane, const PartIter &partIter) const {
 }
 
 std::pair<BotDesigner::FailedWhy, SLONG> BotDesigner::buildPlane(CXPlane &plane) const {
+    /* A hull that cannot reach the goal's passenger floor makes every design below it worthless,
+     * so fail on the hull iterator and let the backtracking skip straight to the next hull. */
+    if (mMinPassagiere > 0) {
+        const SLONG hullPax = GetPlaneBuild(CString(mPartIter[0].formatPrefix()).c_str()).Passagiere;
+        if (hullPax + mMaxNonHullPax < mMinPassagiere) {
+            return {FailedWhy::NoMorePositions, 0};
+        }
+    }
+
     /* check if build configuration makes sense */
     const auto &qFirstEngine = mPartIter[mPrimaryEnginesIdx];
     const auto &qSecondEngine = mPartIter[mSecondaryEnginesIdx];
@@ -560,9 +634,23 @@ std::pair<BotDesigner::FailedWhy, SLONG> BotDesigner::buildPlane(CXPlane &plane)
     return {FailedWhy::DidNotFail, -1};
 }
 
-SLONG BotDesigner::findBestDesignerPlane() {
-    std::vector<ScoreType> scoresToCheck{ScoreType::Standard, ScoreType::FastPassengers, ScoreType::FastFast,
-                                         ScoreType::VIP,      ScoreType::Miss05,         ScoreType::Miss08};
+std::vector<CXPlane> BotDesigner::runSearch(const std::vector<ScoreType> &goals, bool saveAndPrint) {
+    const std::vector<ScoreType> &scoresToCheck = goals;
+
+    /* Only prune when every goal wants the passengers - a mixed run must stay exhaustive. */
+    mMinPassagiere = 0;
+    if (!goals.empty()) {
+        bool allNeedPax = true;
+        for (ScoreType g : goals) {
+            if (g != ScoreType::Miss05 && g != ScoreType::ClaudeMiss05) {
+                allNeedPax = false;
+            }
+        }
+        if (allNeedPax) {
+            mMinPassagiere = BTARGET_PLANESIZE;
+        }
+    }
+
     std::vector<std::vector<PlaneCandidate>> bestPlanes;
     bestPlanes.resize(scoresToCheck.size());
     for (auto &list : bestPlanes) {
@@ -587,7 +675,7 @@ SLONG BotDesigner::findBestDesignerPlane() {
         if (failedWhy == FailedWhy::DidNotFail) {
             if (plane.IsBuildable()) {
                 successfulBuilds++;
-                if (successfulBuilds % 1000 == 0) {
+                if (saveAndPrint && successfulBuilds % 1000 == 0) {
                     AT_Log("Evaluated %d/%d builds so far!", successfulBuilds, totalBuilds);
                 }
 
@@ -656,16 +744,37 @@ SLONG BotDesigner::findBestDesignerPlane() {
         mPartIter[nextVariant].position++;
     }
 
-    for (auto &qPlanes : bestPlanes) {
-        for (int j = 0; j < kMaxBest; j++) {
-            auto &bestPlane = qPlanes[j];
-            bestPlane.setPlaneName(j);
-            bestPlane.save(j);
-            bestPlane.printPlaneInfo();
+    std::vector<CXPlane> winners(goals.size());
+    for (SLONG i = 0; i < static_cast<SLONG>(bestPlanes.size()); i++) {
+        if (saveAndPrint) {
+            for (int j = 0; j < kMaxBest; j++) {
+                auto &bestPlane = bestPlanes[i][j];
+                bestPlane.setPlaneName(j);
+                bestPlane.save(j);
+                bestPlane.printPlaneInfo();
+            }
+        }
+        /* A score of 0 means nothing cleared this goal's bar, so leave the entry empty. */
+        if (bestPlanes[i][0].getScore() > 0) {
+            winners[i] = bestPlanes[i][0].getPlane();
         }
     }
 
     AT_Log("Evaluated %d/%d builds in total!", successfulBuilds, totalBuilds);
 
+    return winners;
+}
+
+SLONG BotDesigner::findBestDesignerPlane() {
+    runSearch({ScoreType::Standard, ScoreType::FastPassengers, ScoreType::FastFast, ScoreType::VIP, ScoreType::Miss05, ScoreType::Miss08}, true);
     return 0;
+}
+
+bool BotDesigner::findBestPlaneForGoal(ScoreType goal, CXPlane &outPlane) {
+    std::vector<CXPlane> winners = runSearch({goal}, false);
+    if (winners.empty() || winners[0].Parts.GetNumUsed() == 0) {
+        return false;
+    }
+    outPlane = winners[0];
+    return true;
 }
