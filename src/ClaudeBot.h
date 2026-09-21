@@ -166,6 +166,9 @@ class ClaudeBot {
          * none. A mission starts with a million or three, and the cheapest new plane costs 9.9M,
          * so the museum is the only way to a third plane in the first weeks. */
         SLONG usedFleet{0};
+        /* ATFS01: the goal is cash in hand, so nothing is bought that does not fly - no
+         * aeroplanes, advertising, gates or fittings. */
+        bool hoardCash{false};
     };
 
     /* --- the aeroplane designer --- */

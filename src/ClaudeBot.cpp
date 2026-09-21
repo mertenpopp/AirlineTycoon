@@ -872,6 +872,14 @@ void ClaudeBot::setupMission() {
         m.wantUpgrades = true;
         m.upgradePlanes = 5;
         break;
+    case DIFF_ATFS01:
+        /* First to 15M in the bank - cash, borrowed or not. Everything the free game spends
+         * on growth is spent against the goal here: 14.6M of advertising by day 14, while the
+         * winner held 15.9M with the same saldo. And as in EASY, a three-week race is over
+         * before a route pays back its rent and image. */
+        m.hoardCash = true;
+        m.noRoutes = true;
+        break;
     case DIFF_ATFS05:
         /* Three planes carrying BTARGET_PLANESIZE passengers. No catalogue plane comes close, so
          * they have to be designed. */
@@ -1276,7 +1284,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         out.push_back(ACTION_VISITDESIGNER);
     }
 
-    if (!mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || !routesAvailable()) && qPlayer.Money > kCashBuffer &&
+    if (!mMission.hoardCash && !mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || !routesAvailable()) && qPlayer.Money > kCashBuffer &&
         canUseAction(ACTION_BUYNEWPLANE)) {
         out.push_back(ACTION_BUYNEWPLANE);
     }
@@ -1290,7 +1298,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
 
     /* 5c) The boss. Gate auctions are free to enter and settle overnight, so this is worth a
      *     slot every day the room is open - see kPlanesPerGate. */
-    if (!mVisitedBossToday && canUseAction(ACTION_EXPANDAIRPORT)) {
+    if (!mMission.hoardCash && !mVisitedBossToday && canUseAction(ACTION_EXPANDAIRPORT)) {
         out.push_back(ACTION_EXPANDAIRPORT);
     }
 
@@ -1316,12 +1324,12 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
     }
 
-    if (!mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
+    if (!mMission.hoardCash && !mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
         canUseAction(ACTION_WERBUNG)) {
         out.push_back(ACTION_WERBUNG);
     }
 
-    if (!mUpgradedToday && (qPlayer.OfficeState != 2) && canUseAction(ACTION_UPGRADE_PLANES)) {
+    if (!mMission.hoardCash && !mUpgradedToday && (qPlayer.OfficeState != 2) && canUseAction(ACTION_UPGRADE_PLANES)) {
         out.push_back(ACTION_UPGRADE_PLANES);
     }
 
