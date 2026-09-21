@@ -1258,3 +1258,35 @@ so there is nothing left to gain here. The job stream is still unseeded in this 
 (`Sim.cpp:827`), which is why every seed ends on the same day.
 
 The free game is untouched: every change is behind `mMission.uhrigJobs`.
+
+2026-09-21 - ADDON09 with seeded Uhrig jobs; why MertenBot is slower
+-------------------------------------------------------------------
+
+Merten's commit f7747168 seeds `qPlayer.Auftraege.Random` from `AtGetSeedTime()` in every mission,
+so the Uhrig stream now differs per `/seed`. All four airlines in one game still share the same
+stream (same seed per player), so the mission stays fair.
+
+ClaudeBot, unchanged: **24/24** won against the legacy bots (`006`) and **8/8** against MertenBot
+level 2 (`026`), all on **day 41-42**.
+
+MertenBot level 2 in the HA slot (`002`), same 24 seeds: **won 23/24, on days 43-53**. It lost seed 23
+to FL (legacy) on day 52. Three causes, from the logs of seeds 7, 17 and 23:
+
+1. **Fleet growth is gated on cash for a 767-300 ER.** `condBuyNewPlane` needs
+   `mLongTermStrategy` (default true; the short-term override in Bot.cpp is commented out, so
+   `condBuyUsedPlane` never fires). It buys only `mBestPlaneTypeId`, and only once
+   `getMoneyAvailable() - DEBT_LIMIT - reserve >= Preis` (~22.7M). `howMuchMoneyToRaise()`
+   borrows only to cover a negative balance outside route mode. So MertenBot sits on 20-25M with
+   two planes until day 40-45. ClaudeBot borrows to the limit and buys the cheapest capacity
+   (Tu 154 10.4M, Il 62 9.9M): 3rd plane on day 15-25, 4th on day 35.
+2. **It keeps taking other jobs, and taken jobs are never dropped.** It visits the agency, last
+   minute and freight 1,300 times and makes 2,600 international calls per game. 10-26% of the jobs
+   in its plans are not Uhrig's. `bDropTakenJobs = false` (BotPlanerAlgo.cpp), so a job taken
+   during the day keeps its slot when the next morning's Uhrig jobs, due in 1-3 days, arrive.
+   `uhrigBonus` can't protect jobs that aren't issued yet. The result is 1-6M of fines and Uhrig
+   jobs carried unplanned until they expire.
+3. So even on two planes it is slower: seed 17, 3.45 Uhrig jobs a day on days 0-40, against
+   ClaudeBot's 4.3 a day on days 0-20 before its third plane arrives.
+
+The obvious MertenBot fixes: skip job taking in ADDON09 (or drop taken non-Uhrig jobs), and allow
+cheap or used planes plus credit there. Not done: MertenBot code is outside ClaudeBot's scope.
