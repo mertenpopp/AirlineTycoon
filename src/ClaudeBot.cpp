@@ -881,6 +881,9 @@ void ClaudeBot::setupMission() {
         break;
     case DIFF_ADDON07:
         m.conditionPlanes = 2;
+        /* Won by buying two new planes (delivered at Zustand 100). With routes the cash went to
+         * 30M of advertising and never reached the 9.9M of the cheapest one. */
+        m.noRoutes = true;
         break;
     case DIFF_ATFS02:
         m.conditionPlanes = 5;
