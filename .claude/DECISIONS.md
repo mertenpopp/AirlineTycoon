@@ -1384,3 +1384,45 @@ at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switch
   days running) and is fined. Seen in the missions; the same code runs in the free game.
 - Still below MertenBot: ADDON04 4/8, HARD 5/8, ATFS05 5/8, ATFS09 4/8, and the NASA missions win
   but on day ~100 (MertenBot ~54).
+
+### Sweep over seeds 0-100 (commit 16668dd2)
+
+All 26 missions x 101 seeds at `/setbotlevel 006`, TIMEOUT=600: **2120/2626 won, 81%** - the 8-seed
+estimate (~86%) was optimistic. All 2626 games exited 0, none without a result, no display failures.
+Seed 0 is the unseeded (wall-clock) game. MertenBot column: Merten's `dataMISS_*_mission_merten` files
+(200 games, opponents and seeds not recorded there), so it is a guide, not a paired comparison.
+
+```
+mission       ClaudeBot med.day no result      MertenBot med.day
+TUTORIAL     96/101  95%     2.0         0    200/200 100%     1.0
+FIRST        67/101  66%       4         0    183/200  92%       4
+EASY         70/101  69%     7.0         0    116/200  58%     8.0
+NORMAL      101/101 100%      47         0    199/200 100%      75
+HARD         67/101  66%      48         0    198/200  99%    20.5
+FINAL        86/101  85%    98.0         0    200/200 100%    56.0
+ADDON01      96/101  95%    37.0         0    200/200 100%    18.0
+ADDON02      91/101  90%      10         0    167/200  84%      12
+ADDON03      62/101  61%    21.0         0    153/200  76%      21
+ADDON04      41/101  41%      30         0     46/200  23%    30.0
+ADDON05     101/101 100%      74         0    194/200  97%    43.0
+ADDON06     101/101 100%      21         0    200/200 100%    21.0
+ADDON07      98/101  97%    46.0         0    199/200 100%      40
+ADDON08      68/101  67%    56.5         0    199/200 100%      69
+ADDON09     101/101 100%      41         0    196/200  98%    47.0
+ADDON10      97/101  96%      97         0    200/200 100%    54.0
+ATFS01       67/101  66%      14         0    175/200  88%      10
+ATFS02       99/101  98%      61         0    192/200  96%    35.0
+ATFS03       99/101  98%      64         0    195/200  98%      42
+ATFS04       71/101  70%      26         0    200/200 100%    60.0
+ATFS05       76/101  75%    68.0         0    191/200  96%      55
+ATFS06       74/101  73%    25.0         0    195/200  98%      95
+ATFS07       74/101  73%   143.0         0    200/200 100%    92.0
+ATFS08       96/101  95%    51.0         0    199/200 100%      42
+ATFS09       29/101  29%      45         0    198/200  99%    45.0
+ATFS10       92/101  91%    60.0         0    200/200 100%    60.0
+total      2120/2626  81%
+```
+
+Largest gaps to MertenBot: ATFS09 29% (99%), HARD 66% (99%), ADDON08 67% (100%), ATFS04 70% (100%),
+ATFS07 73% (100%), ATFS06 73% (98%), ATFS05 75% (96%), FIRST 66% (92%), ATFS01 66% (88%).
+Ahead of it: EASY 69% (58%), ADDON04 41% (23%), and on speed NORMAL (day 47 vs 75) and ATFS06 (25 vs 95).
