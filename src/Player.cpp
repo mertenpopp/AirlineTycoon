@@ -4551,9 +4551,12 @@ void PLAYER::RobotExecuteAction() {
 
                                     SLONG ObjectId = -1;
                                     GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+                                    if (ObjectId < 0) {
+                                        continue;
+                                    }
 
                                     SLONG bailout = 10;
-                                    while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                    while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                         if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                             break;
                                         }
@@ -4616,9 +4619,12 @@ void PLAYER::RobotExecuteAction() {
 
                                         SLONG ObjectId = -1;
                                         GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+                                        if (ObjectId < 0) {
+                                            continue;
+                                        }
 
                                         SLONG bailout = 10;
-                                        while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                        while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                             if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                                 break;
                                             }
@@ -5546,9 +5552,12 @@ void PLAYER::RobotExecuteAction() {
 
                             SLONG ObjectId = -1;
                             GameMechanic::takeFreightJob(*this, e, ObjectId);
+                            if (ObjectId < 0) {
+                                continue;
+                            }
 
                             SLONG bailout = 10;
-                            while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                            while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                 if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                     break;
                                 }
@@ -5611,9 +5620,12 @@ void PLAYER::RobotExecuteAction() {
 
                                 SLONG ObjectId = -1;
                                 GameMechanic::takeFreightJob(*this, e, ObjectId);
+                                if (ObjectId < 0) {
+                                    continue;
+                                }
 
                                 SLONG bailout = 10;
-                                while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                     if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                         break;
                                     }
