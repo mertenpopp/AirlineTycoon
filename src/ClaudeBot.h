@@ -169,6 +169,9 @@ class ClaudeBot {
         /* ATFS01: the goal is cash in hand, so nothing is bought that does not fly - no
          * aeroplanes, advertising, gates or fittings. */
         bool hoardCash{false};
+        /* ATFS06: fifteen days without being sabotaged, against a third actor that picks a
+         * random airline every day. Only the security office stops it. */
+        bool wantNoSabotage{false};
     };
 
     /* --- the aeroplane designer --- */
@@ -220,6 +223,7 @@ class ClaudeBot {
     void executeUpgrades();
     void executeBuyPlane();
     void executeBuyUsedPlane();
+    void executeProtection();
     SLONG countPlanes() const;
     void executeKerosinTanks();
     void executeBuyKerosin();
