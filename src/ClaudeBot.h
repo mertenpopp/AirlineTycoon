@@ -174,6 +174,8 @@ class ClaudeBot {
         bool wantNoSabotage{false};
         /* Route ticket price, in percent of the threshold CalcPassengers() calls extortionate. */
         SLONG ticketPercent{0};
+        /* FIRST: first to 2500 passengers, so jobs are ranked by their cabin as well. */
+        bool wantPassengers{false};
     };
 
     /* --- the aeroplane designer --- */

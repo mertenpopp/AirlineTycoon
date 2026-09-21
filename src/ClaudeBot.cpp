@@ -150,6 +150,9 @@ static const SLONG kMinFreightGain = 20000;
  * and at 400,000 the bot stops flying altogether and ends at -111,104. */
 static const SLONG kMissionJobGain = 50000;
 
+/* FIRST (Mission::wantPassengers): what a passenger on a job is worth when ranking jobs. */
+static const SLONG kMissionGainPerPassenger = 2000;
+
 
 /* ADDON09: what one of Uhrig's jobs is worth to the planner on top of its premium and the
  * fine it avoids. The goal counts them and nothing else, so any flyable one beats any
@@ -827,6 +830,7 @@ void ClaudeBot::setupMission() {
     case DIFF_FIRST:
         /* 2500 passengers: seats are the goal. */
         m.usedFleet = kMissionUsedFleet;
+        m.wantPassengers = true;
         break;
     case DIFF_ADDON04:
         /* Most miles after 30 days. Every leg counts, empty ones included (Schedule.cpp), so
@@ -924,6 +928,28 @@ void ClaudeBot::setupMission() {
         /* Every other mission is won by the ordinary economy - cash, company value,
          * passengers, jobs flown - or by a room the bot does not use yet (the NASA
          * missions). */
+        break;
+    }
+
+    /* Jobs instead of routes in these too. A mission starts on two planes with little cash, and
+     * a route has to be rented, advertised and flown for weeks before it pays; at the free
+     * game's fare every flight also costs two image points. Measured over 8 seeds each, routes
+     * off against on: ADDON05 8/8 (7/8), ADDON06 8/8 (3/8), ADDON08 6/8 (6/8, faster),
+     * ATFS02 8/8 (8/8, days 54-65 instead of 71-79), ATFS05 5/8 (0/8), ATFS07 8/8 (7/8),
+     * ATFS08 6/8 (6/8, faster). The two NASA missions are the exception: their 204M and 238M
+     * need the route economy, and without it they went from 8/8 to 0/8. */
+    switch (Sim.Difficulty) {
+    case DIFF_ADDON05:
+    case DIFF_ADDON06:
+    case DIFF_ADDON08:
+    case DIFF_ATFS02:
+    case DIFF_ATFS05:
+    case DIFF_ATFS07:
+    case DIFF_ATFS08:
+    case DIFF_ATFS09:
+        m.noRoutes = true;
+        break;
+    default:
         break;
     }
 
@@ -2321,6 +2347,21 @@ void ClaudeBot::executeRouteBox() {
      * scarce resource. */
     auto buyable = GameMechanic::getBuyableRoutes(qPlayer);
 
+    if (mMission.wantMissionCities) {
+        for (SLONG i = 0; i < Sim.MissionCities.AnzEntries(); i++) {
+            const ULONG city = Cities(Sim.MissionCities[i]);
+            for (SLONG r = 0; r < Routen.AnzEntries(); r++) {
+                if (Routen.IsInAlbum(r) == 0 || Cities(Routen[r].VonCity) != Cities(Sim.HomeAirportId) || Cities(Routen[r].NachCity) != city) {
+                    continue;
+                }
+                const auto &qRR = qPlayer.RentRouten.RentRouten[r];
+                AT_Log("ClaudeBot::executeRouteBox(): Mission city %s: route %ld held %d, buyable %d, usage %ld, %ld km, pax/day %ld.",
+                       Cities[Sim.MissionCities[i]].Name.c_str(), r, qRR.Rang != 0, buyable[r] != 0, static_cast<SLONG>(qRR.RoutenAuslastung),
+                       Cities.CalcDistance(Routen[r].VonCity, Routen[r].NachCity) / 1000, static_cast<SLONG>(Routen[r].AnzPassagiere()));
+            }
+        }
+    }
+
     /* Every route has to touch the home airport.
      *
      * scheduleRouteFlights() only ever lays a leg that departs from where the plane already
@@ -3324,6 +3365,10 @@ void ClaudeBot::takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *
             PlaneTime start{};
             SLONG gain = 0;
             SLONG p = findPlaneForJob(qJob, gap, start, gain);
+            /* FIRST counts passengers, and a job's premium says little about its cabin. */
+            if (p >= 0 && mMission.wantPassengers) {
+                gain += static_cast<SLONG>(qJob.Personen) * kMissionGainPerPassenger;
+            }
             if (p < 0 || gain <= bestGain) {
                 continue;
             }
@@ -3978,7 +4023,11 @@ SLONG ClaudeBot::scheduleRouteFlights() {
                 return static_cast<SLONG>(0);
             }
             const SLONG sellable = std::min<SLONG>(seats, headroom(r, day));
-            return qRoute.valuePerHour * sellable / seats;
+            /* NORMAL: a pair to a mission city scores a flag only while it is flown at over 20%
+             * of its demand, and ranked on earnings alone the long ones - New York at 6,239 km
+             * - never cleared the gate below, sat unflown and were confiscated five times. */
+            const __int64 value = qRoute.valuePerHour + missionRouteBonus(Routen[qRoute.id]);
+            return static_cast<SLONG>(value * sellable / seats);
         };
 
         /* A castaway pair is invisible to any aeroplane that has a proper pair in range.
