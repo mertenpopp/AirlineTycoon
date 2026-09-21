@@ -1290,3 +1290,69 @@ to FL (legacy) on day 52. Three causes, from the logs of seeds 7, 17 and 23:
 
 The obvious MertenBot fixes: skip job taking in ADDON09 (or drop taken non-Uhrig jobs), and allow
 cheap or used planes plus credit there. Not done: MertenBot code is outside ClaudeBot's scope.
+
+2026-09-21 - Missions: 55% -> 84% won
+-------------------------------------
+
+All 26 missions at `/setbotlevel 006` (ClaudeBot as HA against two legacy bots and the idle human).
+`scripts/run_missions.sh` now takes `SEEDS` (default 1, as before) so each mission can be played on
+several seeds; all numbers here are HA wins over seeds 1-8 unless stated.
+
+**Start of session: 57/104 (seeds 1-4). End: 175/208 (seeds 1-8), 84%.** MertenBot's reference
+(Merten's `dataMISS_*_mission_merten` files, 200 games per mission) wins ~90%.
+
+| mission | before (s1-4) | after (s1-8) | what did it |
+|---|---|---|---|
+| FIRST | 3/4 | 7/8 | used planes; jobs ranked by passengers too |
+| EASY | 1/4 | 7/8 | fuel from the tank does not count against Gewinn; used planes |
+| NORMAL | 0/4 | **8/8** (day 42-58) | mission-city bonus also in route *scheduling* |
+| HARD | 2/4 | 5/8 | jobs not routes; only size-5 image campaigns |
+| ADDON02 | 0/4 | 7/8 | freight first, no passenger jobs; used planes |
+| ADDON04 | 0/4 | 4/8 | jobs not routes; used planes |
+| ADDON06 | 2/4 | **8/8** | jobs not routes |
+| ADDON07 | 0/4 | **8/8** | jobs not routes, so the cash buys two new planes |
+| ATFS01 | 0/4 | 6/8 | hoard cash (no ads, planes, gates, fittings); jobs not routes |
+| ATFS04 | 1/4 | 7/8 | five used planes; jobs not routes |
+| ATFS05 | 0/4 | 5/8 | jobs not routes |
+| ATFS06 | 1/4 | 6/8 | as ATFS04, plus protection and holding the pliers |
+| ATFS09 | 1/4 | 0/8 | still lost, but the gap went from 3-4.5x to 1-1.9x |
+
+Unchanged and won: TUTORIAL, FINAL, ADDON01, ADDON03, ADDON05, ADDON08, ADDON09, ADDON10,
+ATFS02, ATFS03, ATFS07, ATFS08, ATFS10 (several faster).
+
+### The one lesson: missions are not the free game
+
+Routes are the free game's engine and a mission's worst enemy. A mission starts on two planes with
+1-4M; a route pair has to be rented, advertised and flown for weeks before it pays, and at the free
+game's 190% fare every flight costs **two image points** (BookFlight: price > 1.5x the threshold is
+-20/10). Measured symptoms: 14.6M of ads by day 14 in ATFS01, 30M in ADDON07, 32M in ATFS09, image
+at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switching routes off
+(`Mission::noRoutes`) won or sped up every mission tried **except FINAL and ADDON10**, which went
+8/8 -> 0/8: their 204M/238M bill needs the route economy.
+
+### Rules found in the source that decide missions
+
+- **EASY counts `PLAYER::Gewinn`**, which only sums flight saldos and fines. A flight's saldo is
+  charged only for kerosene bought at the gate - fuel drawn from the own tank was paid at the Arab
+  and never reaches Gewinn. So a tank refilled daily at any price makes every flight count its whole
+  revenue (`Mission::fuelFromTank`). One 1000-unit tank covers ~2.5 days of a two-plane airline.
+- **Used planes** cost `ptPreis * (Zustand/100)^2 * (Baujahr-1900)/120`: 0.8-3M where the cheapest
+  new plane is 9.9M. Three are on offer, redrawn daily. Condition and build year move together, so
+  filtering for Zustand >= 60 (with the plane advisor) left nothing affordable - dropped. The
+  breakdown damage that prompted the filter is a random seasonal event (Sim.cpp, 75,000 a time),
+  not condition-related. But a plane under Zustand 60 loses 1 image per flight: in HARD six used
+  planes took the wins from 5/8 to 2/8, so no museum there.
+- **Airline image campaigns** add `cost/10000 * (size+6)/55` points, truncated: 100k/point at
+  size 3, 62.5k at size 4, 50k at size 5. ClaudeBot bought the largest *affordable* size, often 3.
+  HARD now only buys size 5 (free game untouched).
+- **Sabotage protection** (security office) blocks both the legacy bots and ATFS06's third actor,
+  but a legacy bot that keeps running into it takes the pliers (`ITEM_ZANGE`) on even days and
+  wipes every airline's flags. The pliers return every morning and an airline may hold several
+  items, so ClaudeBot picks up today's pair (dropping yesterday's) - no trust needed. Protection
+  costs ~100k per plane per day, so it only starts once the five planes are owned (the fifteen
+  days only count from then). Not used in ATFS04 (legacy saboteurs only): 7/8 without, 6/8 with.
+- **NORMAL**: the flags were never short of planes - on seed 1 Rio, Tokyo and Johannesburg sat at
+  100% utilisation while New York was held at 0% and Moscow at 17%. The scheduler's
+  "90% of the best reachable pair" gate hid the long, lower-yield mission pairs from every plane;
+  New York was confiscated for low utilisation and re-rented five times. Adding the mission bonus
+  to the scheduling value (it already ranked the renting) won all 8 seeds. Delhi was never buyable.

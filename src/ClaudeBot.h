@@ -176,6 +176,8 @@ class ClaudeBot {
         SLONG ticketPercent{0};
         /* FIRST: first to 2500 passengers, so jobs are ranked by their cabin as well. */
         bool wantPassengers{false};
+        /* ATFS09: take no freight contracts - see setupMission(). */
+        bool noFreight{false};
     };
 
     /* --- the aeroplane designer --- */
