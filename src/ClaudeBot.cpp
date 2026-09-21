@@ -953,6 +953,13 @@ void ClaudeBot::setupMission() {
         break;
     }
 
+    /* ATFS09 is scored on company value, and on the job-only fleet a freight contract often
+     * ends a few tons short when it is re-planned onto a smaller plane: 5.9M of fines by day
+     * 45 on seed 4. Without freight 4/8 won instead of 0/8. Elsewhere freight is worth its
+     * fines - ADDON04 counts its legs as miles (4/8 -> 1/8 without) and ATFS01 its cash
+     * (6/8 -> 4/8). */
+    m.noFreight = (Sim.Difficulty == DIFF_ATFS09);
+
     mMission = m;
 }
 
@@ -1420,7 +1427,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *    contract only on its last one. Where tonnage is the goal it comes first instead. */
     const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
     const bool wantFreightVisit =
-        kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3);
+        kUseFreight && !mMission.noFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3);
     if (mMission.wantFreight && wantFreightVisit) {
         out.push_back(ACTION_CHECKAGENT3);
     }
