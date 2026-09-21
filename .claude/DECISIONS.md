@@ -1298,7 +1298,8 @@ All 26 missions at `/setbotlevel 006` (ClaudeBot as HA against two legacy bots a
 `scripts/run_missions.sh` now takes `SEEDS` (default 1, as before) so each mission can be played on
 several seeds; all numbers here are HA wins over seeds 1-8 unless stated.
 
-**Start of session: 57/104 (seeds 1-4). End: 175/208 (seeds 1-8), 84%.** MertenBot's reference
+**Start of session: 57/104 (seeds 1-4). End: 175/208 (seeds 1-8) in one full sweep, plus ATFS09
+0/8 -> 4/8 afterwards, so ~179/208, 86%.** MertenBot's reference
 (Merten's `dataMISS_*_mission_merten` files, 200 games per mission) wins ~90%.
 
 | mission | before (s1-4) | after (s1-8) | what did it |
@@ -1315,7 +1316,7 @@ several seeds; all numbers here are HA wins over seeds 1-8 unless stated.
 | ATFS04 | 1/4 | 7/8 | five used planes; jobs not routes |
 | ATFS05 | 0/4 | 5/8 | jobs not routes |
 | ATFS06 | 1/4 | 6/8 | as ATFS04, plus protection and holding the pliers |
-| ATFS09 | 1/4 | 0/8 | still lost, but the gap went from 3-4.5x to 1-1.9x |
+| ATFS09 | 1/4 | 4/8 | jobs not routes (gap 3-4.5x -> 1-1.9x); then no freight (0/8 -> 4/8) |
 
 Unchanged and won: TUTORIAL, FINAL, ADDON01, ADDON03, ADDON05, ADDON08, ADDON09, ADDON10,
 ATFS02, ATFS03, ATFS07, ATFS08, ATFS10 (several faster).
@@ -1356,3 +1357,26 @@ at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switch
   "90% of the best reachable pair" gate hid the long, lower-yield mission pairs from every plane;
   New York was confiscated for low utilisation and re-rented five times. Adding the mission bonus
   to the scheduling value (it already ranked the renting) won all 8 seeds. Delhi was never buyable.
+
+### Tried and not kept
+
+- Used planes ranked by speed for ADDON04: bought a 15-seat plane that carries nothing. A per-km job
+  bonus and no profit floor there: fines rose (6.5M on seed 1), 0/8. Plain job mode won 4/8.
+- Cheap route fare (45% of threshold, +1 image per flight) in HARD with routes on: image grew 3x
+  faster, but route income fell by two thirds; jobs-only beat it (5/8 vs 3/8). The constant
+  `kImageTicketPercent` is still wired to HARD but unused while HARD flies no routes.
+- No freight in every job-only mission: ADDON04 4/8 -> 1/8 (freight legs are miles), ATFS01
+  6/8 -> 4/8. Kept for ATFS09 only.
+- Protection in ATFS04: 7/8 -> 6/8.
+
+### Open
+
+- **Free-game check not run this session.** Every change is behind a `Mission` flag and the diff
+  was reviewed for that (the free game keeps the 190% fare, never enters the museum, security or
+  tank paths; the one shared line, `marginalValue()`, now uses 64-bit arithmetic with an identical
+  result). Worth one paired `run_measurement_claudebot_tycoon.sh` before the next free-game session.
+- **Freight contracts ending short.** A contract re-planned by `schedulePendingFreight()` can find
+  no window for its last tons before the deadline (Helsinki -> Berlin, 6 of 60 tons, logged five
+  days running) and is fined. Seen in the missions; the same code runs in the free game.
+- Still below MertenBot: ADDON04 4/8, HARD 5/8, ATFS05 5/8, ATFS09 4/8, and the NASA missions win
+  but on day ~100 (MertenBot ~54).
