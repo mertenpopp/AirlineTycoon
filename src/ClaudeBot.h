@@ -166,8 +166,6 @@ class ClaudeBot {
          * none. A mission starts with a million or three, and the cheapest new plane costs 9.9M,
          * so the museum is the only way to a third plane in the first weeks. */
         SLONG usedFleet{0};
-        /* ADDON04: rank used planes by speed, not by cabin - miles are the goal. */
-        bool wantMiles{false};
     };
 
     /* --- the aeroplane designer --- */
