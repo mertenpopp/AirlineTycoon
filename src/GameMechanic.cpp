@@ -2222,7 +2222,7 @@ bool GameMechanic::takeFreightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObject
         return false;
     }
     if (qPlayer.Frachten.GetNumFree() < 3) {
-        qPlayer.Frachten.ReSize(qPlayer.Auftraege.AnzEntries() + 10);
+        qPlayer.Frachten.ReSize(qPlayer.Frachten.AnzEntries() + 10);
     }
 
     outObjectId = (qPlayer.Frachten += qAuftrag);
