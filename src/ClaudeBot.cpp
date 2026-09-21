@@ -940,14 +940,13 @@ void ClaudeBot::setupMission() {
     /* Jobs instead of routes in these too. A mission starts on two planes with little cash, and
      * a route has to be rented, advertised and flown for weeks before it pays; at the free
      * game's fare every flight also costs two image points. Measured over 8 seeds each, routes
-     * off against on: ADDON05 8/8 (7/8), ADDON06 8/8 (3/8), ADDON08 6/8 (6/8, faster),
+     * off against on: ADDON05 8/8 (7/8), ADDON06 8/8 (3/8),
      * ATFS02 8/8 (8/8, days 54-65 instead of 71-79), ATFS05 5/8 (0/8), ATFS07 8/8 (7/8),
      * ATFS08 6/8 (6/8, faster). The two NASA missions are the exception: their 204M and 238M
      * need the route economy, and without it they went from 8/8 to 0/8. */
     switch (Sim.Difficulty) {
     case DIFF_ADDON05:
     case DIFF_ADDON06:
-    case DIFF_ADDON08:
     case DIFF_ATFS02:
     case DIFF_ATFS05:
     case DIFF_ATFS07:
@@ -965,6 +964,17 @@ void ClaudeBot::setupMission() {
      * fines - ADDON04 counts its legs as miles (4/8 -> 1/8 without) and ATFS01 its cash
      * (6/8 -> 4/8). */
     m.noFreight = (Sim.Difficulty == DIFF_ATFS09);
+
+    /* ADDON08 is won on the share price, which is pulled towards 10 * TrustedDividende, and
+     * that only climbs on days whose whole cash flow is positive (PLAYER::NewDay). Routes give
+     * the steady daily income; route advertising gives the negative days - with it the routes
+     * won 73/100, without routes 68/100, and routes without any advertising 91/100 on the same
+     * seeds, the median win moving from day 56 to day 32.
+     *
+     * ATFS09 (company value) was tried the same way and stays without routes: 29/100 there
+     * against 6 with routes, 0 with routes but no ads (the 190% fare took the image to -766,
+     * 50,000 of value a point) and 5 at a 95% fare. */
+    m.noAds = (Sim.Difficulty == DIFF_ADDON08);
 
     mMission = m;
 }
@@ -1409,7 +1419,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
     }
 
-    if (!mMission.hoardCash && !mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
+    if (!mMission.hoardCash && !mMission.noAds && !mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
         canUseAction(ACTION_WERBUNG)) {
         out.push_back(ACTION_WERBUNG);
     }

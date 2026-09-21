@@ -181,6 +181,8 @@ class ClaudeBot {
         bool wantPassengers{false};
         /* ATFS09: take no freight contracts - see setupMission(). */
         bool noFreight{false};
+        /* ADDON08: fly routes but never advertise - see setupMission(). */
+        bool noAds{false};
     };
 
     /* --- the aeroplane designer --- */
