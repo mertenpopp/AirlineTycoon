@@ -291,6 +291,8 @@ static const __int64 kPlaneCashReserve = 800000;
  * the job boards reach well beyond Europe. */
 static const __int64 kUsedPlaneCashReserve = 1500000;
 static const SLONG kUsedPlaneMinRange = 3000;
+/* ...and the least cabin: a plane that fits no job's passengers only adds cost. */
+static const SLONG kUsedPlaneMinSeats = 100;
 /* How far those missions grow the fleet with used planes. */
 static const SLONG kMissionUsedFleet = 6;
 /* ATFS04, ATFS06: the goal's fleet size (Player.cpp, HasWon). */
@@ -804,6 +806,7 @@ void ClaudeBot::setupMission() {
     Mission m{};
     m.difficulty = Sim.Difficulty;
     m.ticketPercent = kTicketPriceThresholdPercent;
+    m.usedMinSeats = kUsedPlaneMinSeats;
     m.isMission = (Sim.Difficulty != DIFF_FREEGAME && Sim.Difficulty != DIFF_FREEGAMEMAP);
     if (!m.isMission) {
         mMission = m;
@@ -908,6 +911,9 @@ void ClaudeBot::setupMission() {
         /* Five planes and fifteen days without being sabotaged. The planes are the part that
          * money buys, and the museum sells them for a fraction of the broker's price. */
         m.usedFleet = kMissionSabotageFleet;
+        /* Any plane counts towards the five, so a small cheap one is welcome. With the 100-seat
+         * floor ATFS04 won 68/100 instead of 70 and ATFS06 70 instead of 73. */
+        m.usedMinSeats = 0;
         /* With routes the image fell to -1000 and the cash never reached a fourth used plane. */
         m.noRoutes = true;
         /* ATFS06 adds a third actor that attacks a random airline every day, so there the
@@ -2987,6 +2993,12 @@ void ClaudeBot::executeBuyUsedPlane() {
             continue; /* sold, not yet replaced */
         }
         if (qPlane.ptReichweite < kUsedPlaneMinRange) {
+            continue;
+        }
+        /* The pick is the largest cabin we can pay for, so without a floor a day with only a
+         * small plane affordable bought it: 1.2M for 15 seats in EASY and ADDON04. Not where
+         * the goal counts planes rather than seats - see Mission::usedMinSeats. */
+        if (qPlane.ptPassagiere < mMission.usedMinSeats) {
             continue;
         }
         const __int64 price = qPlane.CalculatePrice();
