@@ -361,6 +361,7 @@ class Bot {
     SLONG mNemesis{-1};
     __int64 mNemesisScore{0};
     bool mNeedToShutdownSecurity{false};
+    bool mPliersWereTaken{false};
     bool mUsingSecurity{false};
     SLONG mNemesisSabotaged{-1};
     SLONG mArabHintsTracker{0};
