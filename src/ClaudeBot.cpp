@@ -462,6 +462,9 @@ static const SLONG kExpectedPaxPerFlight = 250;
  * the threshold on the day the flight actually runs. */
 static const SLONG kTicketPriceThresholdPercent = 190;
 
+/* HARD (Mission::wantImage): under 50% of the threshold, where a flight gains image. */
+static const SLONG kImageTicketPercent = 45;
+
 /* ...but a price already inside this band is left alone, in the same percent of the threshold.
  *
  * The threshold moves with Sim.Kerosin every day, and re-pricing to it daily raises the price on
@@ -797,6 +800,7 @@ SLONG ClaudeBot::planeIndex(ULONG uid) const {
 void ClaudeBot::setupMission() {
     Mission m{};
     m.difficulty = Sim.Difficulty;
+    m.ticketPercent = kTicketPriceThresholdPercent;
     m.isMission = (Sim.Difficulty != DIFF_FREEGAME && Sim.Difficulty != DIFF_FREEGAMEMAP);
     if (!m.isMission) {
         mMission = m;
@@ -810,6 +814,15 @@ void ClaudeBot::setupMission() {
     switch (Sim.Difficulty) {
     case DIFF_HARD:
         m.wantImage = true;
+        /* Every route flight priced under half the threshold adds an image point, and every
+         * one above 1.5x of it takes two away (BookFlight, Schedule.cpp) - the free game's
+         * fare works against this goal on every flight. */
+        m.ticketPercent = kImageTicketPercent;
+        /* The legacy bots win this on jobs and savings, then buy the image in one go. Routes
+         * cost the income that pays for it: on seed 1 they earned a third of what they did
+         * at the full fare. Used planes are no help either - a plane under Zustand 60 loses
+         * image on every flight, and with six of them the wins went from 5/8 to 2/8. */
+        m.noRoutes = true;
         break;
     case DIFF_FIRST:
         /* 2500 passengers: seats are the goal. */
@@ -2253,7 +2266,7 @@ void ClaudeBot::executeRouteBox() {
         state.anzPax = Routen[state.id].AnzPassagiere();
         state.valuePerHour = routeValuePerHour(qRef, Routen[r]);
         state.castaway = std::find(mCastawayRoutes.begin(), mCastawayRoutes.end(), r) != mCastawayRoutes.end();
-        state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
+        state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * mMission.ticketPercent / 100;
         state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
         mRoutes.push_back(state);
     }
@@ -2439,7 +2452,7 @@ void ClaudeBot::executeRouteBox() {
         if (castaway) {
             mCastawayRoutes.push_back(bestRoute);
         }
-        state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * kTicketPriceThresholdPercent / 100;
+        state.ticketPrice = routePriceBase(state.vonCity, state.nachCity) * 3 * mMission.ticketPercent / 100;
         state.ticketPriceFC = routePriceBase(state.vonCity, state.nachCity) * 9 * kTicketPriceThresholdPercentFC / 100;
         mRoutes.push_back(state);
         mNeedSchedule = true;
@@ -3058,7 +3071,10 @@ void ClaudeBot::executeAds() {
      * counts four times, so a route point is worth six airline points. Airline image only
      * gets the cash a plane cannot use. */
     while (qPlayer.Image < target && qPlayer.Money > kAdCashBuffer) {
-        SLONG size = affordableSize(0, 3);
+        /* A campaign adds cost / 10000 * (size + 6) / 55 points, truncated: 100,000 a point at
+         * size 3, 62,500 at size 4 and 50,000 at size 5. Where image is the goal, wait for
+         * the cash of the big one. */
+        SLONG size = affordableSize(0, mMission.wantImage ? 5 : 3);
         if (size < 0) {
             break;
         }
