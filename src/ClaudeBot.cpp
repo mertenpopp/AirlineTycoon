@@ -290,6 +290,8 @@ static const __int64 kUsedPlaneCashReserve = 1500000;
 static const SLONG kUsedPlaneMinRange = 3000;
 /* How far those missions grow the fleet with used planes. */
 static const SLONG kMissionUsedFleet = 6;
+/* ATFS04, ATFS06: the goal's fleet size (Player.cpp, HasWon). */
+static const SLONG kMissionSabotageFleet = 5;
 
 /* Repair rate of the mechanic we employ (3 = "Diplom-Dingsbums", 15-18 points a night).
  * Anything slower cannot keep a busy plane above the accident threshold of 80. */
@@ -878,6 +880,15 @@ void ClaudeBot::setupMission() {
          * winner held 15.9M with the same saldo. And as in EASY, a three-week race is over
          * before a route pays back its rent and image. */
         m.hoardCash = true;
+        m.noRoutes = true;
+        break;
+    case DIFF_ATFS04:
+        [[fallthrough]];
+    case DIFF_ATFS06:
+        /* Five planes and fifteen days without being sabotaged. The planes are the part that
+         * money buys, and the museum sells them for a fraction of the broker's price. */
+        m.usedFleet = kMissionSabotageFleet;
+        /* With routes the image fell to -1000 and the cash never reached a fourth used plane. */
         m.noRoutes = true;
         break;
     case DIFF_ATFS05:
