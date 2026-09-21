@@ -901,7 +901,19 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
             AT_Log("Bot::actionSabotage(): Cannot sabotage %s: Saboteur busy", targetName.c_str());
             return;
         case GameMechanic::CheckSabotageResult::DeniedSecurity:
-            mNeedToShutdownSecurity = true;
+            if (mUsingSecurity) {
+                /* do not sabotage security office if we are using security ourselves */
+                bool isSabotageMission = (Sim.Difficulty == DIFF_ATFS04) || (Sim.Difficulty == DIFF_ATFS06);
+                if (isSabotageMission && (qPlayer.GetMissionRating() < Sim.Players.Players[target].GetMissionRating())) {
+                    mNeedToShutdownSecurity = true; /* unless in a sabotage mission and the target is better than us */
+                } else {
+                    mNeedToShutdownSecurity = false;
+                    mSabotageSeed += 1; /* increase counter to change random seed */
+                    break;              /* try again */
+                }
+            } else {
+                mNeedToShutdownSecurity = true; /* we do not use security office, shut it down! */
+            }
             AT_Log("Bot::actionSabotage(): Cannot sabotage %s: Blocked by security", targetName.c_str());
             return;
         case GameMechanic::CheckSabotageResult::DeniedInvalidParam:
@@ -936,6 +948,7 @@ void Bot::actionVisitSaboteur() {
         }
         pickUpItem(ITEM_ZANGE);
     }
+    mPliersWereTaken = true;
 }
 
 __int64 Bot::calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const {

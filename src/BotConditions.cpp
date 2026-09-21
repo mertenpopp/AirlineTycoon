@@ -558,7 +558,7 @@ Bot::Prio Bot::condVisitSaboteur() {
     Prio prio = Prio::None;
 
     /* check if we want to prevent competitors from shutting down security office */
-    if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE)) {
+    if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE) && !mPliersWereTaken) {
         auto targetPrio = mUsingSecurity ? Prio::High : Prio::Low;
         prio = std::max(prio, targetPrio);
     }

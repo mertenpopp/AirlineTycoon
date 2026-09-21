@@ -759,6 +759,15 @@ Job 5 grounds the selected airplane for 15 hours.
 
 Job 6 takes the selected route (identified confusingly by `ArabPlaneSelection`) away from the competitor and gives it to ClaudeBot at the victim's rank.
 
+NASA room
+---------
+
+Use the action ID ACTION_VISITNASA to visit the NASA room. Only exists in the missions DIFF_FINAL and DIFF_ADDON10. In the room, the following functions may be called on the PLAYER object that refers to ClaudeBot.
+
+- `AddRocketPart(SLONG rocketPart)`: Buy a rocket part.
+
+- `AddSpaceStationPart(SLONG rocketPart, SLONG textId)`: Buy a space station part. Always use `textId==3400`.
+
 Misc rooms
 ----------
 
@@ -825,7 +834,7 @@ You have read access to:
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
 - `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and personal office (or using laptop). `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
 - `Sim.HomeAirportId`: City ID of the home airport.
-- `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur?
+- `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur? May only be read while in the saboteur room.
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
 - `Sim.nSecOutDays`: Check for how many days the security office is closed. Security office can close due to sabotage.
 - `Sim.bNetwork`: Check if this is a network game.
@@ -840,6 +849,8 @@ All instances of the PLAYER class can be found in the global array `Sim.Players.
 All classifications are read-only except where explicitly shown as read/write.
 
 - `Abk`: Abbreviation of airline name.
+- `AddRocketPart(SLONG rocketPart)`: Buy a rocket part. Only call while in the NASA room.
+- `AddSpaceStationPart(SLONG rocketPart, SLONG textId)`: Buy a space station part. Always use `textId==3400`. Only call while in the NASA room.
 - `AnzAktien`: Total number of shares.
 - `ArabPlaneSelection`: Album index of target plane (or sometimes target route) selected for sabotage. Can be read and written to while visiting the saboteur.
 - `ArabTrust`: Current trust level of the saboteur.
@@ -849,11 +860,12 @@ All classifications are read-only except where explicitly shown as read/write.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
 - `CalcPlanePropSum()`: Calculates the cost of open plane upgrades.
 - `CalcSecurityCosts()`: Calculates the daily cost of security.
+- `CheckRocketPart(SLONG rocketPart)`: Check if a specific rocket or space station part has already been bought.
 - `Credit`: Current loan amount.
 - `Dividende`: Check current dividend.
 - `Frachten`: List of taken freight jobs. May always be read.
 - `Gates.Auslastung` and `Gates.NumRented`: Current gate utilization level and total number of owned gates.
-- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_GELD) >= 0`.
+- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Note that this may always be called, even if the values that determine the score are gated.
 - `GetRoom()`: Returns the current room the player character is in.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
@@ -899,13 +911,14 @@ All classifications are read-only.
 - `Abk`: Abbreviation of airline name.
 - `AnzAktien`: Total number of shares. May always be read while in bank, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_INFO) >= 50` it may be read anywhere.
 - `BilanzWoche`: Weekly balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
-- `Credit`: Current loan amount. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
-- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `CheckRocketPart(SLONG rocketPart)`: Check if a specific rocket or space station part has already been bought.
+- `Credit`: Current loan amount. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
+- `GetMissionRating()`: Used for missions to determine how much of the goal has been completed. Note that this may always be called, even if the values that determine the score are gated.
 - `Image`: Current airline image. Only read when `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `IsOut`: Check if the player is still in the game. May always be read.
 - `Kurse`: The last ten share prices of this airline. May always be read.
 - `MaxAktien`: Maximum number of shares including those that can still be emitted. May always be read.
-- `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 0`.
+- `Money`: Current cash balance. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) > 0`.
 - `Name`: Name of the player
 - `OfficeState`: Office usability status. May always be read.
 - `Owner`: Human=0, computer=1, network player=2, unclaimed network slot=3.
@@ -1120,9 +1133,6 @@ Functions and variables for missions
 
 The following shall only be used when implementing ClaudeBot for missions instead of the free game.
 
-- `BOOL PLAYER::CheckRocketPart(SLONG rocketPart)`: Check if a specific rocket or space station part has already been bought.
-- `void PLAYER::AddRocketPart(SLONG rocketPart)`: Buy a rocket part.
-- `void PLAYER::AddSpaceStationPart(SLONG rocketPart, SLONG textId)`: Buy a space station part. Always use `textId==3400`.
 - `bool RobotUse(SLONG FeatureId)`: Check specific configurations of the bot which are mainly relevant for missions.
 - `Sim.MissionCities`: Array of cities relevant for a specific mission.
 - `RocketPrices` and `StationPrices`: Array listing prices for various rocket and space station parts.
