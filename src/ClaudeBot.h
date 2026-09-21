@@ -151,6 +151,10 @@ class ClaudeBot {
          * wants, 0 for every other mission. The only way to get one is the aeroplane designer,
          * so this is the whole game in those two missions. */
         SLONG designerPlanes{0};
+        /* ADDON09: five jobs land in the backlog every morning and the goal counts only those.
+         * The whole fleet is re-planned around them at every office visit - see
+         * scheduleUhrigJobs() - and nothing else is taken that could compete for the time. */
+        bool uhrigJobs{false};
     };
 
     /* --- the aeroplane designer --- */
@@ -227,6 +231,9 @@ class ClaudeBot {
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
     SLONG schedulePendingJobs();
+    /* ADDON09 only: clears every plan that is not locked yet and re-plans all jobs we hold
+     * across the whole fleet, repositioning legs included. Office only. */
+    SLONG scheduleUhrigJobs();
     SLONG schedulePendingFreight();
     void refreshPlaneState();
     bool planeCanFly(const CPlane &qPlane, const CAuftrag &qJob) const;

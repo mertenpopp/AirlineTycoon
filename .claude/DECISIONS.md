@@ -1225,3 +1225,36 @@ Worth fixing regardless of difficulty: the missing `SRand` (above), and `CalcPla
 feeding `RefillForUhrig` the fleet **maximum** - buying one big plane pushes 58% of jobs to 280+
 passengers and makes 22% of one-day jobs physically impossible, so expansion makes the mission
 harder. `PlayerMinPassagiere`/`PlayerMinLength` are already computed next door.
+
+2026-09-21 - ADDON09 won: a dedicated Uhrig scheduler
+-----------------------------------------------------
+
+Merten's commit 5a0aa18a made the Uhrig jobs flyable: every job now uses AreaType 4 (home
+region, one end at home, under 10,000 km), the premium went from 115% to 120% of the reference
+kerosene, and the base fine from `Praemie` to `Praemie / 2`.
+
+**Before any ClaudeBot change** (6 seeds, `/setbotlevel 006`): ClaudeBot won 4/6 on days 57-81 and
+lost seeds 3 and 5 to a legacy bot finishing on day 53-54. It flew under one Uhrig job a day and
+stayed on two planes until day 45 while running up 21-29M of fines. The cause was the scheduler:
+`schedulePendingJobs()` only appends at the open tail of a plan, by deadline, and never repositions
+into a bounded window. A job for the day after tomorrow sat at the tail, so the next morning's
+jobs for tomorrow had nowhere to go. The agency and freight jobs it took also competed for the same
+tail.
+
+**Change** (`Mission::uhrigJobs`, ADDON09 only):
+- `scheduleUhrigJobs()` replaces `schedulePendingJobs()` in the office: it clears every unlocked
+  plan entry (`clearFlightPlan`), then runs 300 randomised greedy passes that chain all held jobs
+  plane by plane in time order, repositioning legs included, and commits the best one. The score
+  is 1M per Uhrig job + premium + fine avoided - kerosene. The timing follows `CheckFlugplaene`:
+  an automatic leg departs at the previous landing, the next flight leaves at landing + 1, and one
+  extra hour of slack follows an empty leg. After committing it checks that no job was shifted out
+  of its window; this never triggered.
+- The travel agency, last minute and freight are not visited in ADDON09.
+
+**Result**: won **54/54** games on **day 41-42**. That's 24 seeds against the legacy bots, plus 6 each at
+`016`, `026`, `056`, `556` against MertenBot. Zero fines, zero jobs left over, cash positive
+throughout, and the fleet grows to 4 planes from job income. 40 days is the floor (5 jobs a day),
+so there is nothing left to gain here. The job stream is still unseeded in this mission
+(`Sim.cpp:827`), which is why every seed ends on the same day.
+
+The free game is untouched: every change is behind `mMission.uhrigJobs`.
