@@ -1376,6 +1376,9 @@ at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switch
   was reviewed for that (the free game keeps the 190% fare, never enters the museum, security or
   tank paths; the one shared line, `marginalValue()`, now uses 64-bit arithmetic with an identical
   result). Worth one paired `run_measurement_claudebot_tycoon.sh` before the next free-game session.
+  Tried at the end of the session: the game directory's `threadpool.rb` is currently Merten's
+  mission-mode copy (`miss = 0..50`, `_mission_merten`), so the script ran 0 games and concat.py
+  failed on the empty set. Left as it was.
 - **Freight contracts ending short.** A contract re-planned by `schedulePendingFreight()` can find
   no window for its last tons before the deadline (Helsinki -> Berlin, 6 of 60 tons, logged five
   days running) and is fined. Seen in the missions; the same code runs in the free game.
