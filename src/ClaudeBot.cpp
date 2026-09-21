@@ -13,6 +13,9 @@
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
+#include <map>
+#include <random>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -146,6 +149,13 @@ static const SLONG kMinFreightGain = 20000;
  * 1,000: 604,185 with 49 jobs flown. At 50,000 it is 976,665 with 18, at 150,000 765,105 with 6,
  * and at 400,000 the bot stops flying altogether and ends at -111,104. */
 static const SLONG kMissionJobGain = 50000;
+
+/* ADDON09: what one of Uhrig's jobs is worth to the planner on top of its premium and the
+ * fine it avoids. The goal counts them and nothing else, so any flyable one beats any
+ * saving in kerosene. */
+static const SLONG kUhrigJobValue = 1000000;
+/* Randomised greedy passes per re-plan; the best plan is committed. */
+static const SLONG kUhrigPlanPasses = 300;
 
 /* Advisors we employ.
  *
@@ -815,6 +825,7 @@ void ClaudeBot::setupMission() {
          * airline was at the -10M floor by day 10 and had flown exactly one of the 200 the goal
          * wants. The windows have to belong to the backlog here. */
         m.noRoutes = true;
+        m.uhrigJobs = true;
         break;
     case DIFF_ADDON03:
         m.wantFreight = true;
@@ -1280,6 +1291,10 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
 
     /* 6) Pick up new work. Needs a fresh plane state to decide what we can fly. */
     /* Last minute first: the counter shuts earlier than the agency and its jobs pay far more. */
+    /* ADDON09 counts only Uhrig's jobs, and every other job would take plane time from them. */
+    if (mMission.uhrigJobs) {
+        return;
+    }
     if (mLastMinuteVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT1)) {
         out.push_back(ACTION_CHECKAGENT1);
     }
@@ -3471,8 +3486,8 @@ void ClaudeBot::executeOffice() {
         }
     }
 
-    SLONG planned = schedulePendingJobs();
-    if (kUseFreight) {
+    SLONG planned = mMission.uhrigJobs ? scheduleUhrigJobs() : schedulePendingJobs();
+    if (kUseFreight && !mMission.uhrigJobs) {
         planned += schedulePendingFreight();
     }
     planned += scheduleRouteFlights();
@@ -4033,6 +4048,229 @@ SLONG ClaudeBot::schedulePendingJobs() {
         }
     }
 
+    return planned;
+}
+
+/* ADDON09: re-plans every job we hold across the whole fleet.
+ *
+ * Uhrig's jobs are nothing like the agency's. schedulePendingJobs() places a job only at the
+ * open end of a plan, by deadline, and never repositions into a bounded window - which is
+ * right for a board we pick from, and it flew fewer than one of Uhrig's five a day: a job for
+ * the day after tomorrow sat at the end of the plan and every job for tomorrow that came in
+ * the next morning had nowhere to go. Here every job has one end at home and a one-day window
+ * one to three days out, and the goal counts nothing else, so the plan is simply rebuilt
+ * from scratch each time: everything not locked is cleared (clearFlightPlan keeps whatever
+ * departs within two hours) and a randomised greedy chains the jobs plane by plane in time
+ * order, with the empty legs in between. The best of kUhrigPlanPasses plans is committed.
+ *
+ * Timing follows CPlane::CheckFlugplaene (Planetyp.cpp:700-790): an automatic leg departs
+ * the moment the previous flight lands, and the next flight may leave one hour after it
+ * lands. One more hour of slack is added after an empty leg so a rounding difference can
+ * never push a job out of its one-day window. */
+SLONG ClaudeBot::scheduleUhrigJobs() {
+    struct Slot {
+        SLONG idx{-1};
+        SLONG avail{0}; /* absolute hour a flight may depart from `city` */
+        ULONG city{0};
+    };
+    struct Leg {
+        SLONG job{-1};
+        SLONG start{0};
+    };
+
+    const SLONG now2 = Sim.Date * 24 + Sim.GetHour() + 2;
+
+    std::vector<Slot> slots;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const auto &qPlane = qPlayer.Planes[c];
+        if (qPlane.Problem != 0 || qPlane.AnzPiloten < qPlane.ptAnzPiloten || qPlane.AnzBegleiter < qPlane.ptAnzBegleiter) {
+            continue; /* planFlightJob() would refuse it */
+        }
+        GameMechanic::clearFlightPlan(qPlayer, c);
+        auto avail = Helper::getPlaneAvailableTimeLoc(qPlayer.Planes[c], {}, PlaneTime{Sim.Date, static_cast<int>(Sim.GetHour()) + 2});
+        Slot slot;
+        slot.idx = c;
+        slot.avail = std::max<SLONG>(now2, avail.first.convertToHours());
+        slot.city = static_cast<ULONG>(avail.second);
+        slots.push_back(slot);
+    }
+
+    std::vector<SLONG> jobs;
+    for (SLONG j = 0; j < qPlayer.Auftraege.AnzEntries(); j++) {
+        if (qPlayer.Auftraege.IsInAlbum(j) == 0) {
+            continue;
+        }
+        const auto &qJob = qPlayer.Auftraege[j];
+        if (qJob.InPlan != 0 || qJob.BisDate < Sim.Date || qJob.Date > Sim.Date + kMaxPlanDate) {
+            continue;
+        }
+        jobs.push_back(j);
+    }
+    if (slots.empty() || jobs.empty()) {
+        return 0;
+    }
+
+    /* (duration, cost) per plane and city pair, loaded or empty */
+    std::map<std::tuple<SLONG, ULONG, ULONG, bool>, std::pair<SLONG, SLONG>> legCache;
+    auto leg = [&](SLONG s, ULONG von, ULONG nach, bool empty) {
+        auto key = std::make_tuple(s, von, nach, empty);
+        auto it = legCache.find(key);
+        if (it != legCache.end()) {
+            return it->second;
+        }
+        int cost = 0;
+        int duration = 0;
+        int dist = 0;
+        calcCostAndDuration(Cities.find(von), Cities.find(nach), qPlayer.Planes[slots[s].idx], empty, cost, duration, dist);
+        return legCache[key] = std::make_pair(static_cast<SLONG>(duration), static_cast<SLONG>(cost));
+    };
+
+    /* Which planes can carry which job at all. */
+    std::vector<std::vector<bool>> canFly(slots.size(), std::vector<bool>(jobs.size(), false));
+    for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+        for (SLONG k = 0; k < static_cast<SLONG>(jobs.size()); k++) {
+            canFly[s][k] = planeCanFly(qPlayer.Planes[slots[s].idx], qPlayer.Auftraege[jobs[k]]);
+        }
+    }
+
+    /* Earliest departure of job k on plane s from state (avail, city), or -1. */
+    auto fit = [&](SLONG s, SLONG k, SLONG avail, ULONG city, SLONG &outStart, SLONG &outLanding, SLONG &outValue) {
+        const auto &qJob = qPlayer.Auftraege[jobs[k]];
+        SLONG start = avail;
+        SLONG cost = 0;
+        if (city != qJob.VonCity) {
+            auto rep = leg(s, city, qJob.VonCity, true);
+            if (rep.first > 24) {
+                return false;
+            }
+            start = std::max(avail - 1, now2) + rep.first + 2;
+            cost += rep.second;
+        }
+        start = std::max<SLONG>(start, static_cast<SLONG>(qJob.Date) * 24);
+        if (start / 24 > static_cast<SLONG>(qJob.BisDate) || start / 24 > Sim.Date + kMaxPlanDate) {
+            return false;
+        }
+        auto out = leg(s, qJob.VonCity, qJob.NachCity, false);
+        cost += out.second;
+        outStart = start;
+        outLanding = start + out.first;
+        outValue = (qJob.bUhrigFlight != 0 ? kUhrigJobValue : 0) + qJob.Praemie + qJob.Strafe - cost;
+        return true;
+    };
+
+    std::mt19937 rng(static_cast<unsigned>(Sim.Date * 100 + Sim.GetHour()));
+    std::uniform_real_distribution<double> unit(0.0, 1.0);
+
+    std::vector<std::vector<Leg>> bestPlan;
+    __int64 bestValue = -1;
+    for (SLONG pass = 0; pass < kUhrigPlanPasses; pass++) {
+        /* Pass 0 is the plain rule: earliest departure, a little weight on the hours spent
+         * getting there and on how soon the job expires. Later passes perturb it. */
+        const double wWaste = pass == 0 ? 0.5 : unit(rng) * 1.5;
+        const double wSlack = pass == 0 ? 0.1 : unit(rng) * 0.3;
+        const double noise = pass == 0 ? 0.0 : unit(rng) * 8.0;
+
+        std::vector<SLONG> avail(slots.size());
+        std::vector<ULONG> city(slots.size());
+        for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+            avail[s] = slots[s].avail;
+            city[s] = slots[s].city;
+        }
+        std::vector<bool> done(jobs.size(), false);
+        std::vector<std::vector<Leg>> plan(slots.size());
+        __int64 value = 0;
+
+        while (true) {
+            SLONG bestS = -1;
+            SLONG bestK = -1;
+            SLONG bestStart = 0;
+            SLONG bestLanding = 0;
+            SLONG bestJobValue = 0;
+            double bestKey = 0;
+            for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+                for (SLONG k = 0; k < static_cast<SLONG>(jobs.size()); k++) {
+                    if (done[k] || !canFly[s][k]) {
+                        continue;
+                    }
+                    SLONG start = 0;
+                    SLONG landing = 0;
+                    SLONG jobValue = 0;
+                    if (!fit(s, k, avail[s], city[s], start, landing, jobValue)) {
+                        continue;
+                    }
+                    const SLONG slack = static_cast<SLONG>(qPlayer.Auftraege[jobs[k]].BisDate) * 24 + 23 - start;
+                    const double key = start + wWaste * (start - avail[s]) + wSlack * slack + noise * unit(rng);
+                    if (bestS >= 0 && key >= bestKey) {
+                        continue;
+                    }
+                    bestS = s;
+                    bestK = k;
+                    bestStart = start;
+                    bestLanding = landing;
+                    bestJobValue = jobValue;
+                    bestKey = key;
+                }
+            }
+            if (bestS < 0) {
+                break;
+            }
+            done[bestK] = true;
+            plan[bestS].push_back(Leg{jobs[bestK], bestStart});
+            avail[bestS] = bestLanding + 1;
+            city[bestS] = qPlayer.Auftraege[jobs[bestK]].NachCity;
+            value += bestJobValue;
+        }
+
+        if (value > bestValue) {
+            bestValue = value;
+            bestPlan = plan;
+        }
+    }
+
+    SLONG planned = 0;
+    for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+        for (const auto &qLeg : bestPlan[s]) {
+            const auto &qJob = qPlayer.Auftraege[qLeg.job];
+            if (GameMechanic::planFlightJob(qPlayer, slots[s].idx, qLeg.job, qLeg.start / 24, qLeg.start % 24)) {
+                planned++;
+                AT_Log("ClaudeBot::scheduleUhrigJobs(): Job %s -> %s (%ld pax, day %ld-%ld) on plane %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
+                       Cities[qJob.NachCity].Name.c_str(), static_cast<SLONG>(qJob.Personen), static_cast<SLONG>(qJob.Date),
+                       static_cast<SLONG>(qJob.BisDate), qPlayer.Planes[slots[s].idx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+            } else {
+                AT_Warn("ClaudeBot::scheduleUhrigJobs(): planFlightJob refused %s -> %s on plane %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
+                        Cities[qJob.NachCity].Name.c_str(), qPlayer.Planes[slots[s].idx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+            }
+        }
+    }
+
+    /* The game moves an entry later when it collides with the one before it, and a job moved
+     * past its last day is a fine. Say so if the timing model above ever disagrees. */
+    for (const auto &qSlot : slots) {
+        const auto &qPlan = qPlayer.Planes[qSlot.idx].Flugplan.Flug;
+        for (SLONG e = 0; e < qPlan.AnzEntries(); e++) {
+            if (qPlan[e].ObjectType != 2) {
+                continue;
+            }
+            const auto &qJob = qPlayer.Auftraege[qPlan[e].ObjectId];
+            if (qPlan[e].Startdate < qJob.Date || qPlan[e].Startdate > qJob.BisDate) {
+                AT_Warn("ClaudeBot::scheduleUhrigJobs(): Job %s -> %s ended up on day %ld, outside %ld-%ld.", Cities[qJob.VonCity].Name.c_str(),
+                        Cities[qJob.NachCity].Name.c_str(), static_cast<SLONG>(qPlan[e].Startdate), static_cast<SLONG>(qJob.Date),
+                        static_cast<SLONG>(qJob.BisDate));
+            }
+        }
+    }
+
+    SLONG unplanned = 0;
+    for (SLONG j : jobs) {
+        if (qPlayer.Auftraege[j].InPlan == 0) {
+            unplanned++;
+        }
+    }
+    AT_Log("ClaudeBot::scheduleUhrigJobs(): %ld of %ld job(s) planned on %ld plane(s), %ld left over.", planned, static_cast<SLONG>(jobs.size()),
+           static_cast<SLONG>(slots.size()), unplanned);
     return planned;
 }
 
