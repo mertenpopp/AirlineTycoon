@@ -1000,25 +1000,21 @@ void Bot::updateRouteInfoBoard() {
 }
 
 SLONG Bot::calcRequiredImageForAirline() {
-    bool nearEnd = (mRunToFinalObjective > FinalPhase::No);
+    bool targetRunStarted = (mRunToFinalObjective > FinalPhase::No);
     SLONG targetImage = kMinimumImage;
-    if (qPlayer.RobotUse(ROBOT_USE_MUCHWERBUNG) && nearEnd) { /* mission where we need to buy ads */
+    if (qPlayer.RobotUse(ROBOT_USE_MUCHWERBUNG) && targetRunStarted) { /* mission where we need to buy ads */
         if (mRunToFinalObjective == FinalPhase::TargetRun) {
             targetImage = 1000;
         }
-    } else {
-        bool wanted = (mRoutesNextStep == RoutesNextStep::ImproveAirlineImage);
-        if (kAirlineImageAnyStep) {
-            wanted = mDoRoutes && !mRoutes.empty();
-        }
-        if (!nearEnd && haveDiscount() && wanted && kImagePaybackDays <= 0) {
+    } else if (!targetRunStarted && haveDiscount() && mDoRoutes && !mRoutes.empty()) {
+        if (kImagePaybackDays > 0) {
+            targetImage = calcAirlineImageTarget();
+        } else {
             SLONG lowestRouteImage = 100;
             for (const auto &qRoute : mRoutes) {
                 lowestRouteImage = std::min(lowestRouteImage, qRoute.image);
             }
-            targetImage = Helper::getRequiredImageBasedOnLowestRoute(kAirlineImageAnyStep ? lowestRouteImage : mRoutes[mImproveRouteId].image);
-        } else if (!nearEnd && haveDiscount() && wanted) {
-            targetImage = calcAirlineImageTarget();
+            targetImage = Helper::getRequiredImageBasedOnLowestRoute(lowestRouteImage);
         }
     }
     return targetImage;
@@ -1030,24 +1026,25 @@ SLONG Bot::calcAirlineImageTarget() const {
         lowestRouteImage = std::min(lowestRouteImage, qRoute.image);
     }
     /* image beyond this does not add passengers: ImageTotal is capped at 1000 */
-    SLONG saturation = Helper::getRequiredImageBasedOnLowestRoute(lowestRouteImage);
+    __int64 saturation = Helper::getRequiredImageBasedOnLowestRoute(lowestRouteImage);
 
     /* One airline image point costs ~50,000 and lifts every route passenger by 1 / (400 + ImageTotal),
      * so it is worth yesterday's tickets / (400 + ImageTotal) a day. Buy only as far as the last point
      * pays back within kImagePaybackDays. */
     __int64 baseTotal = 400 + 4 * lowestRouteImage + 200;
     __int64 worthwhile = mTicketsYesterday * kImagePaybackDays / 50000 - baseTotal;
-    saturation = static_cast<SLONG>(std::max<__int64>(0, std::min<__int64>(saturation, worthwhile)));
-    if (saturation <= 0) {
+    saturation = std::max(0LL, std::min(saturation, worthwhile));
+    if (saturation <= 0LL) {
         return kMinimumImage;
     }
 
     /* the agency is closed on Saturday and Sunday: cover the erosion until it opens again */
+    SLONG target = static_cast<SLONG>(saturation);
     SLONG daysToCover = 1;
     while (daysToCover < 7 && ((Sim.Weekday + daysToCover) % 7 == 5 || (Sim.Weekday + daysToCover) % 7 == 6)) {
         daysToCover++;
     }
-    return std::min(1000, saturation + mImageDecayPerDay * daysToCover);
+    return std::min(1000, target + mImageDecayPerDay * daysToCover);
 }
 
 void Bot::routesRecalcNextStep() {
@@ -1116,7 +1113,6 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
             lowestImage = mRoutes[i].image;
         }
     }
-    SLONG howMuchImageDoWeNeed = Helper::getRequiredImageBasedOnLowestRoute(lowestImage);
 
     /* find route with pending plane upgrades */
     SLONG routeWithPendingPlaneUpgrades = -1;
@@ -1169,13 +1165,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
     }
 
-    /* Step 7: Improve airline image when we have one fully utilized route */
-    if (kImagePaybackDays > 0) {
-        howMuchImageDoWeNeed = calcAirlineImageTarget();
-    }
-    if (canBuyAdsToday && !mRoutes.empty() && getImage() < howMuchImageDoWeNeed) {
-        return {RoutesNextStep::ImproveAirlineImage, routeWithLowImage};
-    }
+    /* We do not return RoutesNextStep::ImproveAirlineImage anymore, this is handled in parallel */
 
     /* Step 1: No routes underutilized, rent new route */
     return {RoutesNextStep::RentNewRoute, -1};
@@ -1255,7 +1245,7 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
 
     /* estimate revenue */
     __int64 baseCost = getRouteBaseCost(qRoute);
-    __int64 revenue = qPlaneType.Passagiere * baseCost * mOptions.kMaxTicketPriceFactor;
+    __int64 revenue = qPlaneType.Passagiere * baseCost * 3.0 * mOptions.kMaxTicketPriceFactor.target;
     SLONG numTripsPerWeek = 24 * 7 / duration;
     __int64 profitPerWeek = (revenue - cost) * numTripsPerWeek * numPlanesTarget - (qRoute.Miete / 30 * 2 * 7);
 
@@ -1520,6 +1510,15 @@ void Bot::planRoutes() {
     }
     Helper::checkFlightJobs(qPlayer, false, false);
 
+    if (mImageDecayPerDay >= 500 || getImage() < -500) {
+        /* preserve image for one week; if that week would end on a weekend, extend it to Monday when the ad agency is open again */
+        mImagePreservationMode = Sim.Date + 7 + (Sim.Weekday == 5 ? 2 : 0) + (Sim.Weekday == 6 ? 1 : 0);
+        AT_Log("Bot::planRoutes(): Activate image preserving mode until day %d (current image: %d, daily decay: %d)", mImagePreservationMode, getImage(),
+               mImageDecayPerDay);
+    } else if (checkVeryLateGame()) {
+        AT_Log("Bot::planRoutes(): No image preserving mode necessary (current image: %d, daily decay: %d)", getImage(), mImageDecayPerDay);
+    }
+
     /* adjust ticket prices */
     for (auto &qRoute : mRoutes) {
         if (qRoute.planeIds.empty()) {
@@ -1530,12 +1529,12 @@ void Bot::planRoutes() {
         SLONG cost = getRouteBaseCost(getRoute(qRoute));
         SLONG highCost = 3 * cost;
 
-        DOUBLE factor = std::min(kTicketPriceFactor, mOptions.kMaxTicketPriceFactor / 3.0);
-        SLONG priceNew = static_cast<SLONG>(std::round(factor * highCost)) / 10 * 10;
-        SLONG priceNewFC = static_cast<SLONG>(std::round(kTicketPriceFactorFC / kTicketPriceFactor * factor * highCost)) / 10 * 10;
+        const RoutePriceLevels &factors = (Sim.Date >= mImagePreservationMode) ? mOptions.kMaxTicketPriceFactor : mOptions.kMaxTicketPriceFactorLowImage;
+        SLONG priceNew = static_cast<SLONG>(std::round(factors.target * highCost)) / 10 * 10;
+        SLONG priceNewFC = static_cast<SLONG>(std::round(mOptions.kFirstClassTicketSurcharge * factors.target * highCost)) / 10 * 10;
 
         /* only touch the price when the old one actually costs us revenue or image */
-        if ((priceOld >= kTicketPriceKeepMin * highCost) && (priceOld <= kTicketPriceKeepMax * highCost)) {
+        if ((priceOld >= factors.lowerLimit * highCost) && (priceOld <= factors.upperLimit * highCost)) {
             continue;
         }
 

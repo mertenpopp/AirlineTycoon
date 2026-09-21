@@ -40,14 +40,9 @@ const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -100;
 const SLONG kImageRefillTarget = 1000;
 const SLONG kImagePaybackDays = 20;
-const bool kAirlineImageAnyStep = true;
 const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
 const SLONG kMaximumPlaneUtilization = 70;
-const DOUBLE kTicketPriceFactor = 1.90; /* relative to what the game considers a "high" flight cost */
-const DOUBLE kTicketPriceFactorFC = 2.85;
-const DOUBLE kTicketPriceKeepMin = 1.60; /* threshold, because increasing ticket price resets HoursBefore */
-const DOUBLE kTicketPriceKeepMax = 1.98;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 50;
 const SLONG kTargetEmployeeSkill = 70;
@@ -189,7 +184,7 @@ void Bot::RobotInit(SLONG randomSeed) {
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
         if (qPlayer.BotLevel <= BotDifficultyLaidBack) {
-            mOptions.kMaxTicketPriceFactor = std::min(2.0, mOptions.kMaxTicketPriceFactor);
+            mOptions.kMaxTicketPriceFactor = mOptions.kMaxTicketPriceFactorLowImage;
             mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatio / 10.0F;
             mOptions.kMaxKerosinQualiZiel = std::min(1.0, mOptions.kMaxKerosinQualiZiel);
         }
@@ -795,10 +790,14 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 
     File << bot.mOptions.kSchedulingMinScoreRatio << bot.mOptions.kSchedulingMinScoreRatioLastMinute;
     File << bot.mOptions.kSwitchToRoutesNumPlanesMin << bot.mOptions.kSwitchToRoutesNumPlanesMax;
-    File << bot.mOptions.kMaximumRouteUtilization << bot.mOptions.kMaxTicketPriceFactor;
+    File << bot.mOptions.kMaximumRouteUtilization;
+    File << bot.mOptions.kMaxTicketPriceFactor.lowerLimit << bot.mOptions.kMaxTicketPriceFactor.target << bot.mOptions.kMaxTicketPriceFactor.upperLimit;
+    File << bot.mOptions.kMaxTicketPriceFactorLowImage.lowerLimit << bot.mOptions.kMaxTicketPriceFactorLowImage.target
+         << bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit;
+    File << bot.mOptions.kFirstClassTicketSurcharge;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
 
-    File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay;
+    File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay << bot.mImagePreservationMode;
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -1010,7 +1009,22 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mOptions.kSchedulingMinScoreRatio >> bot.mOptions.kSchedulingMinScoreRatioLastMinute;
     File >> bot.mOptions.kSwitchToRoutesNumPlanesMin >> bot.mOptions.kSwitchToRoutesNumPlanesMax;
-    File >> bot.mOptions.kMaximumRouteUtilization >> bot.mOptions.kMaxTicketPriceFactor;
+    File >> bot.mOptions.kMaximumRouteUtilization;
+    if (savegameVersion < 103) {
+        File >> bot.mOptions.kMaxTicketPriceFactor.target;
+        bot.mOptions.kMaxTicketPriceFactor.target = std::min(1.9, bot.mOptions.kMaxTicketPriceFactor.target / 3.0);
+        bot.mOptions.kMaxTicketPriceFactor.lowerLimit = bot.mOptions.kMaxTicketPriceFactor.target - 0.3;
+        bot.mOptions.kMaxTicketPriceFactor.upperLimit = bot.mOptions.kMaxTicketPriceFactor.target + 0.08;
+        bot.mOptions.kMaxTicketPriceFactorLowImage.target = 1.40;
+        bot.mOptions.kMaxTicketPriceFactorLowImage.lowerLimit = 1.10;
+        bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit = 1.48;
+        bot.mOptions.kFirstClassTicketSurcharge = 1.5;
+    } else {
+        File >> bot.mOptions.kMaxTicketPriceFactor.lowerLimit >> bot.mOptions.kMaxTicketPriceFactor.target >> bot.mOptions.kMaxTicketPriceFactor.upperLimit;
+        File >> bot.mOptions.kMaxTicketPriceFactorLowImage.lowerLimit >> bot.mOptions.kMaxTicketPriceFactorLowImage.target >>
+            bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit;
+        File >> bot.mOptions.kFirstClassTicketSurcharge;
+    }
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
 
     if (savegameVersion < 103) {
@@ -1019,8 +1033,9 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         bot.mImageDecayPerDay = 0;
         bot.mImageAfterAds = 0;
         bot.mImageAdsDay = -1;
+        bot.mImagePreservationMode = -1;
     } else {
-        File >> bot.mTicketsYesterday >> bot.mImageDecayPerDay >> bot.mImageAfterAds >> bot.mImageAdsDay;
+        File >> bot.mTicketsYesterday >> bot.mImageDecayPerDay >> bot.mImageAfterAds >> bot.mImageAdsDay >> bot.mImagePreservationMode;
     }
 
     SLONG magicnumber = 0;
