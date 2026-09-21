@@ -824,11 +824,11 @@ void SIM::ChooseStartup() {
         qPlayer.Auftraege.ClearAlbum();
         qPlayer.Frachten.ClearAlbum();
 
-        if (GlobalUse(USE_TRAVELHOLDING) && Difficulty != DIFF_ADDON09) {
-            if (bNetwork == 0) {
-                qPlayer.Auftraege.Random.SRand(AtGetSeedTime());
-            }
+        if (bNetwork == 0) {
+            qPlayer.Auftraege.Random.SRand(AtGetSeedTime());
+        }
 
+        if (GlobalUse(USE_TRAVELHOLDING) && Difficulty != DIFF_ADDON09) {
             a.RefillForBegin(0, &qPlayer.Auftraege.Random);
             qPlayer.Auftraege += a;
             a.RefillForBegin(0, &qPlayer.Auftraege.Random);
