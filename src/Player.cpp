@@ -140,7 +140,7 @@ void PLAYER::Add5UhrigFlights() {
     for (SLONG c = 0; c < 5; c++) {
         CAuftrag a;
 
-        a.RefillForUhrig((c + 0) / 2, &Auftraege.Random);
+        a.RefillForUhrig(4, &Auftraege.Random);
 
         Auftraege += a;
     }

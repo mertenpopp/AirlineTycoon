@@ -571,8 +571,8 @@ too_large:
     bUhrigFlight = TRUE;
 
     // Kopie dieser Formel auch bei Last-Minute
-    Praemie = ((CalculateFlightCost(VonCity, NachCity, 8000, 700, -1)) + 99) / 100 * 115;
-    Strafe = Praemie / 2 * 100 / 100 * 2;
+    Praemie = ((CalculateFlightCost(VonCity, NachCity, 8000, 700, -1)) + 99) / 100 * 120;
+    Strafe = Praemie / 2 * 100 / 100;
 
     if (pRandom->Rand(5) == 4) {
         BisDate += ((pRandom->Rand(5)));
