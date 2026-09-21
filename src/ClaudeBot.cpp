@@ -890,6 +890,10 @@ void ClaudeBot::setupMission() {
         m.usedFleet = kMissionSabotageFleet;
         /* With routes the image fell to -1000 and the cash never reached a fourth used plane. */
         m.noRoutes = true;
+        /* ATFS06 adds a third actor that attacks a random airline every day, so there the
+         * fifteen days only happen behind protection. In ATFS04 only the legacy bots
+         * sabotage, and paying for protection cost more wins (6/8) than it saved (7/8). */
+        m.wantNoSabotage = (Sim.Difficulty == DIFF_ATFS06);
         break;
     case DIFF_ATFS05:
         /* Three planes carrying BTARGET_PLANESIZE passengers. No catalogue plane comes close, so
@@ -1228,6 +1232,21 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *    room, so we go there once a day and decide on arrival. */
     if (!mVisitedPersonalToday && canUseAction(ACTION_PERSONAL)) {
         out.push_back(ACTION_PERSONAL);
+    }
+
+    /* 1b) ATFS06: protection. Visited every day because the flags are wiped for every airline
+     *     when someone knocks the office out with the pliers, and we may not read them. */
+    /*     Only once the fleet is complete: protection is charged per plane every day, about
+     *     600,000 for five, and paying it while the cash was still buying planes left two of
+     *     eight airlines bankrupt on three or four. */
+    if (mMission.wantNoSabotage && countPlanes() >= mMission.usedFleet && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY)) {
+        out.push_back(ACTION_VISITSECURITY);
+    }
+    /* ...and one pair of pliers is left at the saboteur's every morning. A legacy bot that
+     * keeps running into our protection takes them and wipes it; if we hold today's pair
+     * nobody can. */
+    if (mMission.wantNoSabotage && countPlanes() >= mMission.usedFleet && !mVisitedSaboteurToday && canUseAction(ACTION_SABOTAGE)) {
+        out.push_back(ACTION_SABOTAGE);
     }
 
     /* 2) Keep the repair targets sane. Getting this wrong is by far the most expensive
@@ -1597,6 +1616,10 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_SABOTAGE:
         executeSabotage();
+        break;
+
+    case ACTION_VISITSECURITY:
+        executeProtection();
         break;
 
     case ACTION_VISITSECURITY2:
@@ -4618,6 +4641,20 @@ SLONG ClaudeBot::pickRouteToSteal(SLONG victim) const {
 void ClaudeBot::executeSabotage() {
     mVisitedSaboteurToday = true;
 
+    if (mMission.wantNoSabotage) {
+        if (Sim.ItemZange != 0) {
+            /* Yesterday's pair only takes up a slot. */
+            if (qPlayer.HasItem(ITEM_ZANGE) != 0) {
+                GameMechanic::removeItem(qPlayer, ITEM_ZANGE);
+            }
+            auto res = GameMechanic::pickUpItem(qPlayer, ITEM_ZANGE);
+            AT_Log("ClaudeBot::executeSabotage(): Keeping today's pliers away from the others: %s.",
+                   res == GameMechanic::PickUpItemResult::PickedUp ? "taken" : "failed");
+        }
+        qPlayer.WorkCountdown = 2;
+        return;
+    }
+
     /* The pliers knock out every airline's protection for three days. There is one pair, so
      * take them as soon as protection has stopped us - see executeSecurity(). */
     bool acted = false;
@@ -4766,6 +4803,25 @@ void ClaudeBot::executeSabotage() {
 }
 
 /* The security office: the pliers switch off every airline's protection for three days. */
+/* Security office: buy every protection a sabotage job can be stopped by
+ * (GameMechanic::checkPrerequisitesForSaboteurJob). A blocked job is never carried out, so it
+ * never resets DaysWithoutSabotage. The laptop's protection needs a laptop, and route theft
+ * (type 2 job 6) needs a route, so those two are only bought when they can matter. */
+void ClaudeBot::executeProtection() {
+    mVisitedSecurityToday = true;
+    std::vector<SLONG> wanted = {0, 2, 3, 5, 6, 7, 8};
+    if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
+        wanted.push_back(1);
+    }
+    if (!mRoutes.empty()) {
+        wanted.push_back(4);
+    }
+    for (SLONG type : wanted) {
+        GameMechanic::setSecurity(qPlayer, type, true);
+    }
+    AT_Log("ClaudeBot::executeProtection(): Protection set, %ld a day.", qPlayer.CalcSecurityCosts());
+}
+
 void ClaudeBot::executeSecurity() {
     mVisitedSecurityToday = true;
     if (qPlayer.HasItem(ITEM_ZANGE) == 0) {
