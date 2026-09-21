@@ -1368,6 +1368,7 @@ at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switch
 - No freight in every job-only mission: ADDON04 4/8 -> 1/8 (freight legs are miles), ATFS01
   6/8 -> 4/8. Kept for ATFS09 only.
 - Protection in ATFS04: 7/8 -> 6/8.
+- Used planes (fleet of six) in ATFS05 and ATFS09: 5/8 -> 4/8 and 4/8 -> 0/8. Reverted.
 
 ### Open
 
@@ -1380,4 +1381,3 @@ at -1000 in ATFS04/ATFS05, airline grounded at the -10M floor in ADDON04. Switch
   days running) and is fined. Seen in the missions; the same code runs in the free game.
 - Still below MertenBot: ADDON04 4/8, HARD 5/8, ATFS05 5/8, ATFS09 4/8, and the NASA missions win
   but on day ~100 (MertenBot ~54).
-- Used planes (fleet of six) in ATFS05 and ATFS09: 5/8 -> 4/8 and 4/8 -> 0/8. Reverted.
