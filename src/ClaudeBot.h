@@ -172,6 +172,8 @@ class ClaudeBot {
         /* ATFS06: fifteen days without being sabotaged, against a third actor that picks a
          * random airline every day. Only the security office stops it. */
         bool wantNoSabotage{false};
+        /* Route ticket price, in percent of the threshold CalcPassengers() calls extortionate. */
+        SLONG ticketPercent{0};
     };
 
     /* --- the aeroplane designer --- */
