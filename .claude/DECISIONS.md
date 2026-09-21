@@ -1445,3 +1445,27 @@ Paired on seeds 1-100 against the seeds 0-100 sweep:
 
 With the exemption, ATFS04/06 replayed identically to the sweep on seeds 1-24 (48/48 games).
 Net: +11 wins over the four capacity missions.
+
+### Routes in ADDON08 and ATFS09, re-checked on 100 seeds (2026-09-22)
+
+Merten's question: was switching routes off wrong in these two? Paired on seeds 1-100 against
+the sweep (no routes):
+
+| variant | ADDON08 | ATFS09 |
+|---|---|---|
+| no routes (sweep) | 68 | **29** |
+| routes | 73 (22 L->W, 17 W->L - noise), median day 57 -> 68 | 6 |
+| routes, no advertising | **91** (26 L->W, 3 W->L), median day 56 -> 32 | 0 |
+| routes, no advertising, fare 95% | - | 5 |
+
+- **ADDON08: routes without advertising, kept.** The share price is pulled to
+  10 * TrustedDividende, and TrustedDividende only climbs (1 every second day, up to the
+  dividend) on days whose *whole* cash flow `Bilanz.GetSumme()` is positive - loans and share
+  issues count as income, plane purchases and ads as spending. Routes give the steady daily
+  income; ClaudeBot's route advertising produced the negative days.
+- **ATFS09: no routes stays.** With routes ClaudeBot spent 32-42M on route ads in 45 days, which
+  company value does not count. Without the ads the 190% fare took the image to -500..-766, at
+  50,000 of company value a point. At 95% the image still slid (-250..-420) and route income over
+  45 days stayed well below the winner's job income. MertenBot wins it with routes, so the gap is
+  ClaudeBot's mission route economy, not routes as such.
+- After restoring ATFS09, seeds 1-24 replayed identically to the sweep (24/24).
