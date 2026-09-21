@@ -25,15 +25,10 @@ extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
 extern const SLONG kImageRefillTarget;
 extern const SLONG kImagePaybackDays;
-extern const bool kAirlineImageAnyStep;
 extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
 extern const SLONG kMaximumPlaneUtilization;
-extern const DOUBLE kTicketPriceFactor;
-extern const DOUBLE kTicketPriceFactorFC;
-extern const DOUBLE kTicketPriceKeepMin;
-extern const DOUBLE kTicketPriceKeepMax;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;
 extern const SLONG kTargetEmployeeSkill;
@@ -149,13 +144,21 @@ class Bot {
             return (planeId.size() > other.planeId.size());
         }
     };
+    struct RoutePriceLevels {
+        /* relative to what the game considers a "high" flight cost */
+        DOUBLE lowerLimit{};
+        DOUBLE target{};
+        DOUBLE upperLimit{};
+    };
     struct ConfigurableOptions {
         float kSchedulingMinScoreRatio{140 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
         SLONG kSwitchToRoutesNumPlanesMin{2};
         SLONG kSwitchToRoutesNumPlanesMax{2};
         SLONG kMaximumRouteUtilization{90};
-        DOUBLE kMaxTicketPriceFactor{5.7};
+        RoutePriceLevels kMaxTicketPriceFactor{1.60, 1.90, 1.98}; /* threshold, because increasing ticket price resets HoursBefore */
+        RoutePriceLevels kMaxTicketPriceFactorLowImage{1.10, 1.40, 1.48};
+        DOUBLE kFirstClassTicketSurcharge{1.5};
         DOUBLE kMaxKerosinQualiZiel{1.2};
         SLONG kOwnStockPosessionRatio{51};
     };
@@ -371,6 +374,7 @@ class Bot {
     SLONG mImageDecayPerDay{0};
     SLONG mImageAfterAds{0};
     SLONG mImageAdsDay{-1};
+    SLONG mImagePreservationMode{-1};
 
     /* status boss office */
     SLONG mBossNumCitiesAvailable{-1};

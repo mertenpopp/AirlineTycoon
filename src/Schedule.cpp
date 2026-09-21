@@ -1010,7 +1010,6 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
         AT_Log("Schedule.cpp: %s: %s $ (+%s $)  (%ld miles, %u + %u passengers)", (LPCTSTR)qPlayer.AirlineX, (LPCTSTR)Insert1000erDots64(Saldo),
                (LPCTSTR)Insert1000erDots64(delta), miles, Passagiere, PassagiereFC);
     }
-    Helper::printFPE(*this);
 
     // Flugzeugabnutzung verbuchen:
     double faktorDistanz = (1 + 10.0 * Cities.CalcDistance(VonCity, NachCity) / 40040174);
