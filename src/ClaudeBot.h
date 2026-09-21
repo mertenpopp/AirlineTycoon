@@ -155,6 +155,19 @@ class ClaudeBot {
          * The whole fleet is re-planned around them at every office visit - see
          * scheduleUhrigJobs() - and nothing else is taken that could compete for the time. */
         bool uhrigJobs{false};
+        /* EASY: the goal counts PLAYER::Gewinn, which only sums each flight's saldo and the
+         * fines. A flight's saldo is charged only for the kerosene bought at the gate
+         * (Schedule.cpp, BookFlight) - fuel drawn from our own tank was paid for at the Arab,
+         * and neither the tank nor its contents ever reach Gewinn. So every flight flown
+         * from the tank counts its whole revenue towards the goal. */
+        bool fuelFromTank{false};
+        /* Missions won by capacity (jobs, passengers, tons, miles) or by the number of planes
+         * owned: how many planes to grow the fleet to with used planes from the museum, 0 for
+         * none. A mission starts with a million or three, and the cheapest new plane costs 9.9M,
+         * so the museum is the only way to a third plane in the first weeks. */
+        SLONG usedFleet{0};
+        /* ADDON04: rank used planes by speed, not by cabin - miles are the goal. */
+        bool wantMiles{false};
     };
 
     /* --- the aeroplane designer --- */
@@ -205,6 +218,8 @@ class ClaudeBot {
     void executeAds();
     void executeUpgrades();
     void executeBuyPlane();
+    void executeBuyUsedPlane();
+    SLONG countPlanes() const;
     void executeKerosinTanks();
     void executeBuyKerosin();
     /* Fuel arbitrage: how much capacity to hold, and whether today is cheap enough to fill it. */
@@ -309,6 +324,7 @@ class ClaudeBot {
     bool mVisitedAdsToday{false};
     bool mVisitedBossToday{false};
     bool mVisitedBrokerToday{false};
+    bool mVisitedMuseumToday{false}; /* not serialised: reset every morning anyway */
     bool mVisitedBankToday{false};
     bool mVisitedStockToday{false};
     bool mUpgradedToday{false};

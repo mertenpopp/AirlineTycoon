@@ -248,6 +248,10 @@ static const bool kUseFuelArbitrage = false;
  * not a strategic reserve. */
 static const SLONG kTankDaysOfBurn = 7;
 
+/* EASY (Mission::fuelFromTank): capacity in days of burn, and the least capacity to hold. */
+static const SLONG kMissionTankDaysOfBurn = 2;
+static const SLONG kMissionTankMin = 1000;
+
 /* Smallest top-up worth a trip to the Arab.
  *
  * It is tempting to raise this to 10,000 for the bulk discount calcKerosinPrice() grants
@@ -278,6 +282,13 @@ static const __int64 kCashBuffer = 500000;
 
 /* Working capital a plane purchase leaves untouched, for kerosene and wages. */
 static const __int64 kPlaneCashReserve = 800000;
+
+/* Museum (missions only): cash to keep after a used plane, and the least range worth having -
+ * the job boards reach well beyond Europe. */
+static const __int64 kUsedPlaneCashReserve = 1500000;
+static const SLONG kUsedPlaneMinRange = 3000;
+/* How far those missions grow the fleet with used planes. */
+static const SLONG kMissionUsedFleet = 6;
 
 /* Repair rate of the mechanic we employ (3 = "Diplom-Dingsbums", 15-18 points a night).
  * Anything slower cannot keep a busy plane above the accident threshold of 80. */
@@ -797,12 +808,23 @@ void ClaudeBot::setupMission() {
     case DIFF_HARD:
         m.wantImage = true;
         break;
+    case DIFF_FIRST:
+        /* 2500 passengers: seats are the goal. */
+        m.usedFleet = kMissionUsedFleet;
+        break;
+    case DIFF_ADDON04:
+        /* Most miles after 30 days. Every leg counts, empty ones included (Schedule.cpp). */
+        m.usedFleet = kMissionUsedFleet;
+        m.wantMiles = true;
+        break;
     case DIFF_NORMAL:
         m.wantMissionCities = true;
         break;
     case DIFF_EASY:
         /* First to 5M profit, and the legacy bot gets there in about a week. */
         m.noRoutes = true;
+        m.fuelFromTank = true;
+        m.usedFleet = kMissionUsedFleet;
         break;
     case DIFF_ADDON01:
         m.wantDebtFree = true;
@@ -813,6 +835,7 @@ void ClaudeBot::setupMission() {
     case DIFF_ADDON02:
         m.wantFreight = true;
         m.noRoutes = true;
+        m.usedFleet = kMissionUsedFleet;
         break;
     case DIFF_FINAL:
         [[fallthrough]];
@@ -1136,6 +1159,7 @@ void ClaudeBot::startNewDay() {
     mVisitedAdsToday = false;
     mVisitedBossToday = false;
     mVisitedBrokerToday = false;
+    mVisitedMuseumToday = false;
     mVisitedBankToday = false;
     mVisitedStockToday = false;
     mVisitedDesignerToday = false;
@@ -1229,6 +1253,11 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     if (kUseFuelArbitrage && fuelIsCheap() && !mVisitedKerosinToday && qPlayer.Tank > 0 && canUseAction(ACTION_BUY_KEROSIN)) {
         out.push_back(ACTION_BUY_KEROSIN);
     }
+    /* EASY: one visit a day buys whatever capacity is missing and fills the tank, at any
+     * price - see Mission::fuelFromTank. */
+    if (mMission.fuelFromTank && !mVisitedTanksToday && canUseAction(ACTION_BUY_KEROSIN_TANKS)) {
+        out.push_back(ACTION_BUY_KEROSIN_TANKS);
+    }
 
     /* 5a) NASA. The only way to win FINAL and ADDON10, and the parts only get dearer, so it
      *     outranks anything else the cash could buy. */
@@ -1246,6 +1275,13 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     if (!mVisitedBrokerToday && !designerFleetFull() && (!mRoutes.empty() || !routesAvailable()) && qPlayer.Money > kCashBuffer &&
         canUseAction(ACTION_BUYNEWPLANE)) {
         out.push_back(ACTION_BUYNEWPLANE);
+    }
+
+    /* 5b') The museum: used planes for the missions that want capacity now - see
+     *      Mission::usedFleet. */
+    if (mMission.usedFleet > 0 && !mVisitedMuseumToday && countPlanes() < mMission.usedFleet && qPlayer.Money > kUsedPlaneCashReserve &&
+        canUseAction(ACTION_BUYUSEDPLANE)) {
+        out.push_back(ACTION_BUYUSEDPLANE);
     }
 
     /* 5c) The boss. Gate auctions are free to enter and settle overnight, so this is worth a
@@ -1295,6 +1331,23 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     if (mMission.uhrigJobs) {
         return;
     }
+    /* 7) Freight is a second pool of work for the same idle windows, so it is checked after
+     *    the travel agency: a passenger job pays its whole premium on one flight, a freight
+     *    contract only on its last one. Where tonnage is the goal it comes first instead. */
+    const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
+    const bool wantFreightVisit =
+        kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3);
+    if (mMission.wantFreight && wantFreightVisit) {
+        out.push_back(ACTION_CHECKAGENT3);
+    }
+    /* ADDON02 is a race to 1000 tons, and every passenger job took a window a contract needed:
+     * the two planes were booked solid with passenger work for the first five days and carried
+     * no freight at all. ADDON03's contracts pay nothing, so it still needs the passenger jobs
+     * for its income. */
+    if (mMission.wantFreight && !mMission.wantFreeFreight) {
+        return;
+    }
+
     if (mLastMinuteVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT1)) {
         out.push_back(ACTION_CHECKAGENT1);
     }
@@ -1303,11 +1356,7 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         out.push_back(ACTION_CHECKAGENT2);
     }
 
-    /* 7) Freight is a second pool of work for the same idle windows, so it is checked after
-     *    the travel agency: a passenger job pays its whole premium on one flight, a freight
-     *    contract only on its last one. */
-    const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
-    if (kUseFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3)) {
+    if (!mMission.wantFreight && wantFreightVisit) {
         out.push_back(ACTION_CHECKAGENT3);
     }
 }
@@ -1497,6 +1546,10 @@ void ClaudeBot::RobotExecuteAction() {
 
     case ACTION_CHECKAGENT3:
         executeCheckAgent3();
+        break;
+
+    case ACTION_BUYUSEDPLANE:
+        executeBuyUsedPlane();
         break;
 
     case ACTION_BUY_KEROSIN_TANKS:
@@ -2782,6 +2835,75 @@ void ClaudeBot::executeBoss() {
     }
 }
 
+SLONG ClaudeBot::countPlanes() const {
+    SLONG n = 0;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0) {
+            n++;
+        }
+    }
+    return n;
+}
+
+//--------------------------------------------------------------------------------------------
+// Museum: buy a used plane (missions only, see Mission::usedFleet).
+//
+// Three planes are on offer, redrawn every day. A used plane costs
+// ptPreis * (Zustand/100)^2 * (Baujahr - 1900) / 120, so an old one goes for a fraction of
+// its type's price. Its condition may only be read with a plane advisor, so the pick is made
+// on the type and the price, which may both be read here.
+//--------------------------------------------------------------------------------------------
+void ClaudeBot::executeBuyUsedPlane() {
+    mVisitedMuseumToday = true;
+
+    const SLONG have = countPlanes();
+    if (have >= mMission.usedFleet) {
+        return;
+    }
+
+    SLONG best = -1;
+    __int64 bestPrice = 0;
+    SLONG bestValue = 0;
+    for (SLONG c = 0; c < Sim.UsedPlanes.AnzEntries(); c++) {
+        if (Sim.UsedPlanes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const auto &qPlane = Sim.UsedPlanes[c];
+        if (qPlane.Name.GetLength() == 0) {
+            continue; /* sold, not yet replaced */
+        }
+        if (qPlane.ptReichweite < kUsedPlaneMinRange) {
+            continue;
+        }
+        const __int64 price = qPlane.CalculatePrice();
+        if (qPlayer.Money - price < kUsedPlaneCashReserve) {
+            continue;
+        }
+        const SLONG value = mMission.wantMiles ? static_cast<SLONG>(qPlane.ptGeschwindigkeit) : static_cast<SLONG>(qPlane.ptPassagiere);
+        if (best < 0 || value > bestValue || (value == bestValue && price < bestPrice)) {
+            best = c;
+            bestPrice = price;
+            bestValue = value;
+        }
+    }
+    if (best < 0) {
+        AT_Log("ClaudeBot::executeBuyUsedPlane(): Nothing affordable on offer (cash %s).", Insert1000erDots64(qPlayer.Money).c_str());
+        return;
+    }
+
+    const CString name = Sim.UsedPlanes[best].Name;
+    const SLONG seats = Sim.UsedPlanes[best].ptPassagiere;
+    if (GameMechanic::buyUsedPlane(qPlayer, best) < 0) {
+        AT_Log("ClaudeBot::executeBuyUsedPlane(): Buying %s failed.", name.c_str());
+        return;
+    }
+    mVisitedPersonalToday = false;
+    mPlaneStateStale = true;
+    mNeedSchedule = true;
+    AT_Log("ClaudeBot::executeBuyUsedPlane(): Bought %s (%ld seats) for %s, fleet now %ld, cash %s.", name.c_str(), seats, Insert1000erDots64(bestPrice).c_str(),
+           have + 1, Insert1000erDots64(qPlayer.Money).c_str());
+}
+
 //--------------------------------------------------------------------------------------------
 // Advertising: buy image.
 //
@@ -3359,7 +3481,14 @@ void ClaudeBot::cacheFuelBurn() {
 
 /* Capacity we want: a few days of flying, so a cheap phase of the price walk can be stocked
  * against and a dear one sat out. Zero until the office has measured a day's burn. */
-SLONG ClaudeBot::fuelTankTarget() const { return mFuelUnitsPerDay * kTankDaysOfBurn; }
+SLONG ClaudeBot::fuelTankTarget() const {
+    if (mMission.fuelFromTank) {
+        /* The tank is refilled every day, so it only has to hold a day's burn with room to
+         * spare - and one 1000 unit tank before the first burn has been measured. */
+        return std::max<SLONG>(kMissionTankMin, mFuelUnitsPerDay * kMissionTankDaysOfBurn);
+    }
+    return mFuelUnitsPerDay * kTankDaysOfBurn;
+}
 
 /* Whether today is a day to stock up. The price is cached once a day in the office or at the
  * Arab (RULES.md permits it in both and fixes it for the day), so this may be asked anywhere
@@ -3377,9 +3506,6 @@ void ClaudeBot::executeKerosinTanks() {
     GameMechanic::setKerosinTankOpen(qPlayer, TRUE);
 
     const SLONG target = fuelTankTarget();
-    if (qPlayer.Tank >= target) {
-        return;
-    }
 
     /* Capacity is worthless without the cash to fill it, so a tank is only bought out of the
      * surplus left after a full load at the top of the price band. Larger tanks are much
@@ -3408,6 +3534,10 @@ void ClaudeBot::executeKerosinTanks() {
         }
         AT_Log("ClaudeBot::executeKerosinTanks(): Bought a %ld unit tank, capacity now %ld of %ld wanted.", bought, static_cast<SLONG>(qPlayer.Tank), target);
     }
+
+    if (mMission.fuelFromTank) {
+        executeBuyKerosin();
+    }
 }
 
 void ClaudeBot::executeBuyKerosin() {
@@ -3420,7 +3550,8 @@ void ClaudeBot::executeBuyKerosin() {
     }
 
     const SLONG price = Sim.HoleKerosinPreis(kKerosinGrade);
-    if (price <= 0 || !fuelIsCheap()) {
+    /* EASY buys at any price: see Mission::fuelFromTank. */
+    if (price <= 0 || (!fuelIsCheap() && !mMission.fuelFromTank)) {
         return; /* dear today - burn what is in the tank, or buy at the gate */
     }
 
