@@ -150,6 +150,7 @@ static const SLONG kMinFreightGain = 20000;
  * and at 400,000 the bot stops flying altogether and ends at -111,104. */
 static const SLONG kMissionJobGain = 50000;
 
+
 /* ADDON09: what one of Uhrig's jobs is worth to the planner on top of its premium and the
  * fine it avoids. The goal counts them and nothing else, so any flyable one beats any
  * saving in kerosene. */
@@ -813,9 +814,12 @@ void ClaudeBot::setupMission() {
         m.usedFleet = kMissionUsedFleet;
         break;
     case DIFF_ADDON04:
-        /* Most miles after 30 days. Every leg counts, empty ones included (Schedule.cpp). */
+        /* Most miles after 30 days. Every leg counts, empty ones included (Schedule.cpp), so
+         * this is flying hours: more planes, kept busy. Routes looked like the way to keep
+         * them busy, but at the free game's 190% fares the image fell to -661, the fleet
+         * flew at a loss and sat at the -10M floor, grounded, from day 22. Jobs pay. */
         m.usedFleet = kMissionUsedFleet;
-        m.wantMiles = true;
+        m.noRoutes = true;
         break;
     case DIFF_NORMAL:
         m.wantMissionCities = true;
@@ -2850,8 +2854,12 @@ SLONG ClaudeBot::countPlanes() const {
 //
 // Three planes are on offer, redrawn every day. A used plane costs
 // ptPreis * (Zustand/100)^2 * (Baujahr - 1900) / 120, so an old one goes for a fraction of
-// its type's price. Its condition may only be read with a plane advisor, so the pick is made
-// on the type and the price, which may both be read here.
+// its type's price. The pick is the largest cabin we can pay for.
+//
+// Not filtered on condition: with the plane advisor hired and Zustand >= 60 required,
+// nothing on offer was ever affordable - condition and build year move together, and so does
+// the price. The breakdown bill that prompted the filter is a random seasonal event
+// (Sim.cpp, 75,000 a time) that does not look at the condition at all.
 //--------------------------------------------------------------------------------------------
 void ClaudeBot::executeBuyUsedPlane() {
     mVisitedMuseumToday = true;
@@ -2879,7 +2887,7 @@ void ClaudeBot::executeBuyUsedPlane() {
         if (qPlayer.Money - price < kUsedPlaneCashReserve) {
             continue;
         }
-        const SLONG value = mMission.wantMiles ? static_cast<SLONG>(qPlane.ptGeschwindigkeit) : static_cast<SLONG>(qPlane.ptPassagiere);
+        const SLONG value = qPlane.ptPassagiere;
         if (best < 0 || value > bestValue || (value == bestValue && price < bestPrice)) {
             best = c;
             bestPrice = price;
