@@ -1426,3 +1426,22 @@ total      2120/2626  81%
 Largest gaps to MertenBot: ATFS09 29% (99%), HARD 66% (99%), ADDON08 67% (100%), ATFS04 70% (100%),
 ATFS07 73% (100%), ATFS06 73% (98%), ATFS05 75% (96%), FIRST 66% (92%), ATFS01 66% (88%).
 Ahead of it: EASY 69% (58%), ADDON04 41% (23%), and on speed NORMAL (day 47 vs 75) and ATFS06 (25 vs 95).
+
+### Used planes: at least 100 seats (2026-09-22)
+
+The museum pick is the largest cabin we can pay for, so on a day where only a small plane was
+affordable it bought that - 1.2M for a 15-seat plane in EASY and ADDON04. Now a used plane needs
+100 seats (`kUsedPlaneMinSeats`), except in ATFS04/ATFS06, whose goal counts planes, not seats.
+Paired on seeds 1-100 against the seeds 0-100 sweep:
+
+| mission | before | after | L->W | W->L |
+|---|---|---|---|---|
+| FIRST | 66 | 66 | 0 | 0 (all 100 games identical) |
+| EASY | 69 | 72 | 3 | 0 |
+| ADDON02 | 90 | 96 | 6 | 0 |
+| ADDON04 | 40 | 42 | 5 | 3 |
+| ATFS04 | 70 | 68 | 3 | 5 -> floor removed there |
+| ATFS06 | 73 | 70 | 3 | 6 -> floor removed there |
+
+With the exemption, ATFS04/06 replayed identically to the sweep on seeds 1-24 (48/48 games).
+Net: +11 wins over the four capacity missions.
