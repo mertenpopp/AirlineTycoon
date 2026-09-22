@@ -1469,3 +1469,76 @@ the sweep (no routes):
   45 days stayed well below the winner's job income. MertenBot wins it with routes, so the gap is
   ClaudeBot's mission route economy, not routes as such.
 - After restoring ATFS09, seeds 1-24 replayed identically to the sweep (24/24).
+
+2026-09-22 - Free game: image-aware ticket price (+10.6%)
+---------------------------------------------------------
+
+Harness note: the game directory's `threadpool.rb` is in mission mode (and `run_build.sh` reinstalls
+the repo copy, also mission mode). Free-game batches were run from a scratch copy with `miss = [-1]`,
+`name = ""`, 300 runs, `ruby -I . tp_free.rb --prefix=X "/setbotlevel 6"`. Fresh baseline at
+`16668dd2`+: **2.149e9** (seed base 0), 2.135e9 (seed base 1000).
+
+### Kept: `2d172eee` price routes at 147% while image is low
+
+Above the threshold T, CalcPassengers sells min(cabin, 1.5 * cabin * T / price * f) economy seats,
+f = (400 + ImageTotal) / 1100. Revenue is therefore flat for any price above 1.5 * T * f. At full
+image that is 190%, which is where ClaudeBot always priced. Early on (route image 90, airline
+image ~20) it is ~134%, so the 190% fare earned nothing extra and did cost image: BookFlight's
+`Add` is +10 (Zustand > 98) -1 (cabin) +3 (crew) -20 (price over 1.5 T). Condition is checked
+*before* the flight wears the plane, so a plane's first leg of the day departs at 100 (Add -8 -> 0)
+and every later leg at ~97 (Add -18 -> -1 airline image and -1 route image). At <= 150% the
+price term is -10 and no leg loses anything.
+
+Rule (free game only): while the full-cabin price 1.5 * T * f + 2% is <= 144% (or <= 148% while
+the current price is already <= 150%), keep any price between it and 150%, set 147% on a change;
+otherwise the old 190% with the [160, 198] keep band. Airline image comes from `mImageAfterAds`
+(it may only be read in the ad agency), route image is read in the office.
+
+| arm | seed base 0 | seed base 1000 |
+|---|---|---|
+| 147% regime | **+10.6%** (t +23, 291/300) -> 2.377e9 | **+9.9%** (t +20, 280/300) -> 2.346e9 |
+| switch at 136 | -5.8% vs kept | |
+| switch at 160 | -2.5% vs kept | |
+
+First attempt priced at exactly the full-cabin price with a band of [target-2, 150]: **-18.4%**.
+The band was so narrow that the daily kerosene move pushed every route out of it, and each raise
+re-stamps HoursBefore on every planned leg (strips up to half the passengers inside 48 h) - the
+same pathology as the old daily repricing. Wide keep bands are essential for any price rule.
+
+### Tried and reverted (all paired, 300 games, seed base 0)
+
+Against the old baseline (2.149e9):
+- No airline image campaign while the target is 0 (the `Image < target` loop fired whenever image
+  was negative): -3.6%. Image drifted to -136 by day 25 and had to be bought back.
+- Route image target 100 (+ saturation 400): -10.6%, worse in 300/300. Repeated against the new
+  baseline: -16.1%. Partly more early ad spend; mostly because `baseTotal` in the image payback
+  rule and the regime switch move with it - image timing is very sensitive.
+- Bid for one gate more than needed from day 1: +0.05% (t 2.6) - noise.
+- Second broker visit (and bank visit) later the same day: -11%. The afternoon purchase spent the
+  cash the ad agency needed; image collapsed from 537 to 4 by day 59. Gated on "ads done today":
+  still -11% because `checkRoomOpen(ACTION_WERBUNG)` is false before the agency opens. Gated on
+  weekday: +0.03% - buying in the afternoon gains nothing.
+- `kPlanesPerGate` 15 -> 8: -0.88% (t -18). Image decay fell only ~20%; gates are not the main
+  source of late image loss - the second-leg -1 per flight above is.
+
+Against the new baseline (2.377e9):
+- `kImagePaybackDays` 20: -4.9%; 7: -2.2%. 10 stays.
+- Rank planes by net revenue per hour per million of price on the best rented pair in range:
+  **-66.9%** (bought Il 86s that found no short pairs to fly: 25 flights/day on 39 planes).
+  Restricted to types reaching the target route: -30.6% (mostly A 300). Bigger cabins do not
+  translate into revenue - route demand, not seats, bounds a bigger plane. The crew ranking with
+  the 250-passenger cap stays.
+
+### Learned
+
+- Early cash is extremely sensitive: ~2M extra spent before day 16 delays the first 767 and costs
+  ~10% of the day-59 score.
+- Late-game image loss (~100 points/day, ~5M/day in ads) is mostly the second-leg -1 per flight at
+  190%. Cabin upgrades to level 2 on seats/trays/deco would turn it into 0 (Add -9), but at 3.47M
+  per 767 they pay back in ~50 days - not tried.
+
+### Next
+
+- The route box does not rent pairs for a plane's range, so any non-767 type idles. A mixed fleet
+  would need range-aware renting first.
+- Takeover defence, route gate rework, route re-typing are still open (see 2026-09-16/17).
