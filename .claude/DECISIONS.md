@@ -1603,7 +1603,7 @@ Missions (seeds 0-100: 81% won)
    FINAL, ADDON10, NASA missions won around day 100 against ~55.
 9. International offices in missions (ATFS05): the free-game version cost wins (180 -> 162/165 on
    seeds 1-8), so it is off there. Needs a variant that leaves the goal's plane time alone.
-10. ADDON04 (miles) not modelled.
+10. ~~ADDON04 (miles) not modelled.~~ Modelled in 1c3d8e31: 44% -> 67% won over seeds 1-48.
 
 Small
 11. Freight contracts re-planned by `schedulePendingFreight()` can end short and be fined (free game too).
@@ -1707,3 +1707,40 @@ Committed as `eccadf80`. Score now ~2.63e9 (seed base 0).
 
 Next: a job plane is only worth it while it earns more than it would on routes; later bought
 planes could become job planes too if the boards pay (they would need range-appropriate offers).
+
+2026-09-22 - ADDON04: miles are the goal, and aeroplanes make miles
+-------------------------------------------------------------------
+
+`1c3d8e31`. ADDON04 is won on `NumMiles`, and `Schedule.cpp:668` adds the distance of **every** flight
+before it looks at the type - the empty positioning legs the game inserts count too. So the mission
+is distance flown in 30 days; the premium only has to keep the airline flying.
+
+`Mission::wantMiles` (ADDON04 only):
+- a job must still clear the mission profit floor (`kMissionJobGain`), and among the jobs that do,
+  the ranking adds `kMilesValue` (100) per mile; freight adds the miles of all its legs, out and back;
+- the used fleet grows to `kMissionMilesFleet` = 10 instead of 6.
+
+| arm | seeds 1-24 | ratio mean (lower is better) |
+|---|---|---|
+| baseline | 11/24 | 105 |
+| rank by miles per hour alone, solvency only | 7/24 | 138 (11.3M of fines, cash at -4.4M) |
+| profit + miles, profit floor dropped to 1,000 | 5/24 | 142 |
+| **profit floor kept, miles as the ranking bonus** | 13/24 | 100 |
+| miles weight 30 / **100** / 300 | 9 / 13 / 13 | 101 / 100 / 99 |
+| used planes ranked by speed | 12/24 | 102 |
+| **+ used fleet 8 / 10 / 12** | 17 / **17** / 17 | 96 / 95 / 95 |
+| routes on (the 147% fare fixed the old image collapse) | **0/24** | 175 |
+
+Seeds 25-48, not tuned on: baseline 10/24 (ratio median 104) -> **15/24 (93)**. Over seeds 1-48
+that is 21/48 -> 32/48 (44% -> 67%); MertenBot's sweep figure was 23%.
+
+- Cash is the real constraint: every arm that let marginal jobs in to chase miles ran up fines and
+  grounded the airline. Miles come from *more aeroplanes flying*, not from picking longer jobs at
+  any price.
+- Routes remain fatal here even at the 147% fare, so the old note stands for a new reason: the
+  mission is 30 days, and a route pair's image and rent never pay back inside it.
+- Other missions replay identically (all 26, seeds 1-2: 50/52 games, the two differences are
+  ADDON04 itself).
+
+Next for ADDON04: the fleet plateau at 8-10 is cash, not the museum - the used planes on offer are
+bought as soon as they are affordable. Earlier capital (shares, credit) would buy more of them.
