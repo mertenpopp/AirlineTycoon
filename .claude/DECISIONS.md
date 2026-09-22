@@ -1863,3 +1863,64 @@ logs is **Geld == -10,000,000 with Kredit == 0**, because `bankruptPlayer()` set
 Ziel) is `GetAtPastDay(1)` and stands still from then on. Seen in 4 of 8 ATFS09 games today and in
 mission 49 of last night's MertenBot sweep (FL at -9.08M on day 43, out on day 44, Firmenwert pinned
 at 87,953,168 for days 44 and 45).
+
+2026-09-23 - ClaudeBot can walk to a coordinate in the airport
+-------------------------------------------------------------
+
+On request, and explicitly outside RULES.md: `ClaudeBot::walkToPosition(XY)` and
+`walkToPlate(XY)` send the character to a spot in the airport instead of to a room, hold the bot
+logic off it while it walks, and let the bot carry on afterwards. Nothing calls them in the free
+game, so the score is untouched; `kWalkDemo` in ClaudeBot.cpp switches on a demonstration that
+walks once an in-game hour.
+
+**Writing PERSON::Target is not enough - it is overwritten every step.** While a character walks
+freely, `PERSON::DoOnePlayerStep()` recomputes `Target` from `PLAYER::TertiaryTarget` on every
+step (Person.cpp:1865-1874). The target the machinery actually works from is
+`PLAYER::PrimaryTarget`, in plate coordinates: `UpdateWaypoints()` derives the secondary
+(room entrance) and tertiary (staircase) waypoints from it, and the main loop calls
+`UpdateWaypoints()` every 256 ticks and `UpdateWaypointWalkingDirection()` every tick for every
+player (Takeoff.cpp:1992-2003). So a free walk is `PLAYER::WalkToPlate()` - which already exists -
+plus `DirectToRoom = 0`, `WaitForRoom = 0`, and leaving whatever room we are in.
+
+**Holding the target against RobotPump() takes exactly one field: WorkCountdown.** It replaces
+the target in three ways: shifting the action queue on and calling `WalkToRoom()`
+(Player.cpp:3406-3438), re-planning after eleven idle ticks (`StandStillSince`,
+Player.cpp:3386-3396), and `WaitForRoom` sending the character back to a room that was busy
+(Takeoff.cpp:1225). The first two are both gated on `WorkCountdown <= 0`, so one countdown covers
+both, and the third is just cleared. One catch: `RobotActions[0]` has to be `ACTION_NONE` or
+RobotPump returns before the countdown is ever decremented - action pending **and** countdown set
+is a permanent freeze. A second catch: a walk ordered from `RobotExecuteAction()` has its
+countdown divided afterwards by `ROBOT_USE_WORKQUICK_2` and friends (Player.cpp:4234-4242), so the
+value has to be multiplied up first.
+
+**Verifying it needs a multiplayer run.** The single player harness plays every day with
+`Sim.CallItADay` set - the auto-skip sets it in the briefing room (Aufsicht.cpp:767) - and then
+`PERSONS::DoOneStep()` skips walking entirely and calls `RobotExecuteAction()` where the character
+stands (Person.cpp:3262-3272). That is why every action of a harness game reports "not in the
+room": the bots never walk and never enter a room. `./scripts/run_multiplayer.sh 2 1 66 0` does
+run days at walking pace (gohome 0), and both its bots are ClaudeBots.
+
+**Two engine traps found while verifying, both of which strand a bot for the rest of the day.**
+
+- `PLAYER::LeaveAllRooms()` compares the **raw** `Locations[]` value against `ROOM_AIRPORT`, and
+  for the frame after a bot steps out of a room the airport entry reads
+  `ROOM_AIRPORT | ROOM_ENTERING` (Takeoff.cpp:1891). It therefore flags the airport itself as
+  being left.
+- Worse, and what actually happened: the bot's leave branch hands `ROOM_ENTERING` to index `d-1`
+  and to nothing else (Takeoff.cpp:1889-1893), so a room at index **0** leaves the player with no
+  location at all - and `CalcRoom()` returns without writing when it finds none
+  (Player.cpp:784-791), so `GetRoom()` answers forever with the room that was left. Nothing walks
+  the character out again and the bot stands still. A room does end up at index 0:
+  `EnterRoom()` takes the first free slot (Player.cpp:645) and the airport entry is not always
+  there - in a network game each peer overwrites the whole array from `ATNET_ENTERROOM`
+  (AtNet.cpp:801-806). In the second verification run HA managed **1 action against PT's 54**
+  before I put an airport entry underneath first in `leaveRoomsForWalk()`; with that, both bots
+  play the day out normally. The engine's own `LeaveRoom()` has the same blind spot, so a bot in
+  that state is probably stranded in a multiplayer game with or without this feature - worth a
+  look in Takeoff.cpp one day, which is out of ClaudeBot's reach.
+
+**A free walk is not a safe way to cross the airport.** A character that steps on a room's
+announcement rune is pulled into that room whatever it was doing (Person.cpp:2265-2277), and the
+pathing is "walk x, then y" with no way to avoid one. `roomAtPlate()` says whether the
+*destination* carries one - the path cannot be checked - and the first demo walk of run 1 ended
+with the bot doing its workshop action inside the aircraft broker's office.
