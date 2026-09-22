@@ -775,7 +775,7 @@ bool BotPlaner::runAddBestNeighbor(int planeIdx, int choice) {
 }
 
 bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
-    int bestPlaneScore = 0;
+    int bestPlaneScore = INT_MIN;
     int bestPlaneIdx = -1;
     int bestWhereToInsert = 0;
     int bestNode = 0;

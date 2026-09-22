@@ -1785,3 +1785,40 @@ planned nothing (`230 item(s) on offer, planned 0`).
 Next: HARD is now the largest mission gap (62% against MertenBot's 100%); ATFS06 and ATFS05 sit at
 75%. The same "short of work" test - flights per aeroplane per day against the best opponent - is
 worth running there.
+
+2026-09-22 - MertenBot: `setConstBonus(-1M)` in the freight missions (review of a pending change)
+------------------------------------------------------------------------------------------------
+
+Asked to check the uncommitted `BotFunctions.cpp` hunk that adds `planer.setConstBonus(-1000 * 1000)`
+to the `ROBOT_USE_FREE_FRACHT` and `ROBOT_USE_MUCH_FRACHT` branches of `Bot::grabFlights()`, i.e.
+ADDON02 (`Level` 8, MUCH_FRACHT) and ADDON03 (`Level` 9, FREE_FRACHT).
+
+Harness: `./AT /quick <12|13> /seed <1..100> /setbotlevel 005` - HA is MertenBot (Nemesis), FL and PT
+are the classic cheating bot, SA idle. Paired by seed, 100 seeds per mission, ~5 s a game.
+
+| metric (HA) | ADDON02 base -> change | ADDON03 base -> change |
+|---|---|---|
+| win rate | 83% -> **88%** (t 1.9) | 81% -> **91%** (t 2.6) |
+| best opponent / us (lower better) | 86.4 -> **83.0** (t -2.6) | 76.5 -> **65.4** (t -3.8) |
+| days to the end of the game | 11.90 -> **11.48** (t -4.8) | 21 (deadline) |
+| mission goal `Ziel` | 92.7 -> 92.3 | 579 -> **642** (t 5.8) |
+| freight tons | 993 -> 994 | 618 -> **658** (t 3.9) |
+| cumulative op saldo | 2.66M -> 2.09M | 4.64M -> **-4.03M** |
+
+So yes, it wins both missions more often - and yes, it fines away both starter jobs:
+
+- `Scheduled 0/2 existing` at the first planning run in **200 of 200 games** (baseline: 2/2 in all
+  200), mean fines booked by day 2 **-171,000** in both missions against 0 in the baseline.
+- Mechanism: `runAddNodeToBestPlaneInner()` (BotPlanerAlgo.cpp:855) only inserts a node when
+  `score > bestPlaneScore`, which starts at 0. The `minScoreRatio` filter in `prepareGraph()`
+  (BotPlaner.cpp:474) exempts `wasTaken()` jobs, but that insertion threshold does not, and a taken
+  passenger job scores `Praemie - cost + Strafe - 1,000,000 < 0`.
+
+Tried the obvious fix (not committed, tree restored): apply `constBonus` only to jobs not yet taken.
+Keeps every gain and removes the fines - ADDON02 88% won / ratio 82.2, ADDON03 92% won / `Ziel` 643,
+total fines -4.6k and -34k (against -192k and -220k with the raw change, -27k and -631k in the
+baseline). Note `DIFF_TUTORIAL` uses `constBonus` as a *positive* 1M and was not re-measured, so
+such a guard wants to stay negative-only or be checked on mission 0.
+
+Open point: ADDON03 ends ~8.4M of op saldo below the baseline either way. The mission is scored on
+tons, not money, so it wins anyway, but the airline finishes the 21 days in the red.
