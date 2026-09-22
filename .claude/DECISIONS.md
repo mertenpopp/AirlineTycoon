@@ -1841,12 +1841,25 @@ the other missions.
 
 Three ways the two numbers can still part company, none of which fires in the current runs:
 
-- `PLAYERS::UpdateStatistics()` (Player.cpp:7266) skips `IsOut != 0`, so an eliminated airline's
-  `STAT_MISSIONSZIEL` freezes at its last living value, and `printPostGameInfo()` still counts it in
-  `bestEnemy` - while `HasWon()` for ATFS09/ATFS10 (and ADDON03/04/06) explicitly skips out players.
-  Dormant headless: `bankruptPlayer()` only runs from the briefing dialog, which CheatAutoSkip clicks
-  away.
+- **Bankrupt opponents, and this is the likely cause of the 508.** `PLAYERS::UpdateStatistics()`
+  (Player.cpp:7266) skips `IsOut != 0`, so an eliminated airline's `STAT_MISSIONSZIEL` freezes at its
+  last living value - and `printPostGameInfo()` still counts that frozen value in `bestEnemy`, while
+  `HasWon()` for ATFS09/ATFS10 (and ADDON03/04/06) skips out players. A rich-but-cash-dry opponent
+  that goes under therefore keeps inflating the ratio after it has stopped being a rival. In today's
+  8 games: seed 4 has **both** FL and PT out, frozen at 95.6M and 90.5M against HA's 176.6M - had
+  ClaudeBot been at ~19M, as it was in September's ATFS09, the row would have read "won, ratio 503".
 - `bestBot`/`bestEnemy` start at 0 and are taken with `max`, so a negative company value reads as 0:
   an all-negative field prints `NaN`, and a bankrupt opponent looks like a harmless 0.
 - The CSV `Ziel` column is `GetAtPastDay(1)` (BotHelper.cpp:1004) but the `BotMission` row is day 0,
   so the two outputs of one game can legitimately differ by a day.
+
+**Correction to `at-harness-no-bankruptcy` (the memory note, now rewritten): airlines do go bankrupt
+in headless runs.** CheatAutoSkip's synthetic right-click (Aufsicht.cpp:767) only dismisses the
+briefing while `CanCancel != 0` (Aufsicht.cpp:873-893), and `CanCancel` is forced to FALSE whenever
+any player is below `DEBT_GAMEOVER` (-5M) or has image < -990 (Aufsicht.cpp:832-836). The boss
+briefing then runs and `bankruptPlayer()` fires (Dialog.cpp:3502 -> 3627/3770). Its signature in the
+logs is **Geld == -10,000,000 with Kredit == 0**, because `bankruptPlayer()` sets `Money =
+2 * DEBT_GAMEOVER`; the money columns are live but everything else in the row (planes, Firmenwert,
+Ziel) is `GetAtPastDay(1)` and stands still from then on. Seen in 4 of 8 ATFS09 games today and in
+mission 49 of last night's MertenBot sweep (FL at -9.08M on day 43, out on day 44, Firmenwert pinned
+at 87,953,168 for days 44 and 45).
