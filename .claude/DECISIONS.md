@@ -1673,3 +1673,30 @@ Missions replay identically (seeds 1-2, 52/52).
 Next: a second job plane (the broker needs rented routes to value types, so 2 starting job planes
 would never buy a first 767), and the depot / agency / last minute boards inside the chain planner
 (today they fill the open tail greedily between rounds of calls).
+
+2026-09-22 - Job planner: what else was tried
+---------------------------------------------
+
+All paired over 300 free games against `18d257b2` (2.606e9, seed base 0).
+
+| arm | result |
+|---|---|
+| calls: 8 rounds a day, >= 1 h apart (was 4, >= 2 h) | -0.16% (t -0.9), 89 games identical |
+| agency / last minute / depot boards leave the job plane alone | -0.45% (t -0.6) |
+| those boards feed the chain planner too (taken at the counter, planned at the next office visit) | -0.63% (t -0.7) |
+| planner passes 50 / 800 (was 200) | +0.18% / -0.36%, both noise -> **50 kept** |
+| **second job plane (the 757) once a bought plane flies routes** | **+0.91% (t +2.9)**, seed base 1000 **+0.79% (t +3.2)** |
+
+- The job pool is not the limit: adding the counter boards did not raise job income (10.2M by day
+  20 either way). The job plane flies ~17.6 block hours a day (empty legs included), so plane time is.
+- A first version of the counter-board arm lost 31% and bankrupted two games: `executePendingChain()`
+  rejected ids returned by the take functions (`object >= AnzEntries()`), so 176 of 223 chosen jobs
+  were never planned and were fined. The take functions return album ids; test with `IsInAlbum()`.
+- Timing (Merten: callbacks must stay in the millisecond range, the game is single-threaded):
+  60-day game, 2 job planes, 50 passes: office mean 1.4 ms / max 7.8 ms, international calls with
+  the planner 1.4 ms / 4.0 ms, everything else < 4.3 ms.
+
+Committed as `eccadf80`. Score now ~2.63e9 (seed base 0).
+
+Next: a job plane is only worth it while it earns more than it would on routes; later bought
+planes could become job planes too if the boards pay (they would need range-appropriate offers).
