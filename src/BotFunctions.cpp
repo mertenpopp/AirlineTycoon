@@ -434,8 +434,10 @@ void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
     }
 
     if (qPlayer.RobotUse(ROBOT_USE_FREE_FRACHT)) {
+        planer.setConstBonus(-1000 * 1000);
         planer.setFreeFreightBonus(500 * 1000);
     } else if (qPlayer.RobotUse(ROBOT_USE_MUCH_FRACHT)) {
+        planer.setConstBonus(-1000 * 1000);
         planer.setFreightBonus(500 * 1000);
     } else if (qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT)) {
         planer.setFreightBonus(10 * 1000);
