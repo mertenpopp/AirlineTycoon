@@ -1607,12 +1607,12 @@ Small
 2026-09-22 - Job planes (open point 1): not worth it with the current job planner
 ---------------------------------------------------------------------------------
 
-:  starting planes (fewest seats first) are kept off routes - the route box,
-route renting and  skip them,  gives them an open tail, and
- bids in any city while they exist. Off (); the free game replays the
+`c5dab076`: `kJobPlanes` starting planes (fewest seats first) are kept off routes - the route box,
+route renting and `scheduleRouteFlights()` skip them, `collectGaps()` gives them an open tail, and
+`bidOnOffices()` bids in any city while they exist. Off (`kJobPlanes = 0`); the free game replays the
 previous HEAD exactly (300/300).
 
-Paired over 300 free games against  (2.3805e9), one job plane (the 737-400 that otherwise
+Paired over 300 free games against `951b9640` (2.3805e9), one job plane (the 737-400 that otherwise
 flies Berlin-Lanzarote):
 
 | arm | score | note |
