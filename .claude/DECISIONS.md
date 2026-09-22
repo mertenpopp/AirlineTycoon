@@ -1578,9 +1578,9 @@ international calls (ROBOT_USE_ABROAD off for its own airline only): 0.765e9 (-6
 Most promising
 1. **Leave room for jobs.** International calls are worth 3x to MertenBot and nothing to ClaudeBot,
    because ClaudeBot's route legs fill every plane's week (0 idle windows abroad, 1-7 at home).
-   *Tried 2026-09-22 (c5dab076): one job plane -33.6%.* The blocker is the job planner itself: greedy, one
-   job at a time, ~0.28M/day per plane against MertenBot's ~0.72M. Needs a chaining planner (jobs
-   linked by city and time, freight tonnage split) before job planes can pay.
+   *Tried 2026-09-22 (c5dab076): one job plane -33.6%.* *Done (18d257b2): chaining planner, +9.5% / +10.5%.*
+   Next: a second job plane (needs the broker to value types without rented routes), freight from
+   the depot and the agency board inside the chain planner.
 2. **Non-767 types.** The route box rents long-haul pairs sized for the 767; Il 86 / A 300 idle (-67% /
    -31%). A mixed fleet needs range-aware route renting first.
 3. **Cabin upgrades.** At 190% every leg after a plane's first of the day costs 1 airline + 1 route image
@@ -1635,3 +1635,41 @@ identical).
 Next for this point: a chaining job planner (sequence jobs by city and time for a plane, split
 freight tonnage), then re-try one job plane. Or pick jobs by premium per plane hour against the route
 value per hour instead of a fixed job plane.
+
+2026-09-22 - Chaining job planner: one job plane +9.5%
+-----------------------------------------------------
+
+`18d257b2`: the smallest starting plane (737-400) is a job plane all game. `planJobPlanes()` runs with
+every round of international calls (office, up to 4 a day, >= 2 h apart): it pools every office's
+passenger jobs and freight contracts (a contract = one item of n = tons / (seats / 10) round trips)
+plus our own unplanned jobs, and chains them per job plane by 200 randomised greedy passes, each
+step taking the item with the best gain per hour of plane time (empty leg and waiting included).
+The best pass is taken by phone and planned in order. Owned jobs go first (their fine is at stake).
+
+What mattered, all paired over 300 free games against HEAD `07ae9e87` (2.3805e9, seed base 0):
+
+| arm | result |
+|---|---|
+| greedy boards only (previous entry) | -33.6% |
+| chaining planner, 48 h offer horizon | -18.5% |
+| + route sizing counts the job plane again | -1.9% |
+| + back to routes on day 25 | -8.6% (reverted: kJobPlanesUntilDay = 99) |
+| offer horizon 96 / 48 / 36 / **24** / 18 / 12 h | -11.1 / -1.9 / +3.2 / **+9.5** / +7.4 / -6.0% |
+| 24 h, seed base 1000 | **+10.5%** (t +7.6, 200/300) |
+
+- The job plane's open tail now ends at the same 24 h horizon, so the greedy agency / last minute
+  boards cannot book it further out than the chain planner looks. With a 4-day tail they filled it
+  before the planner ran and it planned nothing.
+- Leaving the job plane out of `wantRoutes` held the first 767 on Delhi with the 757 until day 25
+  (one pair instead of three); the network wants the starting fleet's size.
+- Too short a horizon idles the plane between calls; too long books it out with the first call's
+  offers. Jobs + freight by day 20: 10.2M (24 h) against 8.1M (48 h), 6.3M (96 h), 1.2M before.
+- Route scheduler: a free-game plane in a city no rented pair touches is sent home first (the game
+  flies the empty leg). Only relevant if a job plane ever returns to routes.
+
+Now 2.606e9 against MertenBot's 2.346e9 on the same seeds: +11.1% (t +3.9, 192/300).
+Missions replay identically (seeds 1-2, 52/52).
+
+Next: a second job plane (the broker needs rented routes to value types, so 2 starting job planes
+would never buy a first 767), and the depot / agency / last minute boards inside the chain planner
+(today they fill the open tail greedily between rounds of calls).
