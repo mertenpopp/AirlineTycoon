@@ -136,6 +136,10 @@ class ClaudeBot {
          * counts every level on every plane). */
         SLONG upgradePlanes{0};
         bool wantFreight{false};     /* ADDON02, ADDON03: tonnage is the goal */
+        /* ADDON04: most miles after 30 days. Every leg counts, the empty ones the game inserts
+         * included (Schedule.cpp:668), so distance flown is the goal and the premium only has to
+         * keep the airline solvent. */
+        bool wantMiles{false};
         bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
         bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
         /* Routes are the free game's engine, but they are an investment: a pair has to be
@@ -293,8 +297,9 @@ class ClaudeBot {
      * flying it is worth the premium *and* the fine avoided. Ignoring that let ADDON09 - which
      * pushes five jobs a day into the backlog, each with Strafe == Praemie - run up 11.7M of
      * fines in two days and hit the debt floor by day 10. */
-    static bool fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain,
-                              bool alreadyOurs = false);
+    /* Not static: ADDON04 ranks by miles instead of profit - see Mission::wantMiles. */
+    bool fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain,
+                       bool alreadyOurs = false) const;
     /* One out-and-back into one idle window, for any city pair and date range. The kerosene
      * of the empty return the game inserts itself is part of outCost. */
     static bool fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,

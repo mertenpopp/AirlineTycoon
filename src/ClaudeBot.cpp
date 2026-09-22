@@ -192,6 +192,11 @@ static const SLONG kMinFreightGain = 20000;
  * and at 400,000 the bot stops flying altogether and ends at -111,104. */
 static const SLONG kMissionJobGain = 50000;
 
+/* ADDON04 (Mission::wantMiles): what one mile flown is worth on top of a job's profit when
+ * ranking. A premium is 100k-1M and a long haul job is ~3,000 miles, so 100 puts the two on the
+ * same scale. */
+static const SLONG kMilesValue = 100;
+
 /* FIRST (Mission::wantPassengers): what a passenger on a job is worth when ranking jobs. */
 static const SLONG kMissionGainPerPassenger = 2000;
 
@@ -337,6 +342,8 @@ static const SLONG kUsedPlaneMinRange = 3000;
 static const SLONG kUsedPlaneMinSeats = 100;
 /* How far those missions grow the fleet with used planes. */
 static const SLONG kMissionUsedFleet = 6;
+/* ADDON04: miles scale with aeroplanes, so it keeps buying past the usual fleet. */
+static const SLONG kMissionMilesFleet = 10;
 /* ATFS04, ATFS06: the goal's fleet size (Player.cpp, HasWon). */
 static const SLONG kMissionSabotageFleet = 5;
 
@@ -926,8 +933,9 @@ void ClaudeBot::setupMission() {
          * this is flying hours: more planes, kept busy. Routes looked like the way to keep
          * them busy, but at the free game's 190% fares the image fell to -661, the fleet
          * flew at a loss and sat at the -10M floor, grounded, from day 22. Jobs pay. */
-        m.usedFleet = kMissionUsedFleet;
+        m.usedFleet = kMissionMilesFleet;
         m.noRoutes = true;
+        m.wantMiles = true;
         break;
     case DIFF_NORMAL:
         m.wantMissionCities = true;
@@ -2177,7 +2185,7 @@ bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG 
 
 /* Fits a passenger job into one idle window, return leg included. */
 bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const CAuftrag &qJob, PlaneTime &outStart, PlaneTime &outBack, SLONG &outGain,
-                              bool alreadyOurs) {
+                              bool alreadyOurs) const {
     SLONG cost = 0;
     if (!fitLegIntoGap(qGap, qPlane, qJob.VonCity, qJob.NachCity, static_cast<SLONG>(qJob.Date), static_cast<SLONG>(qJob.BisDate), outStart, outBack, cost)) {
         return false;
@@ -2185,6 +2193,15 @@ bool ClaudeBot::fitJobIntoGap(const PlaneGap &qGap, const CPlane &qPlane, const 
     outGain = qJob.Praemie - cost;
     if (alreadyOurs) {
         outGain += qJob.Strafe; /* flying it is also the fine we do not pay */
+    }
+    if (mMission.wantMiles) {
+        /* Miles are the goal, but the cash the premium brings is what buys the next aeroplane and
+         * its kerosene - so a job still has to clear the mission profit floor, and the miles only
+         * decide between the jobs that do. */
+        if (outGain < kMissionJobGain) {
+            return false;
+        }
+        outGain += static_cast<SLONG>(static_cast<__int64>(Cities.CalcDistance(qJob.VonCity, qJob.NachCity) / 1609) * kMilesValue);
     }
     return true;
 }
@@ -4090,7 +4107,12 @@ SLONG ClaudeBot::takeFreightFromBoard(CFrachten &board, const JobTaker &take, co
 
             /* Tonnage missions are won by the tons carried, not by what they pay, so there
              * the contracts are ranked by size and the cost is what the mission costs. */
-            const SLONG gain = mMission.wantFreight ? qFreight.Tons : qFreight.Praemie - cost;
+            SLONG gain = mMission.wantFreight ? qFreight.Tons : qFreight.Praemie - cost;
+            if (mMission.wantMiles && gain >= kMinFreightGain) {
+                /* Every leg is flown out loaded and back empty, and all of it counts. */
+                const SLONG milesPerLeg = Cities.CalcDistance(qFreight.VonCity, qFreight.NachCity) / 1609;
+                gain += static_cast<SLONG>(static_cast<__int64>(milesPerLeg) * 2 * static_cast<SLONG>(legs.size()) * kMilesValue);
+            }
             if (gain <= bestGain) {
                 continue;
             }
