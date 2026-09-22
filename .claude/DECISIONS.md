@@ -1106,6 +1106,11 @@ alternative is not having it. For a job already held the alternative is the fine
 
 ### NORMAL (mission 3): ClaudeBot is not stuck, its *rating* is
 
+**Resolved** (see the mission-city scheduling bonus below, 2026-09-20). The three-part fix this
+section asks for was never needed and was never built. Re-checked 2026-09-22 at `8826dbf8`: won on
+20/20 seeds, day 42-58 (median 47), and at the other bot levels too - Hurricane 4/4 (day 46-53),
+ClaudeBot on all three computer airlines 4/4 (day 60-64). MertenBot's median is day 75.
+
 It reaches **310 billion and 200 planes by day 1000** while the flag count sits at 6 of 10 from
 day 50 for ever. `NumMissionRoutes` (`Aufsicht.cpp:101-125`) counts a rented pair only when one end
 is home, the other is a `Sim.MissionCities` entry, **and `RoutenAuslastung > 20`** - more than 20%
@@ -1151,7 +1156,7 @@ Still cosmetic: `printf("Triggering cutoff: ...")` has no `\n`, so it runs into 
    by day 20; ClaudeBot holds 1 and earns 0.
 2. **ADDON06 (104), ADDON07 (119), ADDON02 (122), ATFS05 (152)** are the closest losses and the
    best return per unit of work.
-3. **NORMAL** needs the three-part fix above.
+3. ~~**NORMAL** needs the three-part fix above.~~ Resolved by the mission-city scheduling bonus.
 4. **ADDON04** (most miles in 30 days) is untouched - miles are not modelled at all.
 5. ATFS09's harness ratio still disagrees with its win flag; unexplained, the win flag is what
    `PLAYER::HasWon()` reports.
@@ -1598,7 +1603,7 @@ Missions (seeds 0-100: 81% won)
    FINAL, ADDON10, NASA missions won around day 100 against ~55.
 9. International offices in missions (ATFS05): the free-game version cost wins (180 -> 162/165 on
    seeds 1-8), so it is off there. Needs a variant that leaves the goal's plane time alone.
-10. ADDON04 (miles) not modelled; NORMAL's three-part fix not done.
+10. ADDON04 (miles) not modelled.
 
 Small
 11. Freight contracts re-planned by `schedulePendingFreight()` can end short and be fined (free game too).
