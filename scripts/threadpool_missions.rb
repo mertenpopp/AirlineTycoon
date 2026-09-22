@@ -330,8 +330,10 @@ class ThreadPool
     end
 end
 
-miss = [-1]
-name = ""
+miss = (0..5).to_a()
+miss += (11..20).to_a()
+miss += (41..50).to_a()
+name = "_mission_merten"
 
 # File prefix for the per-run CSV/log files of the free game, "dataBOT" by default.
 # Override with "--prefix NAME" or "--prefix=NAME" on this script's own command line, e.g.
@@ -367,8 +369,8 @@ extra_args = " #{extra_args}" unless extra_args.empty?
 
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
-  (0...300).each do |j|
-    prefix = "#{bot_prefix}_freegame#{name}_#{j}"
+  (0...50).each do |j|
+    prefix = "dataMISS_#{i}#{name}_#{j}"
     file = "#{prefix}.csv"
     log = "#{prefix}.txt"
 
