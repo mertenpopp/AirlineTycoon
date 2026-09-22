@@ -261,6 +261,7 @@ class ClaudeBot {
 
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
+    SLONG ticketPercentFor(const RouteState &qRoute) const;
     SLONG schedulePendingJobs();
     /* ADDON09 only: clears every plan that is not locked yet and re-plans all jobs we hold
      * across the whole fleet, repositioning legs included. Office only. */
