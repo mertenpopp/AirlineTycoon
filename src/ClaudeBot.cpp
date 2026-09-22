@@ -112,7 +112,20 @@ static const bool kUseFreight = true;
  * never fly routes and live on the job boards instead: travel agency, last minute, freight and the
  * international offices. The route legs fill every other aeroplane's week, so without a plane kept
  * free for them these boards have nowhere to put a job - see isJobPlane(). */
-static const SLONG kJobPlanes = 0;
+static const SLONG kJobPlanes = 1;
+/* ...until this day, after which they fly routes like any other aeroplane. 99 = the whole game:
+ * switching the 737 to routes on day 25 measured -8.6% against -1.9% for keeping it on jobs (48 h
+ * horizon) - it brings a new pair, its rent and 2.7M of route image due just when the cash buys
+ * 767s. */
+static const SLONG kJobPlanesUntilDay = 99;
+/* Randomised greedy passes of planJobPlanes(), and how far ahead it plans offers it does not
+ * own yet: the boards refill a slot every five minutes, so a job plane booked a week ahead
+ * would be blind to everything offered after this call. */
+static const SLONG kJobPlanePasses = 200;
+/* Paired over 300 games against no job plane: 12 h -6.0%, 18 h +7.4%, 24 h +9.5%, 36 h +3.2%,
+ * 48 h -1.9%, 96 h -11.1%; 24 h on seed base 1000 +10.5%. Too short and the plane idles between
+ * two rounds of calls, too long and it is booked out with what was on offer at the first one. */
+static const SLONG kJobPlaneOfferHorizonHours = 24;
 
 /* International offices.
  *
@@ -835,7 +848,7 @@ SLONG ClaudeBot::planeIndex(ULONG uid) const {
 /* See kJobPlanes. The starting aeroplanes are the sponsored ones; the smallest go first, because
  * the route network is sized by the largest plane and a small cabin is worth least on a route. */
 bool ClaudeBot::isJobPlane(const CPlane &qPlane) const {
-    if (kJobPlanes <= 0 || mMission.isMission || qPlane.Sponsored == 0) {
+    if (kJobPlanes <= 0 || mMission.isMission || qPlane.Sponsored == 0 || Sim.Date > kJobPlanesUntilDay) {
         return false;
     }
     SLONG smaller = 0;
@@ -2406,9 +2419,12 @@ void ClaudeBot::executeRouteBox() {
         }
     }
 
+    /* Job planes count here although they never fly a route: the pair count is rounded up from
+     * a small fleet, and leaving them out held the first 767 on the starting plane's pair until
+     * day 25 instead of opening its own (-18.5% against -1.9% with them counted, 48 h horizon). */
     SLONG numPlanes = 0;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
-        if (qPlayer.Planes.IsInAlbum(c) != 0 && !isJobPlane(qPlayer.Planes[c])) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0) {
             numPlanes++;
         }
     }
@@ -3586,6 +3602,319 @@ SLONG ClaudeBot::takeJobsFromBoard(CAuftraege &board, const JobTaker &take, cons
 // canCallInternational() has said yes for that city (RULES.md). Every city whose boards were read
 // is charged through bookCallCost(), once per round.
 //--------------------------------------------------------------------------------------------
+/* Chains jobs for the job planes (see kJobPlanes) from every international board at once.
+ *
+ * Each job plane continues from where its plan ends. An item is either a passenger job - one
+ * leg, from the office boards or already ours and not planned yet - or a whole freight contract
+ * from an office board, flown as n = tons / (seats / 10) round trips inside its window, because
+ * it pays nothing until the last ton is delivered. Moving to an item's departure city is an empty
+ * leg the plan pays for, and the plane stays where the item lands.
+ *
+ * The chains are built by randomised greedy passes in the manner of scheduleUhrigJobs(): each
+ * step takes the item with the best gain per hour of plane time it uses, empty leg and waiting
+ * included, perturbed by noise; the pass with the largest total gain is committed. Offers are
+ * taken by phone only once their place in the chain is fixed. Office only. */
+SLONG ClaudeBot::planJobPlanes() {
+    struct Slot {
+        SLONG idx{-1};
+        SLONG avail{0}; /* absolute hour a flight may depart from `city` */
+        ULONG city{0};
+    };
+    struct Item {
+        SLONG kind{0}; /* 0 owned job, 1 offered job, 2 offered freight */
+        SLONG office{-1};
+        SLONG id{-1}; /* index in qPlayer.Auftraege, or in the office's board */
+        const CAuftrag *job{nullptr};
+        const CFracht *freight{nullptr};
+    };
+    struct Leg {
+        SLONG item{-1};
+        SLONG start{0};
+        SLONG legs{1};
+        SLONG legHours{0}; /* start to start of two consecutive freight legs */
+    };
+
+    const SLONG now2 = Sim.Date * 24 + Sim.GetHour() + 2;
+    const SLONG offerLimit = now2 + kJobPlaneOfferHorizonHours;
+
+    std::vector<Slot> slots;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0 || !isJobPlane(qPlayer.Planes[c])) {
+            continue;
+        }
+        const auto &qPlane = qPlayer.Planes[c];
+        if (qPlane.Problem != 0 || qPlane.AnzPiloten < qPlane.ptAnzPiloten || qPlane.AnzBegleiter < qPlane.ptAnzBegleiter) {
+            continue; /* planFlightJob() would refuse it */
+        }
+        auto avail = Helper::getPlaneAvailableTimeLoc(qPlane, {}, PlaneTime{Sim.Date, static_cast<int>(Sim.GetHour()) + 2});
+        Slot slot;
+        slot.idx = c;
+        slot.avail = std::max<SLONG>(now2, avail.first.convertToHours());
+        slot.city = static_cast<ULONG>(avail.second);
+        slots.push_back(slot);
+    }
+    if (slots.empty()) {
+        return 0;
+    }
+
+    std::vector<Item> items;
+    for (SLONG j = 0; j < qPlayer.Auftraege.AnzEntries(); j++) {
+        if (qPlayer.Auftraege.IsInAlbum(j) == 0) {
+            continue;
+        }
+        const auto &qJob = qPlayer.Auftraege[j];
+        if (qJob.InPlan != 0 || qJob.BisDate < Sim.Date || qJob.VonCity == qJob.NachCity) {
+            continue;
+        }
+        items.push_back(Item{0, -1, j, &qJob, nullptr});
+    }
+    for (SLONG c = 0; c < Cities.AnzEntries(); c++) {
+        if (c >= static_cast<SLONG>(AuslandsAuftraege.size()) || c >= static_cast<SLONG>(AuslandsFrachten.size())) {
+            break;
+        }
+        if (!GameMechanic::canCallInternational(qPlayer, c)) {
+            continue;
+        }
+        for (SLONG i = 0; i < AuslandsAuftraege[c].AnzEntries(); i++) {
+            if (AuslandsAuftraege[c].IsInAlbum(i) == 0) {
+                continue;
+            }
+            const auto &qJob = AuslandsAuftraege[c][i];
+            if (qJob.VonCity == qJob.NachCity || qJob.Praemie <= 0 || qJob.BisDate < Sim.Date || qJob.Date > Sim.Date + kMaxPlanDate) {
+                continue;
+            }
+            items.push_back(Item{1, c, i, &qJob, nullptr});
+        }
+        if (!kUseFreight) {
+            continue;
+        }
+        for (SLONG i = 0; i < AuslandsFrachten[c].AnzEntries(); i++) {
+            if (AuslandsFrachten[c].IsInAlbum(i) == 0) {
+                continue;
+            }
+            const auto &qFreight = AuslandsFrachten[c][i];
+            if (qFreight.VonCity == qFreight.NachCity || qFreight.Praemie <= 0 || qFreight.BisDate < Sim.Date || qFreight.Date > Sim.Date + kMaxPlanDate) {
+                continue;
+            }
+            items.push_back(Item{2, c, i, nullptr, &qFreight});
+        }
+    }
+    if (items.empty()) {
+        return 0;
+    }
+
+    /* (duration, cost) per plane and city pair, loaded or empty */
+    std::map<std::tuple<SLONG, ULONG, ULONG, bool>, std::pair<SLONG, SLONG>> legCache;
+    auto leg = [&](SLONG s, ULONG von, ULONG nach, bool empty) {
+        auto key = std::make_tuple(s, von, nach, empty);
+        auto it = legCache.find(key);
+        if (it != legCache.end()) {
+            return it->second;
+        }
+        int cost = 0;
+        int duration = 0;
+        int dist = 0;
+        calcCostAndDuration(Cities.find(von), Cities.find(nach), qPlayer.Planes[slots[s].idx], empty, cost, duration, dist);
+        return legCache[key] = std::make_pair(static_cast<SLONG>(duration), static_cast<SLONG>(cost));
+    };
+
+    /* Where item k fits on plane s from state (avail, city): departure, landing (the plane is
+     * free again at landing + 1), legs and what it is worth. */
+    auto fit = [&](SLONG s, SLONG k, SLONG avail, ULONG city, Leg &outLeg, SLONG &outLanding, SLONG &outValue) {
+        const auto &qItem = items[k];
+        const auto &qPlane = qPlayer.Planes[slots[s].idx];
+        const ULONG von = qItem.job != nullptr ? qItem.job->VonCity : qItem.freight->VonCity;
+        const ULONG nach = qItem.job != nullptr ? qItem.job->NachCity : qItem.freight->NachCity;
+        const SLONG date = qItem.job != nullptr ? static_cast<SLONG>(qItem.job->Date) : static_cast<SLONG>(qItem.freight->Date);
+        const SLONG bisDate = qItem.job != nullptr ? static_cast<SLONG>(qItem.job->BisDate) : static_cast<SLONG>(qItem.freight->BisDate);
+        if (qItem.job != nullptr && !planeCanFly(qPlane, *qItem.job)) {
+            return false;
+        }
+        if (qItem.freight != nullptr && Cities.CalcDistance(von, nach) > qPlane.ptReichweite * 1000) {
+            return false;
+        }
+
+        SLONG start = avail;
+        SLONG cost = 0;
+        if (city != von) {
+            auto rep = leg(s, city, von, true);
+            if (rep.first > 24) {
+                return false;
+            }
+            start = std::max(avail - 1, now2) + rep.first + 2;
+            cost += rep.second;
+        }
+        start = std::max<SLONG>(start, date * 24);
+        if (qItem.kind != 0 && start > offerLimit) {
+            return false;
+        }
+        auto out = leg(s, von, nach, false);
+        if (out.first > 24) {
+            return false;
+        }
+
+        SLONG legs = 1;
+        SLONG legHours = 0;
+        if (qItem.freight != nullptr) {
+            const SLONG tonsPerLeg = qPlane.ptPassagiere / 10;
+            if (tonsPerLeg <= 0) {
+                return false;
+            }
+            legs = (qItem.freight->Tons + tonsPerLeg - 1) / tonsPerLeg;
+            if (legs > kMaxFreightLegs) {
+                return false;
+            }
+            auto back = leg(s, nach, von, true);
+            legHours = out.first + 1 + back.first + 1;
+            cost += legs * out.second + (legs - 1) * back.second + kFreightRefitCost;
+        } else {
+            cost += out.second;
+        }
+        const SLONG lastStart = start + (legs - 1) * legHours;
+        if (lastStart / 24 > bisDate || lastStart / 24 > Sim.Date + kMaxPlanDate) {
+            return false;
+        }
+
+        SLONG value = 0;
+        if (qItem.kind == 0) {
+            value = qItem.job->Praemie + qItem.job->Strafe - cost;
+        } else if (qItem.kind == 1) {
+            value = qItem.job->Praemie - cost;
+        } else {
+            value = qItem.freight->Praemie - cost;
+        }
+        if (qItem.kind != 0 && value < kMinJobGain) {
+            return false;
+        }
+        outLeg = Leg{k, start, legs, legHours};
+        outLanding = lastStart + out.first;
+        outValue = value;
+        return true;
+    };
+
+    std::mt19937 rng(static_cast<unsigned>(Sim.Date * 100 + Sim.GetHour()));
+    std::uniform_real_distribution<double> unit(0.0, 1.0);
+
+    std::vector<std::vector<Leg>> bestPlan;
+    __int64 bestValue = 0;
+    for (SLONG pass = 0; pass < kJobPlanePasses; pass++) {
+        const double noise = pass == 0 ? 0.0 : unit(rng) * 0.6;
+
+        std::vector<SLONG> avail(slots.size());
+        std::vector<ULONG> city(slots.size());
+        for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+            avail[s] = slots[s].avail;
+            city[s] = slots[s].city;
+        }
+        std::vector<bool> done(items.size(), false);
+        std::vector<std::vector<Leg>> plan(slots.size());
+        __int64 value = 0;
+
+        while (true) {
+            SLONG bestS = -1;
+            Leg bestLeg{};
+            SLONG bestLanding = 0;
+            SLONG bestItemValue = 0;
+            double bestKey = 0;
+            for (SLONG s = 0; s < static_cast<SLONG>(slots.size()); s++) {
+                for (SLONG k = 0; k < static_cast<SLONG>(items.size()); k++) {
+                    if (done[k]) {
+                        continue;
+                    }
+                    Leg candidate{};
+                    SLONG landing = 0;
+                    SLONG itemValue = 0;
+                    if (!fit(s, k, avail[s], city[s], candidate, landing, itemValue)) {
+                        continue;
+                    }
+                    /* Gain per hour of plane time, and owned jobs always first: their fine is
+                     * already part of the value, but a late one is still a fine. */
+                    double key = static_cast<double>(itemValue) / std::max<SLONG>(1, landing + 1 - avail[s]);
+                    key *= 1.0 + noise * (unit(rng) - 0.5);
+                    if (items[k].kind == 0) {
+                        key += 1e9;
+                    }
+                    if (bestS >= 0 && key <= bestKey) {
+                        continue;
+                    }
+                    bestS = s;
+                    bestLeg = candidate;
+                    bestLanding = landing;
+                    bestItemValue = itemValue;
+                    bestKey = key;
+                }
+            }
+            if (bestS < 0) {
+                break;
+            }
+            done[bestLeg.item] = true;
+            plan[bestS].push_back(bestLeg);
+            avail[bestS] = bestLanding + 1;
+            const auto &qItem = items[bestLeg.item];
+            city[bestS] = qItem.job != nullptr ? qItem.job->NachCity : qItem.freight->NachCity;
+            value += bestItemValue;
+        }
+
+        if (value > bestValue) {
+            bestValue = value;
+            bestPlan = plan;
+        }
+    }
+
+    SLONG planned = 0;
+    for (SLONG s = 0; s < static_cast<SLONG>(bestPlan.size()); s++) {
+        for (const auto &qLeg : bestPlan[s]) {
+            const auto &qItem = items[qLeg.item];
+            const SLONG planeIdx = slots[s].idx;
+            if (qItem.kind == 2) {
+                const ULONG von = qItem.freight->VonCity;
+                const ULONG nach = qItem.freight->NachCity;
+                SLONG outId = -1;
+                if (!GameMechanic::takeInternationalFreightJob(qPlayer, qItem.office, qItem.id, outId) || outId < 0) {
+                    break; /* the chain after this point assumed the plane is at `nach` */
+                }
+                mFreightTakenToday++;
+                mNeedSchedule = true;
+                SLONG done = 0;
+                for (SLONG l = 0; l < qLeg.legs && qPlayer.Frachten[outId].TonsOpen > 0; l++) {
+                    const SLONG start = qLeg.start + l * qLeg.legHours;
+                    if (GameMechanic::planFreightJob(qPlayer, planeIdx, outId, start / 24, start % 24)) {
+                        done++;
+                    }
+                }
+                planned += done;
+                AT_Log("ClaudeBot::planJobPlanes(): Freight %s -> %s (%ld t) in %ld of %ld leg(s) on %s from %ld/%02ld.", Cities[von].Name.c_str(),
+                       Cities[nach].Name.c_str(), static_cast<SLONG>(qPlayer.Frachten[outId].Tons), done, qLeg.legs, qPlayer.Planes[planeIdx].Name.c_str(),
+                       qLeg.start / 24, qLeg.start % 24);
+                continue;
+            }
+
+            SLONG jobIdx = qItem.id;
+            if (qItem.kind == 1) {
+                SLONG outId = -1;
+                if (!GameMechanic::takeInternationalFlightJob(qPlayer, qItem.office, qItem.id, outId) || outId < 0) {
+                    break;
+                }
+                jobIdx = outId;
+                mJobsTakenToday++;
+                mNeedSchedule = true;
+            }
+            const auto &qJob = qPlayer.Auftraege[jobIdx];
+            if (GameMechanic::planFlightJob(qPlayer, planeIdx, jobIdx, qLeg.start / 24, qLeg.start % 24)) {
+                planned++;
+                AT_Log("ClaudeBot::planJobPlanes(): Job %s -> %s (%s) on %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(), Cities[qJob.NachCity].Name.c_str(),
+                       qItem.kind == 0 ? "ours" : "offer", qPlayer.Planes[planeIdx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+            } else {
+                AT_Warn("ClaudeBot::planJobPlanes(): planFlightJob refused %s -> %s on %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
+                        Cities[qJob.NachCity].Name.c_str(), qPlayer.Planes[planeIdx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+            }
+        }
+    }
+    AT_Log("ClaudeBot::planJobPlanes(): %ld item(s) on offer or ours, planned %ld flight(s) worth %s.", static_cast<SLONG>(items.size()), planned,
+           Insert1000erDots64(bestValue).c_str());
+    return planned;
+}
+
 bool ClaudeBot::wantCallInternational() const {
     /* Free game only. In the missions the extra jobs took the few planes' windows from the goal:
      * with calls (and no office bids) seeds 1-8 won 165 missions against 180 without. */
@@ -3607,6 +3936,13 @@ bool ClaudeBot::wantCallInternational() const {
 void ClaudeBot::callInternational() {
     mCallsToday++;
     mLastCallTime = static_cast<SLONG>(Sim.Time);
+
+    /* Job planes get their chains first, from every office's boards at once; what is left is
+     * then offered to the idle windows as before. */
+    if (haveJobPlanes()) {
+        planJobPlanes();
+        refreshPlaneState();
+    }
 
     SLONG called = 0;
     SLONG jobs = 0;
@@ -4063,13 +4399,24 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
      * carries that city into the window and the next job simply departs from there. The cost
      * estimate still charges the return leg, so a job is only ever accepted for less than it
      * really earns. */
-    if (!routesAvailable() || isJobPlane(qPlane)) {
+    if (!routesAvailable()) {
         PlaneGap tail;
         tail.start = free;
         tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
         tail.city = city;
         tail.openTail = true;
         gaps.push_back(tail);
+    } else if (isJobPlane(qPlane)) {
+        /* A job plane's tail ends where planJobPlanes() stops planning offers, so the boards
+         * visited in between cannot book it further ahead than the chain planner looks. */
+        PlaneGap tail;
+        tail.start = free;
+        tail.end = earliest + kJobPlaneOfferHorizonHours;
+        tail.city = city;
+        tail.openTail = true;
+        if (tail.end - tail.start >= kMinGapHours) {
+            gaps.push_back(tail);
+        }
     }
 
     return gaps;
@@ -4272,6 +4619,23 @@ SLONG ClaudeBot::scheduleRouteFlights() {
         auto avail = Helper::getPlaneAvailableTimeLoc(qPlane, {}, earliest);
         PlaneTime time = avail.first;
         SLONG city = avail.second;
+
+        /* A plane that has been flying jobs can stand anywhere, and every leg below departs from
+         * where the plane is. From a city none of our pairs touches, go home first: the game
+         * flies the empty leg itself before the first planned flight (Planetyp.cpp:700-717). */
+        if (!mMission.isMission && city != static_cast<SLONG>(Sim.HomeAirportId) &&
+            std::none_of(mRoutes.begin(), mRoutes.end(), [&](const RouteState &qRoute) {
+                return static_cast<ULONG>(city) == qRoute.vonCity || static_cast<ULONG>(city) == qRoute.nachCity;
+            })) {
+            int cost = 0;
+            int duration = 0;
+            int dist = 0;
+            calcCostAndDuration(Cities.find(static_cast<ULONG>(city)), Cities.find(static_cast<ULONG>(Sim.HomeAirportId)), qPlane, true, cost, duration, dist);
+            if (duration <= 24) {
+                time = time + duration + 2;
+                city = static_cast<SLONG>(Sim.HomeAirportId);
+            }
+        }
 
         /* The best any pair we hold is worth to *this* aeroplane, per hour it flies.
          *
