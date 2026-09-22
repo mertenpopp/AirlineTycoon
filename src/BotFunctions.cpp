@@ -16,7 +16,7 @@
 #include <cassert>
 #include <climits>
 #include <cmath>
-#include <random>
+#include <map>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -693,11 +693,7 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
 }
 
 SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
-    struct Candidate {
-        SabotageMode mode;
-        int weight;
-    };
-    std::vector<Candidate> candidates;
+    std::map<SabotageMode, int> candidates;
 
     if (qPlayer.RobotUse(ROBOT_USE_EXTREME_SABOTAGE)) {
         /* special mode for specific missions */
@@ -705,22 +701,17 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
         bool delaySabotage = (Sim.Difficulty == DIFF_ADDON04);
         if (stockPriceSabotage) {
             /* sabotage planes to damage enemy stock price in stock price competitions */
-            candidates.push_back({SabotageMode::Plane::SaltedFood, 1});
-            candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 1});
-            candidates.push_back({SabotageMode::Plane::FlatTire, 1});
-            candidates.push_back({SabotageMode::Plane::EngineBreakdown, 10});
+            candidates[SabotageMode::Plane::EngineBreakdown] = 10;
         } else if (delaySabotage) {
             /* sabotage plane tire to delay next start in miles&more mission */
-            candidates.push_back({SabotageMode::Plane::SaltedFood, 1});
-            candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 1});
-            candidates.push_back({SabotageMode::Plane::FlatTire, 10});
+            candidates[SabotageMode::Plane::FlatTire] = 10;
         } else {
             /* use sabotage with low hint count to sabotage as often as possible: weight = 10 - hints */
-            candidates.push_back({SabotageMode::Plane::SaltedFood, 8});
-            candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 6});
-            candidates.push_back({SabotageMode::Personal::CoffeeBacteria, 2});
-            candidates.push_back({SabotageMode::Personal::NotebookVirus, 10});
-            candidates.push_back({SabotageMode::Special::AircraftBrochures, 2});
+            candidates[SabotageMode::Plane::SaltedFood] = 8;
+            candidates[SabotageMode::Plane::MovieTheatreBreak] = 6;
+            candidates[SabotageMode::Personal::CoffeeBacteria] = 2;
+            candidates[SabotageMode::Personal::NotebookVirus] = 10;
+            candidates[SabotageMode::Special::AircraftBrochures] = 2;
         }
     } else { /* regular mode */
         /* check some conditions for what could be a good sabotage */
@@ -742,50 +733,86 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
         bool routeTheftPossible = (!earlyGame && (mRouteToSteal != -1));
 
         // Plane sabotage candidates
-        candidates.push_back({SabotageMode::Plane::SaltedFood, 1});
-        candidates.push_back({SabotageMode::Plane::MovieTheatreBreak, 1});
-        candidates.push_back({SabotageMode::Plane::FlatTire, 5});
-        candidates.push_back({SabotageMode::Plane::EngineBreakdown, 10});
-        candidates.push_back({SabotageMode::Plane::PlaneCrash, 0});
+        candidates[SabotageMode::Plane::SaltedFood] = 1;
+        candidates[SabotageMode::Plane::MovieTheatreBreak] = 1;
+        candidates[SabotageMode::Plane::FlatTire] = 5;
+        candidates[SabotageMode::Plane::EngineBreakdown] = 10;
+        candidates[SabotageMode::Plane::PlaneCrash] = 0;
         // Personal sabotage candidates
-        candidates.push_back({SabotageMode::Personal::CoffeeBacteria, (earlyGame ? 10 : 1)});
-        candidates.push_back({SabotageMode::Personal::NotebookVirus, (earlyGame ? 10 : 1)});
-        candidates.push_back({SabotageMode::Personal::OfficeBomb, (earlyGame ? 10 : 1)});
-        candidates.push_back({SabotageMode::Personal::ProvokeStrike, 5});
+        candidates[SabotageMode::Personal::CoffeeBacteria] = (earlyGame ? 10 : 1);
+        candidates[SabotageMode::Personal::NotebookVirus] = (earlyGame ? 10 : 1);
+        candidates[SabotageMode::Personal::OfficeBomb] = (earlyGame ? 10 : 1);
+        candidates[SabotageMode::Personal::ProvokeStrike] = 5;
         // Special candidates
-        candidates.push_back({SabotageMode::Special::AircraftBrochures, (nemesisHasRoutes ? 1 : 0)});
-        candidates.push_back({SabotageMode::Special::CutTelephones, (nemesisManyOffices ? 10 : 0)});
-        candidates.push_back({SabotageMode::Special::FalsePressRelease, (nemesisHasRoutes ? 10 : 0)});
-        candidates.push_back({SabotageMode::Special::BankHack, (nemesisBroke ? 50 : 5)});
-        candidates.push_back({SabotageMode::Special::GroundAircraft, 10});
-        candidates.push_back({SabotageMode::Special::RouteTheft, (routeTheftPossible ? 10 : 0)});
+        candidates[SabotageMode::Special::AircraftBrochures] = (nemesisHasRoutes ? 1 : 0);
+        candidates[SabotageMode::Special::CutTelephones] = (nemesisManyOffices ? 10 : 0);
+        candidates[SabotageMode::Special::FalsePressRelease] = (nemesisHasRoutes ? 10 : 0);
+        candidates[SabotageMode::Special::BankHack] = (nemesisBroke ? 50 : 5);
+        candidates[SabotageMode::Special::GroundAircraft] = 10;
+        candidates[SabotageMode::Special::RouteTheft] = (routeTheftPossible ? 10 : 0);
     }
 
-    for (auto &candidate : candidates) {
-        if (candidate.mode.getJobNumber() > qPlayer.ArabTrust) {
-            candidate.weight = 0; /* cannot take this candidate because we do not have enough trust */
+    /* get highest trust level needed */
+    SLONG removedWeights = 0;
+    for (auto &c : candidates) {
+        /* remove candidates that cannot be used because ArabTrust is too low */
+        if (c.first.getJobNumber() > qPlayer.ArabTrust) {
+            removedWeights += c.second;
+            c.second = 0; /* cannot take this candidate because we do not have enough trust */
         }
-        if (qPlayer.ArabTrust < 6 && candidate.mode.getJobNumber() == qPlayer.ArabTrust) {
-            if (candidate.weight > 0) {
-                candidate.weight = std::max(10, candidate.weight); /* if we are just at the edge of being able to do this sabotage, increase its weight to
-                                                                      have a better chance to get more trust */
-            }
+    }
+
+    if (removedWeights > 0) {
+        /* add jobs to build up trust. we pick the cheapest unless it would get us caught (plane crash) */
+        switch (qPlayer.ArabTrust) {
+        case 1:
+            candidates[SabotageMode::Plane::SaltedFood] += removedWeights;
+            break;
+        case 2:
+            candidates[SabotageMode::Plane::MovieTheatreBreak] += removedWeights / 2;
+            candidates[SabotageMode::Personal::NotebookVirus] += (removedWeights + 1) / 2; /* more expensive, but no hints */
+            break;
+        case 3:
+            candidates[SabotageMode::Plane::FlatTire] += removedWeights;
+            break;
+        case 4:
+            candidates[SabotageMode::Plane::EngineBreakdown] += removedWeights;
+            break;
+        case 5:
+            candidates[SabotageMode::Special::GroundAircraft] += removedWeights;
+            break;
+        default:
+            AT_Error("Bot::determineSabotageMode(): Should not reach default case!");
+            break;
         }
+    }
+
+    SLONG summedWeights = 0;
+    for (auto &c : candidates) {
+        summedWeights += c.second;
+    }
+    if (summedWeights == 0) {
+        AT_Error("Bot::determineSabotageMode(): No sabotage jobs enabled!");
+        return {};
     }
 
     /* select a candidate based on weights */
-    std::vector<double> weights;
+    TEAKRAND rnd{mSabotageSeed};
+    SLONG idx = rnd.getRandInt(1, summedWeights);
+    SabotageMode sabotageMode;
+    SLONG weight = 0;
     for (const auto &c : candidates) {
-        weights.push_back(c.weight);
+        idx -= c.second;
+        if (idx <= 0) {
+            sabotageMode = c.first;
+            weight = c.second;
+            break;
+        }
     }
-    std::discrete_distribution dist(weights.begin(), weights.end());
-    /* selected sabotage shall not change unless mSabotageSeed changes. It is increased after each executed sabotage */
-    std::mt19937_64 gen(mSabotageSeed);
-    int idx = dist(gen);
-    SabotageMode sabotageMode = candidates[idx].mode;
+
     if (print) {
         AT_Log("Bot::determineSabotageMode(): Selected sabotage mode '%s' with weight %d (chance: %.2f%%, trust needed: %d/%d, job hints: %d, job cost: %lld)",
-               sabotageMode.getName().c_str(), candidates[idx].weight, 100 * dist.probabilities()[idx], sabotageMode.getJobNumber(), qPlayer.ArabTrust,
+               sabotageMode.getName().c_str(), weight, 100.0 * weight / summedWeights, sabotageMode.getJobNumber(), qPlayer.ArabTrust,
                sabotageMode.getJobHints(), sabotageMode.getJobCost());
     }
 
@@ -796,6 +823,7 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
     if (sabotageMode.getJobCost() > moneyAvailable) {
         return {}; /* wait until we have enough money */
     }
+
     return sabotageMode;
 }
 

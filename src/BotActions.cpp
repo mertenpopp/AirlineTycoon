@@ -826,7 +826,6 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
     for (SLONG saboTry = 0; saboTry < 3; saboTry++) {
         auto sabotageMode = determineSabotageMode(moneyAvailable, true);
         if (!sabotageMode.isValid()) {
-            AT_Error("Bot::actionSabotage(): Cannot determine sabotage mode.");
             return;
         }
 

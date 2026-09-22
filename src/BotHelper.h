@@ -179,6 +179,14 @@ class SabotageMode {
 
     std::string getName() const;
 
+    bool operator==(const SabotageMode &other) const { return (mCategory == other.mCategory && mJobNumber == other.mJobNumber); }
+    bool operator<(const SabotageMode &other) const {
+        if (mCategory == other.mCategory) {
+            return mJobNumber < other.mJobNumber;
+        }
+        return mCategory < other.mCategory;
+    }
+
   private:
     static constexpr std::array<SLONG, 5> hintArray1{2, 4, 10, 20, 100};
     static constexpr std::array<SLONG, 4> hintArray2{8, 0, 25, 40};
