@@ -1602,7 +1602,9 @@ Missions (seeds 0-100: 81% won)
 
 Small
 11. Freight contracts re-planned by `schedulePendingFreight()` can end short and be fined (free game too).
-12. `%ld` with a 32-bit SLONG in the image log prints 4294967292 for -4 (cosmetic).
+12. ~~`%ld` with a 32-bit SLONG in the image log prints 4294967292 for -4 (cosmetic).~~ Fixed in
+    `8826dbf8`: SLONG is int32_t, so those logs use `%d`. Done for the image and the rejected-route
+    value - the other ~125 `%ld` in ClaudeBot.cpp print non-negative values and are left alone.
 
 2026-09-22 - Job planes (open point 1): not worth it with the current job planner
 ---------------------------------------------------------------------------------
