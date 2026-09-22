@@ -1577,8 +1577,10 @@ international calls (ROBOT_USE_ABROAD off for its own airline only): 0.765e9 (-6
 
 Most promising
 1. **Leave room for jobs.** International calls are worth 3x to MertenBot and nothing to ClaudeBot,
-   because ClaudeBot's route legs fill every plane's week (0 idle windows abroad, 1-7 at home). Keep
-   a plane or two off routes for jobs in the first weeks, or leave route planes' nights abroad free.
+   because ClaudeBot's route legs fill every plane's week (0 idle windows abroad, 1-7 at home).
+   *Tried 2026-09-22 (c5dab076): one job plane -33.6%.* The blocker is the job planner itself: greedy, one
+   job at a time, ~0.28M/day per plane against MertenBot's ~0.72M. Needs a chaining planner (jobs
+   linked by city and time, freight tonnage split) before job planes can pay.
 2. **Non-767 types.** The route box rents long-haul pairs sized for the 767; Il 86 / A 300 idle (-67% /
    -31%). A mixed fleet needs range-aware route renting first.
 3. **Cabin upgrades.** At 190% every leg after a plane's first of the day costs 1 airline + 1 route image
@@ -1601,3 +1603,35 @@ Missions (seeds 0-100: 81% won)
 Small
 11. Freight contracts re-planned by `schedulePendingFreight()` can end short and be fined (free game too).
 12. `%ld` with a 32-bit SLONG in the image log prints 4294967292 for -4 (cosmetic).
+
+2026-09-22 - Job planes (open point 1): not worth it with the current job planner
+---------------------------------------------------------------------------------
+
+:  starting planes (fewest seats first) are kept off routes - the route box,
+route renting and  skip them,  gives them an open tail, and
+ bids in any city while they exist. Off (); the free game replays the
+previous HEAD exactly (300/300).
+
+Paired over 300 free games against  (2.3805e9), one job plane (the 737-400 that otherwise
+flies Berlin-Lanzarote):
+
+| arm | score | note |
+|---|---|---|
+| 1 job plane | -36.4% (295/300 worse) | fines 3.4M, 98 jobs flown a game of ~175 taken |
+| + open-tail bookkeeping fix | -33.6% (295/300 worse) | fines 1.4M |
+
+By day 20 the job plane adds ~4.5M of jobs and freight and saves 6.6M of route ads (no Lanzarote
+pair), but route revenue is 10.6M lower, and the fleet ramps later (6.7 aeroplanes on day 40 against
+9.8). Per plane: ~0.28M a day from jobs vs ~0.5M on routes; MertenBot's planner gets ~0.72M a day
+per plane from jobs in days 0-15. International offices supply most of the jobs (144 of 175 taken
+in game 0).
+
+Bug fixed on the way: booking a job or freight leg into an open tail moved the window's start but
+not its city, so every later job was planned as if the plane had never left, and the empty legs the
+game inserted pushed jobs past their deadlines. Free game only - missions on seeds 1-8 went
+180 -> 175 wins with it (4 L->W, 9 W->L), so they keep the old bookkeeping (seeds 1-2: 52/52
+identical).
+
+Next for this point: a chaining job planner (sequence jobs by city and time for a plane, split
+freight tonnage), then re-try one job plane. Or pick jobs by premium per plane hour against the route
+value per hour instead of a fixed job plane.
