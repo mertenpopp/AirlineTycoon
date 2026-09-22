@@ -2585,7 +2585,7 @@ void ClaudeBot::executeRouteBox() {
 
         if (bestRoute < 0) {
             AT_Log(
-                "ClaudeBot::executeRouteBox(): Nothing worth renting: %ld buyable pair(s) touch home, %ld in range, best %s at %ld/h against a floor of %ld.",
+                "ClaudeBot::executeRouteBox(): Nothing worth renting: %d buyable pair(s) touch home, %d in range, best %s at %d/h against a floor of %d.",
                 nHome, nInRange, bestRejected < 0 ? "none" : Cities[Routen[bestRejected].NachCity].Name.c_str(), bestRejectedValue, floor);
             return false;
         }
@@ -3242,7 +3242,7 @@ void ClaudeBot::executeAds() {
                 break;
             }
         }
-        AT_Log("ClaudeBot::executeAds(): Route %ld image now %ld.", qRoute.id, static_cast<SLONG>(qPlayer.RentRouten.RentRouten[qRoute.id].Image));
+        AT_Log("ClaudeBot::executeAds(): Route %d image now %d.", qRoute.id, static_cast<SLONG>(qPlayer.RentRouten.RentRouten[qRoute.id].Image));
     }
 
     /* How much erosion the campaign we are about to buy has to survive. */
@@ -3304,10 +3304,11 @@ void ClaudeBot::executeAds() {
         if (!GameMechanic::buyAdvertisement(qPlayer, 0, size, -1)) {
             break;
         }
-        AT_Log("ClaudeBot::executeAds(): Image campaign size %ld, image now %ld.", size, qPlayer.Image);
+        AT_Log("ClaudeBot::executeAds(): Image campaign size %d, image now %d.", size, qPlayer.Image);
     }
 
-    AT_Log("ClaudeBot::executeAds(): Image %ld, target %ld (saturation %ld + %ld a day over %ld days, %ld aeroplanes).", qPlayer.Image, target, saturation,
+    /* %d, not %ld: SLONG is int32_t, and a negative image read as a long printed as 4294967292. */
+    AT_Log("ClaudeBot::executeAds(): Image %d, target %d (saturation %d + %d a day over %d days, %d aeroplanes).", qPlayer.Image, target, saturation,
            mImageDecayPerDay, daysToCover, numPlanes);
     mImageAfterAds = qPlayer.Image;
     mImageAdsDay = Sim.Date;
