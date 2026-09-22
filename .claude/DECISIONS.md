@@ -1822,3 +1822,31 @@ such a guard wants to stay negative-only or be checked on mission 0.
 
 Open point: ADDON03 ends ~8.4M of op saldo below the baseline either way. The mission is scored on
 tons, not money, so it wins anyway, but the airline finishes the 21 days in the red.
+
+2026-09-23 - ATFS09: the "rating disagrees with the win flag" item is closed
+---------------------------------------------------------------------------
+
+Carried open since 2026-09-19 (item 5 of the 2026-09-20 list): ATFS09 printed `BesterGegner` 508
+while `SiegHA` was 1. **Does not reproduce.** `MISSIONS=49 SEEDS="1..8" ./scripts/run_missions.sh 006`
+today: 5/8 won, and flag and ratio agree in every game (won at 14/51/59/68/95, lost at 101/105/107).
+The 100 MertenBot runs from last night agree too (ratio 5-55 -> won, 144 -> lost). The ATFS09 rework
+in `0379018a` is the most likely reason it went away; no game-source change was needed.
+
+What the ratio actually is, so it is not misread again. `printPostGameInfo()` (Misc.cpp:2228) prints
+`100 * bestEnemy / bestBot` over `STAT_MISSIONSZIEL`, and for ATFS09/ATFS10 that stat falls into the
+`default:` branch (Player.cpp:7017) and is the **raw company value**, not a percent of a goal - the
+same quantity `HasWon()` compares. So on these two missions the ratio is a head-to-head number and
+>100 really does mean an opponent is ahead; it is not comparable to the percent-of-goal ratios of
+the other missions.
+
+Three ways the two numbers can still part company, none of which fires in the current runs:
+
+- `PLAYERS::UpdateStatistics()` (Player.cpp:7266) skips `IsOut != 0`, so an eliminated airline's
+  `STAT_MISSIONSZIEL` freezes at its last living value, and `printPostGameInfo()` still counts it in
+  `bestEnemy` - while `HasWon()` for ATFS09/ATFS10 (and ADDON03/04/06) explicitly skips out players.
+  Dormant headless: `bankruptPlayer()` only runs from the briefing dialog, which CheatAutoSkip clicks
+  away.
+- `bestBot`/`bestEnemy` start at 0 and are taken with `max`, so a negative company value reads as 0:
+  an all-negative field prints `NaN`, and a bankrupt opponent looks like a harmless 0.
+- The CSV `Ziel` column is `GetAtPastDay(1)` (BotHelper.cpp:1004) but the `BotMission` row is day 0,
+  so the two outputs of one game can legitimately differ by a day.
