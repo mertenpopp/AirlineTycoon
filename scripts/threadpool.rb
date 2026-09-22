@@ -330,13 +330,8 @@ class ThreadPool
     end
 end
 
-miss = (0..5).to_a()
-miss += (11..20).to_a()
-miss += (41..50).to_a()
-name = "_mission_merten"
-
-#miss = [-1]
-#name = ""
+miss = [-1]
+name = ""
 
 # File prefix for the per-run CSV/log files of the free game, "dataBOT" by default.
 # Override with "--prefix NAME" or "--prefix=NAME" on this script's own command line, e.g.
@@ -372,9 +367,8 @@ extra_args = " #{extra_args}" unless extra_args.empty?
 
 tp = ThreadPool.new
 miss.map{|i| i}.each do |i|
-  (0...50).each do |j|
-    prefix = "dataMISS_#{i}#{name}_#{j}"
-    prefix = "#{bot_prefix}_freegame#{name}_#{j}" if i == -1
+  (0...300).each do |j|
+    prefix = "#{bot_prefix}_freegame#{name}_#{j}"
     file = "#{prefix}.csv"
     log = "#{prefix}.txt"
 
@@ -395,7 +389,6 @@ miss.map{|i| i}.each do |i|
 
     seed_arg = seeded ? " /seed #{seed_base + j + 1}" : ""
     tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick #{i}#{seed_arg}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
-    #tp.add_job("param=#{i}, run=#{j}", "#{gdb} ./AT /quick -1 /testbot #{i}#{extra_args} 2>&1 | tee #{log} | grep -E 'BotMission|BotStat' > #{file}") unless File.exist?(file)
     end
 end
 # Worker count must not exceed the number of cores.
