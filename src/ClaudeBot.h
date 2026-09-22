@@ -27,9 +27,52 @@ class ClaudeBot {
 
     __int64 getMoneyAvailable() const { return qPlayer.Money; }
 
-    /* anim state */
-    bool getOnThePhone() const { return mOnThePhone > 0; }
+    /* anim state. Not const any more: RobotPump() asks this once a tick (Player.cpp:3362-3370),
+     * which is the only per-tick hook a bot has, and the walk demo's trace rides on it. */
+    bool getOnThePhone() {
+        traceWalk();
+        return mOnThePhone > 0;
+    }
     void decOnThePhone() { mOnThePhone--; }
+
+    /* --- free walking ---
+     *
+     * Sends the character to a spot in the airport instead of to a room. See the banner over
+     * walkToPlate() in ClaudeBot.cpp for how the walk is made to stick. Only ever call these
+     * from RobotInit(), RobotPlan() or RobotExecuteAction(): they reach into PLAYER and PERSON,
+     * which is only safe while the simulation is stopped inside one of the bot's callbacks. */
+
+    /* Walks to `position`, in the coordinates of PERSON::Position and the airport runes: 44
+     * units per plate in x, 22 in y, and y >= 5000 for the upper floor. The spot is rounded
+     * to its plate, and a plate that cannot be stood on is resolved to the first walkable one
+     * south of it, exactly as a mouse click is.
+     *
+     * `holdTicks` is how many RobotPump() ticks the bot logic is kept off the target - the
+     * walk is abandoned for the next room when it runs out, so it has to outlast the walk. -1
+     * estimates it from the distance. `run` is the bot's usual double speed.
+     *
+     * False, and nothing happens, if there is no walkable plate at or below the spot, if the
+     * character cannot be redirected (toilet, glued to the floor, out of the game), or if the
+     * game is in its end-of-day fast forward, where nobody walks anywhere at all. */
+    bool walkToPosition(XY position, SLONG holdTicks = -1, bool run = true);
+    /* The same in plate coordinates, which is what PLAYER::PrimaryTarget holds: x counted in
+     * plates from the left end of the airport, y 0..2 for the upper floor and 5..14 for the
+     * lower one. */
+    bool walkToPlate(XY plate, SLONG holdTicks = -1, bool run = true);
+
+    /* Where the character is now, in the two coordinate systems above. */
+    XY getPosition() const;
+    XY getPlate() const;
+    /* The room a spot announces, or 0. A character that walks over a room's announcement is
+     * pulled into that room whatever it was doing, so a walk that is meant to end out in the
+     * open must not aim at a spot this returns a room for. */
+    SLONG roomAtPosition(XY position) const;
+    SLONG roomAtPlate(XY plate) const;
+
+    /* True while a walk ordered by walkToPosition() is still under way. */
+    bool isWalking() const;
+    /* Ends the hold early and lets the bot go back to its normal business. */
+    void stopWalking();
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);
     friend TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot);
@@ -314,6 +357,28 @@ class ClaudeBot {
     SLONG fitFreightIntoGaps(const std::vector<SLONG> &planeIds, std::vector<std::vector<PlaneGap>> &gaps, const CFracht &qFreight, SLONG tons, SLONG &outCost,
                              std::vector<FreightLeg> &outLegs) const;
 
+    /* --- free walking, see the banner over walkToPlate() --- */
+    static XY plateFromPosition(XY position);
+    static XY positionFromPlate(XY plate);
+    static bool plateIsWalkable(XY plate);
+    /* Moves `plate` onto the plate the character would really end up on, the way a mouse
+     * click is resolved. False if there is none. */
+    static bool resolvePlate(XY &plate);
+    /* RobotPump() ticks the walk needs, at the current walking speed. */
+    SLONG estimateWalkTicks(XY plate, bool run) const;
+    /* Flags every real room we are in as being left. Not PLAYER::LeaveAllRooms() - see the
+     * comment on the definition. */
+    void leaveRoomsForWalk();
+    /* Demonstration of the walk, off unless kWalkDemo is set: once an in-game hour the bot
+     * walks to a spot in the airport instead of carrying straight on to its next room, and
+     * traceWalk() reports what became of it. */
+    void walkDemo();
+    void traceWalk();
+    /* Demo/trace bookkeeping, none of it serialised. */
+    XY mWalkDemoTarget{-1, -1};
+    SLONG mWalkDemoStart{0};
+    SLONG mWalkDemoHour{-1};
+
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
 
@@ -331,6 +396,11 @@ class ClaudeBot {
 
     bool mFirstRun{true};
     bool mIsSickToday{false};
+
+    /* Set while RobotExecuteAction() runs, because PLAYER::RobotExecuteAction() divides
+     * WorkCountdown down again after that callback returns - see walkToPlate(). Not
+     * serialised: it is only ever true inside one callback. */
+    bool mInExecuteAction{false};
 
     /* anim state and mood bubbles */
     SLONG mOnThePhone{0};

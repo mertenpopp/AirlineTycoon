@@ -1,5 +1,6 @@
 #include "ClaudeBot.h"
 
+#include "AtNet.h"
 #include "BotDesigner.h"
 #include "BotHelper.h"
 #include "Proto.h"
@@ -809,6 +810,8 @@ ClaudeBot::ClaudeBot(PLAYER &player) : qPlayer(player) {}
  * were only feeding a log line; the balance is logged from the office instead, where it
  * is legal, and the inventory is gone. */
 void ClaudeBot::RobotInit(SLONG randomSeed) {
+    mInExecuteAction = false;
+
     AT_Info("ClaudeBot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $", qPlayer.Abk.c_str(), Sim.Date, Insert1000erDots64(qPlayer.Money).c_str());
 
     if (mFirstRun) {
@@ -1586,7 +1589,375 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     }
 }
 
+//--------------------------------------------------------------------------------------------
+// Free walking: sending the character to a spot in the airport instead of to a room.
+//
+// The bot normally only names an action, and PLAYER::RobotPump() walks the character to the
+// room that action belongs to (Player.cpp:3434-3438, PLAYER::WalkToRoom). Nothing in that path
+// can say "go and stand over there", and writing the spot into PERSON::Target does not work
+// either: while the character walks freely, PERSON::DoOnePlayerStep() recomputes Target from
+// PLAYER::TertiaryTarget on every single step (Person.cpp:1865-1874), so a value written into
+// Target is gone one tick later.
+//
+// What the walking machinery really works from is PLAYER::PrimaryTarget, in plate coordinates.
+// PLAYER::UpdateWaypoints() derives SecondaryTarget (the entrance to aim at when the target
+// sits in a narrow spot) and TertiaryTarget (the staircase, when the floors differ) from it,
+// and the main loop runs UpdateWaypoints() every 256 ticks and UpdateWaypointWalkingDirection()
+// every tick for every player (Takeoff.cpp:1992-2003). So this is PLAYER::WalkToRoom() without
+// the room, which is what PLAYER::WalkToPlate() already is.
+//
+// Holding that target against the bot logic is the other half of the job. PLAYER::RobotPump()
+// would replace it in three ways, each of which is handled here:
+//   - it shifts the action queue on and calls WalkToRoom() for the next action. That is only
+//     reached once WorkCountdown has run out (Player.cpp:3406-3410), so the walk sets
+//     WorkCountdown to the time it needs.
+//   - after eleven idle ticks it clears the queue and re-plans (Player.cpp:3386-3396).
+//     StandStillSince only grows while WorkCountdown <= 0, so the same countdown covers it.
+//   - Takeoff.cpp:1225 sends the character back to a room that was busy, so WaitForRoom is
+//     cleared here.
+// Note that RobotActions[0] has to be ACTION_NONE for the countdown to be counted down at all:
+// RobotPump() returns before it whenever an action is pending and the character is in the
+// airport. An action left in that slot plus a countdown would freeze the bot for good, so the
+// slot is cleared here. RobotExecuteAction() is called with the action it should carry out in
+// that slot and clears it itself afterwards (Player.cpp:4246), so a walk ordered from there
+// costs nothing; RobotPlan() is only ever called with the slot already empty.
+//
+// Two things are deliberately not fought. The toilet wins - PLAYER::RunningToToilet overrides
+// every target in the game, and the walk refuses to start while it is set. And a character
+// that walks over the entrance plate of a room is pulled into it whatever it was doing
+// (Person.cpp:2265-2277), so a spot on a room entrance means entering that room, not standing
+// on it.
+//--------------------------------------------------------------------------------------------
+
+/* Shortest hold, so that a walk of a few plates is not abandoned before it starts. */
+static const SLONG kMinWalkHoldTicks = 20;
+/* Longest hold. RobotPump() ticks are 20 to the second at normal speed, so this is a minute of
+ * wall clock standing about - far more than crossing the airport takes, and a bound on the
+ * damage an unreachable target can do to the day. */
+static const SLONG kMaxWalkHoldTicks = 20 * 60;
+
+/* Plate coordinates from position coordinates. Mirrors PLAYER::WalkToRoom(), which converts
+ * the rune it walks to the same way (Player.cpp:2653-2677). */
+XY ClaudeBot::plateFromPosition(XY position) {
+    XY plate;
+    plate.x = position.x / 44;
+    if (position.y < 4000) {
+        plate.y = position.y / 22 + 5; /* lower floor: plate rows 5..14 */
+    } else {
+        plate.y = (position.y - 5000 + 2200) / 22 - 100; /* upper floor: rows 0..4 */
+    }
+    return plate;
+}
+
+/* The inverse, the way PERSON::DoOnePlayerStep() turns TertiaryTarget back into a position
+ * (Person.cpp:1865-1874). */
+XY ClaudeBot::positionFromPlate(XY plate) {
+    XY position;
+    position.x = plate.x * 44 + 22;
+    if (plate.y < 5) {
+        position.y = plate.y * 22 + 5000 + 11;
+    } else {
+        position.y = (plate.y - 5) * 22 + 11;
+    }
+    return position;
+}
+
+/* Bit 2 of a plate says players may be on it at all, the top nibble which directions it can be
+ * left in. Both have to be set, which is the test PLAYER::WalkToMouseClick() makes on the plate
+ * under the mouse (Player.cpp:2797-2801). */
+bool ClaudeBot::plateIsWalkable(XY plate) {
+    if (plate.x < 0 || plate.x >= Airport.PlateDimension.x) {
+        return false;
+    }
+    if (plate.y < 0 || plate.y >= Airport.PlateDimension.y) {
+        return false;
+    }
+    const SLONG index = plate.y + (plate.x << 4);
+    if (index < 0 || index >= Airport.iPlate.AnzEntries()) {
+        return false;
+    }
+    const UBYTE flags = Airport.iPlate[index];
+    return (flags & 4) != 0 && (flags & 0xf0) != 0;
+}
+
+/* Rows 3 and 15 are the two wall rows, one per floor: nothing stands there and nothing south of
+ * them belongs to the same floor. Everything else follows PLAYER::WalkToMouseClick(). */
+bool ClaudeBot::resolvePlate(XY &plate) {
+    if (plate.y < 0 || plate.y > 15) {
+        return false;
+    }
+
+    /* Blocked? Then try south of it, like a click that lands on scenery. */
+    while (plate.y != 3 && plate.y != 15) {
+        if (plateIsWalkable(plate)) {
+            break;
+        }
+        plate.y++;
+        if (plate.y > 15) {
+            return false;
+        }
+    }
+    if (plate.y == 3 || plate.y == 15) {
+        return false;
+    }
+
+    /* Upper floor: a plate with open floor all the way down to the wall row is a spot in mid
+     * air over the hall rather than a place to stand (Player.cpp:2817-2829). */
+    if (plate.y < 3) {
+        SLONG y = plate.y;
+        while (y < 3 && (Airport.iPlate[y + (plate.x << 4)] & 32) != 0) {
+            y++;
+        }
+        if (y == 3) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+XY ClaudeBot::getPosition() const { return Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].Position; }
+
+XY ClaudeBot::getPlate() const { return plateFromPosition(getPosition()); }
+
+/* PERSON::DoOnePlayerStep() looks for a room announcement one step ahead of the character and
+ * walks it into whatever it finds (Person.cpp:2183-2277), with the tolerance below. Room
+ * entrances are therefore not places to stand: the character walks in instead. */
+SLONG ClaudeBot::roomAtPosition(XY position) const {
+    return Airport.GetRuneParNear(position, XY(qPlayer.WalkSpeed * 2, qPlayer.WalkSpeed * 2), RUNE_2SHOP);
+}
+
+SLONG ClaudeBot::roomAtPlate(XY plate) const { return roomAtPosition(positionFromPlate(plate)); }
+
+/* A free walk is one the airport machinery is running with no room at the end of it. */
+bool ClaudeBot::isWalking() const { return (qPlayer.iWalkActive != 0) && qPlayer.DirectToRoom == 0 && qPlayer.GetRoom() == ROOM_AIRPORT; }
+
+void ClaudeBot::stopWalking() {
+    /* WalkStopEx() plants every target on the character's own plate, so nothing walks it on.
+     * It refuses while the character is entering or leaving a room, which is also the one
+     * moment where there is no free walk to stop. */
+    qPlayer.WalkStopEx();
+    qPlayer.WorkCountdown = 0;
+}
+
+SLONG ClaudeBot::estimateWalkTicks(XY plate, bool run) const {
+    const XY here = getPosition();
+    const XY there = positionFromPlate(plate);
+
+    /* PLAYER::WalkToRoom()'s own estimate of a walk (Player.cpp:2656-2666): the Manhattan
+     * distance in position units over the walking speed, with the 5000 units between the two
+     * floors taken back out because the staircase is not walked in a straight line. Running
+     * takes two steps a tick (Person.cpp:3370-3384). */
+    SLONG distance = std::abs(here.x - there.x) + std::abs(here.y - there.y);
+    if (std::abs(here.y - there.y) > 4600) {
+        distance -= 4600;
+    }
+    SLONG ticks = std::max<SLONG>(1, distance / std::max<SLONG>(1, qPlayer.WalkSpeed));
+    if (run) {
+        ticks /= 2;
+    }
+
+    /* Half again on top: the estimate is a straight line, while the character walks around
+     * whatever stands in the way and up and down a staircase. The hold has to outlast the
+     * walk, or RobotPump() takes over halfway there and carries on to the next room. */
+    ticks = ticks * 3 / 2 + kMinWalkHoldTicks;
+    return std::min(kMaxWalkHoldTicks, std::max(kMinWalkHoldTicks, ticks));
+}
+
+/* Set to walk the character about instead of doing the bot's work. Only ever useful with a
+ * human watching, or in a multiplayer harness run: the single player harness plays every day
+ * with Sim.CallItADay set and nobody walks anywhere there at all. */
+static const bool kWalkDemo = false;
+
+/* Once an in-game hour, walk twelve plates along the concourse and stand there. */
+void ClaudeBot::walkDemo() {
+    if (!kWalkDemo || Sim.GetHour() == mWalkDemoHour) {
+        return;
+    }
+    mWalkDemoHour = Sim.GetHour();
+
+    /* Along the concourse, as far as there is somewhere to stand that is not a room entrance:
+     * walking onto one of those means walking into the room. */
+    const XY here = getPlate();
+    const SLONG step = ((Sim.GetHour() & 1) != 0) ? 1 : -1;
+    for (SLONG distance = 12; distance >= 4; distance--) {
+        XY there = here;
+        there.x += step * distance;
+        if (!resolvePlate(there) || roomAtPlate(there) != 0) {
+            continue;
+        }
+        if (walkToPosition(positionFromPlate(there))) {
+            mWalkDemoTarget = there;
+            mWalkDemoStart = Sim.TimeSlice;
+        }
+        return;
+    }
+    AT_Log("Walk demo: nowhere to walk to from plate %ld/%ld", (long)here.x, (long)here.y);
+}
+
+/* Follows a demo walk tick by tick. getOnThePhone() is the only hook a bot has that RobotPump()
+ * calls every tick (Player.cpp:3362-3370), so the trace rides on that; it costs one comparison
+ * while no demo walk is in flight. */
+void ClaudeBot::traceWalk() {
+    if (mWalkDemoTarget.x == -1) {
+        return;
+    }
+
+    const SLONG ticks = Sim.TimeSlice - mWalkDemoStart;
+    const XY here = getPlate();
+    const SLONG room = qPlayer.GetRoom();
+
+    if (here == mWalkDemoTarget && room == ROOM_AIRPORT) {
+        AT_Log("Walk demo %s: arrived at plate %ld/%ld after %ld ticks", qPlayer.Abk.c_str(), (long)here.x, (long)here.y, (long)ticks);
+        mWalkDemoTarget.x = -1;
+        return;
+    }
+
+    /* Walked over a room's announcement on the way and was pulled in - see walkToPlate(). */
+    const SLONG statePar = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].StatePar;
+    if (room != ROOM_AIRPORT || statePar > 0) {
+        AT_Log("Walk demo %s: walked into room %ld at plate %ld/%ld after %ld ticks, on the way to %ld/%ld", qPlayer.Abk.c_str(),
+               (long)(statePar > 0 ? statePar : room), (long)here.x, (long)here.y, (long)ticks, (long)mWalkDemoTarget.x, (long)mWalkDemoTarget.y);
+        mWalkDemoTarget.x = -1;
+        return;
+    }
+
+    /* The hold is over: from here on the bot is walking to its next room, not to our spot. */
+    if (qPlayer.WorkCountdown <= 0) {
+        AT_Log("Walk demo %s: hold ran out after %ld ticks at plate %ld/%ld, wanted %ld/%ld", qPlayer.Abk.c_str(), (long)ticks, (long)here.x, (long)here.y,
+               (long)mWalkDemoTarget.x, (long)mWalkDemoTarget.y);
+        mWalkDemoTarget.x = -1;
+        return;
+    }
+}
+
+/* Leaves every real room we are in, so that the walk below has the airport to walk in.
+ *
+ * Not PLAYER::LeaveAllRooms(), and not PLAYER::LeaveRoom() either. Both of them strand the bot
+ * for the rest of the day when the room sits at index 0 of Locations[], and that is not a rare
+ * state: PLAYER::EnterRoom() takes the first free slot (Player.cpp:645), and the ROOM_AIRPORT
+ * entry that normally holds slot 0 is not always there - in a network game every peer overwrites
+ * the whole array from ATNET_ENTERROOM (AtNet.cpp:801-806). The bot's leave branch hands
+ * ROOM_ENTERING to index d-1 and to nothing else (Takeoff.cpp:1889-1893), so leaving the room at
+ * index 0 empties the array; CalcRoom() then returns without writing, because its loop only
+ * writes when it finds a location (Player.cpp:784-791); and GetRoom() answers from then on with
+ * the room that was left. Nothing ever walks the character out of that room again. In the
+ * verification run that found this, HA managed 1 action against PT's 54.
+ *
+ * So: put an airport entry underneath first. LeaveAllRooms() has a second, smaller problem that
+ * this avoids as well - it compares the raw Locations[] value against ROOM_AIRPORT, and for the
+ * frame after a bot steps out of a room the airport entry reads ROOM_AIRPORT | ROOM_ENTERING
+ * (Takeoff.cpp:1891), which would be flagged as leaving too.
+ *
+ * A room that is still being entered is flagged like any other; the engine's leave branch runs
+ * before its enter branch in the same loop, so only one of the two can happen. */
+void ClaudeBot::leaveRoomsForWalk() {
+    bool bHaveAirport = false;
+    for (SLONG c = 0; c < 10; c++) {
+        if ((qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING)) == ROOM_AIRPORT) {
+            bHaveAirport = true;
+            break;
+        }
+    }
+    if (!bHaveAirport && qPlayer.Locations[9] == 0) {
+        for (SLONG c = 9; c > 0; c--) {
+            qPlayer.Locations[c] = qPlayer.Locations[c - 1];
+        }
+        qPlayer.Locations[0] = ROOM_AIRPORT;
+        AT_Log("ClaudeBot::leaveRoomsForWalk(): No airport entry to come back to, put one underneath room %ld", (long)qPlayer.GetRoom());
+    }
+
+    bool bLeft = false;
+    for (SLONG c = 9; c >= 0; c--) {
+        const UWORD room = UWORD(qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING));
+        if (room != 0 && room != ROOM_AIRPORT) {
+            qPlayer.Locations[c] |= ROOM_LEAVING;
+            bLeft = true;
+        }
+    }
+
+    if (bLeft) {
+        qPlayer.BroadcastRooms(ATNET_LEAVEROOM);
+    }
+}
+
+bool ClaudeBot::walkToPosition(XY position, SLONG holdTicks, bool run) { return walkToPlate(plateFromPosition(position), holdTicks, run); }
+
+bool ClaudeBot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
+    const XY requested = plate;
+
+    if (qPlayer.IsOut != 0) {
+        return false;
+    }
+    /* The end-of-day fast forward does not walk anybody anywhere: PERSONS::DoOneStep() skips
+     * straight to the next action while Sim.CallItADay is set (Person.cpp:3262-3272), and the
+     * main loop stops calling UpdateWaypointWalkingDirection() altogether. Every headless run
+     * of the harness plays the whole day in that mode, so this is where the walk ends up
+     * there. */
+    if (Sim.CallItADay != 0) {
+        AT_Log("ClaudeBot::walkToPlate(): Not walking to %ld/%ld, the day is being fast forwarded", (long)plate.x, (long)plate.y);
+        return false;
+    }
+    if (qPlayer.RunningToToilet != 0 || qPlayer.IsStuck != 0) {
+        AT_Log("ClaudeBot::walkToPlate(): Not walking to %ld/%ld, the character is not ours to steer right now", (long)plate.x, (long)plate.y);
+        return false;
+    }
+
+    if (!resolvePlate(plate)) {
+        AT_Warn("ClaudeBot::walkToPlate(): There is nowhere to stand at plate %ld/%ld", (long)requested.x, (long)requested.y);
+        return false;
+    }
+
+    const SLONG announced = roomAtPlate(plate);
+    if (announced != 0) {
+        AT_Warn("ClaudeBot::walkToPlate(): Plate %ld/%ld announces room %ld - the character will walk into it rather than stand there", (long)plate.x,
+                (long)plate.y, (long)announced);
+    }
+
+    /* The target is out in the airport, so whatever room we are in has to be left first. The
+     * character walks out by itself; the target below just waits for it. */
+    leaveRoomsForWalk();
+
+    qPlayer.WaitForRoom = 0;
+    qPlayer.DirectToRoom = 0; /* nothing is entered on arrival */
+    qPlayer.WalkToPlate(plate);
+
+    PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
+    qPerson.Running = run ? TRUE : FALSE;
+
+    SLONG hold = (holdTicks >= 0) ? holdTicks : estimateWalkTicks(plate, run);
+    if (mInExecuteAction) {
+        /* PLAYER::RobotExecuteAction() divides WorkCountdown down again once this callback
+         * returns (Player.cpp:4234-4242), so what is set here is not what the bot gets. The
+         * free game only has ROBOT_USE_WORKQUICK_2, which halves it; the missions can have the
+         * other two on top. Multiplying up first leaves the hold that was asked for, and keeps
+         * it clear of the "> 2" and "> 4" guards those divisions carry. */
+        if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK_2)) {
+            hold *= 2;
+        }
+        if (qPlayer.RobotUse(ROBOT_USE_WORKVERYQUICK)) {
+            hold *= 4;
+        } else if (qPlayer.RobotUse(ROBOT_USE_WORKQUICK)) {
+            hold *= 2;
+        }
+    }
+
+    /* See the banner: the countdown is only counted down while slot 0 is empty. */
+    qPlayer.RobotActions[0].ActionId = ACTION_NONE;
+    qPlayer.StandStillSince = 0;
+    qPlayer.WorkCountdown = hold;
+    /* Only read during the end-of-day fast forward, which this never runs in, but a zero there
+     * means "re-plan now" and there is no reason to leave one behind. */
+    qPlayer.SpeedCount = std::max<SLONG>(1, hold);
+
+    AT_Log("ClaudeBot::walkToPlate(): Walking from plate %ld/%ld to %ld/%ld (asked for %ld/%ld), holding for %ld ticks", (long)getPlate().x, (long)getPlate().y,
+           (long)plate.x, (long)plate.y, (long)requested.x, (long)requested.y, (long)hold);
+    return true;
+}
+
 void ClaudeBot::RobotPlan() {
+    mInExecuteAction = false;
+
     if (mFirstRun) {
         AT_Error("ClaudeBot::RobotPlan(): ClaudeBot was not initialized!");
         RobotInit(0);
@@ -1663,6 +2034,11 @@ void ClaudeBot::RobotPlan() {
 }
 
 void ClaudeBot::RobotExecuteAction() {
+    /* Cleared again in RobotPlan() and RobotInit(). walkToPlate() needs to know that it is
+     * running inside this callback, because PLAYER::RobotExecuteAction() scales WorkCountdown
+     * down after it returns. */
+    mInExecuteAction = true;
+
     if (mFirstRun) {
         AT_Error("ClaudeBot::RobotExecuteAction(): ClaudeBot was not initialized!");
         RobotInit(0);
@@ -1835,6 +2211,9 @@ void ClaudeBot::RobotExecuteAction() {
         AT_Error("ClaudeBot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
         DebugBreak();
     }
+
+    /* Last, so that it overrides the WorkCountdown the action left behind. */
+    walkDemo();
 
     AT_Log("");
 }
