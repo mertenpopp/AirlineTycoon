@@ -455,8 +455,8 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     /* assign new planes */
     for (const auto &planeId : planeIds) {
         auto &qPlane = qPlayer.Planes[planeId];
-        AT_Log("Bot::actionBuyNewPlane(): Bought plane %s (passengers = %d, fuel = %d)", Helper::getPlaneName(qPlane).c_str(), qPlane.ptPassagiere,
-               qPlane.ptVerbrauch);
+        AT_Log("Bot::actionBuyNewPlane(): Bought plane %s (passengers = %d, fuel = %d, range = %d, speed = %d)", Helper::getPlaneName(qPlane).c_str(),
+               qPlane.ptPassagiere, qPlane.ptVerbrauch, qPlane.ptReichweite, qPlane.ptGeschwindigkeit);
 
         if (mDoRoutes) {
             if (mRoutesNextStep == RoutesNextStep::BuyMorePlanes) {
