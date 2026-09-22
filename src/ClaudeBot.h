@@ -229,6 +229,7 @@ class ClaudeBot {
     SLONG takeFreightFromBoard(CFrachten &board, const JobTaker &take, const char *who);
     /* Calls every branch office from the personal office - see callInternational() in the .cpp. */
     void callInternational();
+    SLONG planJobPlanes();
     bool wantCallInternational() const;
     void executeNasa();
     void executeCheckAgent1();
