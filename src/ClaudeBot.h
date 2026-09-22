@@ -140,6 +140,9 @@ class ClaudeBot {
          * included (Schedule.cpp:668), so distance flown is the goal and the premium only has to
          * keep the airline solvent. */
         bool wantMiles{false};
+        /* Buy branch offices, phone them, and let planJobPlanes() chain the whole fleet: a mission
+         * that flies jobs only is starved of work without them - see setupMission(). */
+        bool useOffices{false};
         bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
         bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
         /* Routes are the free game's engine, but they are an investment: a pair has to be

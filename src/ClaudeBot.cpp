@@ -316,6 +316,10 @@ static const SLONG kKerosinMinPurchase = 100;
 /* Cash kept back from kerosene so the route image and the fleet still get funded. */
 static const __int64 kKerosinCashReserve = 1000000;
 
+/* Missions with Mission::useOffices: how many branch offices are worth their three months' rent
+ * before the money is better left in the account - 34 of them took the whole museum budget. */
+static const SLONG kMissionMaxOffices = 8;
+
 /* Dividend per share and year, capped at 25 by GameMechanic::setDividend(). The share
  * price converges on ten times this, so it sets what an emission is worth. */
 static const SLONG kDividend = 25;
@@ -859,6 +863,10 @@ SLONG ClaudeBot::planeIndex(ULONG uid) const {
 /* See kJobPlanes. The starting aeroplanes are the sponsored ones; the smallest go first, because
  * the route network is sized by the largest plane and a small cabin is worth least on a route. */
 bool ClaudeBot::isJobPlane(const CPlane &qPlane) const {
+    /* A mission that flies jobs only puts its whole fleet through the chain planner. */
+    if (mMission.useOffices) {
+        return true;
+    }
     if (kJobPlanes <= 0 || mMission.isMission || qPlane.Sponsored == 0 || Sim.Date > kJobPlanesUntilDay) {
         return false;
     }
@@ -1050,6 +1058,11 @@ void ClaudeBot::setupMission() {
         break;
     default:
         break;
+    }
+
+    /* Highest company value on the last day - see the share buy-back in executeStock(). */
+    if (Sim.Difficulty == DIFF_ATFS09) {
+        m.useOffices = true;
     }
 
     /* ATFS09 is scored on company value, and on the job-only fleet a freight contract often
@@ -2265,7 +2278,7 @@ SLONG ClaudeBot::fitFreightIntoGaps(const std::vector<SLONG> &planeIds, std::vec
             covered += tonsPerLeg;
             outLegs.push_back(FreightLeg{p, g, start, back});
             gaps[p][g].start = back;
-            if (gaps[p][g].openTail && !mMission.isMission) {
+            if (gaps[p][g].openTail && (!mMission.isMission || mMission.useOffices)) {
                 gaps[p][g].city = static_cast<SLONG>(qFreight.NachCity); /* see schedulePendingJobs() */
             }
         }
@@ -3090,8 +3103,21 @@ void ClaudeBot::bidOnOffices(SLONG numPlanes) {
     /* Not in missions: they start on a few million, and the purchase is due in one lump that
      * several goals punish - ATFS07's share price only rises after days whose whole cash flow is
      * positive. Measured on seeds 1-8 with bids and calls on: 180 -> 162 missions won. */
-    if (mMission.isMission) {
+    if (mMission.isMission && !mMission.useOffices) {
         return;
+    }
+    /* In a mission the aeroplanes come first: 34 offices bought at three months' rent each took
+     * the museum money and left 4.1 aeroplanes instead of 6.3. */
+    if (mMission.useOffices) {
+        SLONG offices = 0;
+        for (SLONG c = 0; c < qPlayer.RentCities.RentCities.AnzEntries(); c++) {
+            if (qPlayer.RentCities.RentCities[c].Rang != 0U) {
+                offices++;
+            }
+        }
+        if (offices >= kMissionMaxOffices || countPlanes() < mMission.usedFleet) {
+            return;
+        }
     }
     std::vector<SLONG> waitCities;
     for (const auto &qRoute : mRoutes) {
@@ -3497,17 +3523,18 @@ void ClaudeBot::executeStock() {
 
     SLONG maxShares = 0;
     if (GameMechanic::canEmitStock(qPlayer, &maxShares) != GameMechanic::EmitStockResult::Ok) {
-        return;
+            return;
     }
 
     const __int64 before = qPlayer.Money;
     if (!GameMechanic::emitStock(qPlayer, maxShares, 0)) {
-        return;
+            return;
     }
 
     AT_Log("ClaudeBot::executeStock(): Emitted %ld shares for %s at %ld, cash now %s.", maxShares, Insert1000erDots64(qPlayer.Money - before).c_str(),
            static_cast<SLONG>(qPlayer.Kurse[0]), Insert1000erDots64(qPlayer.Money).c_str());
 }
+
 
 //--------------------------------------------------------------------------------------------
 // One greedy pass over a board of passenger jobs: repeatedly take the single most profitable
@@ -3718,7 +3745,7 @@ SLONG ClaudeBot::planJobPlanes() {
         if (!kUseFreight) {
             continue;
         }
-        for (SLONG i = 0; i < AuslandsFrachten[c].AnzEntries(); i++) {
+        for (SLONG i = 0; !mMission.noFreight && i < AuslandsFrachten[c].AnzEntries(); i++) {
             if (AuslandsFrachten[c].IsInAlbum(i) == 0) {
                 continue;
             }
@@ -3948,7 +3975,7 @@ SLONG ClaudeBot::planJobPlanes() {
 bool ClaudeBot::wantCallInternational() const {
     /* Free game only. In the missions the extra jobs took the few planes' windows from the goal:
      * with calls (and no office bids) seeds 1-8 won 165 missions against 180 without. */
-    if (mMission.isMission || qPlayer.TelephoneDown != 0 || mCallsToday >= kMaxCallsPerDay) {
+    if ((mMission.isMission && !mMission.useOffices) || qPlayer.TelephoneDown != 0 || mCallsToday >= kMaxCallsPerDay) {
         return false;
     }
     if (mLastCallTime >= 0 && static_cast<SLONG>(Sim.Time) - mLastCallTime < kCallIntervalTime) {
@@ -4134,7 +4161,7 @@ SLONG ClaudeBot::takeFreightFromBoard(CFrachten &board, const JobTaker &take, co
         /* Book the windows the contract will use, so the next contract sees them spent. */
         for (const auto &qLeg : bestLegs) {
             gaps[qLeg.slot][qLeg.gap].start = qLeg.back;
-            if (gaps[qLeg.slot][qLeg.gap].openTail && !mMission.isMission) {
+            if (gaps[qLeg.slot][qLeg.gap].openTail && (!mMission.isMission || mMission.useOffices)) {
                 gaps[qLeg.slot][qLeg.gap].city = static_cast<SLONG>(board[bestJob].NachCity);
             }
         }
@@ -4434,14 +4461,7 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
      * carries that city into the window and the next job simply departs from there. The cost
      * estimate still charges the return leg, so a job is only ever accepted for less than it
      * really earns. */
-    if (!routesAvailable()) {
-        PlaneGap tail;
-        tail.start = free;
-        tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
-        tail.city = city;
-        tail.openTail = true;
-        gaps.push_back(tail);
-    } else if (isJobPlane(qPlane)) {
+    if (isJobPlane(qPlane)) {
         /* A job plane's tail ends where planJobPlanes() stops planning offers, so the boards
          * visited in between cannot book it further ahead than the chain planner looks. */
         PlaneGap tail;
@@ -4452,6 +4472,13 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
         if (tail.end - tail.start >= kMinGapHours) {
             gaps.push_back(tail);
         }
+    } else if (!routesAvailable()) {
+        PlaneGap tail;
+        tail.start = free;
+        tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
+        tail.city = city;
+        tail.openTail = true;
+        gaps.push_back(tail);
     }
 
     return gaps;
@@ -4970,7 +4997,7 @@ SLONG ClaudeBot::schedulePendingJobs() {
              * game inserted pushed them past their deadlines (job planes: fines 3.4M -> 1.4M).
              * Free game only: missions on seeds 1-8 went 180 -> 175 wins with it, within noise
              * but no gain, so they keep the old bookkeeping. */
-            if (planeGaps[bestPlane][bestGap].openTail && !mMission.isMission) {
+            if (planeGaps[bestPlane][bestGap].openTail && (!mMission.isMission || mMission.useOffices)) {
                 planeGaps[bestPlane][bestGap].city = static_cast<SLONG>(qJob.NachCity);
             }
             planned++;
