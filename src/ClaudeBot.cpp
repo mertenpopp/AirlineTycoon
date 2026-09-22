@@ -112,7 +112,10 @@ static const bool kUseFreight = true;
  * never fly routes and live on the job boards instead: travel agency, last minute, freight and the
  * international offices. The route legs fill every other aeroplane's week, so without a plane kept
  * free for them these boards have nowhere to put a job - see isJobPlane(). */
-static const SLONG kJobPlanes = 1;
+/* Two: the second (the 757) joins once the first bought aeroplane can take over its pair - see
+ * isJobPlane(). One job plane measured +9.5% / +10.5% against none, the second +0.91% / +0.79%
+ * on top (seed bases 0 / 1000). */
+static const SLONG kJobPlanes = 2;
 /* ...until this day, after which they fly routes like any other aeroplane. 99 = the whole game:
  * switching the 737 to routes on day 25 measured -8.6% against -1.9% for keeping it on jobs (48 h
  * horizon) - it brings a new pair, its rent and 2.7M of route image due just when the cash buys
@@ -121,7 +124,8 @@ static const SLONG kJobPlanesUntilDay = 99;
 /* Randomised greedy passes of planJobPlanes(), and how far ahead it plans offers it does not
  * own yet: the boards refill a slot every five minutes, so a job plane booked a week ahead
  * would be blind to everything offered after this call. */
-static const SLONG kJobPlanePasses = 200;
+/* 50 / 200 / 800 passes are the same within noise (+0.18% / 0 / -0.36%), so the cheapest. */
+static const SLONG kJobPlanePasses = 50;
 /* Paired over 300 games against no job plane: 12 h -6.0%, 18 h +7.4%, 24 h +9.5%, 36 h +3.2%,
  * 48 h -1.9%, 96 h -11.1%; 24 h on seed base 1000 +10.5%. Too short and the plane idles between
  * two rounds of calls, too long and it is booked out with what was on offer at the first one. */
@@ -851,6 +855,14 @@ bool ClaudeBot::isJobPlane(const CPlane &qPlane) const {
     if (kJobPlanes <= 0 || mMission.isMission || qPlane.Sponsored == 0 || Sim.Date > kJobPlanesUntilDay) {
         return false;
     }
+    /* More than one only once an aeroplane of our own flies the routes: the broker sizes what it
+     * buys against the pairs we rent, so an airline with nothing but job planes never buys one. */
+    SLONG wanted = 1;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries() && wanted < kJobPlanes; c++) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0 && qPlayer.Planes[c].Sponsored == 0) {
+            wanted = kJobPlanes;
+        }
+    }
     SLONG smaller = 0;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
         if (qPlayer.Planes.IsInAlbum(c) == 0 || qPlayer.Planes[c].Sponsored == 0) {
@@ -864,7 +876,7 @@ bool ClaudeBot::isJobPlane(const CPlane &qPlane) const {
             smaller++;
         }
     }
-    return smaller < kJobPlanes;
+    return smaller < wanted;
 }
 
 bool ClaudeBot::haveJobPlanes() const {
