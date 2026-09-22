@@ -212,6 +212,8 @@ class ClaudeBot {
     bool canUseAction(SLONG actionId) const;
     bool haveOffice() const;
     SLONG planeIndex(ULONG uid) const;
+    bool isJobPlane(const CPlane &qPlane) const;
+    bool haveJobPlanes() const;
     void startNewDay();
 
     /* --- action implementations --- */

@@ -108,6 +108,12 @@ static const SLONG kMinGapHours = 5;
  * if the whole tonnage fits into the idle windows we already know about. */
 static const bool kUseFreight = true;
 
+/* Job planes (free game): this many of the starting aeroplanes - the ones with the fewest seats -
+ * never fly routes and live on the job boards instead: travel agency, last minute, freight and the
+ * international offices. The route legs fill every other aeroplane's week, so without a plane kept
+ * free for them these boards have nowhere to put a job - see isJobPlane(). */
+static const SLONG kJobPlanes = 0;
+
 /* International offices.
  *
  * An office lets us phone for that city's passenger and freight jobs, which all start or end
@@ -826,6 +832,37 @@ SLONG ClaudeBot::planeIndex(ULONG uid) const {
  * what the game itself keys on. Room availability is a RobotUse() feature, because that is
  * the table the game builds the airport from; a win condition has no feature flag at all,
  * so those are read straight off Sim.Difficulty, matching PLAYER::HasWon(). */
+/* See kJobPlanes. The starting aeroplanes are the sponsored ones; the smallest go first, because
+ * the route network is sized by the largest plane and a small cabin is worth least on a route. */
+bool ClaudeBot::isJobPlane(const CPlane &qPlane) const {
+    if (kJobPlanes <= 0 || mMission.isMission || qPlane.Sponsored == 0) {
+        return false;
+    }
+    SLONG smaller = 0;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0 || qPlayer.Planes[c].Sponsored == 0) {
+            continue;
+        }
+        const auto &qOther = qPlayer.Planes[c];
+        if (&qOther == &qPlane) {
+            continue;
+        }
+        if (qOther.ptPassagiere < qPlane.ptPassagiere || (qOther.ptPassagiere == qPlane.ptPassagiere && &qOther < &qPlane)) {
+            smaller++;
+        }
+    }
+    return smaller < kJobPlanes;
+}
+
+bool ClaudeBot::haveJobPlanes() const {
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0 && isJobPlane(qPlayer.Planes[c])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void ClaudeBot::setupMission() {
     Mission m{};
     m.difficulty = Sim.Difficulty;
@@ -2186,6 +2223,9 @@ SLONG ClaudeBot::fitFreightIntoGaps(const std::vector<SLONG> &planeIds, std::vec
             covered += tonsPerLeg;
             outLegs.push_back(FreightLeg{p, g, start, back});
             gaps[p][g].start = back;
+            if (gaps[p][g].openTail && !mMission.isMission) {
+                gaps[p][g].city = static_cast<SLONG>(qFreight.NachCity); /* see schedulePendingJobs() */
+            }
         }
     }
 
@@ -2316,7 +2356,7 @@ void ClaudeBot::executeRouteBox() {
     /* The plane we would put on a new route: the largest one we own. */
     SLONG refPlane = -1;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
-        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0 || isJobPlane(qPlayer.Planes[c])) {
             continue;
         }
         if (refPlane < 0 || qPlayer.Planes[c].ptPassagiere > qPlayer.Planes[refPlane].ptPassagiere) {
@@ -2368,7 +2408,7 @@ void ClaudeBot::executeRouteBox() {
 
     SLONG numPlanes = 0;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
-        if (qPlayer.Planes.IsInAlbum(c) != 0) {
+        if (qPlayer.Planes.IsInAlbum(c) != 0 && !isJobPlane(qPlayer.Planes[c])) {
             numPlanes++;
         }
     }
@@ -2611,7 +2651,7 @@ void ClaudeBot::executeRouteBox() {
             if (qPlayer.Planes.IsInAlbum(c) == 0) {
                 continue;
             }
-            if (std::find(hopeless.begin(), hopeless.end(), c) != hopeless.end()) {
+            if (std::find(hopeless.begin(), hopeless.end(), c) != hopeless.end() || isJobPlane(qPlayer.Planes[c])) {
                 continue;
             }
             const auto &qPlane = qPlayer.Planes[c];
@@ -3028,7 +3068,7 @@ void ClaudeBot::bidOnOffices(SLONG numPlanes) {
             continue;
         }
         const bool waitCity = std::find(waitCities.begin(), waitCities.end(), city) != waitCities.end();
-        if (!waitCity && numPlanes < kOfficesAnywhereFromPlanes) {
+        if (!waitCity && numPlanes < kOfficesAnywhereFromPlanes && !haveJobPlanes()) {
             continue;
         }
         /* The bid raises the price by a tenth, and three times the new price is due tonight. */
@@ -3723,6 +3763,9 @@ SLONG ClaudeBot::takeFreightFromBoard(CFrachten &board, const JobTaker &take, co
         /* Book the windows the contract will use, so the next contract sees them spent. */
         for (const auto &qLeg : bestLegs) {
             gaps[qLeg.slot][qLeg.gap].start = qLeg.back;
+            if (gaps[qLeg.slot][qLeg.gap].openTail && !mMission.isMission) {
+                gaps[qLeg.slot][qLeg.gap].city = static_cast<SLONG>(board[bestJob].NachCity);
+            }
         }
 
         mFreightTakenToday++;
@@ -4020,7 +4063,7 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
      * carries that city into the window and the next job simply departs from there. The cost
      * estimate still charges the return leg, so a job is only ever accepted for less than it
      * really earns. */
-    if (!routesAvailable()) {
+    if (!routesAvailable() || isJobPlane(qPlane)) {
         PlaneGap tail;
         tail.start = free;
         tail.end = PlaneTime{free.getDate() + kJobOnlyHorizonDays, free.getHour()};
@@ -4221,7 +4264,7 @@ SLONG ClaudeBot::scheduleRouteFlights() {
             continue;
         }
         const auto &qPlane = qPlayer.Planes[c];
-        if (qPlane.Problem != 0) {
+        if (qPlane.Problem != 0 || isJobPlane(qPlane)) {
             continue;
         }
 
@@ -4522,6 +4565,15 @@ SLONG ClaudeBot::schedulePendingJobs() {
 
         if (GameMechanic::planFlightJob(qPlayer, planeIds[bestPlane], j, bestStart.getDate(), bestStart.getHour())) {
             planeGaps[bestPlane][bestGap].start = bestBack;
+            /* An open tail leaves the plane where the job landed, and the next job planned into
+             * it departs from there - the same bookkeeping takeJobsFromBoard() does. Without it
+             * every later job was placed as if the plane had never left, and the empty legs the
+             * game inserted pushed them past their deadlines (job planes: fines 3.4M -> 1.4M).
+             * Free game only: missions on seeds 1-8 went 180 -> 175 wins with it, within noise
+             * but no gain, so they keep the old bookkeeping. */
+            if (planeGaps[bestPlane][bestGap].openTail && !mMission.isMission) {
+                planeGaps[bestPlane][bestGap].city = static_cast<SLONG>(qJob.NachCity);
+            }
             planned++;
             AT_Log("ClaudeBot::schedulePendingJobs(): Job %s -> %s on plane %s at %ld/%02ld, gain %ld.", Cities[qJob.VonCity].Name.c_str(),
                    Cities[qJob.NachCity].Name.c_str(), qPlayer.Planes[planeIds[bestPlane]].Name.c_str(), bestStart.getDate(), bestStart.getHour(), bestGain);
