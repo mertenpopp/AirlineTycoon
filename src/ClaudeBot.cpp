@@ -481,6 +481,11 @@ static const SLONG kImageTicketPercent = 45;
  * (BookFlight, price over 2x Costs2). */
 static const SLONG kTicketPriceKeepMinPercent = 160;
 static const SLONG kTicketPriceKeepMaxPercent = 198;
+/* A route flight priced above this percentage of the threshold costs image (BookFlight), see
+ * ClaudeBot::ticketPercentFor(). */
+static const SLONG kTicketPriceNoImageLossPercent = 150;
+/* Margin above the full-cabin price. */
+static const SLONG kTicketPriceFollowSlackPercent = 2;
 
 /* The same, for first class, whose threshold is 9 * routePriceBase() rather than 3
  * (CalcPassengers, Schedule.cpp:509-514).
@@ -3868,6 +3873,27 @@ std::vector<ClaudeBot::PlaneGap> ClaudeBot::collectGaps(const CPlane &qPlane) co
     return gaps;
 }
 
+/* The ticket price, in percent of the threshold, that sells the whole cabin and no less.
+ *
+ * Above the threshold T an economy leg sells min(cabin, 1.5 * cabin * T / price * f) seats,
+ * f = (400 + ImageTotal) / 1100 (CalcPassengers), so revenue grows with the price up to
+ * 1.5 * T * f and is flat beyond it. At full image that is 190% - the fixed price this bot
+ * always charged. With little image it is far lower, and there the extra price earns nothing
+ * while it costs image: a leg priced over 150% of T takes 20 off BookFlight's `Add`, which
+ * turns every leg a plane flies after its first of the day (condition 97, no +10) into one
+ * airline and one route image point lost. At 150% or less the same leg costs nothing.
+ *
+ * Returns 1.5 * T * f plus a small margin, in percent of T. Airline image may only be read in
+ * the advertising room, so this uses what was left there last time. */
+SLONG ClaudeBot::ticketPercentFor(const RouteState &qRoute) const {
+    SLONG routeImage = qPlayer.RentRouten.RentRouten[qRoute.id].Image;
+    if (qRoute.reverseId >= 0) {
+        routeImage = std::min<SLONG>(routeImage, qPlayer.RentRouten.RentRouten[qRoute.reverseId].Image);
+    }
+    const SLONG imageTotal = std::clamp<SLONG>(4 * routeImage + mImageAfterAds + 200, 0, 1000);
+    return 150 * (400 + imageTotal) / 1100 + kTicketPriceFollowSlackPercent;
+}
+
 /* Fills the remaining free time of every plane with flights on the routes we rent.
  *
  * Two mechanics drive the layout (CFlugplanEintrag::CalcPassengers):
@@ -3892,14 +3918,31 @@ SLONG ClaudeBot::scheduleRouteFlights() {
         /* Ticketpreis may be read here: this runs in the office. */
         const SLONG highCost = routePriceBase(qRoute.vonCity, qRoute.nachCity) * 3;
         const SLONG current = qPlayer.RentRouten.RentRouten[qRoute.id].Ticketpreis;
-        if (static_cast<__int64>(current) * 100 >= static_cast<__int64>(highCost) * kTicketPriceKeepMinPercent &&
-            static_cast<__int64>(current) * 100 <= static_cast<__int64>(highCost) * kTicketPriceKeepMaxPercent) {
+        SLONG keepMin = kTicketPriceKeepMinPercent;
+        SLONG keepMax = kTicketPriceKeepMaxPercent;
+        SLONG price = qRoute.ticketPrice;
+        SLONG percent = mMission.ticketPercent;
+        if (!mMission.isMission && highCost > 0) {
+            /* Two regimes, with a margin between them so that a route does not flip between them
+             * - every raise costs the legs already sold (see kTicketPriceKeepMinPercent). */
+            const SLONG fullCabin = ticketPercentFor(qRoute);
+            const __int64 currentPercent = static_cast<__int64>(current) * 100 / highCost;
+            if (fullCabin <= kTicketPriceNoImageLossPercent - 6 || (currentPercent <= kTicketPriceNoImageLossPercent && fullCabin <= kTicketPriceNoImageLossPercent - 2)) {
+                keepMin = fullCabin;
+                keepMax = kTicketPriceNoImageLossPercent;
+                percent = kTicketPriceNoImageLossPercent - 3;
+                price = static_cast<SLONG>(static_cast<__int64>(highCost) * percent / 100);
+            }
+        }
+        if (static_cast<__int64>(current) * 100 >= static_cast<__int64>(highCost) * keepMin &&
+            static_cast<__int64>(current) * 100 <= static_cast<__int64>(highCost) * keepMax) {
             qRoute.pricesSet = true;
             continue;
         }
-        if (GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.id, qRoute.ticketPrice, qRoute.ticketPriceFC)) {
+        if (GameMechanic::setRouteTicketPriceBoth(qPlayer, qRoute.id, price, qRoute.ticketPriceFC)) {
             qRoute.pricesSet = true;
-            AT_Log("ClaudeBot::scheduleRouteFlights(): Route %ld priced at %ld / %ld (FC).", qRoute.id, qRoute.ticketPrice, qRoute.ticketPriceFC);
+            AT_Log("ClaudeBot::scheduleRouteFlights(): Route %ld priced at %ld / %ld (FC), %ld%% of the threshold.", qRoute.id, price, qRoute.ticketPriceFC,
+                   percent);
         }
     }
 
