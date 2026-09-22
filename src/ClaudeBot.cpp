@@ -108,6 +108,25 @@ static const SLONG kMinGapHours = 5;
  * if the whole tonnage fits into the idle windows we already know about. */
 static const bool kUseFreight = true;
 
+/* International offices.
+ *
+ * An office lets us phone for that city's passenger and freight jobs, which all start or end
+ * there (RULES.md). That is exactly where a route aeroplane spends its night when the pair's
+ * far end is abroad, and the travel agency only ever offers jobs out of the home airport - so
+ * without an office the overnight windows abroad can only be filled from the last minute board.
+ *
+ * Winning an office costs three months' rent once (category 2040, not scored) and then its rent
+ * a day (Citymiete, scored): Cities[].BuroRent / 30, i.e. a few hundred to about two thousand. */
+/* Rounds of calls per day, and the least time between two of them. Each round re-reads every
+ * office's boards, which refill a slot every five minutes (Sim.cpp, AuslandsRefill). */
+static const SLONG kMaxCallsPerDay = 4;
+static const SLONG kCallIntervalTime = 2 * 60000;
+/* Offices in cities our aeroplanes do not wait in are only bid for once the fleet is this large:
+ * before that the planes are all on routes out of the home airport and the cash buys aeroplanes. */
+static const SLONG kOfficesAnywhereFromPlanes = 10;
+/* Cash an office bid has to leave, counting the three months' rent due at the next day change. */
+static const __int64 kOfficeCashReserve = 1000000;
+
 /* Upper bound on freight contracts accepted per day; the tonnage limit binds first. */
 static const SLONG kMaxFreightPerDay = 4;
 
@@ -1265,6 +1284,8 @@ void ClaudeBot::startNewDay() {
     mAgencyEmptyToday = false;
     mAgencyVisitsToday = 0;
     mLastMinuteVisitsToday = 0;
+    mCallsToday = 0;
+    mLastCallTime = -1;
     mFreightVisitsToday = 0;
     mVisitedTanksToday = false;
     mVisitedKerosinToday = false;
@@ -1471,6 +1492,12 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     if (!mMission.wantFreight && wantFreightVisit) {
         out.push_back(ACTION_CHECKAGENT3);
     }
+
+    /* 8) The branch offices, phoned from the personal office. Any office visit makes the calls
+     *    as well, so this only brings us there when none has happened for a while. */
+    if (wantCallInternational() && (qPlayer.OfficeState != 2) && canUseAction(ACTION_CALL_INTERNATIONAL)) {
+        out.push_back(ACTION_CALL_INTERNATIONAL);
+    }
 }
 
 void ClaudeBot::RobotPlan() {
@@ -1673,6 +1700,8 @@ void ClaudeBot::RobotExecuteAction() {
         break;
 
     case ACTION_BUERO:
+        [[fallthrough]];
+    case ACTION_CALL_INTERNATIONAL:
         executeOffice();
         break;
 
@@ -2930,6 +2959,8 @@ void ClaudeBot::executeBoss() {
             numPlanes++;
         }
     }
+
+    bidOnOffices(numPlanes);
     const SLONG wantGates = std::min<SLONG>(kMaxGates, std::max<SLONG>(1, numPlanes / kPlanesPerGate));
     const SLONG haveGates = qPlayer.Gates.NumRented;
     if (haveGates >= wantGates) {
@@ -2963,6 +2994,52 @@ void ClaudeBot::executeBoss() {
     if (bids > 0 || expanded) {
         AT_Log("ClaudeBot::executeBoss(): %ld gate(s) for %ld aeroplane(s), want %ld: bid on %ld, %s.", haveGates, numPlanes, wantGates, bids,
                expanded ? "commissioned a new one" : "did not build");
+    }
+}
+
+/* Branch offices, auctioned on the same board as the gates - see kOfficesAnywhereFromPlanes.
+ *
+ * A city is worth an office first of all if our route aeroplanes spend their nights there: its
+ * boards are the only ones whose jobs depart where those planes wait. */
+void ClaudeBot::bidOnOffices(SLONG numPlanes) {
+    /* Not in missions: they start on a few million, and the purchase is due in one lump that
+     * several goals punish - ATFS07's share price only rises after days whose whole cash flow is
+     * positive. Measured on seeds 1-8 with bids and calls on: 180 -> 162 missions won. */
+    if (mMission.isMission) {
+        return;
+    }
+    std::vector<SLONG> waitCities;
+    for (const auto &qRoute : mRoutes) {
+        waitCities.push_back(Cities.find(qRoute.vonCity));
+        waitCities.push_back(Cities.find(qRoute.nachCity));
+    }
+    const SLONG home = Cities.find(Sim.HomeAirportId);
+
+    for (SLONG i = 0; i < static_cast<SLONG>(TafelData.ByPositions.size()); i++) {
+        const auto *pZettel = TafelData.ByPositions[i];
+        if (pZettel == nullptr || pZettel->Type != CTafelZettel::Type::CITY) {
+            continue;
+        }
+        const SLONG city = pZettel->ZettelId;
+        if (city < 0 || city >= qPlayer.RentCities.RentCities.AnzEntries() || city == home) {
+            continue;
+        }
+        if (pZettel->Player == qPlayer.PlayerNum || qPlayer.RentCities.RentCities[city].Rang != 0U) {
+            continue;
+        }
+        const bool waitCity = std::find(waitCities.begin(), waitCities.end(), city) != waitCities.end();
+        if (!waitCity && numPlanes < kOfficesAnywhereFromPlanes) {
+            continue;
+        }
+        /* The bid raises the price by a tenth, and three times the new price is due tonight. */
+        const __int64 due = 3 * static_cast<__int64>(pZettel->Preis + pZettel->Preis / 10);
+        if (qPlayer.Money - due < kOfficeCashReserve) {
+            continue;
+        }
+        if (GameMechanic::bidOnCity(qPlayer, i)) {
+            AT_Log("ClaudeBot::bidOnOffices(): Bid %ld for an office in %s%s.", static_cast<SLONG>(pZettel->Preis), Cities[city].Name.c_str(),
+                   waitCity ? " (our planes wait there)" : "");
+        }
     }
 }
 
@@ -3353,12 +3430,12 @@ void ClaudeBot::executeStock() {
 // Shared by the last minute counter and the travel agency, which differ only in the board
 // they read and the GameMechanic call that accepts a job.
 //--------------------------------------------------------------------------------------------
-void ClaudeBot::takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *who) {
+SLONG ClaudeBot::takeJobsFromBoard(CAuftraege &board, const JobTaker &take, const char *who) {
 
     if (mPlaneStateStale) {
         /* No trustworthy view of the flight plans: accepting now risks a fine. */
         AT_Log("ClaudeBot::%s(): Plane state stale, taking nothing.", who);
-        return;
+        return 0;
     }
 
     SLONG taken = 0;
@@ -3458,6 +3535,68 @@ void ClaudeBot::takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *
     }
 
     AT_Log("ClaudeBot::%s(): Took %ld job(s) worth %ld, %ld taken today.", who, taken, totalGain, mJobsTakenToday);
+    return taken;
+}
+
+//--------------------------------------------------------------------------------------------
+// International offices: phone every city we hold an office in and take its passenger jobs and
+// freight contracts against the idle windows, exactly as at the agency and the depot.
+//
+// Only legal in the personal office, and AuslandsAuftraege / AuslandsFrachten[city] only after
+// canCallInternational() has said yes for that city (RULES.md). Every city whose boards were read
+// is charged through bookCallCost(), once per round.
+//--------------------------------------------------------------------------------------------
+bool ClaudeBot::wantCallInternational() const {
+    /* Free game only. In the missions the extra jobs took the few planes' windows from the goal:
+     * with calls (and no office bids) seeds 1-8 won 165 missions against 180 without. */
+    if (mMission.isMission || qPlayer.TelephoneDown != 0 || mCallsToday >= kMaxCallsPerDay) {
+        return false;
+    }
+    if (mLastCallTime >= 0 && static_cast<SLONG>(Sim.Time) - mLastCallTime < kCallIntervalTime) {
+        return false;
+    }
+    const SLONG home = Cities.find(Sim.HomeAirportId);
+    for (SLONG c = 0; c < qPlayer.RentCities.RentCities.AnzEntries(); c++) {
+        if (c != home && qPlayer.RentCities.RentCities[c].Rang != 0U) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ClaudeBot::callInternational() {
+    mCallsToday++;
+    mLastCallTime = static_cast<SLONG>(Sim.Time);
+
+    SLONG called = 0;
+    SLONG jobs = 0;
+    SLONG freight = 0;
+    for (SLONG c = 0; c < Cities.AnzEntries(); c++) {
+        if (c >= static_cast<SLONG>(AuslandsAuftraege.size()) || c >= static_cast<SLONG>(AuslandsFrachten.size())) {
+            break;
+        }
+        if (!GameMechanic::canCallInternational(qPlayer, c)) {
+            continue;
+        }
+        called++;
+        /* Passenger jobs follow the travel agency's rules; the free game's job floor applies. */
+        if (!(mMission.wantFreight && !mMission.wantFreeFreight) && mJobsTakenToday < kMaxJobsPerDay) {
+            jobs += takeJobsFromBoard(
+                AuslandsAuftraege[c], [c](PLAYER &qP, SLONG jobId, SLONG &outId) { return GameMechanic::takeInternationalFlightJob(qP, c, jobId, outId); },
+                "callInternational");
+        }
+        const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
+        if (kUseFreight && !mMission.noFreight && mFreightTakenToday < freightCap) {
+            freight += takeFreightFromBoard(
+                AuslandsFrachten[c], [c](PLAYER &qP, SLONG jobId, SLONG &outId) { return GameMechanic::takeInternationalFreightJob(qP, c, jobId, outId); },
+                "callInternational");
+        }
+    }
+
+    if (called > 0) {
+        GameMechanic::bookCallCost(qPlayer, called, true);
+    }
+    AT_Log("ClaudeBot::callInternational(): Called %ld office(s), took %ld job(s) and %ld freight contract(s).", called, jobs, freight);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3493,10 +3632,15 @@ void ClaudeBot::executeCheckAgent2() {
 void ClaudeBot::executeCheckAgent3() {
     mVisitedFreightToday = true;
     mFreightVisitsToday++;
+    takeFreightFromBoard(gFrachten, &GameMechanic::takeFreightJob, "executeCheckAgent3");
+}
 
+/* One greedy pass over a board of freight contracts - the depot's gFrachten or an
+ * international office's AuslandsFrachten, which follow the same rules. */
+SLONG ClaudeBot::takeFreightFromBoard(CFrachten &board, const JobTaker &take, const char *who) {
     if (mPlaneStateStale) {
-        AT_Log("ClaudeBot::executeCheckAgent3(): Plane state stale, taking nothing.");
-        return;
+        AT_Log("ClaudeBot::%s(): Plane state stale, taking nothing.", who);
+        return 0;
     }
 
     /* The windows we are planning against, in the parallel form fitFreightIntoGaps() wants.
@@ -3512,7 +3656,7 @@ void ClaudeBot::executeCheckAgent3() {
         gaps.push_back(qState.gaps);
     }
     if (planeIds.empty()) {
-        return;
+        return 0;
     }
 
     SLONG taken = 0;
@@ -3528,11 +3672,11 @@ void ClaudeBot::executeCheckAgent3() {
         SLONG bestGain = mMission.wantFreight ? 0 : kMinFreightGain;
         std::vector<FreightLeg> bestLegs;
 
-        for (SLONG i = 0; i < gFrachten.AnzEntries(); i++) {
-            if (gFrachten.IsInAlbum(i) == 0) {
+        for (SLONG i = 0; i < board.AnzEntries(); i++) {
+            if (board.IsInAlbum(i) == 0) {
                 continue;
             }
-            const auto &qFreight = gFrachten[i];
+            const auto &qFreight = board[i];
             if (qFreight.VonCity == qFreight.NachCity || qFreight.Praemie < 0) {
                 continue; /* RULES.md: a contract is valid at Praemie >= 0 */
             }
@@ -3570,9 +3714,9 @@ void ClaudeBot::executeCheckAgent3() {
             break;
         }
 
-        const SLONG tons = gFrachten[bestJob].Tons;
+        const SLONG tons = board[bestJob].Tons;
         SLONG outObjectId = -1;
-        if (!GameMechanic::takeFreightJob(qPlayer, bestJob, outObjectId)) {
+        if (!take(qPlayer, bestJob, outObjectId)) {
             break;
         }
 
@@ -3586,7 +3730,7 @@ void ClaudeBot::executeCheckAgent3() {
         totalGain += bestGain;
         mNeedSchedule = true;
 
-        AT_Log("ClaudeBot::executeCheckAgent3(): Took %ld tons over %ld leg(s), gain %ld.", tons, static_cast<SLONG>(bestLegs.size()), bestGain);
+        AT_Log("ClaudeBot::%s(): Took %ld tons over %ld leg(s), gain %ld.", who, tons, static_cast<SLONG>(bestLegs.size()), bestGain);
     }
 
     /* Hand the consumed windows back so the travel agency does not sell them twice. */
@@ -3598,7 +3742,8 @@ void ClaudeBot::executeCheckAgent3() {
         qState.gaps = gaps[slot++];
     }
 
-    AT_Log("ClaudeBot::executeCheckAgent3(): Took %ld contract(s) worth %ld, %ld taken today.", taken, totalGain, mFreightTakenToday);
+    AT_Log("ClaudeBot::%s(): Took %ld contract(s) worth %ld, %ld taken today.", who, taken, totalGain, mFreightTakenToday);
+    return taken;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3774,6 +3919,20 @@ void ClaudeBot::executeOffice() {
 
     mPlaneStateStale = false;
     mNeedSchedule = false;
+
+    /* The personal office is also where the branch offices are phoned from, and the plans have
+     * just been read, so this is the one moment the idle windows are known for certain. */
+    if (wantCallInternational()) {
+        callInternational();
+        if (mNeedSchedule) {
+            planned += schedulePendingJobs();
+            if (kUseFreight) {
+                planned += schedulePendingFreight();
+            }
+            refreshPlaneState();
+            mNeedSchedule = false;
+        }
+    }
 
     AT_Log("ClaudeBot::executeOffice(): Scheduled %ld job(s), %ld plane(s) known.", planned, static_cast<SLONG>(mPlanes.size()));
 }

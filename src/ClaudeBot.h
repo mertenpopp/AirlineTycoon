@@ -5,6 +5,7 @@
 #include "class.h"
 #include "defines.h"
 
+#include <functional>
 #include <vector>
 
 class PLAYER;
@@ -216,10 +217,17 @@ class ClaudeBot {
     /* --- action implementations --- */
     void executePersonal();
     void hireAdvisors();
-    /* Signature shared by GameMechanic::takeLastMinuteJob() and takeFlightJob(). */
-    using JobTaker = bool (*)(PLAYER &, SLONG, SLONG &);
-    /* One greedy pass over a board of passenger jobs; `who` only names the caller in the log. */
-    void takeJobsFromBoard(CAuftraege &board, JobTaker take, const char *who);
+    /* Accepts job `jobId` of one board: GameMechanic::takeLastMinuteJob(), takeFlightJob(), or
+     * one of the international calls bound to its city. */
+    using JobTaker = std::function<bool(PLAYER &, SLONG, SLONG &)>;
+    /* One greedy pass over a board of passenger jobs; `who` only names the caller in the log.
+     * Returns the number of jobs taken. */
+    SLONG takeJobsFromBoard(CAuftraege &board, const JobTaker &take, const char *who);
+    /* The same for freight contracts: the depot, or an international office. */
+    SLONG takeFreightFromBoard(CFrachten &board, const JobTaker &take, const char *who);
+    /* Calls every branch office from the personal office - see callInternational() in the .cpp. */
+    void callInternational();
+    bool wantCallInternational() const;
     void executeNasa();
     void executeCheckAgent1();
     void executeCheckAgent2();
@@ -230,6 +238,7 @@ class ClaudeBot {
     void executeStock();
     void executeRouteBox();
     void executeBoss();
+    void bidOnOffices(SLONG numPlanes);
     void executeAds();
     void executeUpgrades();
     void executeBuyPlane();
@@ -355,6 +364,8 @@ class ClaudeBot {
     bool mVisitedFreightToday{false};
     bool mFreightEmptyToday{false};
     SLONG mFreightTakenToday{0};
+    SLONG mCallsToday{0}; /* not serialised: reset every morning */
+    SLONG mLastCallTime{-1}; /* Sim.Time of the last round of calls today, not serialised */
 
     /* mPlanes is stale and has to be rebuilt in the office before it may be used */
     bool mPlaneStateStale{true};
