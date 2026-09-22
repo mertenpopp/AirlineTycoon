@@ -1568,3 +1568,36 @@ missions; seeds 1-2 replay identically to before (52/52).
 
 Next: the job sources are only worth anything if some plane time is left for them - e.g. a plane or
 two kept off routes for jobs, or route legs that leave the night hours abroad free.
+
+Open points (as of 2026-09-22, after `951b9640`)
+------------------------------------------------
+
+Free game: ClaudeBot 2.380e9 vs MertenBot 2.346e9 solo (seeds 1-300), a tie. MertenBot without
+international calls (ROBOT_USE_ABROAD off for its own airline only): 0.765e9 (-67%).
+
+Most promising
+1. **Leave room for jobs.** International calls are worth 3x to MertenBot and nothing to ClaudeBot,
+   because ClaudeBot's route legs fill every plane's week (0 idle windows abroad, 1-7 at home). Keep
+   a plane or two off routes for jobs in the first weeks, or leave route planes' nights abroad free.
+2. **Non-767 types.** The route box rents long-haul pairs sized for the 767; Il 86 / A 300 idle (-67% /
+   -31%). A mixed fleet needs range-aware route renting first.
+3. **Cabin upgrades.** At 190% every leg after a plane's first of the day costs 1 airline + 1 route image
+   point (~100/day late). Level 2 seats/trays/deco make that 0; 3.47M per 767, ~50-day payback (estimate).
+
+Older structural points
+4. Takeover defence (MertenBot took over ClaudeBot 296/300 head-to-head on 2026-09-16; not re-measured).
+   Idea: late buy-back to 51%.
+5. Route gate knife-edge: `kMinRouteValueShare` 95 good, 98 -41%. Value per hour per actual plane.
+6. Route re-typing once a better type is affordable.
+7. Start-weekday effect (up to ~65%) - not re-checked since the pricing change.
+
+Missions (seeds 0-100: 81% won)
+8. Largest gaps: ATFS09 29% (MB 99%), HARD 66% (99%), ATFS04/06/07 ~70% (~100%), FIRST/ATFS01 ~66%.
+   FINAL, ADDON10, NASA missions won around day 100 against ~55.
+9. International offices in missions (ATFS05): the free-game version cost wins (180 -> 162/165 on
+   seeds 1-8), so it is off there. Needs a variant that leaves the goal's plane time alone.
+10. ADDON04 (miles) not modelled; NORMAL's three-part fix not done.
+
+Small
+11. Freight contracts re-planned by `schedulePendingFreight()` can end short and be fined (free game too).
+12. `%ld` with a 32-bit SLONG in the image log prints 4294967292 for -4 (cosmetic).
