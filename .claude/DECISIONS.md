@@ -1599,7 +1599,7 @@ Older structural points
 7. Start-weekday effect (up to ~65%) - not re-checked since the pricing change.
 
 Missions (seeds 0-100: 81% won)
-8. Largest gaps: ATFS09 29% (MB 99%), HARD 66% (99%), ATFS04/06/07 ~70% (~100%), FIRST/ATFS01 ~66%.
+8. ~~ATFS09 29%~~ 83% after 0379018a. Largest gaps now: HARD 62% (MB 100%), HARD 66% (99%), ATFS04/06/07 ~70% (~100%), FIRST/ATFS01 ~66%.
    FINAL, ADDON10, NASA missions won around day 100 against ~55.
 9. International offices in missions (ATFS05): the free-game version cost wins (180 -> 162/165 on
    seeds 1-8), so it is off there. Needs a variant that leaves the goal's plane time alone.
@@ -1744,3 +1744,44 @@ that is 21/48 -> 32/48 (44% -> 67%); MertenBot's sweep figure was 23%.
 
 Next for ADDON04: the fleet plateau at 8-10 is cash, not the museum - the used planes on offer are
 bought as soon as they are affordable. Earlier capital (shares, credit) would buy more of them.
+
+2026-09-22 - ATFS09: the fleet was short of work, not of aeroplanes
+--------------------------------------------------------------------
+
+`0379018a`. ATFS09 is won on company value after 45 days
+(`PLAYER::CalculateStatistics`: aeroplanes at `CalculatePrice`, shares held at the market price,
+cash minus credit, tank, and **image x 50,000**).
+
+Measured against the best opponent over 24 seeds, the old jobs-only build lost on throughput, not
+on capital: 199 flights on 6.3 aeroplanes against 407 on 5.8, 3 branch offices against 21, 4.5M of
+fines, company value 51.9M against 65.5M. That is 0.7 flights per aeroplane per day.
+
+`Mission::useOffices` (ATFS09 only): bid for offices (at most `kMissionMaxOffices` = 8, and only
+once the mission fleet is complete), phone them every round, and put the whole fleet through
+`planJobPlanes()`. The decisive detail is the idle-window horizon: `collectGaps()` now gives a job
+plane the 24 h tail whether or not routes exist. With the 4-day tail of a no-route mission the
+travel agency and last minute counter booked the fleet full before the chain planner ran, and it
+planned nothing (`230 item(s) on offer, planned 0`).
+
+| arm | value (24 seeds) | won |
+|---|---|---|
+| baseline (jobs only) | 51.9M | 7/24 |
+| own-share buy-back in the last 10 days | 51.6M | 4/24 |
+| offices, uncapped | 39.1M | 3/24 |
+| offices <= 8, fleet first | 51.9M | 8/24 |
+| low job profit floor | 35.3M | 0/24 |
+| routes + the free game's image-aware fare | 38.7M | 1/24 |
+| routes + fare + buy-back | 36.3M | 0/24 |
+| **offices + planner + 24 h tail** | **120.4M** | **19/24** |
+| + museum planes | 79.2M | 12/24 |
+| seeds 25-48, not tuned on | **121.0M** (base 48.9M) | **21/24** (base 9/24) |
+
+- The share buy-back does raise our own value (price 87 -> 153 in one game, +9.5M on one seed), but
+  the opponents hold part of our float and are revalued with it, so it nets out. Removed again.
+- Buying aeroplanes is *not* wasteful here although a purchase is booked at ~85% of its price: with
+  the planner keeping them busy, 13 aeroplanes fly 490 flights and earn 164M of job premiums.
+- Free game unchanged (300/300 identical), other missions unchanged (50/52 games on seeds 1-2).
+
+Next: HARD is now the largest mission gap (62% against MertenBot's 100%); ATFS06 and ATFS05 sit at
+75%. The same "short of work" test - flights per aeroplane per day against the best opponent - is
+worth running there.
