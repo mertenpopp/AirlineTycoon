@@ -921,6 +921,9 @@ void ClaudeBot::setupMission() {
     switch (Sim.Difficulty) {
     case DIFF_HARD:
         m.wantImage = true;
+        /* Every job flight is worth an image point (BookFlight's Add is +12 with no price
+         * penalty), and the image is the goal - so the fleet wants all the work it can get. */
+        m.useOffices = true;
         /* Every route flight priced under half the threshold adds an image point, and every
          * one above 1.5x of it takes two away (BookFlight, Schedule.cpp) - the free game's
          * fare works against this goal on every flight. */
