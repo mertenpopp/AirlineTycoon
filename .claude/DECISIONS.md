@@ -1542,3 +1542,29 @@ Against the new baseline (2.377e9):
 - The route box does not rent pairs for a plane's range, so any non-767 type idles. A mixed fleet
   would need range-aware renting first.
 - Takeover defence, route gate rework, route re-typing are still open (see 2026-09-16/17).
+
+2026-09-22 - International offices and calls (neutral, free game only)
+----------------------------------------------------------------------
+
+Last minute jobs were already implemented (`executeCheckAgent1()`); added international offices and
+calls in `d0c28617`:
+- `bidOnOffices()` at the boss: offices in cities our route planes wait in, any city from 10 planes;
+  no bid that leaves less than 1M after the 3x-price purchase. Offices cost 3 x Preis once (not
+  scored) and Preis / 30 a day (Citymiete, scored) - a few hundred to ~2,000 a day.
+- `callInternational()` from the personal office, up to 4 rounds a day at least 2 h apart, taking
+  passenger jobs with `takeJobsFromBoard()` and freight with the new `takeFreightFromBoard()`
+  (the depot logic, now for any board); `bookCallCost()` per round. `JobTaker` is a std::function.
+
+Free game, 300 paired games against `2d172eee`: **+0.13% (t +0.8)**, neutral. Diagnosis: over a 60-day
+game the bot held up to 27 offices and read 4,620 international offers, and exactly one fitted an idle
+window. The route scheduler fills every plane's week: 0 idle windows abroad, 1-7 at home of 5-10 h
+each, at every fleet size. That is also why the travel agency and last minute boards only give ~40
+jobs a game. Jobs of any source can only pay if the scheduler leaves room for them.
+
+Missions (seeds 1-8, 208 games, level 006): calls + bids 180 -> 162 wins; calls only 180 -> 165
+(ATFS07 8->1 / 8->4, ATFS06 6->2, ATFS01 6->3, ATFS04 7->4, ADDON03 6->3; ADDON04 3->5). Missions start
+with offices at their gifted route cities, and the extra jobs took the goal's windows. Both are off in
+missions; seeds 1-2 replay identically to before (52/52).
+
+Next: the job sources are only worth anything if some plane time is left for them - e.g. a plane or
+two kept off routes for jobs, or route legs that leave the night hours abroad free.
