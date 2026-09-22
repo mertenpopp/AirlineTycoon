@@ -931,10 +931,15 @@ void Bot::updateRouteInfoOffice() {
         route.planeUtilization = getRentRoute(route).AuslastungBot;
         route.planeUtilizationFC = getRentRoute(route).AuslastungFirstClassBot;
 
+        route.canUpgrade = false;
+
+        if (route.planeIds.empty()) {
+            continue;
+        }
+
         DOUBLE luxusSumme = 0;
         SLONG luxusTarget = 3 * (checkVeryLateGame() ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget) + kPlaneFoodTarget;
         __int64 currentWeeklyRevenue = 0;
-        route.canUpgrade = false;
         for (auto i : route.planeIds) {
             const auto &qPlane = qPlayer.Planes[i];
 
@@ -953,9 +958,11 @@ void Bot::updateRouteInfoOffice() {
                Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
                route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
 
-        __int64 estimatedWeeklyRevenue = calcRouteScore(route.routeId, route.planeTypeId, tmpList).score;
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has estimated weekly revenue=%s $ (current=%s $)", Helper::getRouteName(getRoute(route)).c_str(),
-               Insert1000erDots64(estimatedWeeklyRevenue).c_str(), Insert1000erDots64(currentWeeklyRevenue).c_str());
+        if (route.planeTypeId != -1) {
+            __int64 estimatedWeeklyRevenue = calcRouteScore(route.routeId, route.planeTypeId, tmpList).score;
+            AT_Log("Bot::updateRouteInfoOffice(): Route %s has estimated weekly revenue=%s $ (current=%s $)", Helper::getRouteName(getRoute(route)).c_str(),
+                   Insert1000erDots64(estimatedWeeklyRevenue).c_str(), Insert1000erDots64(currentWeeklyRevenue).c_str());
+        }
     }
 
     updateRoutesSortedList();

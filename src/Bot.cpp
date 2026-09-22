@@ -939,7 +939,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> info.canUpgrade;
 
         if (savegameVersion < 103) {
-            info.numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[info.routeId], info.planeTypeId, 90);
+            if (info.planeTypeId != -1) {
+                info.numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[info.routeId], info.planeTypeId, 90);
+            } else {
+                info.numberOfPlanesTarget = 0;
+            }
         } else {
             File >> info.numberOfPlanesTarget;
         }
