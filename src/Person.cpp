@@ -2227,8 +2227,8 @@ void PERSON::DoOnePlayerStep() {
                     }
                 }
             } else if (c == ROOM_ELECTRO) {
-                if (qPlayer.Owner != 1 && qPlayer.DirectToRoom == c &&
-                    (qPlayer.Owner == 2 || (((*qPlayer.LocationWin).MenuIsOpen() == 0) && ((*qPlayer.LocationWin).IsDialogOpen() == 0)))) {
+                if ((qPlayer.Owner != 1 || qPlayer.IsSuperBot()) && qPlayer.DirectToRoom == c &&
+                    ((qPlayer.Owner != 0) || (((*qPlayer.LocationWin).MenuIsOpen() == 0) && ((*qPlayer.LocationWin).IsDialogOpen() == 0)))) {
                     if (c == qPlayer.DirectToRoom) {
                         if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
                             qPlayer.DirectToRoom = 0;
@@ -2238,7 +2238,7 @@ void PERSON::DoOnePlayerStep() {
                                 gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
                             }
 
-                            if (State == Sim.localPlayer) {
+                            if (State == Sim.localPlayer || qPlayer.IsSuperBot()) {
                                 GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
                             }
                         } else {
@@ -2291,26 +2291,28 @@ void PERSON::DoOnePlayerStep() {
                             Sim.RoomBusy[StatePar]--;
                         }
 
+                        auto &qTarget = Sim.Players.Players[StatePar / 10 - 1];
                         if ((qPlayer.LocationWin != nullptr) && ((*qPlayer.LocationWin).IsDialogOpen() == 0) && ((*qPlayer.LocationWin).MenuIsOpen() == 0)) {
                             qPlayer.ThrownOutOfRoom = UWORD(StatePar % 10 + State * 10 + 10);
 
                             bgWarp = FALSE;
-                            if (Sim.Players.Players[StatePar / 10 - 1].IsOut != 0) {
+                            if (qTarget.IsOut != 0) {
                                 (*qPlayer.LocationWin).MenuStart(MENU_REQUEST, MENU_REQUEST_WRONGROOM2);
                             } else {
                                 (*qPlayer.LocationWin).MenuStart(MENU_REQUEST, MENU_REQUEST_WRONGROOM);
-
-                                if ((qPlayer.HasItem(ITEM_ZANGE) != 0) && Sim.Players.Players[StatePar / 10 - 1].OfficeState == 0 &&
-                                    (StatePar == ROOM_BURO_A || StatePar == ROOM_BURO_B || StatePar == ROOM_BURO_C || StatePar == ROOM_BURO_D)) {
-                                    qPlayer.DropItem(ITEM_ZANGE);
-                                    PLAYER::NetSynchronizeItems();
-                                    Sim.Players.Players[StatePar / 10 - 1].OfficeState = 3;
-
-                                    SIM::SendSimpleMessage(ATNET_SYNC_OFFICEFLAG, 0, StatePar / 10 - 1, 3);
-                                }
                             }
 
                             (*qPlayer.LocationWin).MenuSetZoomStuff(XY(ScreenPos.x, ScreenPos.y - 20), 0, TRUE);
+                        }
+
+                        const bool inAnyOffice = (StatePar == ROOM_BURO_A || StatePar == ROOM_BURO_B || StatePar == ROOM_BURO_C || StatePar == ROOM_BURO_D);
+                        if (qTarget.IsOut == 0 && qTarget.OfficeState == 0 && qPlayer.HasItem(ITEM_ZANGE) != 0 && inAnyOffice) {
+                            if (Sim.bNetwork == 0 || qPlayer.NetIsAuthoritative()) {
+                                qPlayer.DropItem(ITEM_ZANGE);
+                                qTarget.OfficeState = 3;
+                                SIM::SendSimpleMessage(ATNET_SYNC_OFFICEFLAG, 0, StatePar / 10 - 1, 3);
+                                AT_Log_Generic("Person.cpp: %s sabotages office of %s using item pliers", (LPCTSTR)qPlayer.AirlineX, (LPCTSTR)qTarget.AirlineX);
+                            }
                         }
 
                         Dir = 4;

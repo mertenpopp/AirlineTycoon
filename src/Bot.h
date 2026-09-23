@@ -210,6 +210,12 @@ class Bot {
     Prio condBuyAdsForRoutes(__int64 &moneyAvailable);
     Prio condBuyAds(__int64 &moneyAvailable);
     Prio condVisitAds();
+    Prio condGetEnergyDrink();
+    Prio condVisitKiosk();
+    Prio condSabotageOfficeA();
+    Prio condSabotageOfficeB();
+    Prio condSabotageOfficeC();
+    Prio condSabotageOfficeD();
 
     /* in BotActions.cpp */
     void actionStartDay(__int64 moneyAvailable);
@@ -229,7 +235,6 @@ class Bot {
     void actionBuyKerosine(__int64 moneyAvailable);
     void actionBuyKerosineTank(__int64 moneyAvailable);
     void actionSabotage(__int64 moneyAvailable);
-    void actionVisitSaboteur();
     __int64 calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const;
     static __int64 calcNumOfFreeShares(SLONG playerId);
     __int64 calcAmountToBuy(SLONG buyFromPlayerId, SLONG desiredRatio, __int64 moneyAvailable) const;
@@ -239,14 +244,17 @@ class Bot {
     void actionOvertakeAirline();
     void actionSellShares(__int64 moneyAvailable);
     void actionVisitMech();
+    bool actionVisitSaboteur();
+    bool actionVisitArab();
     bool actionVisitDutyFree(__int64 moneyAvailable);
     void actionVisitBoss();
-    void actionVisitRouteBox();
+    bool actionVisitRouteBox();
     void actionRentRoute();
     void actionBuyAdsForRoutes(__int64 moneyAvailable);
     void actionBuyAds(__int64 moneyAvailable);
     void actionVisitAds();
     void actionVisitSecurity(__int64 moneyAvailable);
+    bool actionVisitKiosk();
 
     /* in BotFunctions.cpp */
     void grabNewFlights();
@@ -260,6 +268,7 @@ class Bot {
     SLONG replaceAutomaticFlights(SLONG planeId);
     std::pair<SLONG, SLONG> kerosineQualiOptimization(__int64 moneyAvailable, DOUBLE targetFillRatio) const;
     SabotageMode determineSabotageMode(__int64 moneyAvailable, bool print);
+    SpecialSabotage determineSpecialSabotage() const;
 
     /* routes */
     SLONG getNumRentedRoutes() const;
@@ -303,6 +312,7 @@ class Bot {
     std::pair<HowToGetMoney, Prio> howToGetMoney();
     __int64 howMuchMoneyToRaise(bool maxCredit) const;
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
+    bool canGrabFlights();
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
     void removePlaneFromRoute(SLONG planeId);
@@ -313,7 +323,9 @@ class Bot {
     std::pair<SLONG, SLONG> howMuchCrewToHire(__int64 moneyAvailable);
     void setMoodByActionId(SLONG actionId);
     bool useItem(SLONG item);
+    bool dropItem(SLONG item);
     bool pickUpItem(SLONG item);
+    bool tryPickUpItem(SLONG condition, SLONG item, bool wantToKeep);
     void printRobotFlags() const;
 
     TEAKRAND LocalRandom{};
@@ -362,6 +374,9 @@ class Bot {
     __int64 mNemesisScore{0};
     bool mNeedToShutdownSecurity{false};
     bool mPliersWereTaken{false};
+    bool mGlovesWereTaken{false};
+    bool mPaperClipsWereTaken{false};
+    bool mGlueWasTaken{false};
     bool mUsingSecurity{false};
     SLONG mNemesisSabotaged{-1};
     SLONG mArabHintsTracker{0};

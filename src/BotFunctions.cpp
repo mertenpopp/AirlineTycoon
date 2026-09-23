@@ -76,11 +76,6 @@ __int64 Bot::getNemesisScore(SLONG p) const {
         }
     }
 
-    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qTarget.Owner == 0) {
-        /* special sabotage targeting human player */
-        score *= 10;
-    }
-
     return score;
 }
 
@@ -88,17 +83,32 @@ void Bot::determineNemesis() {
     auto nemesisOld = mNemesis;
 
     mNemesis = -1;
-    mNemesisScore = INT_MIN;
+    mNemesisScore = 0;
     auto nemesisSabotaged = std::exchange(mNemesisSabotaged, -1);
+
+    bool mayCalculateNemesisScore = true;
     if (Sim.Difficulty == DIFF_FREEGAME) {
         if (qPlayer.HasBerater(BERATERTYP_GELD) < 50) {
             AT_Log("Bot::determineNemesis(): Need to hire financial advisor first");
-            return;
+            mayCalculateNemesisScore = false;
         }
         if (qPlayer.HasBerater(BERATERTYP_INFO) < 50) {
             AT_Log("Bot::determineNemesis(): Need to hire spy first");
-            return;
+            mayCalculateNemesisScore = false;
         }
+    }
+
+    /* nemesis mode: Pick host if we cannot calculate scores */
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && Sim.Players.Players[Sim.localPlayer].IsOut == 0) {
+        mNemesis = Sim.localPlayer;
+        if (mayCalculateNemesisScore) {
+            mNemesisScore = getNemesisScore(mNemesis);
+        }
+        AT_Log("Bot::determineNemesis(): Nemesis mode: Targeting human player (default).");
+    }
+
+    if (!mayCalculateNemesisScore) {
+        return;
     }
 
     /* check scores */
@@ -108,6 +118,9 @@ void Bot::determineNemesis() {
     for (SLONG p = 0; p < 4; p++) {
         auto &qTarget = Sim.Players.Players[p];
         if (p == qPlayer.PlayerNum || qTarget.IsOut != 0) {
+            continue;
+        }
+        if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && (qTarget.Owner != 0) && (qTarget.Owner != 2)) {
             continue;
         }
 
@@ -126,11 +139,16 @@ void Bot::determineNemesis() {
 
     /* find best enemy */
     std::sort(scores.begin(), scores.end(), [](const auto &a, const auto &b) { return std::get<1>(a) > std::get<1>(b); });
+
+    /* target best enemy only when not in nemesis mode */
     mNemesis = scores.front().first;
     mNemesisScore = scores.front().second;
     if (mNemesis == nemesisSabotaged && scores.size() > 1) {
         mNemesis = scores[1].first;
         mNemesisScore = scores[1].second;
+    }
+    if (mNemesis < 0) {
+        return;
     }
 
     for (const auto &[p, score] : scores) {
@@ -827,6 +845,35 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
     }
 
     return sabotageMode;
+}
+
+SpecialSabotage Bot::determineSpecialSabotage() const {
+    /* return "no" to not start chain again */
+    if (qPlayer.HasItem(ITEM_ZANGE)) {
+        return SpecialSabotage::No;
+    }
+    if (qPlayer.HasItem(ITEM_GLOVE) || qPlayer.HasItem(ITEM_REDBULL) || qPlayer.HasItem(ITEM_STINKBOMBE)) {
+        return SpecialSabotage::No;
+    }
+    if (qPlayer.HasItem(ITEM_PAPERCLIP) || qPlayer.HasItem(ITEM_GLUE)) {
+        return SpecialSabotage::No;
+    }
+
+    /* in missions where we use the security office: Prioritize getting wire cutters */
+    if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE) && !mPliersWereTaken) {
+        return SpecialSabotage::CutWires;
+    }
+
+    /* other sabotage not used when not in nemesis mode */
+    if (!qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE)) {
+        return SpecialSabotage::No;
+    }
+
+    /* cut phones, glue and stink bombing only make sense during regular play */
+    if (Sim.CallItADay != 0) {
+        return SpecialSabotage::No;
+    }
+    return SpecialSabotage::Any;
 }
 
 SLONG Bot::getNumRentedRoutes() const {

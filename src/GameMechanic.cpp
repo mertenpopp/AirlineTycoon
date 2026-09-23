@@ -1555,7 +1555,11 @@ GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE
 }
 
 GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG item) {
-    if ((qPlayer.HasItem(item) != 0) || (qPlayer.HasSpaceForItem() == 0)) {
+    if (qPlayer.HasItem(item) != 0) {
+        AT_Error("GameMechanic::pickUpItem(%s): Already have item (%ld).", qPlayer.AirlineX.c_str(), item);
+        return PickUpItemResult::ConditionsNotMet;
+    }
+    if ((item != ITEM_REDBULL) && (qPlayer.HasSpaceForItem() == 0)) {
         AT_Error("GameMechanic::pickUpItem(%s): No space for item (%ld).", qPlayer.AirlineX.c_str(), item);
         return PickUpItemResult::NoSpace;
     }
@@ -1699,6 +1703,10 @@ GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG i
         for (SLONG c = 0; c < 6; c++) {
             if (qPlayer.Items[c] == ITEM_GLOVE) {
                 qPlayer.Items[c] = ITEM_REDBULL;
+                qPlayer.ReformIcons();
+                if (Sim.bNetwork != 0) {
+                    PLAYER::NetSynchronizeItems();
+                }
                 return PickUpItemResult::PickedUp;
             }
         }
@@ -1709,7 +1717,9 @@ GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG i
         }
         if (qPlayer.KioskTrust == 1) {
             qPlayer.BuyItem(ITEM_STINKBOMBE);
-            qPlayer.KioskTrust = 0;
+            if (qPlayer.HasItem(ITEM_STINKBOMBE)) {
+                qPlayer.KioskTrust = 0;
+            }
             return PickUpItemResult::PickedUp;
         }
         return PickUpItemResult::NotAllowed;
@@ -1776,8 +1786,9 @@ bool GameMechanic::removeItem(PLAYER &qPlayer, SLONG item) {
         qPlayer.SecurityFlags &= ~(1 << 1);
         PLAYER::NetSynchronizeFlags();
     }
-    PLAYER::NetSynchronizeItems();
-    AT_Log("GameMechanic::removeItem(%s): Removed item (%ld).", qPlayer.AirlineX.c_str(), item);
+    if (Sim.bNetwork != 0) {
+        PLAYER::NetSynchronizeItems();
+    }
     return true;
 }
 
@@ -1819,8 +1830,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_MG:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_ARAB_AIR) || isRobot) {
             qPlayer.ArabTrust = max(1, qPlayer.ArabTrust);
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_MG);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_ARAB, MEDIUM_AIR, 1);
             }
@@ -1833,9 +1843,8 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_BIER:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_WERKSTATT) || isRobot) {
             qPlayer.MechTrust = max(1, qPlayer.MechTrust);
-            qPlayer.Items[itemIndex] = 0xff;
             qPlayer.MechAngry = 0;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_BIER);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_MECHANIKER, MEDIUM_AIR, 2);
             }
@@ -1851,8 +1860,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_OEL:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_GLOBE) || isRobot) {
             qPlayer.GlobeOiled = TRUE;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_OEL);
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_OEL);
         }
@@ -1861,8 +1869,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_TABLETTEN:
         if (qPlayer.SickTokay != 0) {
             qPlayer.SickTokay = 0;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_TABLETTEN);
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_TABLETTEN);
         }
@@ -1871,8 +1878,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_POSTKARTE:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_PERSONAL_A + qPlayer.PlayerNum * 10) || isRobot) {
             qPlayer.SeligTrust = TRUE;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_POSTKARTE);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_PERSONAL1a + qPlayer.PlayerNum * 2, MEDIUM_AIR, 300);
             }
@@ -1885,8 +1891,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_SABOTAGE) || isRobot) {
             if (qPlayer.ArabTrust != 0) {
                 qPlayer.SpiderTrust = TRUE;
-                qPlayer.Items[itemIndex] = 0xff;
-                qPlayer.ReformIcons();
+                qPlayer.DropItem(ITEM_SPINNE);
             }
             if (pRoom) {
                 pRoom->StartDialog(TALKER_SABOTAGE, MEDIUM_AIR, 3000);
@@ -1899,8 +1904,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_DART:
         if (((bNoMenuOpen && qPlayer.GetRoom() == ROOM_WERBUNG) || isRobot) && (Sim.Difficulty >= DIFF_NORMAL || Sim.Difficulty == DIFF_FREEGAME)) {
             qPlayer.WerbungTrust = TRUE;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_DART);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_WERBUNG, MEDIUM_AIR, 8001);
             }
@@ -1916,8 +1920,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
             }
 
             qPlayer.LaptopVirus = 0;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_DISKETTE);
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_DISKETTE);
         }
@@ -1926,11 +1929,10 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_BH:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_SHOP1) || isRobot) {
             qPlayer.DutyTrust = TRUE;
-            qPlayer.Items[itemIndex] = 0xff;
+            qPlayer.DropItem(ITEM_BH);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_DUTYFREE, MEDIUM_AIR, 801);
             }
-            qPlayer.ReformIcons();
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_BH);
         }
@@ -1939,11 +1941,10 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_HUFEISEN:
         if ((bNoMenuOpen && qPlayer.GetRoom() == ROOM_RICKS) || isRobot) {
             qPlayer.TrinkerTrust = TRUE;
-            qPlayer.Items[itemIndex] = 0xff;
+            qPlayer.DropItem(ITEM_HUFEISEN);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_TRINKER, MEDIUM_AIR, 800);
             }
-            qPlayer.ReformIcons();
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_HUFEISEN);
         }
@@ -1953,9 +1954,8 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_PRALINEN);
         } else {
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
             PlayUniversalFx("eating.raw", Sim.Options.OptionEffekte);
+            qPlayer.DropItem(ITEM_PRALINEN);
         }
         break;
 
@@ -1965,8 +1965,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         } else {
             PlayUniversalFx("eating.raw", Sim.Options.OptionEffekte);
             qPlayer.IsDrunk += 400;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_PRALINEN_A);
         }
         break;
 
@@ -2016,8 +2015,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_REDBULL:
         if (qPlayer.GetRoom() == ROOM_KIOSK || isRobot) {
             qPlayer.KioskTrust = 1;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
+            qPlayer.DropItem(ITEM_REDBULL);
             if (pRoom) {
                 pRoom->StartDialog(TALKER_KIOSK, MEDIUM_AIR, 1010);
             }
@@ -2026,9 +2024,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         } else {
             PlayUniversalFx("gulps.raw", Sim.Options.OptionEffekte);
             qPlayer.Koffein += 20 * 120;
-            qPlayer.Items[itemIndex] = 0xff;
-            qPlayer.ReformIcons();
-            PLAYER::NetSynchronizeFlags();
+            qPlayer.DropItem(ITEM_REDBULL);
             SIM::SendSimpleMessage(ATNET_CAFFEINE, 0, qPlayer.PlayerNum, qPlayer.Koffein);
         }
         break;
@@ -2111,6 +2107,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     case ITEM_PARFUEM:
         if ((qPlayer.GetRoom() == ROOM_WERKSTATT || isRobot) && Sim.Slimed != -1) {
             qPlayer.Items[itemIndex] = ITEM_XPARFUEM;
+            qPlayer.ReformIcons();
         } else if (pRoom && dialogPartner != TALKER_NONE) {
             pRoom->StartDialog(dialogPartner, MEDIUM_AIR, 10000 + ITEM_PARFUEM);
         }
@@ -2120,7 +2117,6 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
         if (qPlayer.GetRoom() == ROOM_AIRPORT) {
             qPlayer.PlayerStinking = 2000;
             qPlayer.DropItem(ITEM_XPARFUEM);
-            PLAYER::NetSynchronizeFlags();
         }
         break;
 
@@ -2142,6 +2138,16 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
     }
 
     return true;
+}
+
+SLONG GameMechanic::numFreeSlots(PLAYER &qPlayer) {
+    SLONG numFree = 0;
+    for (SLONG d = 0; d < 6; d++) {
+        if (qPlayer.Items[d] == 0xff) {
+            numFree++;
+        }
+    }
+    return numFree;
 }
 
 bool GameMechanic::takeFlightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId) {
