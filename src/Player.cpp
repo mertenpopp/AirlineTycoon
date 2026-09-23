@@ -6310,6 +6310,9 @@ void PLAYER::BuyItem(UBYTE Item) {
         }
 
         ReformIcons();
+        if (Sim.bNetwork != 0) {
+            PLAYER::NetSynchronizeItems();
+        }
     }
 }
 

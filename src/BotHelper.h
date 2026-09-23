@@ -197,6 +197,15 @@ class SabotageMode {
     SLONG mJobCost{0};
 };
 
+enum class SpecialSabotage { Any = 0, No = 1, CutWires, StinkBomb, Glue };
+constexpr bool operator==(SpecialSabotage a, SpecialSabotage b) {
+    /* Beware: Not transitive */
+    auto ai = static_cast<int>(a);
+    auto bi = static_cast<int>(b);
+    return (ai == 0 && bi != 1) || (bi == 0 && ai != 1) || (ai == bi);
+}
+constexpr bool operator!=(SpecialSabotage a, SpecialSabotage b) { return !(a == b); }
+
 namespace Helper {
 
 CString getJobTypeStr(int jobType);

@@ -117,6 +117,7 @@ class GameMechanic {
     static PickUpItemResult pickUpItem(PLAYER &qPlayer, SLONG item);
     static bool removeItem(PLAYER &qPlayer, SLONG item);
     static bool useItem(PLAYER &qPlayer, SLONG item);
+    static SLONG numFreeSlots(PLAYER &qPlayer);
 
     /* Flights */
     static bool takeFlightJob(PLAYER &qPlayer, SLONG jobId, SLONG &outObjectId);

@@ -42,7 +42,7 @@ Bot::Prio Bot::condAll(SLONG actionId) {
     case ACTION_PERSONAL:
         return condVisitHR(moneyAvailable);
     case ACTION_VISITKIOSK:
-        return condVisitMisc();
+        return condVisitKiosk();
     case ACTION_VISITMECH:
         return condVisitMech();
     case ACTION_VISITMUSEUM:
@@ -107,8 +107,18 @@ Bot::Prio Bot::condAll(SLONG actionId) {
         return condOvertakeAirline();
     case ACTION_VISITSABOTEUR:
         return condVisitSaboteur();
+    case ACTION_ENERGY_DRINK:
+        return condGetEnergyDrink();
+    case ACTION_VISIT_OFFICE_A:
+        return condSabotageOfficeA();
+    case ACTION_VISIT_OFFICE_B:
+        return condSabotageOfficeB();
+    case ACTION_VISIT_OFFICE_C:
+        return condSabotageOfficeC();
+    case ACTION_VISIT_OFFICE_D:
+        return condSabotageOfficeD();
     default:
-        AT_Error("Bot::condAll(): Default case should not be reached.");
+        AT_Error("Bot::condAll(): Default case should not be reached. Missing conditions for action: %s", Translate_ACTION(actionId));
         return Prio::None;
     }
     return Prio::None;
@@ -201,18 +211,7 @@ Bot::Prio Bot::condCallInternationalHandy() {
 }
 
 Bot::Prio Bot::condCheckLastMinute() {
-    if (mPlanesForJobs.empty()) {
-        return Prio::None; /* no planes */
-    }
-    if (!mPlanerSolution.empty()) {
-        return Prio::None; /* previously grabbed flights still not scheduled */
-    }
-
-    auto res = howToPlanFlights();
-    if (HowToPlan::Office == res && Sim.GetHour() >= 17) {
-        return Prio::None; /* might be too late to reach office */
-    }
-    if (HowToPlan::None == res) {
+    if (!canGrabFlights()) {
         return Prio::None;
     }
 
@@ -227,18 +226,7 @@ Bot::Prio Bot::condCheckLastMinute() {
 }
 
 Bot::Prio Bot::condCheckTravelAgency() {
-    if (mPlanesForJobs.empty()) {
-        return Prio::None; /* no planes */
-    }
-    if (!mPlanerSolution.empty()) {
-        return Prio::None; /* previously grabbed flights still not scheduled */
-    }
-
-    auto res = howToPlanFlights();
-    if (HowToPlan::Office == res && Sim.GetHour() >= 17) {
-        return Prio::None; /* might be too late to reach office */
-    }
-    if (HowToPlan::None == res) {
+    if (!canGrabFlights()) {
         return Prio::None;
     }
 
@@ -257,33 +245,23 @@ Bot::Prio Bot::condCheckTravelAgency() {
 }
 
 Bot::Prio Bot::condCheckFreight() {
-    if (!qPlayer.RobotUse(ROBOT_USE_FRACHT)) {
-        return Prio::None;
-    }
-
-    if (mPlanesForJobs.empty()) {
-        return Prio::None; /* no planes */
-    }
-    if (!mPlanerSolution.empty()) {
-        return Prio::None; /* previously grabbed flights still not scheduled */
-    }
-
-    auto res = howToPlanFlights();
-    if (HowToPlan::Office == res && Sim.GetHour() >= 17) {
-        return Prio::None; /* might be too late to reach office */
-    }
-    if (HowToPlan::None == res) {
-        return Prio::None;
-    }
-
     Prio prio = Prio::None;
-    if (minutesPassed(ACTION_CHECKAGENT3, kCheckFreightDepotEveryXMinutes)) {
-        auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::Higher : Prio::High;
-        prio = std::max(prio, targetPrio);
+
+    if (qPlayer.RobotUse(ROBOT_USE_FRACHT) && canGrabFlights()) {
+        if (minutesPassed(ACTION_CHECKAGENT3, kCheckFreightDepotEveryXMinutes)) {
+            auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::Higher : Prio::High;
+            prio = std::max(prio, targetPrio);
+        }
+        if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
+            prio = std::max(prio, Prio::Low);
+        }
     }
-    if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
+
+    /* pick up glue */
+    if (!mGlueWasTaken && qPlayer.HasItem(ITEM_PAPERCLIP)) {
         prio = std::max(prio, Prio::Low);
     }
+
     return prio;
 }
 
@@ -557,16 +535,18 @@ Bot::Prio Bot::condVisitSaboteur() {
 
     Prio prio = Prio::None;
 
-    /* check if we want to prevent competitors from shutting down security office */
-    if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE) && !mPliersWereTaken) {
-        auto targetPrio = mUsingSecurity ? Prio::High : Prio::Low;
-        prio = std::max(prio, targetPrio);
-    }
+    if (!mPliersWereTaken && determineSpecialSabotage() == SpecialSabotage::CutWires) {
+        /* check if we want to prevent competitors from shutting down security office */
+        if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE)) {
+            auto targetPrio = mUsingSecurity ? Prio::High : Prio::Low;
+            prio = std::max(prio, targetPrio);
+        }
 
-    /* we might need them to shut down security office */
-    if (qPlayer.HasItem(ITEM_ZANGE) == 0) {
-        auto targetPrio = mNeedToShutdownSecurity ? Prio::Medium : Prio::Low;
-        prio = std::max(prio, targetPrio);
+        /* we might need them to shut down security office */
+        if (qPlayer.HasItem(ITEM_ZANGE) == 0) {
+            auto targetPrio = mNeedToShutdownSecurity ? Prio::Medium : Prio::Low;
+            prio = std::max(prio, targetPrio);
+        }
     }
 
     /* collect darts */
@@ -859,6 +839,11 @@ Bot::Prio Bot::condVisitArab() {
     if (qPlayer.HasItem(ITEM_MG)) {
         prio = std::max(prio, Prio::Low);
     }
+
+    if (!mGlovesWereTaken && determineSpecialSabotage() == SpecialSabotage::StinkBomb) {
+        prio = std::max(prio, Prio::Low);
+    }
+
     return std::max(prio, condVisitMisc());
 }
 
@@ -955,26 +940,24 @@ Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
 }
 
 Bot::Prio Bot::condVisitRouteBoxPlanning() {
-    if (!hoursPassed(ACTION_VISITROUTEBOX, kFrequencyRouteStrategy)) {
-        return Prio::None;
-    }
-    if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) || !mDoRoutes) {
-        return Prio::None;
-    }
-    if (mRunToFinalObjective > FinalPhase::No) {
-        return Prio::None;
-    }
-    if (mKnownPlaneTypes.empty()) {
-        return Prio::None; /* we need to know what planes we can buy */
+    Prio prio = Prio::None;
+
+    /* route strategy */
+    bool timePassedRoutes = hoursPassed(ACTION_VISITROUTEBOX, kFrequencyRouteStrategy);
+    if (timePassedRoutes && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) && mDoRoutes && !mKnownPlaneTypes.empty()) {
+        if (!mRoutesUtilizationUpdated) {
+            prio = std::max(prio, Prio::Medium); /* update cached route info */
+        }
+        if ((mWantToRentRouteId == -1) && (mRoutesNextStep == RoutesNextStep::RentNewRoute)) {
+            prio = std::max(prio, Prio::Medium);
+        }
     }
 
-    Prio prio = Prio::None;
-    if (!mRoutesUtilizationUpdated) {
-        prio = std::max(prio, Prio::Medium); /* update cached route info */
+    /* pick up paperclip */
+    if (!mPaperClipsWereTaken && determineSpecialSabotage() == SpecialSabotage::Glue) {
+        prio = std::max(prio, Prio::Low);
     }
-    if ((mWantToRentRouteId == -1) && (mRoutesNextStep == RoutesNextStep::RentNewRoute)) {
-        prio = std::max(prio, Prio::Medium);
-    }
+
     return prio;
 }
 
@@ -1139,4 +1122,78 @@ Bot::Prio Bot::condVisitAds() {
     }
 
     return prio;
+}
+
+Bot::Prio Bot::condGetEnergyDrink() {
+    if (!hoursPassed(ACTION_ENERGY_DRINK, 24)) {
+        return Prio::None;
+    }
+    if (qPlayer.HasItem(ITEM_GLOVE) == 0) {
+        return Prio::None;
+    }
+    return Prio::Low;
+}
+
+Bot::Prio Bot::condVisitKiosk() {
+    Prio prio = Prio::None;
+    if (qPlayer.HasItem(ITEM_REDBULL) && hoursPassed(ACTION_VISITKIOSK, 24)) {
+        prio = std::max(prio, Prio::Low);
+    }
+    return std::max(prio, condVisitMisc());
+}
+
+Bot::Prio Bot::condSabotageOfficeA() {
+    if (!hoursPassed(ACTION_VISIT_OFFICE_A, 24)) {
+        return Prio::None;
+    }
+    if (Sim.CallItADay != 0) {
+        return Prio::None;
+    }
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qPlayer.HasItem(ITEM_ZANGE) && (mNemesis == 0)) {
+        const auto &qNemesis = Sim.Players.Players[mNemesis];
+        return (qNemesis.OfficeState == 0 && qNemesis.IsOut == 0) ? Prio::Low : Prio::None;
+    }
+    return Prio::None;
+}
+
+Bot::Prio Bot::condSabotageOfficeB() {
+    if (!hoursPassed(ACTION_VISIT_OFFICE_B, 24)) {
+        return Prio::None;
+    }
+    if (Sim.CallItADay != 0) {
+        return Prio::None;
+    }
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qPlayer.HasItem(ITEM_ZANGE) && (mNemesis == 1)) {
+        const auto &qNemesis = Sim.Players.Players[mNemesis];
+        return (qNemesis.OfficeState == 0 && qNemesis.IsOut == 0) ? Prio::Low : Prio::None;
+    }
+    return Prio::None;
+}
+
+Bot::Prio Bot::condSabotageOfficeC() {
+    if (!hoursPassed(ACTION_VISIT_OFFICE_C, 24)) {
+        return Prio::None;
+    }
+    if (Sim.CallItADay != 0) {
+        return Prio::None;
+    }
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qPlayer.HasItem(ITEM_ZANGE) && (mNemesis == 2)) {
+        const auto &qNemesis = Sim.Players.Players[mNemesis];
+        return (qNemesis.OfficeState == 0 && qNemesis.IsOut == 0) ? Prio::Low : Prio::None;
+    }
+    return Prio::None;
+}
+
+Bot::Prio Bot::condSabotageOfficeD() {
+    if (!hoursPassed(ACTION_VISIT_OFFICE_D, 24)) {
+        return Prio::None;
+    }
+    if (Sim.CallItADay != 0) {
+        return Prio::None;
+    }
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qPlayer.HasItem(ITEM_ZANGE) && (mNemesis == 3)) {
+        const auto &qNemesis = Sim.Players.Players[mNemesis];
+        return (qNemesis.OfficeState == 0 && qNemesis.IsOut == 0) ? Prio::Low : Prio::None;
+    }
+    return Prio::None;
 }

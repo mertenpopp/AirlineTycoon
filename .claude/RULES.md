@@ -72,6 +72,8 @@ The `ClaudeBot` class already has the two friend functions:
 
 Remember to always update these two functions when you add a new data member to the `ClaudeBot` class.
 
+Savegame loading shall be backwards compatible. This means that savegames created from previous releases (tagged commits) should still load by checking a version number in the savegame and using default values for any variables added in the meantime. However, only saves from tagged commits shall be compatible, not from any untagged version.
+
 Game actions
 ============
 
@@ -612,6 +614,8 @@ The game has an item mechanic. Items can be used to sabotage competitors or prot
 
 `bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item)`: Attempts to use the specified item at the current location.
 
+`SLONG GameMechanic::numFreeSlots(PLAYER &qPlayer)`: Returns the number of free slots in the inventory.
+
 `GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE item):` This action can only be used in the "Duty Free" shop. Use the action ID ACTION_VISITDUTYFREE to walk there. Use this function to buy certain items for money.
 
 We now explain certain items. The are more items but for now, please do not use these yet.
@@ -659,6 +663,10 @@ To gain the trust of the saboteur, buy item `ITEM_MG` at the "Duty Free" shop. G
 
 To sabotage the security office, pick up the item `ITEM_ZANGE` at the saboteur. Use it while in the security office by calling `GameMechanic::sabotageSecurityOffice(PLAYER &qPlayer))`.
 
+### Sabotage competitor office
+
+To sabotage a competitor's office, pick up the item `ITEM_ZANGE` at the saboteur. Entering an office owned by a competitor will then automatically disable the lights in the office for the rest of the day and remove the item. Note that this will only impede a human player (black screen, human can still use all office actions if they remember the location of the clickable areas). This only works during regular play, not fast-forward mode.
+
 ### Buy laptop
 
 Buy a laptop (`ITEM_LAPTOP`) at the "Duty Free" shop to be able to plan flights anywhere. Shop only has one laptop in stock at any given day, a competitor might have been faster. This action can be repeated to improve laptop quality (`qPlayer.LaptopQuality`) point-by-point until maximum quality of 4. Laptops only become available starting at a specific day. Use `Sim.Date > DAYS_WITHOUT_LAPTOP` to check.
@@ -666,6 +674,27 @@ Buy a laptop (`ITEM_LAPTOP`) at the "Duty Free" shop to be able to plan flights 
 ### Buy mobile phone
 
 Buy a mobile phone (`ITEM_HANDY`) at the "Duty Free" shop to be able to get international flight jobs from other cities.
+
+### Stink bombs
+
+Stink bombs can only be properly used when the game does not fast-forward.
+
+Follow these steps:
+
+- Pick up the gloves (`ITEM_GLOVE`) at the Arab.
+- Pick up the energy drink (`ITEM_REDBULL`) at the vending machine (`ROOM_ELECTRO`, walk there using action ID `ACTION_ENERGY_DRINK`). Picking up the drink will automatically remove the gloves.
+- Use `ITEM_REDBULL` while at the kiosk.
+- Pick up `ITEM_STINKBOMBE` while at the kiosk.
+
+### Glue
+
+Glue can only be properly used when the game does not fast-forward. It can be dropped on the floor. The next player character that steps into it gets stuck for a certain amount of time.
+
+Follow these steps:
+
+- Pick up the gloves (`ITEM_PAPERCLIP`) at the route box.
+- Use `ITEM_PAPERCLIP` while at the freight depot.
+- Pick up `ITEM_GLUE` while at the freight depot.
 
 Security office
 ---------------
@@ -830,12 +859,16 @@ You have read access to:
 - `Sim.Date`, `Sim.Time`, `Sim.GetHour()`, `Sim.GetMinute()`: Query in-game time.
 - `Sim.Weekday`: Get current day of the week.
 - `Sim.StartWeekday`: Get day of the week where game was started.
+- `Sim.CallItADay`: "1" means all human players do not want to do any actions this day. Game then runs in a "fast-forward" mode.
 - `Sim.Difficulty`: Denotes whether we are in a free game or a mission. Always assume free game `Sim.Difficulty == -1`.
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
 - `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and personal office (or using laptop). `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
 - `Sim.HomeAirportId`: City ID of the home airport.
+- `Sim.ItemClips`: Is the item `ITEM_PAPERCLIP` still available at the freight depot? May only be read while in the freight depot.
+- `Sim.ItemGlove`: Is the item `ITEM_GLOVE` still available at the arab? May only be read while in the arab room.
+- `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office? May only be read while in the HR office.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur? May only be read while in the saboteur room.
-- `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office?
+- `Sim.localPlayer`: Gives the player ID of the local player of this game instance.
 - `Sim.nSecOutDays`: Check for how many days the security office is closed. Security office can close due to sabotage.
 - `Sim.bNetwork`: Check if this is a network game.
 - `Sim.bIsHost`: Check if this game instance is the host in a network game.
@@ -870,6 +903,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
 - `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
+- `Items`: Listing the IDs of all items the player currently has. May be read anywhere.
 - `IsStuck`: Whether player character is currently stuck. Can be read at any time.
 - `KerosinQuali`: Current kerosene quality level. Only read if `qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30`.
 - `Kooperation`: Cooperation flags with other players.
@@ -880,7 +914,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `MechMode`: Which mechanic is currently employed. Only read while visiting the mechanic.
 - `Money`: Current cash balance.
 - `Name`: Name of the player
-- `OfficeState`: Office usability status.
+- `OfficeState`: Office usability status. May always be read.
 - `OwnsAktien`: Shares owned in each airline, array access by airline ID. May always be read.
 - `Planes`: Plane collection (accessing, iterating, reading plane data). Access rights depend on the exact field of `CPlane` and are given below.
 - `PlayerNum`: Player number, used as index in many arrays.

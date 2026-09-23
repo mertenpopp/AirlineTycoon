@@ -299,15 +299,7 @@ __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
     return moneyForecast;
 }
 
-bool Bot::canWeCallInternational() {
-    if (!qPlayer.RobotUse(ROBOT_USE_ABROAD)) {
-        return false;
-    }
-
-    if (qPlayer.TelephoneDown != 0) {
-        return false;
-    }
-
+bool Bot::canGrabFlights() {
     if (mPlanesForJobs.empty()) {
         return false; /* no planes */
     }
@@ -321,6 +313,19 @@ bool Bot::canWeCallInternational() {
     }
     if (HowToPlan::Office == res && Sim.GetHour() >= 17) {
         return false; /* might be too late to reach office */
+    }
+    return true;
+}
+
+bool Bot::canWeCallInternational() {
+    if (!qPlayer.RobotUse(ROBOT_USE_ABROAD)) {
+        return false;
+    }
+    if (qPlayer.TelephoneDown != 0) {
+        return false;
+    }
+    if (!canGrabFlights()) {
+        return false;
     }
 
     for (SLONG c = 0; c < 4; c++) {
@@ -697,6 +702,18 @@ void Bot::setMoodByActionId(SLONG actionId) {
     case ACTION_STARTDAY_LAPTOP:
         mMoodNext = -1;
         break;
+    case ACTION_ENERGY_DRINK:
+        mMoodNext = MoodPersonBeverage;
+        break;
+    case ACTION_VISIT_OFFICE_A:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_B:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_C:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_D:
+        mMoodNext = 4;
+        break;
     default:
         DebugBreak();
     }
@@ -704,6 +721,7 @@ void Bot::setMoodByActionId(SLONG actionId) {
 
 bool Bot::useItem(SLONG item) {
     if (!GameMechanic::useItem(qPlayer, item)) {
+        AT_Error("Bot::useItem(): Failed to use item %s", Helper::getItemName(item));
         return false;
     }
     if (qPlayer.HasItem(item)) {
@@ -711,6 +729,18 @@ bool Bot::useItem(SLONG item) {
         return false;
     }
     AT_Log("Bot::useItem(): Used item: %s", Helper::getItemName(item));
+    return true;
+}
+
+bool Bot::dropItem(SLONG item) {
+    if (!GameMechanic::removeItem(qPlayer, item)) {
+        return false;
+    }
+    if (qPlayer.HasItem(item)) {
+        AT_Error("Bot::dropItem(): Still have item %s after dropping it", Helper::getItemName(item));
+        return false;
+    }
+    AT_Log("Bot::dropItem(): Droppped item: %s", Helper::getItemName(item));
     return true;
 }
 
@@ -724,6 +754,27 @@ bool Bot::pickUpItem(SLONG item) {
     }
     AT_Log("Bot::pickUpItem(): Picked up item: %s", Helper::getItemName(item));
     return true;
+}
+
+/* tries to pick up item, if condition is true. Use wantToKeep==false to pick&throw (to prevent competitors from obtaining it).
+ * returned flag: if anything was done at all */
+bool Bot::tryPickUpItem(SLONG condition, SLONG item, bool wantToKeep) {
+    bool didWork = false;
+    if (condition == 1) {
+        if (qPlayer.HasItem(item) == 1) {
+            dropItem(item);
+            didWork = true;
+        }
+        if (GameMechanic::numFreeSlots(qPlayer) > 0) {
+            pickUpItem(item);
+            didWork = true;
+        }
+    }
+    if (!wantToKeep && (qPlayer.HasItem(item) == 1)) {
+        dropItem(item);
+        didWork = true;
+    }
+    return didWork;
 }
 
 void Bot::printRobotFlags() const {

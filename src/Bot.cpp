@@ -99,15 +99,6 @@ void Bot::RobotInit(SLONG randomSeed) {
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
             Insert1000erDots64(balance.GetOpVerlust()).c_str());
 
-    /* print inventory */
-    printf("Inventory: ");
-    for (SLONG d = 0; d < 6; d++) {
-        if (qPlayer.Items[d] != 0xff) {
-            printf("%s, ", Helper::getItemName(qPlayer.Items[d]));
-        }
-    }
-    printf("\n");
-
     if (mFirstRun) {
         AT_Log("Bot::RobotInit(): First run.");
 
@@ -215,6 +206,9 @@ void Bot::RobotInit(SLONG randomSeed) {
     mDayStarted = false;
     mNeedToShutdownSecurity = false;
     mPliersWereTaken = false;
+    mGlovesWereTaken = false;
+    mPaperClipsWereTaken = false;
+    mGlueWasTaken = false;
 
     /* status boss office */
     mBossNumCitiesAvailable = -1;
@@ -252,7 +246,7 @@ void Bot::RobotPlan() {
 
     auto &qRobotActions = qPlayer.RobotActions;
 
-    std::array<SLONG, 42> actions = {
+    std::array<SLONG, 47> actions = {
         ACTION_STARTDAY, ACTION_STARTDAY_LAPTOP,
         /* repeated actions */
         ACTION_BUERO, ACTION_CALL_INTERNATIONAL, ACTION_CALL_INTER_HANDY, ACTION_CHECKAGENT1, ACTION_CHECKAGENT2, ACTION_CHECKAGENT3, ACTION_UPGRADE_PLANES,
@@ -260,7 +254,8 @@ void Bot::RobotPlan() {
         ACTION_SET_DIVIDEND, ACTION_RAISEMONEY, ACTION_DROPMONEY, ACTION_EMITSHARES, ACTION_SELLSHARES, ACTION_BUYSHARES, ACTION_VISITMECH, ACTION_VISITNASA,
         ACTION_VISITTELESCOPE, ACTION_VISITMAKLER, ACTION_VISITARAB, ACTION_VISITRICK, ACTION_VISITKIOSK, ACTION_VISITDUTYFREE, ACTION_VISITAUFSICHT,
         ACTION_EXPANDAIRPORT, ACTION_VISITROUTEBOX, ACTION_VISITROUTEBOX2, ACTION_VISITSECURITY, ACTION_VISITSECURITY2, ACTION_VISITDESIGNER,
-        ACTION_WERBUNG_ROUTES, ACTION_WERBUNG, ACTION_VISITADS, ACTION_OVERTAKE_AIRLINE, ACTION_VISITSABOTEUR};
+        ACTION_WERBUNG_ROUTES, ACTION_WERBUNG, ACTION_VISITADS, ACTION_OVERTAKE_AIRLINE, ACTION_VISITSABOTEUR, ACTION_ENERGY_DRINK, ACTION_VISIT_OFFICE_A,
+        ACTION_VISIT_OFFICE_B, ACTION_VISIT_OFFICE_C, ACTION_VISIT_OFFICE_D};
 
     if (qRobotActions[0].ActionId != ACTION_NONE || qRobotActions[1].ActionId != ACTION_NONE) {
         AT_Log("Bot.cpp: Leaving RobotPlan() (actions already planned)\n");
@@ -478,7 +473,9 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_VISITSABOTEUR:
-        actionVisitSaboteur();
+        if (!actionVisitSaboteur()) {
+            qPlayer.WorkCountdown = 2;
+        }
         break;
 
     case ACTION_SET_DIVIDEND: {
@@ -562,7 +559,9 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_VISITKIOSK:
-        qPlayer.WorkCountdown = 2;
+        if (!actionVisitKiosk()) {
+            qPlayer.WorkCountdown = 2;
+        }
         break;
 
     case ACTION_VISITMAKLER: {
@@ -581,12 +580,7 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_VISITARAB:
-        if (mItemArabTrust == 1) {
-            if (useItem(ITEM_MG)) {
-                AT_Log("Bot::RobotExecuteAction(): Used item MG");
-                mItemArabTrust = 2;
-            }
-        } else {
+        if (!actionVisitArab()) {
             qPlayer.WorkCountdown = 2;
         }
         break;
@@ -625,7 +619,9 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_VISITROUTEBOX:
-        actionVisitRouteBox();
+        if (!actionVisitRouteBox()) {
+            qPlayer.WorkCountdown = 2;
+        }
         break;
 
     case ACTION_VISITROUTEBOX2:
@@ -660,6 +656,26 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_VISITADS:
         actionVisitAds();
+        break;
+
+    case ACTION_ENERGY_DRINK:
+        /* this only triggers during fast-forward -> we have no use for gloves/energy drink anymore */
+        assert(Sim.CallItADay != 0);
+        if (qPlayer.HasItem(ITEM_GLOVE)) {
+            dropItem(ITEM_GLOVE);
+        }
+        qPlayer.WorkCountdown = 2;
+        break;
+
+    case ACTION_VISIT_OFFICE_A:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_B:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_C:
+        [[fallthrough]];
+    case ACTION_VISIT_OFFICE_D:
+        /* this only triggers during fast-forward -> we keep pliers for potential security office sabotage */
+        qPlayer.WorkCountdown = 2;
         break;
 
     default:
@@ -734,7 +750,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mNeedToPlanJobs << bot.mNeedToPlanRoutes;
     File << bot.mMoneyReservedForRepairs << bot.mMoneyReservedForUpgrades;
     File << bot.mMoneyReservedForAuctions << bot.mMoneyReservedForFines;
-    File << bot.mNemesis << bot.mNemesisScore << bot.mNeedToShutdownSecurity << bot.mPliersWereTaken << bot.mUsingSecurity;
+    File << bot.mNemesis << bot.mNemesisScore << bot.mNeedToShutdownSecurity;
+    File << bot.mPliersWereTaken << bot.mGlovesWereTaken << bot.mPaperClipsWereTaken << bot.mGlueWasTaken << bot.mUsingSecurity;
     File << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage << bot.mWeeklyOperatingSaldo;
 
     File << bot.mBossNumCitiesAvailable;
@@ -917,8 +934,14 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mNemesis >> bot.mNemesisScore >> bot.mNeedToShutdownSecurity;
     if (savegameVersion < 103) {
         bot.mPliersWereTaken = false;
+        bot.mGlovesWereTaken = false;
+        bot.mPaperClipsWereTaken = false;
+        bot.mGlueWasTaken = false;
     } else {
         File >> bot.mPliersWereTaken;
+        File >> bot.mGlovesWereTaken;
+        File >> bot.mPaperClipsWereTaken;
+        File >> bot.mGlueWasTaken;
     }
     File >> bot.mUsingSecurity;
     File >> bot.mNemesisSabotaged >> bot.mArabHintsTracker >> bot.mCurrentImage;
@@ -995,7 +1018,8 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> bot.mQualifiedCrewForHire;
     }
 
-    File >> bot.mItemPills >> bot.mItemAntiVirus >> bot.mItemAntiStrike >> bot.mItemArabTrust >> bot.mIsSickToday;
+    File >> bot.mItemPills >> bot.mItemAntiVirus >> bot.mItemAntiStrike >> bot.mItemArabTrust;
+    File >> bot.mIsSickToday;
 
     File >> size;
     bot.mPlanerSolution.list.resize(size);

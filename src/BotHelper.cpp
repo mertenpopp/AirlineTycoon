@@ -844,6 +844,16 @@ SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId) {
         [[fallthrough]];
     case ACTION_STARTDAY_LAPTOP:
         return 0; /* no need to walk anywhere */
+    case ACTION_ENERGY_DRINK:
+        return ROOM_ELECTRO;
+    case ACTION_VISIT_OFFICE_A:
+        return ROOM_BURO_A;
+    case ACTION_VISIT_OFFICE_B:
+        return ROOM_BURO_B;
+    case ACTION_VISIT_OFFICE_C:
+        return ROOM_BURO_C;
+    case ACTION_VISIT_OFFICE_D:
+        return ROOM_BURO_D;
     default:
         DebugBreak();
     }

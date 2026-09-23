@@ -93,9 +93,40 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
 
     AT_Log("Bot::actionStartDay(): Can use laptop? %s", checkLaptop() ? "Yes" : "No");
 
+    /* print inventory */
+    std::string items;
+    for (SLONG d = 0; d < 6; d++) {
+        if (qPlayer.Items[d] != 0xff) {
+            if (!items.empty()) {
+                items += ", ";
+            }
+            items += Helper::getItemName(qPlayer.Items[d]);
+        }
+    }
+    AT_Log("Bot::actionStartDay(): Items: %s", items.c_str());
+
     AT_Log("Bot::actionStartDay(): mItemPills: %d%s, mItemAntiVirus: %d%s, mItemAntiStrike: %d, mItemArabTrust: %d", mItemPills,
            qPlayer.HasItem(ITEM_TABLETTEN) ? " (owned)" : "", mItemAntiVirus, qPlayer.HasItem(ITEM_DISKETTE) ? " (owned)" : "", mItemAntiStrike,
            mItemArabTrust);
+    switch (determineSpecialSabotage()) {
+    case SpecialSabotage::No:
+        AT_Log("Bot::determineSpecialSabotage(): No");
+        break;
+    case SpecialSabotage::CutWires:
+        AT_Log("Bot::determineSpecialSabotage(): CutWires");
+        break;
+    case SpecialSabotage::StinkBomb:
+        AT_Log("Bot::determineSpecialSabotage(): StinkBomb");
+        break;
+    case SpecialSabotage::Glue:
+        AT_Log("Bot::determineSpecialSabotage(): Glue");
+        break;
+    case SpecialSabotage::Any:
+        AT_Log("Bot::determineSpecialSabotage(): Any");
+        break;
+    default:
+        break;
+    }
 
     /* check lists of planes, check which planes are available for service and which are not */
     if (checkPlaneLists()) {
@@ -234,9 +265,23 @@ void Bot::actionCheckTravelAgency() {
 }
 
 void Bot::actionCheckFreightDepot() {
-    BotPlaner planer(qPlayer, qPlayer.Planes);
-    planer.addJobSource(BotPlaner::JobOwner::Freight, {});
-    grabFlights(planer, false);
+    if (qPlayer.RobotUse(ROBOT_USE_FRACHT) && canGrabFlights()) {
+        BotPlaner planer(qPlayer, qPlayer.Planes);
+        planer.addJobSource(BotPlaner::JobOwner::Freight, {});
+        grabFlights(planer, false);
+    }
+
+    if (qPlayer.HasItem(ITEM_PAPERCLIP)) {
+        if (Sim.ItemGlue != 0) {
+            dropItem(ITEM_PAPERCLIP); /* we do not need it anymore, somebody else has also given it */
+        } else {
+            useItem(ITEM_PAPERCLIP);
+        }
+    }
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && Sim.ItemGlue == 1) {
+        tryPickUpItem(Sim.ItemGlue, ITEM_GLUE, true);
+    }
+    mGlueWasTaken = (Sim.ItemGlue != 0);
 }
 
 void Bot::actionUpgradePlanes() {
@@ -748,11 +793,7 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
 }
 
 void Bot::actionBuyKerosine(__int64 moneyAvailable) {
-    if (mItemArabTrust == 1) {
-        if (useItem(ITEM_MG)) {
-            mItemArabTrust = 2;
-        }
-    }
+    actionVisitArab();
 
     auto Preis = Sim.HoleKerosinPreis(1); /* range: 300 - 700 */
     __int64 moneyToSpend = (moneyAvailable - 2500 * 1000LL);
@@ -798,6 +839,8 @@ void Bot::actionBuyKerosine(__int64 moneyAvailable) {
 }
 
 void Bot::actionBuyKerosineTank(__int64 moneyAvailable) {
+    actionVisitArab();
+
     auto nTankTypes = TankSize.size();
     for (SLONG i = nTankTypes - 1; i >= 1; i--) // avoid cheapest tank (not economical)
     {
@@ -928,26 +971,6 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
             AT_Error("Bot::actionSabotage(): Cannot sabotage %s: Unknown error", targetName.c_str());
         }
     }
-}
-
-void Bot::actionVisitSaboteur() {
-    if (mItemAntiVirus == 1 && qPlayer.ArabTrust != 0) {
-        if (useItem(ITEM_SPINNE)) {
-            mItemAntiVirus = 2;
-        }
-    }
-    if (mItemAntiVirus == 2) {
-        if (pickUpItem(ITEM_DART)) {
-            mItemAntiVirus = 3;
-        }
-    }
-    if (Sim.ItemZange == 1) {
-        if (qPlayer.HasItem(ITEM_ZANGE) == 1) {
-            GameMechanic::removeItem(qPlayer, ITEM_ZANGE);
-        }
-        pickUpItem(ITEM_ZANGE);
-    }
-    mPliersWereTaken = true;
 }
 
 __int64 Bot::calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const {
@@ -1192,6 +1215,52 @@ void Bot::actionVisitMech() {
            Insert1000erDots64(getMoneyAvailable()).c_str());
 }
 
+bool Bot::actionVisitSaboteur() {
+    bool didWork = false;
+    if (mItemAntiVirus == 1 && qPlayer.ArabTrust != 0) {
+        if (useItem(ITEM_SPINNE)) {
+            mItemAntiVirus = 2;
+        }
+        didWork = true;
+    }
+    if (mItemAntiVirus == 2) {
+        if (pickUpItem(ITEM_DART)) {
+            mItemAntiVirus = 3;
+        }
+        didWork = true;
+    }
+
+    bool didWorkItems = false;
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) || qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE)) {
+        /* we only try to keep the pliers if we did not start another sabotage item chain.
+         * in any case, we will pick it up so nobody else gets it */
+        bool wantToKeep = (qPlayer.HasItem(ITEM_ZANGE) || determineSpecialSabotage() == SpecialSabotage::CutWires);
+        didWorkItems = tryPickUpItem(Sim.ItemZange, ITEM_ZANGE, wantToKeep);
+    }
+    mPliersWereTaken = (Sim.ItemZange == 0);
+    return didWork || didWorkItems;
+}
+
+bool Bot::actionVisitArab() {
+    bool didWork = false;
+    if (mItemArabTrust == 1) {
+        if (useItem(ITEM_MG)) {
+            mItemArabTrust = 2;
+        }
+        didWork = true;
+    }
+
+    bool didWorkItems = false;
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE)) {
+        /* we only try to keep the gloves if we did not start another sabotage item chain.
+         * in any case, we will pick it up so nobody else gets it */
+        bool wantToKeep = (qPlayer.HasItem(ITEM_GLOVE) || determineSpecialSabotage() == SpecialSabotage::StinkBomb);
+        didWorkItems = tryPickUpItem(Sim.ItemGlove, ITEM_GLOVE, wantToKeep);
+    }
+    mGlovesWereTaken = (Sim.ItemGlove == 0);
+    return didWork || didWorkItems;
+}
+
 bool Bot::actionVisitDutyFree(__int64 moneyAvailable) {
     bool actionPerformed = false;
     if (mItemAntiStrike == 1) {
@@ -1311,10 +1380,24 @@ void Bot::actionVisitBoss() {
     }
 }
 
-void Bot::actionVisitRouteBox() {
-    updateRouteInfoBoard();
-    assignPlanesToRoutes(false);
-    findBestRoute();
+bool Bot::actionVisitRouteBox() {
+    bool didWork = false;
+    if (qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) && mDoRoutes) {
+        updateRouteInfoBoard();
+        assignPlanesToRoutes(false);
+        findBestRoute();
+        didWork = true;
+    }
+
+    bool didWorkItems = false;
+    if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE)) {
+        /* we only try to keep the paperclips if we did not start another sabotage item chain.
+         * in any case, we will pick it up so nobody else gets it */
+        bool wantToKeep = (qPlayer.HasItem(ITEM_PAPERCLIP) || determineSpecialSabotage() == SpecialSabotage::Glue);
+        didWorkItems = tryPickUpItem(Sim.ItemClips, ITEM_PAPERCLIP, wantToKeep);
+    }
+    mPaperClipsWereTaken = (Sim.ItemClips == 0);
+    return didWork || didWorkItems;
 }
 
 void Bot::actionRentRoute() {
@@ -1485,4 +1568,15 @@ void Bot::actionVisitSecurity(__int64 /*moneyAvailable*/) {
     } else {
         AT_Log("Bot::actionVisitSecurity(): Deactivate security measures");
     }
+}
+
+bool Bot::actionVisitKiosk() {
+    if (!qPlayer.HasItem(ITEM_REDBULL)) {
+        return false;
+    }
+    useItem(ITEM_REDBULL);
+    if (!pickUpItem(ITEM_STINKBOMBE)) {
+        AT_Error("Bot::actionVisitKiosk(): Failed to pick up stink bomb");
+    }
+    return true;
 }
