@@ -292,11 +292,11 @@ void Bot::RobotPlan() {
         }
 
         SLONG room = Helper::getRoomFromAction(qPlayer.PlayerNum, action);
-        prioList.emplace_back(PrioListItem{action, prio, qPlayer.PlayerWalkRandom.Rand(0, 100)});
+        prioList.emplace_back(PrioListItem{action, prio, qPlayer.PlayerWalkRandom.Rand(0, 400)});
 
-        if (prio >= Prio::Medium && room > 0 && (Sim.Time > 540000)) {
+        if (room > 0 && (Sim.Time > 540000) && prio > Prio::Lowest) {
             /* factor in walking distance for more important actions */
-            prioList.back().walkingDistance = Helper::getWalkDistance(qPlayer.PlayerNum, room);
+            prioList.back().walkingDistance = Helper::getWalkDistancePlayerToRoom(qPlayer.PlayerNum, room);
         }
     }
 
@@ -308,26 +308,39 @@ void Bot::RobotPlan() {
     }
 
     /* sort by priority */
-    std::sort(prioList.begin(), prioList.end(), [](const PrioListItem &a, const PrioListItem &b) {
+    auto lambdaPrioSort = [](const PrioListItem &a, const PrioListItem &b) {
         if (a.prio == b.prio) {
-            return ((a.rnd + a.walkingDistance) < (b.rnd + b.walkingDistance));
+            return ((a.rnd + a.walkingDistance) > (b.rnd + b.walkingDistance));
         }
-        return (a.prio > b.prio);
-    });
-
-    /*for (const auto &qAction : prioList) {
-        AT_Log("Bot::RobotPlan(): %s with prio %s (%d+%d)", Translate_ACTION(qAction.actionId), getPrioName(qAction.prio), qAction.rnd,
-                qAction.walkingDistance);
-    }*/
+        return (a.prio < b.prio);
+    };
+    std::sort(prioList.begin(), prioList.end(), lambdaPrioSort);
 
     auto threshNoRun = (qPlayer.BotLevel > BotDifficultyLaidBack ? Prio::Low : Prio::Top);
 
-    qFirstAction.ActionId = prioList[0].actionId;
-    qFirstAction.Running = (prioList[0].prio > threshNoRun);
-    qFirstAction.Prio = static_cast<SLONG>(prioList[0].prio);
-    qSecondAction.ActionId = prioList[1].actionId;
-    qSecondAction.Running = (prioList[1].prio > threshNoRun);
-    qSecondAction.Prio = static_cast<SLONG>(prioList[1].prio);
+    /* determine first action */
+    qFirstAction.ActionId = prioList.back().actionId;
+    qFirstAction.Prio = static_cast<SLONG>(prioList.back().prio);
+    qFirstAction.Running = (prioList.back().prio > threshNoRun);
+
+    /* update walk distance: from first room to second room and sort again */
+    prioList.resize(prioList.size() - 1); /* remove action selected as first action */
+    SLONG roomA = Helper::getRoomFromAction(qPlayer.PlayerNum, qFirstAction.ActionId);
+    if (roomA > 0 && Sim.Time > 540000) {
+        auto originRune = Airport.GetRandomTypedRune(RUNE_2SHOP, roomA);
+        for (auto &prio : prioList) {
+            SLONG roomB = Helper::getRoomFromAction(qPlayer.PlayerNum, prio.actionId);
+            if (roomB > 0 && prio.prio > Prio::Lowest) {
+                prio.walkingDistance = Helper::getWalkDistanceToRoom(originRune, roomB);
+            }
+        }
+        std::sort(prioList.begin(), prioList.end(), lambdaPrioSort);
+    }
+
+    /* determine second action */
+    qSecondAction.ActionId = prioList.back().actionId;
+    qSecondAction.Prio = static_cast<SLONG>(prioList.back().prio);
+    qSecondAction.Running = (prioList.back().prio > threshNoRun);
 
     AT_Log("Bot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
            Translate_ACTION(qSecondAction.ActionId));

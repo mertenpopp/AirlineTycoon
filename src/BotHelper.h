@@ -294,7 +294,9 @@ void printAllSchedules(bool infoOnly);
 
 bool checkRoomOpen(SLONG actionId);
 SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId);
-SLONG getWalkDistance(int playerNum, SLONG roomId);
+SLONG getDistance(XY origin, XY target);
+SLONG getWalkDistancePlayerToRoom(SLONG playerNum, SLONG roomId);
+SLONG getWalkDistanceToRoom(XY origin, SLONG roomB);
 
 const char *getItemName(SLONG item);
 

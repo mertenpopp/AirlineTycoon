@@ -850,18 +850,25 @@ SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId) {
     return -1;
 }
 
-SLONG getWalkDistance(int playerNum, SLONG roomId) {
-    auto primaryTarget = Airport.GetRandomTypedRune(RUNE_2SHOP, roomId);
-    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)];
-
-    SLONG speedCount = std::abs(qPerson.Position.x - primaryTarget.x);
-    speedCount += std::abs(qPerson.Position.y - primaryTarget.y);
-
-    if (std::abs(qPerson.Position.y - primaryTarget.y) > 4600) {
-        speedCount -= 4600;
+SLONG getDistance(XY origin, XY target) {
+    SLONG distX = std::abs(origin.x - target.x);
+    SLONG distY = std::abs(origin.y - target.y);
+    if (distY > 4600) {
+        distY -= 4600;
     }
-    speedCount = std::max(1, speedCount);
+    SLONG speedCount = std::max(1, distX + distY);
     return speedCount;
+}
+
+SLONG getWalkDistancePlayerToRoom(SLONG playerNum, SLONG roomId) {
+    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)];
+    auto target = Airport.GetRandomTypedRune(RUNE_2SHOP, roomId);
+    return getDistance(qPerson.Position, target);
+}
+
+SLONG getWalkDistanceToRoom(XY origin, SLONG roomB) {
+    auto target = Airport.GetRandomTypedRune(RUNE_2SHOP, roomB);
+    return getDistance(origin, target);
 }
 
 const char *getItemName(SLONG item) {
