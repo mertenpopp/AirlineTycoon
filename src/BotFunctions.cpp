@@ -140,7 +140,7 @@ void Bot::determineNemesis() {
     /* find best enemy */
     std::sort(scores.begin(), scores.end(), [](const auto &a, const auto &b) { return std::get<1>(a) > std::get<1>(b); });
 
-    /* target best enemy only when not in nemesis mode */
+    /* target best enemy (nemesis mode: best human enemy) */
     mNemesis = scores.front().first;
     mNemesisScore = scores.front().second;
     if (mNemesis == nemesisSabotaged && scores.size() > 1) {

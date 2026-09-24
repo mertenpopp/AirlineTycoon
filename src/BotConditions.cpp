@@ -426,7 +426,10 @@ Bot::Prio Bot::condVisitHR(__int64 &moneyAvailable) {
             prio = std::max(prio, Prio::Medium); /* to be able to hire crew more than once per day */
         }
     }
-    if (mItemPills >= 1 && qPlayer.HasItem(ITEM_TABLETTEN) == 0) {
+
+    if (mItemPills == 1) {
+        prio = std::max(prio, Prio::Low); /* give card */
+    } else if (mItemPills == 2 && qPlayer.HasItem(ITEM_TABLETTEN) == 0 && GameMechanic::numFreeSlots(qPlayer) > 0) {
         prio = std::max(prio, Prio::Low); /* we need new pills */
     }
     return prio;
@@ -535,7 +538,8 @@ Bot::Prio Bot::condVisitSaboteur() {
 
     Prio prio = Prio::None;
 
-    if (!mPliersWereTaken && determineSpecialSabotage() == SpecialSabotage::CutWires) {
+    bool haveFreeSlots{GameMechanic::numFreeSlots(qPlayer) > 0};
+    if (!mPliersWereTaken && determineSpecialSabotage() == SpecialSabotage::CutWires && haveFreeSlots) {
         /* check if we want to prevent competitors from shutting down security office */
         if (qPlayer.RobotUse(ROBOT_USE_SECURTY_OFFICE)) {
             auto targetPrio = mUsingSecurity ? Prio::High : Prio::Low;
@@ -549,9 +553,11 @@ Bot::Prio Bot::condVisitSaboteur() {
         }
     }
 
-    /* collect darts */
-    if (mItemAntiVirus == 1 || mItemAntiVirus == 2) {
-        prio = std::max(prio, Prio::Low);
+    if (mItemAntiVirus == 1) {
+        prio = std::max(prio, Prio::Low); /* give spider */
+    }
+    if (mItemAntiVirus == 2 && GameMechanic::numFreeSlots(qPlayer) > 0) {
+        prio = std::max(prio, Prio::Low); /* collect darts */
     }
 
     return prio;
@@ -840,7 +846,8 @@ Bot::Prio Bot::condVisitArab() {
         prio = std::max(prio, Prio::Low);
     }
 
-    if (!mGlovesWereTaken && determineSpecialSabotage() == SpecialSabotage::StinkBomb) {
+    bool haveFreeSlots{GameMechanic::numFreeSlots(qPlayer) > 0};
+    if (!mGlovesWereTaken && determineSpecialSabotage() == SpecialSabotage::StinkBomb && haveFreeSlots) {
         prio = std::max(prio, Prio::Low);
     }
 
@@ -863,10 +870,12 @@ Bot::Prio Bot::condVisitDutyFree(__int64 &moneyAvailable) {
     moneyAvailable = getMoneyAvailable();
     moneyAvailable -= 100 * 1000LL;
 
+    bool haveFreeSlots{GameMechanic::numFreeSlots(qPlayer) > 0};
+
     Prio prio = Prio::None;
     if (hoursPassed(ACTION_VISITDUTYFREE, 24) && moneyAvailable >= 0) {
         /* emergency shopping: Laptop because office is destroyed */
-        if (!mDayStarted && !isOfficeUsable() && qPlayer.LaptopQuality == 0) {
+        if (!mDayStarted && !isOfficeUsable() && qPlayer.LaptopQuality == 0 && haveFreeSlots) {
             prio = std::max(prio, Prio::Higher);
         }
 
@@ -876,13 +885,16 @@ Bot::Prio Bot::condVisitDutyFree(__int64 &moneyAvailable) {
     }
 
     /* misc action, can do as often as the bot likes */
-    if (moneyAvailable >= 0 && !qPlayer.HasItem(ITEM_HANDY)) {
+    if (moneyAvailable >= 0 && !qPlayer.HasItem(ITEM_HANDY) && haveFreeSlots) {
         prio = std::max(prio, Prio::Medium);
     }
-    if (mItemAntiStrike >= 1 && mItemAntiStrike <= 2) {
-        prio = std::max(prio, Prio::Low); /* we still need to aquire the horse shoe */
+    if (mItemAntiStrike == 1) {
+        prio = std::max(prio, Prio::Low); /* give BH */
     }
-    if (mItemArabTrust == 0 && Sim.Date > 0 && qPlayer.ArabTrust == 0) {
+    if (mItemAntiStrike == 2 && haveFreeSlots) {
+        prio = std::max(prio, Prio::Low); /* get horse shoe */
+    }
+    if (mItemArabTrust == 0 && Sim.Date > 0 && qPlayer.ArabTrust == 0 && haveFreeSlots) {
         prio = std::max(prio, Prio::Low); /* we still need to aquire the MG */
     }
 
@@ -908,7 +920,7 @@ Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
         }
     }
 
-    if (mItemPills == 0) {
+    if (mItemPills == 0 && GameMechanic::numFreeSlots(qPlayer) > 0) {
         prio = std::max(prio, Prio::Low); /* we still need to take the card */
     }
     return prio;
@@ -954,7 +966,8 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
     }
 
     /* pick up paperclip */
-    if (!mPaperClipsWereTaken && determineSpecialSabotage() == SpecialSabotage::Glue) {
+    bool haveFreeSlots{GameMechanic::numFreeSlots(qPlayer) > 0};
+    if (!mPaperClipsWereTaken && determineSpecialSabotage() == SpecialSabotage::Glue && haveFreeSlots) {
         prio = std::max(prio, Prio::Low);
     }
 
@@ -1117,7 +1130,7 @@ Bot::Prio Bot::condVisitAds() {
     if (mItemAntiVirus == 3) {
         prio = std::max(prio, Prio::Low);
     }
-    if (mItemAntiVirus == 4 && qPlayer.HasItem(ITEM_DISKETTE) == 0) {
+    if (mItemAntiVirus == 4 && qPlayer.HasItem(ITEM_DISKETTE) == 0 && GameMechanic::numFreeSlots(qPlayer) > 0) {
         prio = std::max(prio, Prio::Low);
     }
 
