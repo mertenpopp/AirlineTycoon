@@ -864,7 +864,8 @@ You have read access to:
 - `Sim.UsedPlanes`: List of used planes to buy. Access permitted while in museum.
 - `Sim.HoleKerosinPreis()`: Fetches current price for kerosene. Permitted while visiting the Arab and personal office (or using laptop). `Sim.HoleKerosinPreis(1)` returns `Sim.Kerosin` directly (price for regular quality kerosene) which may also be accessed directly under the same conditions. The price does not change during the day, so ClaudeBot may read it once per day and cache the value for use in any room.
 - `Sim.HomeAirportId`: City ID of the home airport.
-- `Sim.ItemClips`: Is the item `ITEM_PAPERCLIP` still available at the freight depot? May only be read while in the freight depot.
+- `Sim.ItemClips`: Is the item `ITEM_PAPERCLIP` still available at the route box? May only be read while at the route box.
+- `Sim.ItemGlue`: State of the item `ITEM_GLUE` at the freight depot: 0 = not there yet (somebody has to hand over `ITEM_PAPERCLIP` first), 1 = can be picked up, 2 = already taken. May only be read while in the freight depot.
 - `Sim.ItemGlove`: Is the item `ITEM_GLOVE` still available at the arab? May only be read while in the arab room.
 - `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office? May only be read while in the HR office.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur? May only be read while in the saboteur room.
@@ -962,6 +963,7 @@ All classifications are read-only.
 - `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
 - `Statistiken[STAT_NIEDERLASSUNGEN]`: Number of international offices. Only read if `qPlayer.HasBerater(BERATERTYP_INFO) >= 50`.
 - `Statistiken[STAT_ROUTEN]`: Number of rented routes. May be read while at the saboteur or anywhere if `qPlayer.HasBerater(BERATERTYP_INFO) >= 40`.
+- `Gates.Gates[]`: The gates the competitor rents. Only the fields `Miete` (`-1` = slot unused) and `Nummer` (the gate number, as in `CFlugplanEintrag::Gate` and the `RUNE_2WAIT` rune of that gate) may be read, anywhere: the owner of a gate is visible in the airport.
 
 ### CPlane object
 
