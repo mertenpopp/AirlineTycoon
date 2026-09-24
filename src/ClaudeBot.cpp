@@ -1851,21 +1851,28 @@ void ClaudeBot::traceWalk() {
  *
  * A room that is still being entered is flagged like any other; the engine's leave branch runs
  * before its enter branch in the same loop, so only one of the two can happen. */
-void ClaudeBot::leaveRoomsForWalk() {
+void ClaudeBot::ensureAirportUnderneath() {
     bool bHaveAirport = false;
+    bool bHaveRoom = false;
     for (SLONG c = 0; c < 10; c++) {
-        if ((qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING)) == ROOM_AIRPORT) {
+        const UWORD room = UWORD(qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING));
+        if (room == ROOM_AIRPORT) {
             bHaveAirport = true;
-            break;
+        } else if (room != 0) {
+            bHaveRoom = true;
         }
     }
-    if (!bHaveAirport && qPlayer.Locations[9] == 0) {
+    if (!bHaveAirport && bHaveRoom && qPlayer.Locations[9] == 0) {
         for (SLONG c = 9; c > 0; c--) {
             qPlayer.Locations[c] = qPlayer.Locations[c - 1];
         }
         qPlayer.Locations[0] = ROOM_AIRPORT;
-        AT_Log("ClaudeBot::leaveRoomsForWalk(): No airport entry to come back to, put one underneath room %ld", (long)qPlayer.GetRoom());
+        AT_Log("ClaudeBot::ensureAirportUnderneath(): No airport entry to come back to, put one underneath room %ld", (long)qPlayer.GetRoom());
     }
+}
+
+void ClaudeBot::leaveRoomsForWalk() {
+    ensureAirportUnderneath();
 
     bool bLeft = false;
     for (SLONG c = 9; c >= 0; c--) {
@@ -2064,6 +2071,12 @@ void ClaudeBot::RobotExecuteAction() {
             Insert1000erDots64(getMoneyAvailable()).c_str());
 
     mOnThePhone = 0;
+
+    /* Leaving a room that sits at index 0 of Locations[] strands the bot for the rest of the
+     * day (see leaveRoomsForWalk()). It happens in every walking day: the first action is a
+     * room, not ACTION_STARTDAY, and the room entered after the morning briefing ends up
+     * alone in Locations[]. Found in a network game, where HA froze after one action a day. */
+    ensureAirportUnderneath();
 
     /* The room check RULES.md asks for. It warns and performs the action anyway, as required.
      *
