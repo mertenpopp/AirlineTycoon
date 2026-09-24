@@ -1954,8 +1954,15 @@ Found in code review, not fixed (engine code, outside ClaudeBot's files):
   `GameMechanic::useItem()`, which looked like `PlayerStinking` no longer being replicated. It is not
   a bug: the end of `useItem()` sends ATNET_SYNC_ITEMS and ATNET_SYNC_FLAGS for every branch. The
   branch now carries a comment saying so. Lesson: read the whole function, not only the diff.
-- The electro-room glove->Red Bull swap now runs for a SuperBot on every peer, with only the host's
-  item sync broadcast; a client that receives the host's sync first takes the "no glove" branch
-  (electric shock, `IsDrunk = 0`) locally. Timing-dependent, not seen in the runs.
+- (Fixed the same day) The electro-room glove->Red Bull swap ran for a SuperBot on every peer, and
+  each peer chose glove or shock from its own copy of the inventory. The owner's ATNET_SYNC_ITEMS
+  often arrives before the remote copy of the figure reaches the machine, so the other peers showed
+  a shock (and reset `IsDrunk`) for a player who had used the glove. The same race existed for remote
+  humans. Now only the peer for which `NetIsAuthoritative()` holds decides; the glove outcome
+  reaches the others through ATNET_SYNC_ITEMS and the shock through the new ATNET_ELECTROSHOCK
+  (0xadaa0609), both handled by `PLAYER::ElectroShock()`. Verified with a temporary test change that
+  gave both MertenBots the glove and sent them to the machine hourly, on a walking-pace network day:
+  1 glove swap and 27 shocks on the host, 27 ATNET_ELECTROSHOCK received on the client, the same
+  items in both fingerprints, no layout mismatch.
 - `Bot::condAll()` has no case for ACTION_NONE and logs "Default case should not be reached" when the
   engine calls RobotExecuteAction() on an empty queue as the humans go home. Cosmetic.

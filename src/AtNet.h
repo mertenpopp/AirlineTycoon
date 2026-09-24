@@ -71,6 +71,7 @@ static const ULONG ATNET_PLAYERSTOP = 0xadaa0605;   // Hello all, I won't go ano
 static const ULONG ATNET_CAFFEINE = 0xadaa0606;     // Hello all, I just drank the drowning cow energy drink
 static const ULONG ATNET_GIMMICK = 0xadaa0607;      // Hello all, I just started my gimmick
 static const ULONG ATNET_PLAYERLOOK = 0xadaa0608;   // Hello all, please let player X look at direction y
+static const ULONG ATNET_ELECTROSHOCK = 0xadaa0609; // Hello all, player X touched the vending machine without the glove
 
 // Cheating
 static const ULONG ATNET_CHEAT = 0xadaa0700; // Hello all, player x used cheat y
@@ -213,6 +214,7 @@ DEFINE_NAME_ENTRY(ATNET_PLAYERSTOP, )
 DEFINE_NAME_ENTRY(ATNET_CAFFEINE, )
 DEFINE_NAME_ENTRY(ATNET_GIMMICK, )
 DEFINE_NAME_ENTRY(ATNET_PLAYERLOOK, )
+DEFINE_NAME_ENTRY(ATNET_ELECTROSHOCK, )
 DEFINE_NAME_ENTRY(ATNET_CHEAT, )
 DEFINE_NAME_ENTRY(ATNET_DIALOG_REQUEST, )
 DEFINE_NAME_ENTRY(ATNET_DIALOG_NO, )

@@ -2230,7 +2230,15 @@ void PERSON::DoOnePlayerStep() {
                 if ((qPlayer.Owner != 1 || qPlayer.IsSuperBot()) && qPlayer.DirectToRoom == c &&
                     ((qPlayer.Owner != 0) || (((*qPlayer.LocationWin).MenuIsOpen() == 0) && ((*qPlayer.LocationWin).IsDialogOpen() == 0)))) {
                     if (c == qPlayer.DirectToRoom) {
-                        if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
+                        /* Only the peer that owns the player decides, glove or shock. Every other peer
+                           would decide from its own copy of the inventory, and the owner's
+                           ATNET_SYNC_ITEMS (glove -> Red Bull) often arrives before that peer's copy of
+                           the figure reaches the machine - which then showed a shock, and reset
+                           IsDrunk, for a player who had used the glove. The others learn the outcome
+                           from ATNET_SYNC_ITEMS or ATNET_ELECTROSHOCK. */
+                        if ((Sim.bNetwork != 0) && !qPlayer.NetIsAuthoritative()) {
+                            qPlayer.DirectToRoom = 0;
+                        } else if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
                             qPlayer.DirectToRoom = 0;
 
                             if ((Sim.Options.OptionEffekte != 0) && State == Sim.localPlayer) {
@@ -2238,28 +2246,12 @@ void PERSON::DoOnePlayerStep() {
                                 gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
                             }
 
-                            if (State == Sim.localPlayer || qPlayer.IsSuperBot()) {
-                                GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
-                            }
+                            GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
                         } else {
-                            BUILD *pBuild = Airport.GetBuildNear(ScreenPos, XY(180, 160), Bricks(static_cast<SLONG>(0x10000000) + BRICK_ELECTRO));
-                            if (pBuild != nullptr) {
-                                Airport.Triggers[static_cast<SLONG>(pBuild->Par)].Winkel = Sim.TickerTime;
-                            }
-
-                            Sim.DontDisplayPlayer = qPlayer.PlayerNum;
-                            LookDir = 2;
-                            Phase = 0;
-
-                            qPlayer.DirectToRoom = 0;
-                            qPlayer.IsDrunk = 0;
+                            qPlayer.ElectroShock();
+                            SIM::SendSimpleMessage(ATNET_ELECTROSHOCK, 0, qPlayer.PlayerNum);
 
                             bDoBroadcastPosition = true;
-
-                            if ((Sim.Options.OptionEffekte != 0) && State == Sim.localPlayer) {
-                                gUniversalFx.ReInit("fused.raw");
-                                gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
-                            }
                         }
                     }
                 }
