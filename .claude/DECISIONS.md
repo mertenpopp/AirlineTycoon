@@ -1964,5 +1964,13 @@ Found in code review, not fixed (engine code, outside ClaudeBot's files):
   gave both MertenBots the glove and sent them to the machine hourly, on a walking-pace network day:
   1 glove swap and 27 shocks on the host, 27 ATNET_ELECTROSHOCK received on the client, the same
   items in both fingerprints, no layout mismatch.
-- `Bot::condAll()` has no case for ACTION_NONE and logs "Default case should not be reached" when the
-  engine calls RobotExecuteAction() on an empty queue as the humans go home. Cosmetic.
+- (Fixed the same day; "cosmetic" was wrong) MertenBot executed ACTION_NONE when the humans went home.
+  Cause, traced with temporary logging: at walking pace nothing counts `SpeedCount` down, so an
+  action executed on arrival or through WaitWorkTill left it behind - 1 for a roomless action like
+  ACTION_CALL_INTER_HANDY. MertenBot empties the queue after each action (`kAlwaysReplan`), and when
+  `Sim.CallItADay` switched on, `PERSONS::DoOneStep()` counted the stale 1 down and called
+  `RobotExecuteAction()` on the empty queue. `PLAYER::RobotExecuteAction()` now sets `SpeedCount = 0`
+  where the action is really carried out (host or single player). Replayed with `/mpseed 1234` for 6
+  days: before, CALL_INTER_HANDY at 09:59 on day 2 was followed by ACTION_NONE at 10:00; after, the same
+  09:59 call and no ACTION_NONE all game, no desync. Seeded single player (`/quicker -1 /setbotlevel 6
+  /seed 7`, 5 days): BotStatistics of all four airlines byte-identical before and after.

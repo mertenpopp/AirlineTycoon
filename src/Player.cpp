@@ -4152,6 +4152,13 @@ void PLAYER::RobotExecuteAction() {
         return;
     }
 
+    /* The action is carried out now, so its fast-forward countdown is used up. At walking pace
+       nothing counts SpeedCount down: an action executed on arrival or by WaitWorkTill left it
+       behind (1 for an action without a room, like ACTION_CALL_INTER_HANDY). When the players
+       then called it a day, PERSONS::DoOneStep() counted the stale value down and executed the
+       queue a second time - by then empty, so the bot executed ACTION_NONE. */
+    SpeedCount = 0;
+
     RobotPlanePropsWatch PlaneWatch(*this);
     RobotFlightplanWatch FlightplanWatch(*this);
 
