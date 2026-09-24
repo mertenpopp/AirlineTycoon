@@ -2242,6 +2242,7 @@ class PLAYER {
     void BuyItem(UBYTE Item);
     SLONG CalcSecurityCosts(bool bFixOnly = false, bool bPlaneOnly = false);
     void DisplayAsTelefoning(void) const;
+    void ElectroShock(void);
     bool DropItem(UBYTE Item);
     SLONG CalcCreditLimit(void) const;
     SLONG CalcCreditLimit(__int64 money, __int64 credit) const;

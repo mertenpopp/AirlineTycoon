@@ -6336,6 +6336,31 @@ void PLAYER::DisplayAsTelefoning() const {
 }
 
 //--------------------------------------------------------------------------------------------
+// The player touched the vending machine without the glove. Runs on the peer that owns the
+// player (Person.cpp) and, through ATNET_ELECTROSHOCK, on every other peer:
+//--------------------------------------------------------------------------------------------
+void PLAYER::ElectroShock() {
+    PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+
+    BUILD *pBuild = Airport.GetBuildNear(qPerson.ScreenPos, XY(180, 160), Bricks(static_cast<SLONG>(0x10000000) + BRICK_ELECTRO));
+    if (pBuild != nullptr) {
+        Airport.Triggers[static_cast<SLONG>(pBuild->Par)].Winkel = Sim.TickerTime;
+    }
+
+    Sim.DontDisplayPlayer = PlayerNum;
+    qPerson.LookDir = 2;
+    qPerson.Phase = 0;
+
+    DirectToRoom = 0;
+    IsDrunk = 0;
+
+    if ((Sim.Options.OptionEffekte != 0) && PlayerNum == Sim.localPlayer) {
+        gUniversalFx.ReInit("fused.raw");
+        gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
+    }
+}
+
+//--------------------------------------------------------------------------------------------
 // Spieler verbraucht einen Gegenstand:
 //--------------------------------------------------------------------------------------------
 bool PLAYER::DropItem(UBYTE Item) {

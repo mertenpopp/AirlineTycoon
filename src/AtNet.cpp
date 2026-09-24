@@ -695,6 +695,15 @@ void PumpNetwork() {
                 Message >> Sim.Players.Players[PlayerNum].Koffein;
             } break;
 
+            case ATNET_ELECTROSHOCK: {
+                SLONG PlayerNum = 0;
+
+                Message >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+
+                Sim.Players.Players[PlayerNum].ElectroShock();
+            } break;
+
             case ATNET_GIMMICK: {
                 SLONG PlayerNum = 0;
                 SLONG Mode = 0;
