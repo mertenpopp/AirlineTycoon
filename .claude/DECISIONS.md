@@ -1974,3 +1974,39 @@ Found in code review, not fixed (engine code, outside ClaudeBot's files):
   days: before, CALL_INTER_HANDY at 09:59 on day 2 was followed by ACTION_NONE at 10:00; after, the same
   09:59 call and no ACTION_NONE all game, no desync. Seeded single player (`/quicker -1 /setbotlevel 6
   /seed 7`, 5 days): BotStatistics of all four airlines byte-identical before and after.
+2026-09-24 - Hurricane: glue and stink bombs
+--------------------------------------------
+
+On request: Hurricane (BotLevel 7) now collects and places the two floor items, using the free
+walk of f8aae494 and MertenBot's item chains as the model.
+
+- **Chains.** Glue: paperclips at the route box (`collectPaperclips()`, on the daily visit),
+  handed over and the glue taken at the freight depot (`collectGlue()`; glue someone else paid
+  for is taken too). Stink bomb: glove at the Arab (`executeArab()` now does both MG and glove),
+  ACTION_ENERGY_DRINK to the vending machine (the engine swaps glove for drink on arrival and
+  RobotExecuteAction() is never called there at walking pace, so plans are capped at 3 a day in
+  RobotPlan()), drink traded for the bomb at the kiosk (`executeKiosk()`, before the filler arm).
+- **Placement.** `startItemDrop()` runs last in RobotExecuteAction(); `tickItemDrop()` rides on the
+  per-tick getOnThePhone() hook, keeps WorkCountdown topped up while the walk is under way (the
+  straight-line estimate was half of the real walk upstairs, and the hold ran out every time), and
+  uses the item on arrival. Stink bomb: the victim's gate entrance (RUNE_2WAIT of a gate in
+  `Gates.Gates[]`), where every passenger of that gate walks through the stench; sick passengers
+  cost the airline image. Glue: the corridor plate in front of the victim's office door. The glue
+  lands on the plate the character *faces* (SIM::AddGlueSabotage uses Phase, which is the last
+  walking direction while standing), so the walk goes to two plates beside it and then one step
+  towards it.
+- **Rules.** RULES.md now lets ClaudeBot read `Sim.ItemGlue` in the freight depot and a
+  competitor's `Gates.Gates[].Miete/Nummer` anywhere (gate owners are visible in the airport); the
+  `Sim.ItemClips` line said "freight depot" where the engine keeps the clips at the route box and
+  was corrected.
+- **Verification.** Only walking days use any of it (`Sim.CallItADay == 0`), so the `/quick`
+  harness and the Tycoon score are untouched by construction. `run_multiplayer.sh 2 1 77 0`: PT
+  picked up paperclips -> glue, glove -> drink -> bomb; bomb dropped at FL's gate 112/9 after 143
+  ticks, glue dropped on 39/2 in front of FL's office after 130 ticks; 0 fingerprint mismatches.
+  First try aimed at the door plate itself (39/1) from 37/1 and stopped at the top of the stairs
+  (35/2) every time: the door row is a nook, not a corridor. Candidates now start with the
+  corridor plate and rotate on each failed try; a walk that stops short gives up after 20 ticks.
+- **Not measured / open.** Whether a victim actually walks into the glue was not observed (FL is an
+  idle human in the harness and never leaves its office). The glue sticks whoever crosses the plate
+  first, ourselves included. Whether the image a stink bomb costs a competitor is worth the Arab
+  and kiosk walks is unmeasured - no harness plays walking days at scale.

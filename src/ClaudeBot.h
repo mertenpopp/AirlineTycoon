@@ -31,6 +31,7 @@ class ClaudeBot {
      * which is the only per-tick hook a bot has, and the walk demo's trace rides on it. */
     bool getOnThePhone() {
         traceWalk();
+        tickItemDrop();
         return mOnThePhone > 0;
     }
     void decOnThePhone() { mOnThePhone--; }
@@ -321,6 +322,40 @@ class ClaudeBot {
     /* Saboteur room only: the victim's route worth most to us, from mTheftValues, or -1. */
     SLONG pickRouteToSteal(SLONG victim) const;
 
+    /* --- Hurricane: glue and stink bombs, see the banner over tickItemDrop() in the .cpp --- */
+    /* Whether today is played at walking pace, the only kind of day the two items work on. */
+    static bool itemSabotageDay();
+    /* Whether the glue chain (paperclips -> glue) / the stink bomb chain (glove -> energy
+     * drink -> stink bomb) is still worth pursuing today. */
+    bool wantGlueChain() const;
+    bool wantStinkBombChain() const;
+    /* Route box and freight depot: the steps of the glue chain those rooms allow. */
+    void collectPaperclips();
+    void collectGlue();
+    /* Kiosk: trade the energy drink for the stink bomb. False if there was nothing to do. */
+    bool executeKiosk();
+    /* Where to stand and where the glue lands in front of the victim's office. False if the
+     * layout offers no approach. Upper floor plates. */
+    bool findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const;
+    /* Where to drop a stink bomb next to one of the victim's gates, lower floor. False if the
+     * victim rents no gate we can reach. */
+    bool findStenchPlate(SLONG victim, XY &outPlate) const;
+    /* Starts the walk that places a held item, from RobotExecuteAction(). */
+    void startItemDrop();
+    /* Follows that walk once a tick and uses the item on arrival. */
+    void tickItemDrop();
+    void abortItemDrop(const char *why);
+
+    enum class DropStage { None, GlueApproach, GlueFinal, StinkBomb };
+    /* The walk in flight, none of it serialised: a savegame is loaded in the morning, and a
+     * walk does not survive the day anyway. */
+    DropStage mDropStage{DropStage::None};
+    XY mDropPlate{-1, -1};  /* the plate we are walking to now */
+    XY mDropFinal{-1, -1};  /* glue: the plate to step onto for the drop */
+    SLONG mDropStart{0};    /* Sim.TimeSlice the walk began */
+    SLONG mDropVictim{-1};
+    SLONG mDropUseTries{0}; /* ticks spent at the spot trying to use the item */
+
     /* --- scheduling --- */
     SLONG scheduleRouteFlights();
     SLONG ticketPercentFor(const RouteState &qRoute) const;
@@ -508,6 +543,22 @@ class ClaudeBot {
     /* Routes we could fly, with their value per plane hour to our largest aeroplane, cached at
      * the route box (Bedarf and Miete may only be read there). The saboteur steals from this. */
     std::vector<std::pair<SLONG, SLONG>> mTheftValues;
+
+    /* Glue and stink bombs. The items at the route box, the freight depot and the Arab are
+     * put back every morning (SIM::NewDay), so what we saw there is only good for the day. */
+    bool mClipsGoneToday{false};
+    bool mGlueGoneToday{false};
+    bool mGloveGoneToday{false};
+    /* Walks to the vending machine planned today. The machine is not a room, so no
+     * RobotExecuteAction() tells us we arrived; this caps the tries. */
+    SLONG mEnergyDrinkPlansToday{0};
+    /* One drop of each item a day at most, and the tries at placing one. */
+    bool mGlueDroppedToday{false};
+    bool mStinkBombDroppedToday{false};
+    SLONG mGlueTriesToday{0};
+    SLONG mBombTriesToday{0};
+    SLONG mGlueDrops{0};
+    SLONG mStinkBombDrops{0};
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot);

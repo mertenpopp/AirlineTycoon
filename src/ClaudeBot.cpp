@@ -1385,6 +1385,15 @@ void ClaudeBot::startNewDay() {
     mVisitedArabToday = false;
     mVisitedSaboteurToday = false;
     mVisitedSecurityToday = false;
+    mClipsGoneToday = false;
+    mGlueGoneToday = false;
+    mGloveGoneToday = false;
+    mEnergyDrinkPlansToday = 0;
+    mGlueDroppedToday = false;
+    mStinkBombDroppedToday = false;
+    mGlueTriesToday = 0;
+    mBombTriesToday = 0;
+    mDropStage = DropStage::None;
     /* A victim may drop protection again, and without the pliers we would never find out. */
     if (Sim.Date % 7 == 0) {
         mBlockedJobs = 0;
@@ -1531,6 +1540,25 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
         if (mSecurityBlocked && qPlayer.HasItem(ITEM_ZANGE) != 0 && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY2)) {
             out.push_back(ACTION_VISITSECURITY2);
+        }
+
+        /* Glue and stink bombs, only on a day played at walking pace - see tickItemDrop().
+         * The paperclips need no walk of their own: the route box is visited every day. */
+        if (wantGlueChain() && qPlayer.HasItem(ITEM_PAPERCLIP) != 0 && !mGlueGoneToday && canUseAction(ACTION_CHECKAGENT3)) {
+            out.push_back(ACTION_CHECKAGENT3);
+        }
+        if (wantStinkBombChain()) {
+            if (qPlayer.HasItem(ITEM_REDBULL) != 0) {
+                if (canUseAction(ACTION_VISITKIOSK)) {
+                    out.push_back(ACTION_VISITKIOSK);
+                }
+            } else if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
+                if (mEnergyDrinkPlansToday < 3 && canUseAction(ACTION_ENERGY_DRINK)) {
+                    out.push_back(ACTION_ENERGY_DRINK);
+                }
+            } else if (!mGloveGoneToday && !mVisitedArabToday && GameMechanic::numFreeSlots(qPlayer) > 0 && canUseAction(ACTION_VISITARAB)) {
+                out.push_back(ACTION_VISITARAB);
+            }
         }
     }
 
@@ -2029,6 +2057,13 @@ void ClaudeBot::RobotPlan() {
     qFirstAction.Running = TRUE;
     qSecondAction.Running = TRUE;
 
+    /* The vending machine is not a room: the engine swaps the glove for the drink when the
+     * character walks up to it (Person.cpp, ROOM_ELECTRO) and RobotExecuteAction() is never
+     * called for it at walking pace. So the tries are counted here. */
+    if (qFirstAction.ActionId == ACTION_ENERGY_DRINK || qSecondAction.ActionId == ACTION_ENERGY_DRINK) {
+        mEnergyDrinkPlansToday++;
+    }
+
     AT_Log("ClaudeBot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
            Translate_ACTION(qSecondAction.ActionId));
 
@@ -2200,8 +2235,17 @@ void ClaudeBot::RobotExecuteAction() {
         executeSecurity();
         break;
 
-    case ACTION_WAIT:
+    case ACTION_ENERGY_DRINK:
+        /* Only ever called during the fast forward, where nobody walks up to the machine. */
+        qPlayer.WorkCountdown = 2;
+        break;
+
     case ACTION_VISITKIOSK:
+        if (executeKiosk()) {
+            break;
+        }
+        [[fallthrough]];
+    case ACTION_WAIT:
     case ACTION_VISITRICK:
     case ACTION_VISITMUSEUM:
     case ACTION_VISITTELESCOPE:
@@ -2225,8 +2269,9 @@ void ClaudeBot::RobotExecuteAction() {
         DebugBreak();
     }
 
-    /* Last, so that it overrides the WorkCountdown the action left behind. */
+    /* Last, so that they override the WorkCountdown the action left behind. */
     walkDemo();
+    startItemDrop();
 
     AT_Log("");
 }
@@ -2802,6 +2847,7 @@ void ClaudeBot::executeMech() {
 //--------------------------------------------------------------------------------------------
 void ClaudeBot::executeRouteBox() {
     mVisitedRouteBoxToday = true;
+    collectPaperclips();
 
     /* The plane we would put on a new route: the largest one we own. */
     SLONG refPlane = -1;
@@ -4461,6 +4507,7 @@ void ClaudeBot::executeCheckAgent3() {
     mVisitedFreightToday = true;
     mFreightVisitsToday++;
     takeFreightFromBoard(gFrachten, &GameMechanic::takeFreightJob, "executeCheckAgent3");
+    collectGlue();
 }
 
 /* One greedy pass over a board of freight contracts - the depot's gFrachten or an
@@ -5737,12 +5784,29 @@ void ClaudeBot::executeDutyFree() {
  * saboteur's room (GameMechanic::useItem checks for ROOM_ARAB_AIR). */
 void ClaudeBot::executeArab() {
     mVisitedArabToday = true;
-    if (qPlayer.ArabTrust != 0 || qPlayer.HasItem(ITEM_MG) == 0) {
-        qPlayer.WorkCountdown = 2;
-        return;
+    bool acted = false;
+    if (qPlayer.ArabTrust == 0 && qPlayer.HasItem(ITEM_MG) != 0) {
+        GameMechanic::useItem(qPlayer, ITEM_MG);
+        AT_Log("ClaudeBot::executeArab(): Handed over ITEM_MG, saboteur trust now %ld.", qPlayer.ArabTrust);
+        acted = true;
     }
-    GameMechanic::useItem(qPlayer, ITEM_MG);
-    AT_Log("ClaudeBot::executeArab(): Handed over ITEM_MG, saboteur trust now %ld.", qPlayer.ArabTrust);
+
+    /* The glove, first step of the stink bomb chain. One lies on the counter every morning
+     * (SIM::NewDay), and Sim.ItemGlove may be read here. */
+    if (wantStinkBombChain() && qPlayer.HasItem(ITEM_GLOVE) == 0 && qPlayer.HasItem(ITEM_REDBULL) == 0) {
+        if (Sim.ItemGlove == 0) {
+            AT_Log("ClaudeBot::executeArab(): Somebody else has taken today's glove.");
+        } else if (GameMechanic::numFreeSlots(qPlayer) > 0) {
+            const bool ok = (GameMechanic::pickUpItem(qPlayer, ITEM_GLOVE) == GameMechanic::PickedUp && qPlayer.HasItem(ITEM_GLOVE) != 0);
+            AT_Log("ClaudeBot::executeArab(): Picking up ITEM_GLOVE %s.", ok ? "worked" : "failed");
+            acted = true;
+        }
+        mGloveGoneToday = true;
+    }
+
+    if (!acted) {
+        qPlayer.WorkCountdown = 2;
+    }
 }
 
 /* The competitor we sabotage: a human if there is one - Hurricane is a style for playing
@@ -6007,6 +6071,355 @@ void ClaudeBot::executeSecurity() {
     }
 }
 
+//--------------------------------------------------------------------------------------------
+// Hurricane: glue and stink bombs.
+//
+// Two items are placed on the airport floor rather than used in a room, and both only work on
+// a day played at walking pace: during the fast forward nobody walks anywhere (Person.cpp,
+// PERSONS::DoOneStep), so a glued plate is never stepped on and nobody passes the stench.
+// Every step below is therefore gated on Sim.CallItADay == 0, which also means none of it
+// ever runs in the single player harness, where every day is fast forwarded.
+//
+// Glue (RULES.md, "Glue"): paperclips from the route box, handed over at the freight depot,
+// which puts the glue on the counter there (Sim.ItemGlue 0 -> 1). Used in the airport, it
+// sticks to the plate *in front of* the character - the one the character faces - and only on
+// the upper floor, and only while the character stands still (SIM::AddGlueSabotage). The next
+// player to cross that plate is stuck for 600 ticks (Person.cpp, IsStuck = 20 * 30). We glue
+// the entrance of the victim's office, which only the victim walks into. The facing is the
+// direction of the last step (PERSON::DoOnePlayerStep keeps it in Phase while LookDir is 8),
+// so the walk goes in two legs: to two plates beside the door on the same row, then one plate
+// towards it.
+//
+// Stink bomb (RULES.md, "Stink bombs"): the glove from the Arab, swapped for an energy drink at
+// the vending machine, which the kiosk trades for the bomb. Used on the lower floor, it fills
+// the 3x3 plates around the character with stench for a while (SIM::AddStenchSabotage). A
+// passenger on his way to or from an aeroplane who walks through it gets sick, and every
+// fourth one costs his airline a point of image (PERSON::DoOneStep). Every passenger of a gate
+// walks through the entrance of its waiting room (the gate's RUNE_2WAIT), so the bomb goes
+// there, at one of the gates the victim rents - which RULES.md lets us read, because the owner
+// of a gate is visible in the airport.
+//
+// The drop walks use walkToPlate(), and tickItemDrop() rides on the per-tick hook the walk
+// trace uses (getOnThePhone(), called by RobotPump() once a tick) to use the item on arrival.
+//--------------------------------------------------------------------------------------------
+
+/* How long a drop walk may take in all before it is given up, in RobotPump() ticks. */
+static const SLONG kMaxDropTicks = 2 * 20 * 60;
+/* Ticks spent at the spot trying to use the item, or standing still short of it. */
+static const SLONG kMaxDropStandTicks = 20;
+/* Tries at a drop per day, so that a layout we cannot place an item in does not eat the day. */
+static const SLONG kMaxDropTriesPerDay = 4;
+/* No new drop from this hour on: the victim still has to walk into it before 18:00. */
+static const SLONG kLastDropHour = 16;
+
+bool ClaudeBot::itemSabotageDay() { return Sim.CallItADay == 0; }
+
+bool ClaudeBot::wantGlueChain() const { return isHurricane() && itemSabotageDay() && qPlayer.HasItem(ITEM_GLUE) == 0; }
+
+bool ClaudeBot::wantStinkBombChain() const { return isHurricane() && itemSabotageDay() && qPlayer.HasItem(ITEM_STINKBOMBE) == 0; }
+
+/* Route box: the paperclips. Sim.ItemClips may be read here. */
+void ClaudeBot::collectPaperclips() {
+    if (!wantGlueChain() || qPlayer.HasItem(ITEM_PAPERCLIP) != 0 || mClipsGoneToday || mGlueGoneToday) {
+        return;
+    }
+    if (Sim.ItemClips == 0) {
+        mClipsGoneToday = true;
+        AT_Log("ClaudeBot::collectPaperclips(): Somebody else has taken today's paperclips.");
+        return;
+    }
+    if (GameMechanic::numFreeSlots(qPlayer) == 0) {
+        return;
+    }
+    const bool ok = (GameMechanic::pickUpItem(qPlayer, ITEM_PAPERCLIP) == GameMechanic::PickedUp && qPlayer.HasItem(ITEM_PAPERCLIP) != 0);
+    AT_Log("ClaudeBot::collectPaperclips(): Picking up ITEM_PAPERCLIP %s.", ok ? "worked" : "failed");
+}
+
+/* Freight depot: hand over the paperclips, take the glue. Sim.ItemGlue may be read here. Glue
+ * someone else paid for with their paperclips is taken just the same. */
+void ClaudeBot::collectGlue() {
+    if (!wantGlueChain() || mGlueGoneToday) {
+        return;
+    }
+    if (qPlayer.HasItem(ITEM_PAPERCLIP) != 0 && Sim.ItemGlue == 0) {
+        GameMechanic::useItem(qPlayer, ITEM_PAPERCLIP);
+        AT_Log("ClaudeBot::collectGlue(): Handed over ITEM_PAPERCLIP (%s), glue state now %ld.", qPlayer.HasItem(ITEM_PAPERCLIP) != 0 ? "refused" : "taken",
+               static_cast<SLONG>(Sim.ItemGlue));
+    }
+    if (Sim.ItemGlue == 1 && GameMechanic::numFreeSlots(qPlayer) > 0) {
+        const bool ok = (GameMechanic::pickUpItem(qPlayer, ITEM_GLUE) == GameMechanic::PickedUp && qPlayer.HasItem(ITEM_GLUE) != 0);
+        AT_Log("ClaudeBot::collectGlue(): Picking up ITEM_GLUE %s.", ok ? "worked" : "failed");
+    }
+    if (Sim.ItemGlue == 2 && qPlayer.HasItem(ITEM_GLUE) == 0) {
+        /* Taken by someone else. The paperclips we may hold are good again tomorrow. */
+        mGlueGoneToday = true;
+        AT_Log("ClaudeBot::collectGlue(): Somebody else has taken today's glue.");
+    }
+}
+
+/* Kiosk: the energy drink buys the kiosk owner's trust, and with it the stink bomb. */
+bool ClaudeBot::executeKiosk() {
+    if (!isHurricane() || qPlayer.HasItem(ITEM_REDBULL) == 0 || qPlayer.HasItem(ITEM_STINKBOMBE) != 0) {
+        return false;
+    }
+    GameMechanic::useItem(qPlayer, ITEM_REDBULL);
+    const bool ok = (GameMechanic::pickUpItem(qPlayer, ITEM_STINKBOMBE) == GameMechanic::PickedUp && qPlayer.HasItem(ITEM_STINKBOMBE) != 0);
+    AT_Log("ClaudeBot::executeKiosk(): Traded ITEM_REDBULL, picking up ITEM_STINKBOMBE %s.", ok ? "worked" : "failed");
+    return true;
+}
+
+/* A rune of a type and parameter, in position coordinates. AIRPORT::GetRandomTypedRune() draws
+ * from rand() unless it is handed a generator, so it gets a local one: the answer stays the
+ * same for the same rune and nothing else's random sequence moves. */
+static bool findRune(ULONG brickId, UBYTE par, XY &outPosition) {
+    TEAKRAND rand(par);
+    const XY position = Airport.GetRandomTypedRune(brickId, par, true, &rand);
+    if (position.x == -9999 && position.y == -9999) {
+        return false;
+    }
+    outPosition = position;
+    return true;
+}
+
+bool ClaudeBot::findStenchPlate(SLONG victim, XY &outPlate) const {
+    std::vector<SLONG> gates;
+    const auto &qGates = Sim.Players.Players[victim].Gates.Gates;
+    for (SLONG e = 0; e < qGates.AnzEntries(); e++) {
+        if (qGates[e].Miete != -1) {
+            gates.push_back(qGates[e].Nummer);
+        }
+    }
+    if (gates.empty()) {
+        return false;
+    }
+
+    /* The plate of the entrance itself if we may stand there, else one next to it: the stench
+     * covers the eight plates around the bomb as well. */
+    static const XY kOffsets[] = {{0, 0}, {0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
+    const SLONG n = static_cast<SLONG>(gates.size());
+    for (SLONG i = 0; i < n; i++) {
+        const SLONG gate = gates[(Sim.Date + mStinkBombDrops + i) % n];
+        XY position;
+        if (gate < 0 || gate > 255 || !findRune(RUNE_2WAIT, static_cast<UBYTE>(gate), position) || position.y >= 4000) {
+            continue;
+        }
+        const XY center = plateFromPosition(position);
+        for (const auto &qOffset : kOffsets) {
+            const XY plate(center.x + qOffset.x, center.y + qOffset.y);
+            if (plate.y < 5 || plate.y > 14 || !plateIsWalkable(plate) || roomAtPlate(plate) != 0) {
+                continue;
+            }
+            AT_Log("ClaudeBot::findStenchPlate(): Gate %ld of %s, entrance at plate %ld/%ld, dropping at %ld/%ld.", gate,
+                   Sim.Players.Players[victim].AirlineX.c_str(), (long)center.x, (long)center.y, (long)plate.x, (long)plate.y);
+            outPlate = plate;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ClaudeBot::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const {
+    XY position;
+    if (!findRune(RUNE_2SHOP, static_cast<UBYTE>(ROOM_BURO_A + victim * 10), position) || position.y < 4000) {
+        return false;
+    }
+    const XY door = plateFromPosition(position);
+
+    /* The corridor plate in front of the door first: the victim crosses it on the way in, and
+     * the corridor is where we can walk to. The door plate sits in a nook of its own, and the
+     * first walking day never reached the plates beside it - the walk stopped at the top of
+     * the stairs. Approached along the row, from the west (facing east, Phase 1, which
+     * SIM::AddGlueSabotage lets through where the plate has exit bit 64) or from the east
+     * (facing west, Phase 3, bit 16). Every failed try today moves on to the next candidate. */
+    std::vector<std::pair<XY, XY>> candidates;
+    const XY targets[] = {XY(door.x, door.y + 1), door};
+    for (const auto &qTarget : targets) {
+        if (qTarget.y < 0 || qTarget.y > 2) {
+            continue;
+        }
+        for (SLONG dir : {1, -1}) {
+            const XY drop(qTarget.x - dir, qTarget.y);
+            const XY approach(qTarget.x - 2 * dir, qTarget.y);
+            if (!plateIsWalkable(drop) || !plateIsWalkable(approach) || roomAtPlate(drop) != 0 || roomAtPlate(approach) != 0) {
+                continue;
+            }
+            const UBYTE exitBit = (dir == 1) ? 64 : 16;
+            if ((Airport.iPlate[drop.y + (drop.x << 4)] & exitBit) == 0) {
+                continue;
+            }
+            candidates.emplace_back(approach, drop);
+        }
+    }
+    if (candidates.empty()) {
+        return false;
+    }
+    const auto &qPick = candidates[mGlueTriesToday % static_cast<SLONG>(candidates.size())];
+    outApproach = qPick.first;
+    outDrop = qPick.second;
+    AT_Log("ClaudeBot::findGluePlates(): Office of %s at plate %ld/%ld, dropping from %ld/%ld (candidate %ld of %ld).",
+           Sim.Players.Players[victim].AirlineX.c_str(), (long)door.x, (long)door.y, (long)outDrop.x, (long)outDrop.y,
+           mGlueTriesToday % static_cast<SLONG>(candidates.size()) + 1, static_cast<SLONG>(candidates.size()));
+    return true;
+}
+
+void ClaudeBot::startItemDrop() {
+    if (!isHurricane() || !itemSabotageDay() || mDropStage != DropStage::None) {
+        return;
+    }
+    if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {
+        return; /* the host plays the computer players */
+    }
+    if (Sim.GetHour() >= kLastDropHour) {
+        return;
+    }
+    const bool haveBomb = qPlayer.HasItem(ITEM_STINKBOMBE) != 0 && !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
+    const bool haveGlue = qPlayer.HasItem(ITEM_GLUE) != 0 && !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
+    if (!haveBomb && !haveGlue) {
+        return;
+    }
+
+    /* The sabotage victim first, then everybody else still in the game. */
+    std::vector<SLONG> victims;
+    const SLONG primary = pickSabotageVictim();
+    if (primary >= 0) {
+        victims.push_back(primary);
+    }
+    for (SLONG p = 0; p < 4; p++) {
+        if (p != qPlayer.PlayerNum && p != primary && Sim.Players.Players[p].IsOut == 0) {
+            victims.push_back(p);
+        }
+    }
+
+    for (SLONG victim : victims) {
+        XY plate;
+        XY drop;
+        if (haveBomb && findStenchPlate(victim, plate)) {
+            mBombTriesToday++;
+            if (!walkToPlate(plate)) {
+                return;
+            }
+            mDropStage = DropStage::StinkBomb;
+            mDropPlate = plate;
+        } else if (haveGlue && findGluePlates(victim, plate, drop)) {
+            mGlueTriesToday++;
+            if (!walkToPlate(plate)) {
+                return;
+            }
+            mDropStage = DropStage::GlueApproach;
+            mDropPlate = plate;
+            mDropFinal = drop;
+        } else {
+            continue;
+        }
+        mDropVictim = victim;
+        mDropStart = Sim.TimeSlice;
+        mDropUseTries = 0;
+        AT_Log("ClaudeBot::startItemDrop(): Walking to plate %ld/%ld to drop %s against %s (try %ld today).", (long)mDropPlate.x, (long)mDropPlate.y,
+               mDropStage == DropStage::StinkBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(),
+               mDropStage == DropStage::StinkBomb ? mBombTriesToday : mGlueTriesToday);
+        return;
+    }
+}
+
+void ClaudeBot::abortItemDrop(const char *why) {
+    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
+    AT_Log("ClaudeBot::abortItemDrop(): Giving up the %s drop at plate %ld/%ld after %ld ticks: %s. Now at plate %ld/%ld, room %ld, StatePar %ld, "
+           "walking %ld, Dir %ld, NewDir %ld, primary target %ld/%ld.",
+           mDropStage == DropStage::StinkBomb ? "stink bomb" : "glue", (long)mDropPlate.x, (long)mDropPlate.y, (long)(Sim.TimeSlice - mDropStart), why,
+           (long)getPlate().x, (long)getPlate().y, static_cast<SLONG>(qPlayer.GetRoom()), static_cast<SLONG>(qPerson.StatePar),
+           static_cast<SLONG>(qPlayer.iWalkActive), static_cast<SLONG>(qPerson.Dir), static_cast<SLONG>(qPlayer.NewDir), (long)qPlayer.PrimaryTarget.x,
+           (long)qPlayer.PrimaryTarget.y);
+    /* Hand the character back to the bot, unless it has already moved on by itself. */
+    if (qPlayer.GetRoom() == ROOM_AIRPORT && qPlayer.DirectToRoom == 0 && qPlayer.WorkCountdown > 0) {
+        stopWalking();
+    }
+    mDropStage = DropStage::None;
+}
+
+void ClaudeBot::tickItemDrop() {
+    if (mDropStage == DropStage::None) {
+        return;
+    }
+    if (Sim.CallItADay != 0) {
+        abortItemDrop("the day is being fast forwarded");
+        return;
+    }
+    if (Sim.TimeSlice - mDropStart > kMaxDropTicks) {
+        abortItemDrop("took too long");
+        return;
+    }
+    if (qPlayer.IsStuck != 0) {
+        abortItemDrop("stuck in glue");
+        return;
+    }
+    /* Still stepping out of the room the walk started in. */
+    if (qPlayer.GetRoom() != ROOM_AIRPORT) {
+        return;
+    }
+    /* The hold ran out and RobotPump() has sent the character on to its next room. */
+    if (qPlayer.DirectToRoom != 0) {
+        abortItemDrop("the bot moved on to its next room");
+        return;
+    }
+    /* Keep the hold up until the item is down: walkToPlate()'s estimate is a straight line,
+     * and the walk upstairs to an office took twice as long as it. kMaxDropTicks bounds it. */
+    qPlayer.WorkCountdown = std::max<SLONG>(qPlayer.WorkCountdown, 20);
+
+    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
+    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.Dir == 8 && qPerson.StatePar == 0;
+    if (!stopped) {
+        return;
+    }
+    if (getPlate() != mDropPlate || qPlayer.NewDir != 8) {
+        /* Blocked short of the spot, or the walk ended somewhere else: the first glue walks
+         * stood at the top of the stairs with the walk switched off until the timeout. */
+        if (++mDropUseTries > kMaxDropStandTicks) {
+            abortItemDrop("stopped short of the spot");
+        }
+        return;
+    }
+
+    if (mDropStage == DropStage::GlueApproach) {
+        /* One plate towards the target, so that the character ends up facing it. */
+        if (!walkToPlate(mDropFinal)) {
+            abortItemDrop("could not take the last step");
+            return;
+        }
+        mDropStage = DropStage::GlueFinal;
+        mDropPlate = mDropFinal;
+        mDropUseTries = 0;
+        return;
+    }
+
+    /* The phone animation puts 6 into Phase, which is the facing the glue goes by. */
+    if (mOnThePhone > 0) {
+        return;
+    }
+    const SLONG item = (mDropStage == DropStage::StinkBomb) ? ITEM_STINKBOMBE : ITEM_GLUE;
+    GameMechanic::useItem(qPlayer, item);
+    if (qPlayer.HasItem(item) != 0) {
+        if (++mDropUseTries > kMaxDropStandTicks) {
+            abortItemDrop("the item could not be used here");
+        }
+        return;
+    }
+
+    const char *victimName = (mDropVictim >= 0) ? Sim.Players.Players[mDropVictim].AirlineX.c_str() : "?";
+    if (item == ITEM_STINKBOMBE) {
+        mStinkBombDroppedToday = true;
+        mStinkBombDrops++;
+        AT_Log("ClaudeBot::tickItemDrop(): Dropped a stink bomb at plate %ld/%ld against %s after %ld ticks (#%ld).", (long)mDropPlate.x, (long)mDropPlate.y,
+               victimName, (long)(Sim.TimeSlice - mDropStart), mStinkBombDrops);
+    } else {
+        mGlueDroppedToday = true;
+        mGlueDrops++;
+        AT_Log("ClaudeBot::tickItemDrop(): Dropped glue from plate %ld/%ld (facing %ld) against %s after %ld ticks (#%ld).", (long)mDropPlate.x,
+               (long)mDropPlate.y, static_cast<SLONG>(qPerson.Phase), victimName, (long)(Sim.TimeSlice - mDropStart), mGlueDrops);
+    }
+    mDropStage = DropStage::None;
+    stopWalking();
+}
+
 SLONG ClaudeBot::getNextMood() {
     SLONG mood = mMood;
     mMood = mMoodNext;
@@ -6015,7 +6428,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 110;
+    SLONG savegameVersion = 111;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -6090,6 +6503,9 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     for (const auto &qEntry : bot.mTheftValues) {
         File << qEntry.first << qEntry.second;
     }
+    /* version 111: glue and stink bombs */
+    File << bot.mClipsGoneToday << bot.mGlueGoneToday << bot.mGloveGoneToday << bot.mEnergyDrinkPlansToday;
+    File << bot.mGlueDroppedToday << bot.mStinkBombDroppedToday << bot.mGlueTriesToday << bot.mBombTriesToday << bot.mGlueDrops << bot.mStinkBombDrops;
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -6192,6 +6608,18 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         bot.mLastVirusDay = -100;
         bot.mSavingForHints = 0;
     }
+
+    if (savegameVersion >= 111) {
+        File >> bot.mClipsGoneToday >> bot.mGlueGoneToday >> bot.mGloveGoneToday >> bot.mEnergyDrinkPlansToday;
+        File >> bot.mGlueDroppedToday >> bot.mStinkBombDroppedToday >> bot.mGlueTriesToday >> bot.mBombTriesToday >> bot.mGlueDrops >> bot.mStinkBombDrops;
+    } else {
+        bot.mClipsGoneToday = bot.mGlueGoneToday = bot.mGloveGoneToday = false;
+        bot.mEnergyDrinkPlansToday = 0;
+        bot.mGlueDroppedToday = bot.mStinkBombDroppedToday = false;
+        bot.mGlueTriesToday = bot.mBombTriesToday = 0;
+        bot.mGlueDrops = bot.mStinkBombDrops = 0;
+    }
+    bot.mDropStage = ClaudeBot::DropStage::None;
 
     bot.mPlanes.clear();
     bot.mPlaneStateStale = true;
