@@ -2115,6 +2115,8 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
 
     case ITEM_XPARFUEM:
         if (qPlayer.GetRoom() == ROOM_AIRPORT) {
+            /* No NetSynchronizeFlags() here: PlayerStinking reaches the other peers through the
+               ATNET_SYNC_FLAGS sent at the end of this function, like every other branch. */
             qPlayer.PlayerStinking = 2000;
             qPlayer.DropItem(ITEM_XPARFUEM);
         }

@@ -1950,9 +1950,10 @@ on the first action. In the `/quick` harness it fires 0 times (nobody walks), so
 score is unchanged by construction.
 
 Found in code review, not fixed (engine code, outside ClaudeBot's files):
-- db7a9fcf dropped `PLAYER::NetSynchronizeFlags()` from the ITEM_XPARFUEM branch of
-  `GameMechanic::useItem()`. `PlayerStinking` is replicated only by that message, so a player who
-  uses the prepared perfume now stinks on their own machine only.
+- (Retracted) db7a9fcf dropped `PLAYER::NetSynchronizeFlags()` from the ITEM_XPARFUEM branch of
+  `GameMechanic::useItem()`, which looked like `PlayerStinking` no longer being replicated. It is not
+  a bug: the end of `useItem()` sends ATNET_SYNC_ITEMS and ATNET_SYNC_FLAGS for every branch. The
+  branch now carries a comment saying so. Lesson: read the whole function, not only the diff.
 - The electro-room glove->Red Bull swap now runs for a SuperBot on every peer, with only the host's
   item sync broadcast; a client that receives the host's sync first takes the "no glove" branch
   (electric shock, `IsDrunk = 0`) locally. Timing-dependent, not seen in the runs.
