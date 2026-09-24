@@ -369,6 +369,9 @@ class ClaudeBot {
     /* Flags every real room we are in as being left. Not PLAYER::LeaveAllRooms() - see the
      * comment on the definition. */
     void leaveRoomsForWalk();
+    /* Puts a ROOM_AIRPORT entry at index 0 of Locations[] when we are in a room and there is
+     * none, so that leaving the room does not strand the bot - see leaveRoomsForWalk(). */
+    void ensureAirportUnderneath();
     /* Demonstration of the walk, off unless kWalkDemo is set: once an in-game hour the bot
      * walks to a spot in the airport instead of carrying straight on to its next room, and
      * traceWalk() reports what became of it. */

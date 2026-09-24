@@ -1924,3 +1924,37 @@ announcement rune is pulled into that room whatever it was doing (Person.cpp:226
 pathing is "walk x, then y" with no way to avoid one. `roomAtPlate()` says whether the
 *destination* carries one - the path cannot be checked - and the first demo walk of run 1 ended
 with the bot doing its workshop action inside the aircraft broker's office.
+
+2026-09-24 - Network play check: ClaudeBot froze every walking day
+-------------------------------------------------------------------
+
+Checked network play for desyncs, crashes and bugs with `./scripts/run_multiplayer.sh --debug`:
+
+- **Run A** - `2 20 36 10 4 1 1` (Saboteur + ClaudeBot, 20 days, go home 10:00, salary cuts,
+  human room actions): no layout mismatch, the peers agree on all 100 day-end fingerprints, no
+  crash. The Saboteur ordered 11 sabotage jobs against HA and used 4 items without a divergence.
+- **Run B** - `2 1 36 0 0 1 1` (one day at walking pace): no desync, but **HA executed one action a
+  day** (ACTION_PERSONAL at 09:04) and nothing else until 18:00, while PT made 62. It even paid the
+  penalty for its starting job.
+
+**Cause.** ClaudeBot's first action of the day is a room (RobotInit() plans PERSONAL/VISITMECH),
+not ACTION_STARTDAY. Walking out of the morning briefing that way leaves the room it enters
+alone in `Locations[]` - logged `loc=29,0,0,...` - and leaving a room at index 0 strands the bot
+for the rest of the day, exactly the trap `leaveRoomsForWalk()` already guarded against for the
+walk demo. MertenBot starts with ACTION_STARTDAY, executed where it stands, and is not affected.
+
+**Fix.** `ensureAirportUnderneath()` (split out of `leaveRoomsForWalk()`) runs at the start of every
+`RobotExecuteAction()` and puts a ROOM_AIRPORT entry underneath when there is none.
+**Run C**, same setup: HA 74 actions (8-10 an hour all day), PT 60, no desync; the guard fired once,
+on the first action. In the `/quick` harness it fires 0 times (nobody walks), so the free-game
+score is unchanged by construction.
+
+Found in code review, not fixed (engine code, outside ClaudeBot's files):
+- db7a9fcf dropped `PLAYER::NetSynchronizeFlags()` from the ITEM_XPARFUEM branch of
+  `GameMechanic::useItem()`. `PlayerStinking` is replicated only by that message, so a player who
+  uses the prepared perfume now stinks on their own machine only.
+- The electro-room glove->Red Bull swap now runs for a SuperBot on every peer, with only the host's
+  item sync broadcast; a client that receives the host's sync first takes the "no glove" branch
+  (electric shock, `IsDrunk = 0`) locally. Timing-dependent, not seen in the runs.
+- `Bot::condAll()` has no case for ACTION_NONE and logs "Default case should not be reached" when the
+  engine calls RobotExecuteAction() on an empty queue as the humans go home. Cosmetic.
