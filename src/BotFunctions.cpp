@@ -423,7 +423,7 @@ std::vector<SLONG> Bot::findBestAvailablePlaneType() {
 }
 
 void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
-    auto res = howToPlanFlights();
+    auto res = howToPlanFlightsLaptopFix();
     if (HowToPlan::None == res) {
         AT_Error("Bot::grabFlights(): Tried to grab plans without ability to plan them");
         return;
@@ -488,7 +488,7 @@ void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
 }
 
 void Bot::requestPlanFlights(bool areWeInOffice) {
-    auto res = howToPlanFlights();
+    auto res = howToPlanFlightsLaptopFix();
     if (res == HowToPlan::Laptop) {
         AT_Log("Bot::requestPlanFlights(): Planning using laptop");
         planFlights();
@@ -962,9 +962,9 @@ void Bot::updateRoutesSortedList() {
                   [&](SLONG a, SLONG b) { return mRoutes[a].routeOwnUtilization < mRoutes[b].routeOwnUtilization; });
 
         auto lowUtil = mRoutesSortedByOwnUtilization[0];
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest image: %d", Helper::getRouteName(getRoute(mRoutes[lowImage])).c_str(),
+        AT_Log("Bot::updateRoutesSortedList(): Route %s has lowest image: %d", Helper::getRouteName(getRoute(mRoutes[lowImage])).c_str(),
                mRoutes[lowImage].image);
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has lowest utilization: %d/%d", Helper::getRouteName(getRoute(mRoutes[lowUtil])).c_str(),
+        AT_Log("Bot::updateRoutesSortedList(): Route %s has lowest utilization: %d/%d", Helper::getRouteName(getRoute(mRoutes[lowUtil])).c_str(),
                mRoutes[lowUtil].routeOwnUtilization, mRoutes[lowUtil].routeUtilization);
     }
 }
@@ -1059,7 +1059,7 @@ void Bot::updateRouteInfoBoard() {
                 }
             }
         }
-        AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d)",
+        AT_Log("Bot::updateRouteInfoBoard(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d)",
                Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),
                route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC);
     }
@@ -1267,7 +1267,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
 }
 
 void Bot::requestPlanRoutes(bool areWeInOffice) {
-    auto res = howToPlanFlights();
+    auto res = howToPlanFlightsLaptopFix();
     if (res == HowToPlan::Laptop) {
         AT_Log("Bot::requestPlanRoutes(): Planning using laptop");
         planRoutes();
@@ -1479,7 +1479,6 @@ std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::i
 
     for (auto planeId : it->planeIds) {
         mPlanesForRoutesUnassigned.push_back(planeId);
-        GameMechanic::clearFlightPlan(qPlayer, planeId);
         AT_Log("Bot::removeRoute(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
     }
 
@@ -1499,6 +1498,11 @@ std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::i
 
 void Bot::planRoutes() {
     mNeedToPlanRoutes = false;
+
+    for (auto planeId : mPlanesForRoutesUnassigned) {
+        GameMechanic::clearFlightPlan(qPlayer, planeId);
+    }
+
     if (mRoutes.empty()) {
         return;
     }

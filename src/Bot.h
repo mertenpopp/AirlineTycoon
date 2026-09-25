@@ -305,9 +305,10 @@ class Bot {
     bool minutesPassed(SLONG room, SLONG minutes) const;
     bool haveDiscount() const;
     SLONG applyDiscount(SLONG money) const;
-    bool checkLaptop();
+    bool checkLaptop() const;
     enum class HowToPlan { None, Laptop, Office };
-    HowToPlan howToPlanFlights();
+    HowToPlan howToPlanFlights() const;
+    HowToPlan howToPlanFlightsLaptopFix();
     AreWeBroke areWeBroke() const;
     std::pair<HowToGetMoney, Prio> howToGetMoney();
     __int64 howMuchMoneyToRaise(bool maxCredit) const;
@@ -395,6 +396,7 @@ class Bot {
     /* status boss office */
     SLONG mBossNumCitiesAvailable{-1};
     bool mBossGateAvailable{false};
+    bool mBossCanExpandAirport{false};
 
     /* detect tanks being too small */
     DOUBLE mTankRatioEmptiedYesterday{0};

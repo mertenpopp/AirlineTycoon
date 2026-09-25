@@ -118,6 +118,8 @@ Recommended action ID: ACTION_DROPMONEY
 
 ### Emit stock
 
+`EmitStockResult canEmitStock(PLAYER &qPlayer, SLONG *outHowMany = nullptr)`: Helper function which may be called at any time to determine if and how many stock can be emitted.
+
 `bool GameMechanic::emitStock(PLAYER &qPlayer, SLONG neueAktien, SLONG mode)`: Issue new shares. Gives the airline some money however, reduces stock price and more float means competitors could take you over. Analyze the code of this function to see how the mode affects how much money is made and by how much the stock price drops.
 
 Recommended action ID: ACTION_EMITSHARES
@@ -144,7 +146,7 @@ Recommended action ID: ACTION_SELLSHARES
 
 `bool GameMechanic::overtakeAirline(PLAYER &qPlayer, SLONG targetAirline, bool liquidate)`: Action for trying to take over another airline via stock acquisition. Airline is taken over with all planes, routes, money and debt. Parameter `liquidate` can be used to erase airline completely instead.
 
-The function `canOvertakeAirline()` checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%). Note that your competitors can also overtake you when they meet the respective conditions.
+The function `canOvertakeAirline()` checks whether the target is valid, whether you have enough stock (>= 50%), and whether the enemy blocks acquisition by owning stock from your airline (>= 30%). The function may be called any time if `(qPlayer.HasBerater(BERATERTYP_INFO) >= 50) && (qPlayer.HasBerater(BERATERTYP_GELD) >= 50)` holds. Note that your competitors can also overtake you when they meet the respective conditions.
 
 Recommended action ID: ACTION_OVERTAKE_AIRLINE
 
@@ -439,9 +441,9 @@ The advisor BERATERTYP_FITNESS increases movement speed of the player character.
 Office actions
 --------------
 
-Use the action ID ACTION_BUERO, ACTION_UPGRADE_PLANES or ACTION_CALL_INTERNATIONAL to go to the player’s personal office. Only while in this room, the following functions may be called.
+Use the action ID ACTION_BUERO, ACTION_STARTDAY, ACTION_UPGRADE_PLANES or ACTION_CALL_INTERNATIONAL to go to the player’s personal office. Only while in this room, the following functions may be called.
 
-The action ID ACTION_STARTDAY is the standard “begin day” room action and is automatically executed at the beginning of the day. Do not return this action ID from the `RobotPlan()` function.
+The action ID ACTION_STARTDAY is the standard “begin day” room action and is automatically executed at the beginning of the day.
 
 ### Open kerosine tanks
 
@@ -869,7 +871,7 @@ You have read access to:
 - `Sim.ItemClips`: Is the item `ITEM_PAPERCLIP` still available at the route box? May only be read while at the route box.
 - `Sim.ItemGlue`: State of the item `ITEM_GLUE` at the freight depot: 0 = not there yet (somebody has to hand over `ITEM_PAPERCLIP` first), 1 = can be picked up, 2 = already taken. May only be read while in the freight depot.
 - `Sim.ItemGlove`: Is the item `ITEM_GLOVE` still available at the arab? May only be read while in the arab room.
-- `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the HR office? May only be read while in the HR office.
+- `Sim.ItemPostcard`: Is the item `ITEM_POSTKARTE` still available at the boss office? May only be read while in the boss office.
 - `Sim.ItemZange`: Is the item `ITEM_ZANGE` still available at the saboteur? May only be read while in the saboteur room.
 - `Sim.localPlayer`: Gives the player ID of the local player of this game instance.
 - `Sim.nSecOutDays`: Check for how many days the security office is closed. Security office can close due to sabotage.
@@ -887,7 +889,7 @@ The following may always be called to check whether a room exists.
 
 You can access the following fields in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
 
-All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`.
+All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`. Use `Sim.Players.AnzPlayers` to check the number of players which currently is always 4.
 
 All classifications are read-only except where explicitly shown as read/write.
 
@@ -1129,6 +1131,7 @@ You may also read the following global tables and helpers when the rules permit 
 - `gPlanePartRelations` may always be read.
 - `gWerbePrice` may always be read.
 - `SabotagePrice`, `SabotagePrice2` and `SabotagePrice3` may always be read.
+- `TankSize` and `TankPrice` may always be read.
 
 Independently, the following functions of any global array of type `BUFFER_V` or `ALBUM_V` may always be used:
 
@@ -1143,6 +1146,8 @@ Global functions
 ----------------
 
 `Hdu.HercPrintfMsg(...)`: Read-only. Logging interface for ClaudeBot.
+
+`CalculateFlightCost(qRoute.VonCity, qRoute.NachCity, 800, 800, -1)`: Helper function to calculate the "base cost" of a route which is important to determine pricing. Function may be called only with these exact arguments where `qRoute` is a `CRoute` object.
 
 GameMechanic class
 ------------------
@@ -1217,6 +1222,8 @@ For the following list, read permission is always granted, write permission only
 - `PERSON::Position`: Position of character
 - `PERSON::Running`: Whether character is running. May be written as well.
 - `PERSON::StatePar`: State parameter (0: no room, >0: room number & entry/exit flag, -1: leaving room)
+
+These access rights also are granted for MertenBot.
 
 Game missions
 =============

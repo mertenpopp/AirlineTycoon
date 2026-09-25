@@ -149,7 +149,10 @@ Bot::Prio Bot::condStartDayLaptop() {
     if (mDayStarted || isOfficeUsable()) {
         return Prio::None;
     }
-    if (qPlayer.HasItem(ITEM_LAPTOP) && qPlayer.LaptopVirus == 0) {
+    if (!qPlayer.HasItem(ITEM_LAPTOP)) {
+        return Prio::None;
+    }
+    if (qPlayer.LaptopVirus == 0 || (qPlayer.LaptopVirus == 1 && qPlayer.HasItem(ITEM_DISKETTE))) {
         return Prio::Top;
     }
     return Prio::None;
@@ -931,7 +934,7 @@ Bot::Prio Bot::condExpandAirport(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_EXPANDAIRPORT, 24)) {
         return Prio::None;
     }
-    if (GameMechanic::ExpandAirportResult::Ok != GameMechanic::canExpandAirport(qPlayer)) {
+    if (!mBossCanExpandAirport) {
         return Prio::None;
     }
     if (!checkLaptop()) {

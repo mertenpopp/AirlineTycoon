@@ -213,6 +213,7 @@ void Bot::RobotInit(SLONG randomSeed) {
     /* status boss office */
     mBossNumCitiesAvailable = -1;
     mBossGateAvailable = false;
+    mBossCanExpandAirport = false; /* unknown or not possible */
 
     /* crew */
     mQualifiedCrewForHire = 0;
@@ -236,12 +237,6 @@ void Bot::RobotPlan() {
         RobotInit(0);
         AT_Log("Bot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
-    }
-
-    if (mIsSickToday && qPlayer.HasItem(ITEM_TABLETTEN)) {
-        if (useItem(ITEM_TABLETTEN)) {
-            mIsSickToday = false;
-        }
     }
 
     auto &qRobotActions = qPlayer.RobotActions;
@@ -368,6 +363,12 @@ void Bot::RobotExecuteAction() {
         AT_Log("Bot.cpp: Leaving RobotExecuteAction() (too late)\n");
         forceReplanning();
         return;
+    }
+
+    if (mIsSickToday && qPlayer.HasItem(ITEM_TABLETTEN)) {
+        if (useItem(ITEM_TABLETTEN)) {
+            mIsSickToday = false;
+        }
     }
 
     if (kAlwaysReplan) {
@@ -615,7 +616,10 @@ void Bot::RobotExecuteAction() {
 
     case ACTION_EXPANDAIRPORT:
         AT_Log("Bot::RobotExecuteAction(): Expanding Airport");
-        GameMechanic::expandAirport(qPlayer);
+        if (GameMechanic::canExpandAirport(qPlayer) == GameMechanic::ExpandAirportResult::Ok) {
+            GameMechanic::expandAirport(qPlayer);
+        }
+        mBossCanExpandAirport = false;
         break;
 
     case ACTION_VISITROUTEBOX:
@@ -663,8 +667,9 @@ void Bot::RobotExecuteAction() {
         assert(Sim.CallItADay != 0);
         if (qPlayer.HasItem(ITEM_GLOVE)) {
             dropItem(ITEM_GLOVE);
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
-        qPlayer.WorkCountdown = 2;
         break;
 
     case ACTION_VISIT_OFFICE_A:
@@ -755,7 +760,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage << bot.mWeeklyOperatingSaldo;
 
     File << bot.mBossNumCitiesAvailable;
-    File << bot.mBossGateAvailable;
+    File << bot.mBossGateAvailable << bot.mBossCanExpandAirport;
 
     File << bot.mTankRatioEmptiedYesterday;
     File << bot.mKerosineUsedTodaySoFar;
@@ -953,6 +958,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mBossNumCitiesAvailable;
     File >> bot.mBossGateAvailable;
+    if (savegameVersion < 103) {
+        bot.mBossCanExpandAirport = 0;
+    } else {
+        File >> bot.mBossCanExpandAirport;
+    }
 
     File >> bot.mTankRatioEmptiedYesterday;
     File >> bot.mKerosineUsedTodaySoFar;
