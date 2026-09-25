@@ -254,6 +254,9 @@ class ClaudeBot {
 
     /* --- planning --- */
     void setupMission();
+    /* setupMission() and prepareDesignerPlane(), once a day and once after a savegame is
+     * loaded - a load does not start a new day, see mMissionReady. */
+    void refreshMission();
     /* Whether this mission has a rent-a-route counter at all. */
     bool routesAvailable() const;
     /* Extra weight on a route the mission goal asks for, 0 otherwise. Route box only. */
@@ -347,8 +350,8 @@ class ClaudeBot {
     void abortItemDrop(const char *why);
 
     enum class DropStage { None, GlueApproach, GlueFinal, StinkBomb };
-    /* The walk in flight, none of it serialised: a savegame is loaded in the morning, and a
-     * walk does not survive the day anyway. */
+    /* The walk in flight, none of it serialised: the loader drops it, and the day's tries and
+     * drop flags, which are saved, decide whether to go again. */
     DropStage mDropStage{DropStage::None};
     XY mDropPlate{-1, -1};  /* the plate we are walking to now */
     XY mDropFinal{-1, -1};  /* glue: the plate to step onto for the drop */
@@ -422,6 +425,12 @@ class ClaudeBot {
 
     /* Derived from Sim.Difficulty, so it is rebuilt rather than loaded with a savegame. */
     Mission mMission{};
+    /* False until refreshMission() has run for the game being played. A savegame is loaded into
+     * the bot object that already exists, mid-day as often as not (the autosave is taken at
+     * 17:00), and no RobotInit() follows until the next morning - so without this the rest of
+     * the day would run on a default Mission, whose ticketPercent of 0 prices routes at 0 $,
+     * or on the mission of whatever game was played before. */
+    bool mMissionReady{false};
 
     /* The design for this mission, its file (buyXPlane() loads from disk) and its price, which
      * every affordability decision needs and which is only known once the design exists. */
@@ -469,7 +478,7 @@ class ClaudeBot {
     bool mVisitedAdsToday{false};
     bool mVisitedBossToday{false};
     bool mVisitedBrokerToday{false};
-    bool mVisitedMuseumToday{false}; /* not serialised: reset every morning anyway */
+    bool mVisitedMuseumToday{false};
     bool mVisitedBankToday{false};
     bool mVisitedStockToday{false};
     bool mUpgradedToday{false};
@@ -483,8 +492,8 @@ class ClaudeBot {
     bool mVisitedFreightToday{false};
     bool mFreightEmptyToday{false};
     SLONG mFreightTakenToday{0};
-    SLONG mCallsToday{0}; /* not serialised: reset every morning */
-    SLONG mLastCallTime{-1}; /* Sim.Time of the last round of calls today, not serialised */
+    SLONG mCallsToday{0};
+    SLONG mLastCallTime{-1}; /* Sim.Time of the last round of calls today */
 
     /* mPlanes is stale and has to be rebuilt in the office before it may be used */
     bool mPlaneStateStale{true};

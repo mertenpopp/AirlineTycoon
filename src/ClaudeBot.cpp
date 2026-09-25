@@ -1344,6 +1344,16 @@ SLONG ClaudeBot::pickFillerAction() {
     return ACTION_WAIT;
 }
 
+void ClaudeBot::refreshMission() {
+    /* Constant for a whole mission, but this is the one place that runs before anything
+     * else every day, and it costs nothing to re-read. */
+    setupMission();
+    /* Costs a few seconds and runs once per game, so only the two missions that need a designed
+     * plane ever pay for it. */
+    prepareDesignerPlane();
+    mMissionReady = true;
+}
+
 /* Per-day bookkeeping. RobotInit() is the one callback that is guaranteed to run exactly
  * once per day, and Sim.Date may be read anywhere, so the reset lives here. */
 void ClaudeBot::startNewDay() {
@@ -1351,12 +1361,7 @@ void ClaudeBot::startNewDay() {
         return;
     }
     mDay = Sim.Date;
-    /* Constant for a whole mission, but this is the one place that runs before anything
-     * else every day, and it costs nothing to re-read. */
-    setupMission();
-    /* Costs a few seconds and runs once per game, so only the two missions that need a designed
-     * plane ever pay for it. */
-    prepareDesignerPlane();
+    refreshMission();
     mJobsTakenToday = 0;
     mVisitedPersonalToday = false;
     mVisitedMechToday = false;
@@ -1999,6 +2004,9 @@ void ClaudeBot::RobotPlan() {
         AT_Log("ClaudeBot.cpp: Leaving RobotPlan() (not initialized)\n");
         return;
     }
+    if (!mMissionReady) {
+        refreshMission();
+    }
 
     auto &qRobotActions = qPlayer.RobotActions;
 
@@ -2086,6 +2094,9 @@ void ClaudeBot::RobotExecuteAction() {
         RobotInit(0);
         AT_Log("ClaudeBot.cpp: Leaving RobotExecuteAction() (not initialized)\n");
         return;
+    }
+    if (!mMissionReady) {
+        refreshMission();
     }
 
     /* refuse to work outside working hours (game sometimes calls this too early) */
@@ -6428,7 +6439,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 111;
+    SLONG savegameVersion = 112;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -6453,6 +6464,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
         File << qRoute.ticketPrice << qRoute.ticketPriceFC;
         File << qRoute.bedarf << qRoute.valuePerHour << qRoute.anzPax;
         File << qRoute.pricesSet;
+        File << qRoute.castaway; /* version 112 */
     }
 
     File << bot.mDay;
@@ -6507,6 +6519,16 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mClipsGoneToday << bot.mGlueGoneToday << bot.mGloveGoneToday << bot.mEnergyDrinkPlansToday;
     File << bot.mGlueDroppedToday << bot.mStinkBombDroppedToday << bot.mGlueTriesToday << bot.mBombTriesToday << bot.mGlueDrops << bot.mStinkBombDrops;
 
+    /* version 112: the rest of the per-day bookkeeping - the autosave is taken at 17:00, so a
+     * load resumes the day - and the castaway list, which the route box needs to keep a
+     * stranded plane's pair marked. */
+    File << bot.mVisitedMuseumToday << bot.mVisitedDesignerToday << bot.mCallsToday << bot.mLastCallTime;
+    File << static_cast<SLONG>(bot.mCastawayRoutes.size());
+    for (const auto id : bot.mCastawayRoutes) {
+        File << id;
+    }
+    File << bot.LocalRandom;
+
     SLONG magicnumber = 0x42;
     File << magicnumber;
 
@@ -6540,6 +6562,9 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         File >> qRoute.ticketPrice >> qRoute.ticketPriceFC;
         File >> qRoute.bedarf >> qRoute.valuePerHour >> qRoute.anzPax;
         File >> qRoute.pricesSet;
+        if (savegameVersion >= 112) {
+            File >> qRoute.castaway;
+        }
         bot.mRoutes.push_back(qRoute);
     }
 
@@ -6619,7 +6644,38 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         bot.mGlueTriesToday = bot.mBombTriesToday = 0;
         bot.mGlueDrops = bot.mStinkBombDrops = 0;
     }
+
+    bot.mCastawayRoutes.clear();
+    if (savegameVersion >= 112) {
+        File >> bot.mVisitedMuseumToday >> bot.mVisitedDesignerToday >> bot.mCallsToday >> bot.mLastCallTime;
+        SLONG numCastaways = 0;
+        File >> numCastaways;
+        for (SLONG i = 0; i < numCastaways; i++) {
+            SLONG id = -1;
+            File >> id;
+            bot.mCastawayRoutes.push_back(id);
+        }
+        File >> bot.LocalRandom;
+    } else {
+        bot.mVisitedMuseumToday = bot.mVisitedDesignerToday = false;
+        bot.mCallsToday = 0;
+        bot.mLastCallTime = -1;
+        /* The castaway flags were not saved either: the next route box visit rents a stranded
+         * plane's pair again if it still needs one. */
+    }
+
+    /* Nothing below is saved: it is derived from the game, or only lives inside one callback
+     * or one walk. The bot object is reused across a load, so it is reset explicitly rather than
+     * left holding whatever the game played before had put there. */
+    bot.mMissionReady = false;
+    bot.mDesignerPlaneReady = false;
+    bot.mDesignerPlaneSaved = false;
+    bot.mInExecuteAction = false;
     bot.mDropStage = ClaudeBot::DropStage::None;
+    bot.mDropVictim = -1;
+    bot.mDropUseTries = 0;
+    bot.mWalkDemoTarget = {-1, -1};
+    bot.mWalkDemoHour = -1;
 
     bot.mPlanes.clear();
     bot.mPlaneStateStale = true;
@@ -6627,6 +6683,16 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     SLONG magicnumber = 0;
     File >> magicnumber;
     assert(magicnumber == 0x42);
+    /* The assert is compiled out of release builds, and a misread block only shows much later
+     * as nonsense state - so say what was loaded, and whether it ended where it should. */
+    if (magicnumber != 0x42) {
+        AT_Error("ClaudeBot: savegame block version %ld for %s is misaligned (end marker %ld).", savegameVersion, bot.qPlayer.Abk.c_str(), magicnumber);
+    }
+    AT_Log("ClaudeBot: loaded savegame block version %ld for %s: day %ld, %ld routes (%ld castaway), jobs today %ld, agency visits %ld, calls %ld at %ld, "
+           "route box %d, personal %d, image decay %ld, fuel/day %ld, sabotage hints %ld.",
+           savegameVersion, bot.qPlayer.Abk.c_str(), bot.mDay, static_cast<SLONG>(bot.mRoutes.size()), static_cast<SLONG>(bot.mCastawayRoutes.size()),
+           bot.mJobsTakenToday, bot.mAgencyVisitsToday, bot.mCallsToday, bot.mLastCallTime, static_cast<int>(bot.mVisitedRouteBoxToday),
+           static_cast<int>(bot.mVisitedPersonalToday), bot.mImageDecayPerDay, bot.mFuelUnitsPerDay, bot.mSabotageHints);
 
     return (File);
 }

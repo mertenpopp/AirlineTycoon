@@ -2010,3 +2010,8 @@ walk of f8aae494 and MertenBot's item chains as the model.
   idle human in the harness and never leaves its office). The glue sticks whoever crosses the plate
   first, ourselves included. Whether the image a stink bomb costs a competitor is worth the Arab
   and kiosk walks is unmeasured - no harness plays walking days at scale.
+
+## 2026-09-25: savegame round trip
+- Problem: on load, the game reads the savegame into the existing ClaudeBot objects and runs no RobotInit() until the next morning (the autosave is taken at 17:00). mMission was only built in startNewDay(), so after a mid-day load it held defaults (ticketPercent 0) or the previous game's mission. mCastawayRoutes, RouteState::castaway, mVisitedMuseumToday, mVisitedDesignerToday, mCallsToday, mLastCallTime and LocalRandom were not saved.
+- Fix: ClaudeBot savegame version 112 saves these fields. A new flag, mMissionReady, is cleared on load, and RobotPlan()/RobotExecuteAction() then call refreshMission(). The loader resets the designer plane, the item-drop walk and the walk-demo state. No change to free-game play before a load, so no measurement.
+- Test: run_loadtest.sh on slots 0/1/2/11 (formats 202/203/204): all load and play on with 0 errors. Slot 11 exercises the v111 fallback. Round trip: the user saved by hand while ClaudeBot played HA (day 2, 15:5x). Loading it read every block to its end marker; HA came back with day 1, 1 route, 10 agency visits, 3 calls, route box and personal office done, fuel 349 units/day, 2 sabotage hints. It resumed at 15:52 and played to day 59 with 0 errors. The loader now logs this summary and reports an error if a block does not end at its end marker (the assert is compiled out of release builds).
