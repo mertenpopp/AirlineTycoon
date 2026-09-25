@@ -718,7 +718,9 @@ void PLAYER::LeaveAllRooms() {
     SLONG c = 0;
 
     for (c = 9; c >= 0; c--) {
-        if ((Locations[c] != 0U) && Locations[c] != ROOM_AIRPORT) {
+        /* Without the flags: right after a room was left, the airport entry reads
+           ROOM_AIRPORT | ROOM_ENTERING and would be left as well. */
+        if ((Locations[c] != 0U) && (Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING)) != ROOM_AIRPORT) {
             Locations[c] = UWORD(Locations[c] | ROOM_LEAVING);
         }
     }
