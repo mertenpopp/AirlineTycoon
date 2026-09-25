@@ -2371,21 +2371,11 @@ void CPlaner::HandleLButtonDown() {
                 }
 #endif
 
-                for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                    if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                        for (SLONG d = qPlayer.Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                            if (qPlayer.Planes[c].Flugplan.Flug[d].ObjectType == 1) {
-                                if (Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId) == Routen(pBlock->SelectedIdB) ||
-                                    SLONG(Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId)) == RouteB) {
-                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2315), (LPCTSTR)qPlayer.Planes[c].Name));
-                                    return;
-                                }
-                            }
-                        }
-                    }
+                SLONG planeID = GameMechanic::getAnyPlaneOnRoute(qPlayer, Routen(pBlock->SelectedIdB));
+                if (planeID != -1) {
+                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2315), (LPCTSTR)qPlayer.Planes[planeID].Name));
+                    return;
                 }
-
                 MenuStart(MENU_REQUEST, MENU_REQUEST_KILLROUTE, Routen(pBlock->SelectedIdB), RouteB);
             }
         }

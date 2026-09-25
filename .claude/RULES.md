@@ -83,7 +83,7 @@ Use `RobotPlan()` to determine what shall be done next. In this function, a prim
 
 Use `RobotExecuteAction()` to actually perform a planned action. It shall be checked which action ID (primary or secondary) was successful by checking `qPlayer.RobotActions[0]`.
 
-ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action. To reduce log spam, you may stop printing the warning after some time.
+ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action. To reduce log spam, you may stop printing the warning after some time. During "fast-forward" mode (`Sim.CallItADay == 1`), player characters do not actually walk anywhere and `qPlayer.GetRoom()` will always return 1 and the room check does not need to be performed.
 
 Due to a bug in a game, `RobotExecuteAction()` sometimes executes too early. Because of this, ClaudeBot is not allowed to perform any action when `(Sim.Time <= 540000) == TRUE`.
 

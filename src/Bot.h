@@ -219,7 +219,7 @@ class Bot {
 
     /* in BotActions.cpp */
     void actionStartDay(__int64 moneyAvailable);
-    void actionStartDayLaptop(__int64 moneyAvailable);
+    void actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice);
     void actionBuero();
     void actionCallInternational(bool areWeInOffice);
     void actionCheckLastMinute();
@@ -274,7 +274,7 @@ class Bot {
     SLONG getNumRentedRoutes() const;
     void checkRentedRoutes();
     void updateRoutesSortedList();
-    void updateRouteInfoOffice();
+    void updateRouteInfoOffice(bool areWeInOffice);
     void updateRouteInfoBoard();
     SLONG calcRequiredImageForAirline();
     SLONG calcAirlineImageTarget() const;

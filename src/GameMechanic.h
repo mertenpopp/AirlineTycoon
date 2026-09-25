@@ -152,6 +152,7 @@ class GameMechanic {
     /* Routes */
     static bool killCity(PLAYER &qPlayer, SLONG cityID, bool fromNetwork = false);
     static BUFFER_V<BOOL> getBuyableRoutes(PLAYER &qPlayer);
+    static SLONG getAnyPlaneOnRoute(PLAYER &qPlayer, SLONG routeA);
     static bool killRoute(PLAYER &qPlayer, SLONG routeA);
     static bool rentRoute(PLAYER &qPlayer, SLONG routeA);
     static SLONG findRouteInReverse(PLAYER &qPlayer, SLONG routeA);
