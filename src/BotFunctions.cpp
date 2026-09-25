@@ -599,6 +599,9 @@ SLONG Bot::replaceAutomaticFlights(SLONG planeId) {
 
             for (const auto &iter : mRoutes) {
                 const auto &qRoute = getRoute(iter);
+                if (iter.planeTypeId == -1) {
+                    continue; /* route will be removed */
+                }
                 SLONG fromCity = Cities.find(qRoute.VonCity);
                 SLONG toCity = Cities.find(qRoute.NachCity);
                 if (from != fromCity || to != toCity) {
@@ -969,7 +972,7 @@ void Bot::updateRoutesSortedList() {
     }
 }
 
-void Bot::updateRouteInfoOffice() {
+void Bot::updateRouteInfoOffice(bool areWeInOffice) {
     /* copy most import information from routes
      * updates: image, routeOwnUtilization, planeUtilization(FC), canUpgrade, mPlanesForRoutesUnassigned
      * does not update: routeUtilization, mRouteToSteal */
@@ -980,28 +983,32 @@ void Bot::updateRouteInfoOffice() {
         route.planeUtilization = getRentRoute(route).AuslastungBot;
         route.planeUtilizationFC = getRentRoute(route).AuslastungFirstClassBot;
 
-        route.canUpgrade = false;
-
         if (route.planeIds.empty()) {
             continue;
         }
 
         DOUBLE luxusSumme = 0;
-        SLONG luxusTarget = 3 * (checkVeryLateGame() ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget) + kPlaneFoodTarget;
+        if (areWeInOffice) {
+            route.canUpgrade = false;
+            SLONG luxusTarget = 3 * (checkVeryLateGame() ? kPlaneLuxuryTargetLateGame : kPlaneLuxuryTarget) + kPlaneFoodTarget;
+            for (auto i : route.planeIds) {
+                const auto &qPlane = qPlayer.Planes[i];
+
+                SLONG luxusForImage = qPlane.SitzeTarget + qPlane.EssenTarget + qPlane.TablettsTarget + qPlane.DecoTarget;
+                SLONG luxusForFirstClass = qPlane.TriebwerkTarget + qPlane.ReifenTarget + qPlane.ElektronikTarget + qPlane.SicherheitTarget;
+                luxusSumme += (luxusForImage + luxusForFirstClass);
+
+                /* target: upgrade image-relevant */
+                route.canUpgrade = route.canUpgrade || (qPlane.MaxPassagiereTargetFC > 0) || (luxusForImage < luxusTarget);
+            }
+            luxusSumme /= route.planeIds.size();
+        }
+
         __int64 currentWeeklyRevenue = 0;
         for (auto i : route.planeIds) {
             const auto &qPlane = qPlayer.Planes[i];
-
-            SLONG luxusForImage = qPlane.SitzeTarget + qPlane.EssenTarget + qPlane.TablettsTarget + qPlane.DecoTarget;
-            SLONG luxusForFirstClass = qPlane.TriebwerkTarget + qPlane.ReifenTarget + qPlane.ElektronikTarget + qPlane.SicherheitTarget;
-            luxusSumme += (luxusForImage + luxusForFirstClass);
-
             currentWeeklyRevenue += qPlane.GetSaldo();
-
-            /* target: upgrade image-relevant */
-            route.canUpgrade = (qPlane.MaxPassagiereTargetFC > 0) || (luxusForImage < luxusTarget);
         }
-        luxusSumme /= route.planeIds.size();
 
         AT_Log("Bot::updateRouteInfoOffice(): Route %s has image=%d and utilization=%d/%d (%d/%d planes with average utilization=%d/%d and luxus=%.2f)",
                Helper::getRouteName(getRoute(route)).c_str(), route.image, route.routeOwnUtilization, route.routeUtilization, route.planeIds.size(),

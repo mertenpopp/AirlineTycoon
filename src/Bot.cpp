@@ -386,11 +386,13 @@ void Bot::RobotExecuteAction() {
 
     mOnThePhone = 0;
 
-    /*const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
-    if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
-        AT_Warn("Bot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway.", Translate_ACTION(qAction.ActionId),
-                static_cast<SLONG>(qPlayer.GetRoom()), wantRoom);
-    }*/
+    if (Sim.CallItADay == 0) {
+        const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
+        if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
+            AT_Warn("Bot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway.", Translate_ACTION(qAction.ActionId),
+                    static_cast<SLONG>(qPlayer.GetRoom()), wantRoom);
+        }
+    }
 
     __int64 moneyAvailable = getMoneyAvailable();
     if (condAll(qAction.ActionId) == Prio::None) {
@@ -408,7 +410,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_STARTDAY_LAPTOP:
-        actionStartDayLaptop(moneyAvailable);
+        actionStartDayLaptop(moneyAvailable, false);
         break;
 
     case ACTION_BUERO:
@@ -496,6 +498,8 @@ void Bot::RobotExecuteAction() {
         if (targetDividend != qPlayer.Dividende) {
             AT_Log("Bot::RobotExecuteAction(): Setting dividend to %d", targetDividend);
             GameMechanic::setDividend(qPlayer, targetDividend);
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
     } break;
 
@@ -506,6 +510,8 @@ void Bot::RobotExecuteAction() {
             AT_Log("Bot::RobotExecuteAction(): Taking loan: %s $", Insert1000erDots64(m).c_str());
             GameMechanic::takeOutCredit(qPlayer, m);
             moneyAvailable = getMoneyAvailable();
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
     } break;
 
@@ -525,11 +531,17 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_BUYSHARES: {
+        bool didWork = false;
         if (condBuyOwnShares(moneyAvailable) != Prio::None) {
             actionBuyOwnShares(moneyAvailable);
+            didWork = true;
         }
         if (condBuyNemesisShares(moneyAvailable) != Prio::None) {
             actionBuyNemesisShares(moneyAvailable);
+            didWork = true;
+        }
+        if (!didWork) {
+            qPlayer.WorkCountdown = 2;
         }
     } break;
 
@@ -618,6 +630,8 @@ void Bot::RobotExecuteAction() {
         AT_Log("Bot::RobotExecuteAction(): Expanding Airport");
         if (GameMechanic::canExpandAirport(qPlayer) == GameMechanic::ExpandAirportResult::Ok) {
             GameMechanic::expandAirport(qPlayer);
+        } else {
+            qPlayer.WorkCountdown = 2;
         }
         mBossCanExpandAirport = false;
         break;
@@ -703,6 +717,8 @@ SLONG Bot::getNextMood() {
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     SLONG savegameVersion = 103;
     File << savegameVersion;
+
+    File << bot.LocalRandom;
 
     File << static_cast<SLONG>(bot.mLastTimeInRoom.size());
     for (const auto &i : bot.mLastTimeInRoom) {
@@ -844,6 +860,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
 TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     SLONG savegameVersion;
     File >> savegameVersion;
+
+    if (savegameVersion >= 103) {
+        File >> bot.LocalRandom;
+    }
 
     SLONG size{};
     File >> size;

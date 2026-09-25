@@ -2859,6 +2859,39 @@ BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer) {
     return IsBuyable;
 }
 
+SLONG GameMechanic::getAnyPlaneOnRoute(PLAYER &qPlayer, SLONG routeA) {
+    routeA = Routen.find(routeA);
+    if (routeA < 0 || routeA >= qPlayer.RentRouten.RentRouten.size()) {
+        AT_Error("GameMechanic::getAnyPlaneOnRoute(%s): Invalid routeA (%ld).", qPlayer.AirlineX.c_str(), routeA);
+        return false;
+    }
+
+    /* find route in reverse direction */
+    SLONG routeB = findRouteInReverse(qPlayer, routeA);
+    if (-1 == routeB) {
+        AT_Error("GameMechanic::getAnyPlaneOnRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
+        return -1;
+    }
+
+    /* check if planes still fly this route */
+    for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const auto &qPlane = qPlayer.Planes[c];
+        for (SLONG d = qPlane.Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
+            const auto &qFPE = qPlane.Flugplan.Flug[d];
+            if (qFPE.ObjectType == 1) {
+                SLONG idx = Routen(qFPE.ObjectId);
+                if (idx == routeA || idx == routeB) {
+                    return c;
+                }
+            }
+        }
+    }
+    return -1;
+}
+
 bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA) {
     routeA = Routen.find(routeA);
     if (routeA < 0 || routeA >= qPlayer.RentRouten.RentRouten.size()) {
@@ -2872,6 +2905,11 @@ bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA) {
     SLONG routeB = findRouteInReverse(qPlayer, routeA);
     if (-1 == routeB) {
         AT_Error("GameMechanic::killRoute(%s): Unable to find route in reverse direction.", qPlayer.AirlineX.c_str());
+        return false;
+    }
+
+    if (-1 != GameMechanic::getAnyPlaneOnRoute(qPlayer, routeA)) {
+        AT_Error("GameMechanic::killRoute(%s): Route is still in use.", qPlayer.AirlineX.c_str());
         return false;
     }
 

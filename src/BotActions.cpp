@@ -53,13 +53,13 @@ template <typename T> inline bool eraseFirst(T &l, SLONG val) {
 }
 
 void Bot::actionStartDay(__int64 moneyAvailable) {
-    actionStartDayLaptop(moneyAvailable);
+    actionStartDayLaptop(moneyAvailable, true);
 
     /* always use tanks: We get discount from advisor and by using cheap kerosine */
     GameMechanic::setKerosinTankOpen(qPlayer, true);
 }
 
-void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
+void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
     mDayStarted = true;
 
     /*  invalidate cached info */
@@ -70,28 +70,6 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     mRoutesNextStep = RoutesNextStep::None;
     mExtraPilots = -1;
     mExtraBegleiter = -1;
-
-    /* refresh cached info */
-    if (qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
-        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
-        mTicketsYesterday = qPlayer.BilanzGestern.Tickets;
-    }
-
-    mArabHintsTracker -= std::min(3, mArabHintsTracker);
-    AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
-
-    auto broke = areWeBroke();
-    if (broke == AreWeBroke::Desperate) {
-        AT_Log("Bot::actionStartDay(): Are we broke? Desperate");
-    } else if (broke == AreWeBroke::Yes) {
-        AT_Log("Bot::actionStartDay(): Are we broke? Yes");
-    } else if (broke == AreWeBroke::Somewhat) {
-        AT_Log("Bot::actionStartDay(): Are we broke? Somewhat");
-    } else {
-        AT_Log("Bot::actionStartDay(): Are we broke? No");
-    }
-
-    AT_Log("Bot::actionStartDay(): Can use laptop? %s", checkLaptop() ? "Yes" : "No");
 
     /* print inventory */
     std::string items;
@@ -128,6 +106,36 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
         break;
     }
 
+    mArabHintsTracker -= std::min(3, mArabHintsTracker);
+    AT_Log("Bot::actionStartDay(): Arab hints tracker: %d", mArabHintsTracker);
+
+    auto broke = areWeBroke();
+    if (broke == AreWeBroke::Desperate) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Desperate");
+    } else if (broke == AreWeBroke::Yes) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Yes");
+    } else if (broke == AreWeBroke::Somewhat) {
+        AT_Log("Bot::actionStartDay(): Are we broke? Somewhat");
+    } else {
+        AT_Log("Bot::actionStartDay(): Are we broke? No");
+    }
+
+    if (qPlayer.LaptopVirus == 1 && qPlayer.HasItem(ITEM_DISKETTE)) {
+        useItem(ITEM_DISKETTE);
+    }
+    if (!areWeInOffice && qPlayer.LaptopVirus != 0) {
+        AT_Error("Bot::actionStartDayLaptop(): Laptop cannot be used!");
+        return;
+    }
+
+    AT_Log("Bot::actionStartDay(): Can use laptop? %s", checkLaptop() ? "Yes" : "No");
+
+    /* refresh cached info */
+    if (qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
+        mWeeklyOperatingSaldo = qPlayer.BilanzWoche.Hole().GetOpSaldo();
+        mTicketsYesterday = qPlayer.BilanzGestern.Tickets;
+    }
+
     /* check lists of planes, check which planes are available for service and which are not */
     if (checkPlaneLists()) {
         planFlights();
@@ -136,7 +144,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable) {
     /* check routes */
     checkRentedRoutes();
     if (mDoRoutes) {
-        updateRouteInfoOffice();
+        updateRouteInfoOffice(areWeInOffice);
         requestPlanRoutes(true);
     } else if (qPlayer.RobotUse(ROBOT_USE_ROUTES) && (getNumRentedRoutes() == 0)) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
@@ -209,7 +217,7 @@ void Bot::actionBuero() {
         planFlights();
     }
     if (mDoRoutes) {
-        updateRouteInfoOffice();
+        updateRouteInfoOffice(true);
         assignPlanesToRoutes(true);
         if (mNeedToPlanRoutes) {
             planRoutes();
@@ -425,7 +433,7 @@ void Bot::actionUpgradePlanes() {
     AT_Log("Bot::actionUpgradePlanes(): We are reserving %s $ for plane upgrades, available money: %s $", Insert1000erDots64(mMoneyReservedForUpgrades).c_str(),
            Insert1000erDots64(getMoneyAvailable()).c_str());
 
-    updateRouteInfoOffice();
+    updateRouteInfoOffice(true);
 }
 
 void Bot::updateExtraWorkers() {
@@ -1410,18 +1418,25 @@ void Bot::actionRentRoute() {
     if (mRoutesToRemove) {
         /* kill routes marked for deletion (no plane type id assigned) */
         /* this includes routes that were rented at the beginning of the game */
+        SLONG numWaitForRemoval = 0;
         auto it = mRoutes.begin();
         while (it != mRoutes.end()) {
             if (it->planeTypeId == -1) {
                 SLONG routeID = it->routeId;
-                GameMechanic::killRoute(qPlayer, routeID);
-                it = removeRoute(it);
-                AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+                if (GameMechanic::getAnyPlaneOnRoute(qPlayer, routeID) != -1) {
+                    AT_Log("Bot::actionRentRoute(): Cannot remove route %s, still in flightplans", Helper::getRouteName(Routen[routeID]).c_str());
+                    numWaitForRemoval++;
+                    ++it; /* only increase if not erased */
+                } else {
+                    GameMechanic::killRoute(qPlayer, routeID);
+                    it = removeRoute(it);
+                    AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+                }
             } else {
                 ++it; /* only increase if not erased */
             }
         }
-        mRoutesToRemove = false;
+        mRoutesToRemove = (numWaitForRemoval > 0);
     }
 
     if (!mDoRoutes) {

@@ -725,18 +725,9 @@ void CRouteBox::OnLButtonDown(UINT nFlags, CPoint point) {
                         }
                     }
 
-                    for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                        if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                            for (SLONG d = qPlayer.Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                                if (qPlayer.Planes[c].Flugplan.Flug[d].ObjectType == 1) {
-                                    if (Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId) == Routen(CurrentTip) ||
-                                        SLONG(Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId)) == RouteB) {
-                                        MenuStart(MENU_REQUEST, MENU_REQUEST_NORENTROUTE3);
-                                        return;
-                                    }
-                                }
-                            }
-                        }
+                    if (GameMechanic::getAnyPlaneOnRoute(qPlayer, Routen(CurrentTip)) != -1) {
+                        MenuStart(MENU_REQUEST, MENU_REQUEST_NORENTROUTE3);
+                        return;
                     }
 
                     MenuStart(MENU_REQUEST, MENU_REQUEST_KILLROUTE, Routen(CurrentTip), RouteB);
