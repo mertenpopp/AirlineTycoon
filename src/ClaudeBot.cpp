@@ -1866,47 +1866,12 @@ void ClaudeBot::traceWalk() {
 
 /* Leaves every real room we are in, so that the walk below has the airport to walk in.
  *
- * Not PLAYER::LeaveAllRooms(), and not PLAYER::LeaveRoom() either. Both of them strand the bot
- * for the rest of the day when the room sits at index 0 of Locations[], and that is not a rare
- * state: PLAYER::EnterRoom() takes the first free slot (Player.cpp:645), and the ROOM_AIRPORT
- * entry that normally holds slot 0 is not always there - in a network game every peer overwrites
- * the whole array from ATNET_ENTERROOM (AtNet.cpp:801-806). The bot's leave branch hands
- * ROOM_ENTERING to index d-1 and to nothing else (Takeoff.cpp:1889-1893), so leaving the room at
- * index 0 empties the array; CalcRoom() then returns without writing, because its loop only
- * writes when it finds a location (Player.cpp:784-791); and GetRoom() answers from then on with
- * the room that was left. Nothing ever walks the character out of that room again. In the
- * verification run that found this, HA managed 1 action against PT's 54.
- *
- * So: put an airport entry underneath first. LeaveAllRooms() has a second, smaller problem that
- * this avoids as well - it compares the raw Locations[] value against ROOM_AIRPORT, and for the
- * frame after a bot steps out of a room the airport entry reads ROOM_AIRPORT | ROOM_ENTERING
- * (Takeoff.cpp:1891), which would be flagged as leaving too.
- *
- * A room that is still being entered is flagged like any other; the engine's leave branch runs
- * before its enter branch in the same loop, so only one of the two can happen. */
-void ClaudeBot::ensureAirportUnderneath() {
-    bool bHaveAirport = false;
-    bool bHaveRoom = false;
-    for (SLONG c = 0; c < 10; c++) {
-        const UWORD room = UWORD(qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING));
-        if (room == ROOM_AIRPORT) {
-            bHaveAirport = true;
-        } else if (room != 0) {
-            bHaveRoom = true;
-        }
-    }
-    if (!bHaveAirport && bHaveRoom && qPlayer.Locations[9] == 0) {
-        for (SLONG c = 9; c > 0; c--) {
-            qPlayer.Locations[c] = qPlayer.Locations[c - 1];
-        }
-        qPlayer.Locations[0] = ROOM_AIRPORT;
-        AT_Log("ClaudeBot::ensureAirportUnderneath(): No airport entry to come back to, put one underneath room %ld", (long)qPlayer.GetRoom());
-    }
-}
-
+ * Only sets ROOM_LEAVING, which is all RULES.md permits; the engine's robot leave branch does
+ * the rest, and puts the airport back underneath if the room left was the last location
+ * (Takeoff.cpp). A room that is still being entered is flagged like any other; the engine's
+ * leave branch runs before its enter branch in the same loop, so only one of the two can
+ * happen. */
 void ClaudeBot::leaveRoomsForWalk() {
-    ensureAirportUnderneath();
-
     bool bLeft = false;
     for (SLONG c = 9; c >= 0; c--) {
         const UWORD room = UWORD(qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING));
@@ -2117,12 +2082,6 @@ void ClaudeBot::RobotExecuteAction() {
             Insert1000erDots64(getMoneyAvailable()).c_str());
 
     mOnThePhone = 0;
-
-    /* Leaving a room that sits at index 0 of Locations[] strands the bot for the rest of the
-     * day (see leaveRoomsForWalk()). It happens in every walking day: the first action is a
-     * room, not ACTION_STARTDAY, and the room entered after the morning briefing ends up
-     * alone in Locations[]. Found in a network game, where HA froze after one action a day. */
-    ensureAirportUnderneath();
 
     /* The room check RULES.md asks for. It warns and performs the action anyway, as required.
      *

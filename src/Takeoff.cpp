@@ -1888,8 +1888,23 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 }
 
                                                 qPlayer.Locations[d] = 0;
-                                                if (d > 0) {
+                                                if (d > 0 && qPlayer.Locations[d - 1] != 0) {
                                                     qPlayer.Locations[d - 1] = UWORD((qPlayer.Locations[d - 1] & (~ROOM_LEAVING)) | ROOM_ENTERING);
+                                                } else {
+                                                    /* Nothing underneath the room that was left. That happens when the
+                                                       airport entry is missing, e.g. when the room was entered into an
+                                                       empty array, and without a location CalcRoom() keeps reporting the
+                                                       room that was left: the robot stood in it for the rest of the day.
+                                                       A robot only ever leaves a room for the airport, so go back there. */
+                                                    BOOL bAnyLocation = FALSE;
+                                                    for (SLONG l = 0; l < 10; l++) {
+                                                        if (qPlayer.Locations[l] != 0) {
+                                                            bAnyLocation = TRUE;
+                                                        }
+                                                    }
+                                                    if (bAnyLocation == 0) {
+                                                        qPlayer.Locations[0] = UWORD(ROOM_AIRPORT | ROOM_ENTERING);
+                                                    }
                                                 }
                                                 qPlayer.CalcRoom();
 
