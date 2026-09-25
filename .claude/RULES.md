@@ -83,7 +83,7 @@ Use `RobotPlan()` to determine what shall be done next. In this function, a prim
 
 Use `RobotExecuteAction()` to actually perform a planned action. It shall be checked which action ID (primary or secondary) was successful by checking `qPlayer.RobotActions[0]`.
 
-ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action.
+ClaudeBot shall check that it is in the correct room by using the function: `qPlayer.GetRoom()`. If it is not the correct room, only print a warning for now and do still perform the planned action. To reduce log spam, you may stop printing the warning after some time.
 
 Due to a bug in a game, `RobotExecuteAction()` sometimes executes too early. Because of this, ClaudeBot is not allowed to perform any action when `(Sim.Time <= 540000) == TRUE`.
 
@@ -91,6 +91,8 @@ Note that some rooms open and close at a specific time. Opening hours also depen
 - ClaudeBot shall use the following function to check if the room is open: `bool checkRoomOpen(SLONG actionId)`
 - ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
 - When planning the next action, consider the time it requires to walk to a room
+
+Some rooms do or do not exist depending on whether this is a free game or a mission. Use the function `Airport.DoesRuneExist(RUNE_2SHOP, roomId)` to check if a room with the specified ID exists.
 
 We will list now all actions that can be performed in the game via the class `GameMechanic`.
 If `GameMechanic` returns a bool this usually means whether or not the action could be completed.
@@ -219,7 +221,7 @@ The item "phone" is required. Everything else said about ACTION_CALL_INTERNATION
 
 Calling via mobile is only possible if `qPlayer.TelephoneDown == 0` and `qPlayer.IsStuck == 0` are holding.
 
-Every time the phone is used, set the existing variable `mOnThePhone` to 30.
+Every time the mobile phone is used, set the existing variable `mOnThePhone` to 30.
 
 ### Call cost
 
@@ -263,7 +265,7 @@ You can use the following helper functions:
 Flight jobs that have been taken shall be planned. If not, they will expire and this might incur a fine.
 
 Flights can only be planned in the player's office or when the item "laptop" is available.
-To walk to your office, use the action ID ACTION_BUERO. Note that the office is only usuable when `(qPlayer.OfficeState != 2)`.
+To walk to your office, use the action ID ACTION_BUERO. Note that the office is only usuable when `(qPlayer.OfficeState != 2)`. Use this condition for planning your actions. Within `RobotExecuteAction()`, you do not need to check as the game will not allow the character to enter an unusable office. If you plan an office action in `RobotPlan()` even though your office is destroyed, you will arrive at the secondary action instead.
 The laptop can be used at any point during any action as long as the condition `qPlayer.HasItem(ITEM_LAPTOP) && (qPlayer.LaptopVirus == 0)` holds (laptop available and no virus).
 
 Do not modify anything in the plane, flight plan or flight plan object classes directly. Instead, use the following functions:
@@ -874,6 +876,13 @@ You have read access to:
 - `Sim.bNetwork`: Check if this is a network game.
 - `Sim.bIsHost`: Check if this game instance is the host in a network game.
 
+### Global Airport instance
+
+The following may always be called to check whether a room exists.
+
+- `Airport.Runes.AnzEntries() != 0`: Check if airport has been fully loaded yet. Important guard for the following function.
+- `Airport.DoesRuneExist(RUNE_2SHOP, roomId)`: If airport was loaded, use this function to check if room specified by ID does exist.
+
 ### Player objects (yourself)
 
 You can access the following fields in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
@@ -904,6 +913,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `HasBerater()`: Check advisor availability.
 - `HasItem()`: Check item ownership.
 - `Image`: Current airline image. May always be read while in the advertising room, even without an advisor. With `qPlayer.HasBerater(BERATERTYP_GELD) >= 50` it may be read anywhere.
+- `IsOut`: Check if the player is still in the game. May always be read.
 - `Items`: Listing the IDs of all items the player currently has. May be read anywhere.
 - `IsStuck`: Whether player character is currently stuck. Can be read at any time.
 - `KerosinQuali`: Current kerosene quality level. Only read if `qPlayer.HasBerater(BERATERTYP_KEROSIN) >= 30`.
@@ -923,6 +933,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `RentCities`: Rented branch offices. Can be read at any time.
 - `RentRouten`: Rented routes. Special access rights are explained in a dedicated section further below.
 - `RobotActions`: Read and write access permitted. Used to store the planned actions. 
+- `RobotUse(SLONG FeatureId)`: Check specific configurations of the bot which are mainly relevant for missions.
 - `StrikeEndType`: If larger than zero, this gives the method by which the strike was ended. May always be read.
 - `StrikeHours`: Larger than zero if employees are currently striking. Gives number of hours remaining. May always be read.
 - `Tank`: Total volume of kerosene tank.
@@ -931,7 +942,7 @@ All classifications are read-only except where explicitly shown as read/write.
 - `TankPreis`: Average price paid for the kerosene currently in the tank. May always be read.
 - `TelephoneDown`: Whether the player can currently call branch offices. Can be checked any time.
 - `TrinkerTrust`: Whether or not the trust of the drunk guy was earned (at Rick's bar, can help to end a strike).
-- `WorkCountdown`: Shall be set to `2` in `RobotExecuteAction()` if no action is performed. Otherwise, no access is permitted.
+- `WorkCountdown`: Shall be set to `2` in `RobotExecuteAction()` if no action is performed. Otherwise, no access is permitted. In "hurricane" mode, read/write permission is given.
 - `xBegleiter`: Number of superfluous stewardesses. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office (or using laptop) or while in the HR room.
 - `xPiloten`: Number of superfluous pilots. A negative number indicates a shortage. Only read when `qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0` or while in personal office (or using laptop) or while in the HR room.
 
@@ -1115,8 +1126,9 @@ You may also read the following global tables and helpers when the rules permit 
 - `TafelData` may only be read while in the boss office
 - `Cities[...]`, `Cities.find(...)`, `Cities.CalcDistance(...)`, `Cities.CalcFlugdauer(...)` always to query informations about cities and flight distances/duration.
 - `SeatCosts`, `FoodCosts`, `TrayCosts`, `DecoCosts`, `TriebwerkCosts`, `ReifenCosts`, `ElektronikCosts`, `SicherheitCosts` any time to check costs of plane upgrades.
-- `gPlanePartRelations` may only be read while at the airplane designer.
+- `gPlanePartRelations` may always be read.
 - `gWerbePrice` may always be read.
+- `SabotagePrice`, `SabotagePrice2` and `SabotagePrice3` may always be read.
 
 Independently, the following functions of any global array of type `BUFFER_V` or `ALBUM_V` may always be used:
 
@@ -1169,9 +1181,42 @@ Functions and variables for missions
 
 The following shall only be used when implementing ClaudeBot for missions instead of the free game.
 
-- `bool RobotUse(SLONG FeatureId)`: Check specific configurations of the bot which are mainly relevant for missions.
 - `Sim.MissionCities`: Array of cities relevant for a specific mission.
 - `RocketPrices` and `StationPrices`: Array listing prices for various rocket and space station parts.
+
+Additional access rights for "Hurricane" mode
+---------------------------------------------
+
+In this mode, the navigation of the bot-controlled character in the airport may be overriden. Only in this mode, the bot may act outside of `RobotInit()`, `RobotPlan()` or `RobotExecuteAction()`. Additional read and write permissions only for this mode are also given in the following list.
+
+For the following list, read permission is always granted, write permission only when noted.
+
+- `qPlayer.BroadcastRooms()`: May be called to sync network state.
+- `qPlayer.DirectToRoom`: Room ID if character is going to a room. May be set to 0.
+- `qPlayer.iWalkActive`: Whether currently walking
+- `qPlayer.Locations`: Location array, "smallest" room first (e.g. whiteboard in boss office, boss office, airport). Permitted to set `ROOM_LEAVING` flag when leaving a room.
+- `qPlayer.NewDir`: Was walking direction changed?
+- `qPlayer.RunningToToilet`: Whether currently forced to run to toilet
+- `qPlayer.SpeedCount`: Used for "fast-forwarding" mode. May be written as well.
+- `qPlayer.StandStillSince`: Used for standstill detection. May be set to 0.
+- `qPlayer.WaitForRoom`: Whether character is waiting for a room. May be set to 0.
+- `qPlayer.WalkSpeed`: Current walk speed
+- `qPlayer.WalkToPlate`: Walk to specified plate, may always be called
+- `qPlayer.WalkStopEx`: Stop walking, may always be called
+- `qPlayer.WorkCountdown`: How much time the bot will spend in a location. May be written as well.
+- `Airport.Runes`: Array of "floor plates"
+- `Airport.iPlate`: Stores flags of "floor plates"
+- `Airport.PlateDimension`: Dimensions of airports
+- `AIRPORT::DoesRuneExist()`: Check if a rune exists, may always be called
+- `AIRPORT::GetRandomTypedRune()`: Return random rune of specified type, may always be called
+- `AIRPORT::GetRuneParNear()`: Return parameter of nearby rune, may always be called
+- `Sim.Persons`: Read access to the array entry corresponding to the bot-controlled character (`Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)]`) is permitted
+- `Sim.TimeSlice`: Timer used for animations
+- `PERSON::Dir`: Direction of character
+- `PERSON::Phase`: Animation phase
+- `PERSON::Position`: Position of character
+- `PERSON::Running`: Whether character is running. May be written as well.
+- `PERSON::StatePar`: State parameter (0: no room, >0: room number & entry/exit flag, -1: leaving room)
 
 Game missions
 =============
