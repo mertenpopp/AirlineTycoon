@@ -254,7 +254,7 @@ void Bot::actionCheckTravelAgency() {
         if (pickUpItem(ITEM_SPINNE)) {
             mItemAntiVirus = 1;
         }
-        if (HowToPlan::None == howToPlanFlights()) {
+        if (HowToPlan::None == howToPlanFlightsLaptopFix()) {
             return; /* avoid warning in grabFlights(). We only came here for the item */
         }
     }
@@ -287,7 +287,12 @@ void Bot::actionCheckFreightDepot() {
 void Bot::actionUpgradePlanes() {
     /* cancel all currently planned plane ugprades */
     mMoneyReservedForUpgrades = 0;
-    for (auto &qPlane : qPlayer.Planes) {
+
+    for (SLONG d = 0; d < qPlayer.Planes.AnzEntries(); d++) {
+        if (qPlayer.Planes.IsInAlbum(d) == 0) {
+            continue;
+        }
+        auto &qPlane = qPlayer.Planes[d];
         qPlane.SitzeTarget = qPlane.Sitze;
         qPlane.TablettsTarget = qPlane.Tabletts;
         qPlane.DecoTarget = qPlane.Deco;
@@ -435,7 +440,7 @@ void Bot::updateExtraWorkers() {
 }
 
 void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
-    if (mItemAntiStrike == 0 && (LocalRandom.Rand() % 2 == 0)) { /* rand() because human player has same chance of item appearing */
+    if (mItemAntiStrike == 0) {
         if (pickUpItem(ITEM_BH)) {
             mItemAntiStrike = 1;
         }
@@ -454,7 +459,7 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
         if (moneyAvailable < (numToBuy * applyDiscount(qPlaneType.Preis))) {
             break;
         }
-        if (qPlayer.xPiloten < (numToBuy * qPlaneType.AnzPiloten) || qPlayer.xBegleiter < (numToBuy * qPlaneType.AnzBegleiter)) {
+        if (mExtraPilots < (numToBuy * qPlaneType.AnzPiloten) || mExtraBegleiter < (numToBuy * qPlaneType.AnzBegleiter)) {
             break;
         }
         numToBuy++;
@@ -1310,6 +1315,7 @@ void Bot::actionVisitBoss() {
 
     /* what is available? how much money are we currently bidding in total? */
     mMoneyReservedForAuctions = 0;
+    mBossCanExpandAirport = (GameMechanic::canExpandAirport(qPlayer) == GameMechanic::ExpandAirportResult::Ok);
     mBossGateAvailable = false;
     for (const auto &qZettel : TafelData.Gate) {
         if (qZettel.ZettelId < 0) {

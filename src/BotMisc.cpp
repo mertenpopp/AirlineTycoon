@@ -117,19 +117,27 @@ SLONG Bot::applyDiscount(SLONG money) const {
     return (money - delta);
 }
 
-bool Bot::checkLaptop() {
+bool Bot::checkLaptop() const { return qPlayer.HasItem(ITEM_LAPTOP) && qPlayer.LaptopVirus == 0; }
+
+Bot::HowToPlan Bot::howToPlanFlightsLaptopFix() {
+    if (!mDayStarted) {
+        return HowToPlan::None;
+    }
     if (qPlayer.HasItem(ITEM_LAPTOP)) {
         if ((qPlayer.LaptopVirus == 1) && (qPlayer.HasItem(ITEM_DISKETTE) == 1)) {
             useItem(ITEM_DISKETTE);
         }
         if (qPlayer.LaptopVirus == 0) {
-            return true;
+            return HowToPlan::Laptop;
         }
     }
-    return false;
+    if (isOfficeUsable()) {
+        return HowToPlan::Office;
+    }
+    return HowToPlan::None;
 }
 
-Bot::HowToPlan Bot::howToPlanFlights() {
+Bot::HowToPlan Bot::howToPlanFlights() const {
     if (!mDayStarted) {
         return HowToPlan::None;
     }
