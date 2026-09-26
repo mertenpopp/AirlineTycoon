@@ -1055,7 +1055,7 @@ void Bot::updateRouteInfoBoard() {
             const auto &qReverseRentRoute = qqPlayer.RentRouten.RentRouten[route.routeReverseId];
             route.routeUtilization += (qRentRoute.RoutenAuslastungBot + qReverseRentRoute.RoutenAuslastungBot) / 2;
 
-            if (qRentRoute.RoutenAuslastungBot > 0 && i != qPlayer.PlayerNum) {
+            if (qRentRoute.RoutenAuslastungBot > 0 && i != qPlayer.PlayerNum && qRentRoute.Rang != 0) {
                 AT_Log("Bot::updateRouteInfoBoard(): Route %s: We (%d utilization) are competing with %s (%d utilization)",
                        Helper::getRouteName(getRoute(route)).c_str(), route.routeOwnUtilization, qqPlayer.AirlineX.c_str(), qRentRoute.RoutenAuslastungBot);
 
@@ -1082,8 +1082,11 @@ void Bot::updateRouteInfoBoard() {
                     continue;
                 }
                 const auto &qRentRoute = qqPlayer.RentRouten.RentRouten[c];
+                if (qRentRoute.Rang == 0) {
+                    continue; /* competitor does not rent this route, stealing it would only waste money and hints */
+                }
 
-                if ((mRouteToSteal == -1) || (qRentRoute.RoutenAuslastungBot > routeToStealUtil)) {
+                if (qRentRoute.RoutenAuslastungBot > routeToStealUtil) {
                     mRouteToSteal = c;
                     mRouteToStealFrom = i;
                     routeToStealUtil = qRentRoute.RoutenAuslastungBot;
@@ -1259,7 +1262,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         const auto &qRoute = mRoutes[routeWithPendingPlaneUpgrades];
         (void)qRoute;
         assert(qRoute.canUpgrade);
-        return {RoutesNextStep::UpgradePlanes, routeToBuyPlanes};
+        return {RoutesNextStep::UpgradePlanes, routeWithPendingPlaneUpgrades};
     }
 
     /* Step 6: Planes are all upgraded, buy next one */
@@ -1317,19 +1320,17 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     /* estimate our target share, considering current utilization of route */
     SLONG routeUtilization = 0;
     SLONG targetSharePercent = mOptions.kMaximumRouteUtilization;
-    for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
-        if (i == qPlayer.PlayerNum) {
-            continue;
-        }
-        const auto &qqPlayer = Sim.Players.Players[i];
-        if (qqPlayer.IsOut != 0) {
-            continue;
-        }
-        if ((i == qPlayer.PlayerNum) || (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
+    if (qPlayer.HasBerater(BERATERTYP_INFO) > 0) {
+        for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+            const auto &qqPlayer = Sim.Players.Players[i];
+            if (i == qPlayer.PlayerNum || qqPlayer.IsOut != 0) {
+                continue;
+            }
             routeUtilization += qqPlayer.RentRouten.RentRouten[routeId].RoutenAuslastungBot;
-        } else {
-            routeUtilization += 50;
         }
+    } else {
+        /* no spy: one estimate for all competitors together (50 each rejected every route) */
+        routeUtilization = kUnknownCompetitorUtilization;
     }
     if (routeUtilization > 0) {
         routeUtilization = std::min(100, routeUtilization + 20); /* offset, we can expect the enemy to increase their share */

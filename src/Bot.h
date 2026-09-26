@@ -28,6 +28,7 @@ extern const SLONG kImagePaybackDays;
 extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
+extern const SLONG kUnknownCompetitorUtilization;
 extern const SLONG kMaximumPlaneUtilization;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;

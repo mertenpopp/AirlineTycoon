@@ -2037,3 +2037,9 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - Free game, paired against the ed60075b baseline (300 games): all three **-0.67% (t -7.7)**; C1+C2 -0.05% (t -2.4); C1+C2+C3a -0.03% (t -1.0, same). So the crew cap C3b costs ~0.6%: spare crew lets the bot buy planes without an HR detour first.
 - FINAL (50 seeds, all three fixes): 100% wins, 55.4 days, BesterGegner 64.2 - identical to baseline; HA op saldo 1.456e9 vs 1.473e9.
 - Per the user's rule ("commit if same or improved") the requested set was not committed. Working tree holds C1+C2+C3a. Results in the game dir under `runs/fix_c1c2c3`, `runs/fix_c1c2`, `runs/fix_c1c2c3a`.
+
+## 2026-09-26: MertenBot fixes C5/C6/C7 from bugs.txt (not committed)
+- C5: `routesFindNextStep()` returns `routeWithPendingPlaneUpgrades` for UpgradePlanes (was routeToBuyPlanes; only the log reads it). C6: route theft targets only routes the competitor rents (`Rang != 0`) with utilization > 0; the fallback short-cut that took the first route regardless is gone. The fallback stays: stealing a route we do not fly still hurts the competitor (RouteWegnehmen() deletes their flights), releasing it next morning is fine. C7: without a spy, `calcRouteScore()` assumes one combined competitor utilization `kUnknownCompetitorUtilization` = 30 instead of 50 per competitor.
+- Level-3 baseline recorded first at b9df4b4e: day 59 SaldoGesamt HA 2.268e9 (game dir `baseline/mertenbot_b9df4b4e_l3/`).
+- Level 2, paired against b9df4b4e (`runs/fix_c1c2c3a`): identical in 300/300 games. So C7 never fires in the free game (the spy is always hired before the route box).
+- Level 3, paired against the new baseline: **+1.04% (t +3.8)**, better in 139, worse in 120. Route thefts 1 -> 0 in 300 games. Likely cause: the broken fallback nearly always supplied a target, so RouteTheft (weight 10) kept being drawn and then waited for 8M and 70 hints, blocking other sabotage.
