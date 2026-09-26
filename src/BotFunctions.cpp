@@ -173,7 +173,7 @@ void Bot::determineNemesis() {
     }
 }
 
-void Bot::switchToFinalTarget() {
+void Bot::switchToFinalTarget(bool areWeInOffice) {
     if (mRunToFinalObjective == FinalPhase::TargetRun) {
         AT_Log("Bot::switchToFinalTarget(): We are in final target run.");
         return;
@@ -209,7 +209,7 @@ void Bot::switchToFinalTarget() {
         if (nemesisRatio > 0.7) {
             forceSwitch = true;
         }
-    } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY) && Sim.Difficulty == DIFF_ADDON05) {
+    } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY) && Sim.Difficulty == DIFF_ADDON05 && areWeInOffice) {
         /* how many service points can we get by upgrading? */
         SLONG servicePointsStart = qPlayer.GetMissionRating();
         SLONG servicePoints = servicePointsStart;
@@ -290,7 +290,7 @@ void Bot::switchToFinalTarget() {
         }
     } else if (qPlayer.RobotUse(ROBOT_USE_GROSSESKONTO)) {
         requiredMoney = BTARGET_KONTO;
-    } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY) && Sim.Difficulty == DIFF_ATFS02) {
+    } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY) && Sim.Difficulty == DIFF_ATFS02 && areWeInOffice) {
         /* how much money do we need to upgrade everything safety-related? */
         auto planes = getAllPlanes();
         auto numPlanes = std::min(5, static_cast<SLONG>(planes.size()));

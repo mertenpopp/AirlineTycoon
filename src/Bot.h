@@ -260,7 +260,7 @@ class Bot {
     void grabNewFlights();
     __int64 getNemesisScore(SLONG p) const;
     void determineNemesis();
-    void switchToFinalTarget();
+    void switchToFinalTarget(bool areWeInOffice);
     std::vector<SLONG> findBestAvailablePlaneType();
     void grabFlights(BotPlaner &planer, bool areWeInOffice);
     void requestPlanFlights(bool areWeInOffice);

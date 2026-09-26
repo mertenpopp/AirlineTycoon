@@ -94,7 +94,7 @@ Note that some rooms open and close at a specific time. Opening hours also depen
 - ClaudeBot shall use the following to translate an action ID to a room ID: `SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId)`
 - When planning the next action, consider the time it requires to walk to a room
 
-Some rooms do or do not exist depending on whether this is a free game or a mission. Use the function `Airport.DoesRuneExist(RUNE_2SHOP, roomId)` to check if a room with the specified ID exists.
+Some rooms do or do not exist depending on whether this is a free game or a mission. You may use the function `Airport.DoesRuneExist(RUNE_2SHOP, roomId)` to check if a room with the specified ID exists.
 
 We will list now all actions that can be performed in the game via the class `GameMechanic`.
 If `GameMechanic` returns a bool this usually means whether or not the action could be completed.
@@ -905,7 +905,8 @@ All classifications are read-only except where explicitly shown as read/write.
 - `BilanzGestern`, `BilanzWoche.Hole()` and `BilanzGesamt`: Yesterday's balance, the sum of the last seven daily balances and the balance over the whole game. Only read in personal office (or using laptop) and while a financial advisor is employed (`qPlayer.HasBerater(BERATERTYP_GELD) > 0`).
 - `BotLevel`: Determines the type of the computer player. ClaudeBot uses the values 6 to 8.
 - `CalcCreditLimit()`: Calculate how much money can be loaned from the bank.
-- `CalcPlanePropSum()`: Calculates the cost of open plane upgrades.
+- `CalcCreditLimit(__int64 money, __int64 credit)`: Calculate how much money can be loaned from the bank for a hypothetical account balance and existing credit.
+- `CalcPlanePropSum()`: Calculates the cost of open plane upgrades. Only call while in personal office.
 - `CalcSecurityCosts()`: Calculates the daily cost of security.
 - `CheckRocketPart(SLONG rocketPart)`: Check if a specific rocket or space station part has already been bought.
 - `Credit`: Current loan amount.
