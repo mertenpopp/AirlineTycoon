@@ -1204,8 +1204,8 @@ void Bot::actionVisitMech() {
     /* Limit the extra cost per night to a share of what we earn per day (like kImagePaybackDays for the airline image).
      * Without a financial advisor we do not know our earnings: no limit. */
     __int64 budget = -1;
-    if (kRepairBudgetPercent >= 0 && qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
-        budget = std::max(0LL, mWeeklyOperatingSaldo / 7 * kRepairBudgetPercent / 100);
+    if (mOptions.kRepairBudgetPercent >= 0 && qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
+        budget = std::max(0LL, mWeeklyOperatingSaldo / 7 * mOptions.kRepairBudgetPercent / 100);
     }
 
     /* distribute available money for repair extra costs */

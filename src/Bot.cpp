@@ -49,7 +49,6 @@ const SLONG kMinimumEmployeeSkill = 50;
 const SLONG kTargetEmployeeSkill = 70;
 const SLONG kPlaneMinimumZustand = 90;
 const SLONG kPlaneTargetZustand = 100;
-const SLONG kRepairBudgetPercent = 0; /* extra repair cost per night, in % of daily op saldo; < 0: no limit */
 const SLONG kPlaneLuxuryTarget = 0;
 const SLONG kPlaneLuxuryTargetLateGame = 2;
 const SLONG kPlaneFoodTarget = 2;
@@ -717,7 +716,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 103;
+    SLONG savegameVersion = 104;
     File << savegameVersion;
 
     File << bot.LocalRandom;
@@ -850,6 +849,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
          << bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit;
     File << bot.mOptions.kFirstClassTicketSurcharge;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
+    File << bot.mOptions.kRepairBudgetPercent;
 
     File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay << bot.mImagePreservationMode;
 
@@ -1106,6 +1106,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> bot.mOptions.kFirstClassTicketSurcharge;
     }
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
+    if (savegameVersion < 104) {
+        bot.mOptions.kRepairBudgetPercent = Bot::ConfigurableOptions{}.kRepairBudgetPercent; /* option did not exist yet: use the default */
+    } else {
+        File >> bot.mOptions.kRepairBudgetPercent;
+    }
 
     if (savegameVersion < 103) {
         /* airline image target did not exist yet: no airline image until the next day starts */
