@@ -181,7 +181,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
 
     /* logic deciding when to switch to final target run */
     determineNemesis(); /* will also set bot mood */
-    switchToFinalTarget();
+    switchToFinalTarget(areWeInOffice);
 
     /* update how much kerosine was used */
     assert(mKerosineLevelLastChecked >= qPlayer.TankInhalt);
