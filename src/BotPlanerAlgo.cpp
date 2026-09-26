@@ -312,6 +312,7 @@ int BotPlaner::applySolutionToGraph() {
 
             if (qFPE.ObjectType == 2 || qFPE.ObjectType == 4) {
                 int nextNode = -1;
+                int jobIdx = -1;
                 if (qFPE.ObjectType == 2) {
                     auto it = mExistingJobsById.find(qFPE.ObjectId);
                     if (it == mExistingJobsById.end()) {
@@ -321,7 +322,7 @@ int BotPlaner::applySolutionToGraph() {
                         numJobsSkipped++;
                         continue;
                     }
-                    int jobIdx = it->second;
+                    jobIdx = it->second;
                     nextNode = g.getNode(jobIdx);
                 } else {
                     auto it = mExistingFreightJobsById.find(qFPE.ObjectId);
@@ -332,20 +333,19 @@ int BotPlaner::applySolutionToGraph() {
                         numJobsSkipped++;
                         continue;
                     }
-                    int jobIdx = it->second;
-                    int count = 0;
+                    jobIdx = it->second;
                     nextNode = g.getNode(jobIdx);
                     while (nextNode < g.nNodes && g.nodeState[nextNode].cameFrom != -1 && g.nodeInfo[nextNode].jobIdx == jobIdx) {
                         nextNode++;
-                        count++;
                     }
-                    if ((nextNode >= g.nNodes) || g.nodeInfo[nextNode].jobIdx != jobIdx) {
-                        AT_Error("BotPlaner::applySolutionToGraph(): Not enough node instances for freight job (have %d):", count);
-                        mJobList[jobIdx].printInfo();
-                        skippedNode = true;
-                        numJobsSkipped++;
-                        continue;
-                    }
+                }
+
+                if ((nextNode >= g.nNodes) || g.nodeInfo[nextNode].jobIdx != jobIdx) {
+                    AT_Error("BotPlaner::applySolutionToGraph(): Not enough node instances for job.");
+                    mJobList[jobIdx].printInfo();
+                    skippedNode = true;
+                    numJobsSkipped++;
+                    continue;
                 }
 
                 /* check duration of any previous automatic flight - unless a job was skipped before it: the
@@ -796,7 +796,7 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
         while (nodeToInsert < g.nNodes && g.nodeState[nodeToInsert].cameFrom != -1 && g.nodeInfo[nodeToInsert].jobIdx == jobIdxToInsert) {
             nodeToInsert++;
         }
-        if (g.nodeInfo[nodeToInsert].jobIdx != jobIdxToInsert) {
+        if ((nodeToInsert >= g.nNodes) || (g.nodeInfo[nodeToInsert].jobIdx != jobIdxToInsert)) {
             AT_Error("BotPlaner::runAddNodeToBestPlaneInner(): Not enough node instances for freight job:");
             mJobList[jobIdxToInsert].printInfo();
             continue;
