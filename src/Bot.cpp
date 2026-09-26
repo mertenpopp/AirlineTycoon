@@ -42,6 +42,7 @@ const SLONG kImageRefillTarget = 1000;
 const SLONG kImagePaybackDays = 20;
 const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
+const SLONG kUnknownCompetitorUtilization = 30;
 const SLONG kMaximumPlaneUtilization = 70;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 50;
