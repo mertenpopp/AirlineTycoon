@@ -1,0 +1,160 @@
+Issues found in MertenBot (src/Bot*.*)
+======================================
+
+Found by code review (2026-09-26). Not fixed. Line numbers refer to commit b0ef407d.
+
+
+A. Deviations from .claude/RULES.md
+-----------------------------------
+
+A1. Plane upgrade levels read via laptop (missions DIFF_ADDON05, DIFF_ATFS02 only)
+    BotFunctions.cpp:221-311 switchToFinalTarget() reads Sitze, Tabletts, Deco, Reifen,
+    Triebwerk, Sicherheit, Elektronik and their *Target fields. It is called from
+    actionStartDayLaptop() (BotActions.cpp:184), which also runs for ACTION_STARTDAY_LAPTOP.
+    RULES.md allows these fields only in the personal office.
+
+A2. CRoute::AnzPassagiere() called outside the route box
+    Helper::getNumberOfPlanesNeededForRoute() calls it. Bot.cpp:1009 does so while loading a
+    savegame older than version 103, and the result is stored in numberOfPlanesTarget.
+    (The call from updateRouteInfoOffice() -> calcRouteScore() at BotFunctions.cpp:1018 also
+    reads AnzPassagiere() and, on the laptop, CRoute::Miete, but the result is only logged.)
+
+A3. RobotPlan() fallback skips checkRoomOpen()
+    Bot.cpp:293-298 adds ACTION_CHECKAGENT2/ACTION_CHECKAGENT1 without checking opening hours
+    (e.g. Last Minute on Saturday, travel agency after closing).
+
+A4. Room existence not checked with Airport.DoesRuneExist(RUNE_2SHOP, roomId)
+    Helper::checkRoomOpen() (BotHelper.cpp:702-748) uses a hard-coded Sim.Difficulty table
+    instead. No effect in the free game.
+
+A5. CalcCreditLimit() called with hypothetical arguments (grey area, missions only)
+    BotMisc.cpp:300 calls qPlayer.CalcCreditLimit(moneyForecast, qPlayer.Credit); RULES.md
+    lists only CalcCreditLimit().
+
+A6. Debug setting can use an unreleased plane type (inactive)
+    BotFunctions.cpp:406-409: if kPlaneScoreForceBest != -1, a PlaneTypes entry is used that
+    getAvailablePlaneTypes() may never have returned. Default is -1.
+
+
+B. Out-of-bounds reads (undefined behaviour)
+--------------------------------------------
+
+B1. BotPlanerAlgo.cpp:799 runAddNodeToBestPlaneInner(): the while loop can stop at
+    nodeToInsert == g.nNodes, then g.nodeInfo[nodeToInsert] is read without a bounds check
+    (line 342 has the check). Happens when a freight job's nodes are the last in the graph,
+    all are used, and the job still needs more flights.
+
+B2. BotPlanerAlgo.cpp:325 / 337 applySolutionToGraph(): g.getNode() can return -1 and is not
+    checked; leads to adjMatrix[currentNode][-1] (passenger) or nodeState[-1] (freight).
+    Happens when a scheduled job has no node in that plane type's graph, e.g. a flight of
+    exactly 24 h (canFlyThisJob() rejects >= 24, the game accepts 24).
+
+
+C. Wrong behaviour
+------------------
+
+C1. BotConditions.cpp:315 condUpgradePlanes() checks mMoneyReservedForRepairs where
+    mMoneyReservedForUpgrades is almost certainly meant. mMoneyReservedForUpgrades is also
+    not lowered when an upgrade is applied and paid, so the reserve can stay set long after
+    the money was spent and getMoneyAvailable() understates cash.
+
+C2. BotActions.cpp:1114-1158 actionSellShares(): howMuchToRaise is computed from the
+    moneyAvailable parameter, which is never refreshed inside the 10-pass loop. If one sale
+    is not enough, later passes try to raise the full original amount again (oversells).
+    In a final target run every pass targets all of mMoneyForFinalObjective.
+
+C3. BotMisc.cpp:587-588 howMuchCrewToHire(): ceil_div(int, int) receives __int64
+    moneyAvailable; above ~2.1e9 cash the crew target becomes garbage (possibly negative).
+    Even without overflow the target scales with cash / plane price, so late game the bot
+    hires many spare crew whose salaries count against the operating saldo.
+
+C4. BotFunctions.cpp:1551/1581 planRoutes(): the first leg flies route A if useRouteA, else
+    route B, but the repositioning check is always availCity != fromCity. A plane in toCity
+    whose first leg is B gets an unneeded buffer; a plane in fromCity whose first leg is B
+    gets no room for the automatic flight to toCity.
+
+C5. BotFunctions.cpp:1262 routesFindNextStep() returns {UpgradePlanes, routeToBuyPlanes}
+    instead of routeWithPendingPlaneUpgrades; mImproveRouteId points at the wrong route or -1.
+
+C6. BotFunctions.cpp:1086 updateRouteInfoBoard(): with mRouteToSteal == -1 the fallback
+    accepts the first route even if the competitor's utilization is 0, so route theft can
+    target a route the competitor does not rent. Should require RoutenAuslastungBot > 0.
+
+C7. BotFunctions.cpp:1328-1339 calcRouteScore(): without a spy each competitor is assumed at
+    50 % utilization; with three competitors that is 150 %, target share <= 10, and every
+    route is rejected. The i == qPlayer.PlayerNum test on line 1328 is dead code.
+
+C8. Maximum credit on purpose (mDoRoutesMaxCredit) keeps cash below Credit, so
+    areWeBroke() returns Somewhat and howToGetMoney() selects share emission / selling
+    competitor shares; condEmitShares() and condSellShares() check every hour. Contradicts
+    the "don't generate cost or problems" meaning of Somewhat.
+
+C9. Bot.cpp:293-298 RobotPlan(): the fallback actions are added at Prio::Medium; if the only
+    real candidate is Low, the fallback becomes the primary action.
+
+C10. findPlanesNotAvailableForService() takes route planes with Zustand <= 90 off their
+     route. The comment says planRoutes() re-checks them, but it doesn't;
+     assignPlanesToRoutes() only checks crew and reassigns them immediately.
+
+
+D. Latent bugs (dead or rare code paths)
+----------------------------------------
+
+D1. BotActions.cpp:550-574 actionBuyUsedPlane(): mBestUsedPlaneIdx is not reset after a
+    purchase. GameMechanic::buyUsedPlane() only blanks the slot's Name, the slot stays
+    IsInAlbum, so two hours later the bot buys a nameless copy of the same plane. Also
+    buyUsedPlane() can return -1, only an assert catches it, then Planes[-1] is read
+    (BotActions.cpp:560-563). Path is dead today: nothing sets mLongTermStrategy = false.
+
+D2. BotFunctions.cpp:1480-1504 removeRoute() moves the route's planes to
+    mPlanesForRoutesUnassigned but does not remove them from mPlanesForRoutes;
+    checkPlaneLists() then drops the unassigned copy and the plane stays without a route.
+
+D3. BotFunctions.cpp:1681 assignPlanesToRoutes() matches planeTypeId == TypeId, so a
+    designer plane (TypeId -1) is put on a route marked for removal (planeTypeId -1),
+    without range/duration checks. Missions with designer planes only.
+
+D4. BotPlaner.cpp:895-943 takeAllJobs() logs Auftraege[outAuftragsId] before checking for
+    -1; only an assert guards it, so a failed take crashes release builds.
+
+D5. Bot.cpp:681 ACTION_ENERGY_DRINK asserts Sim.CallItADay != 0, but condGetEnergyDrink()
+    does not check it. In normal play entering ROOM_ELECTRO swaps gloves for the drink
+    (Person.cpp:2241) and the assert fails in debug builds. Comment is wrong, as is the one
+    on ACTION_VISIT_OFFICE_* (whose conditions require CallItADay == 0).
+
+
+E. Minor
+--------
+
+E1. doWeNeedMoreGates() divides by Gates.NumRented (can be 0).
+E2. actionStartDayLaptop(): mTankRatioEmptiedYesterday divides by Tank; with Tank == 0 the
+    NaN passes the < 0.5 check in condBuyKerosineTank(). The assert on
+    mKerosineLevelLastChecked there is handled gracefully in actionBuyKerosine() instead.
+E3. BotActions.cpp:292 mGlueWasTaken = (Sim.ItemGlue != 0) is true while the glue can still
+    be picked up (value 1); should test == 2.
+E4. condBuyKerosineTank() caps spending at one large tank, but the action receives the
+    uncapped amount and can buy three.
+E5. actionBuyNemesisShares() holds back kMoneyReserveBuyNemesisShares (80M) for the first
+    purchase but only kMoneyReserveBuyOwnShares (2M) afterwards.
+E6. updateRouteInfoOffice() sets routeOwnUtilization from one direction,
+    updateRouteInfoBoard() averages both directions.
+E7. Calls made inside actionBuero() do not record a time for ACTION_CALL_INTERNATIONAL, so
+    another call is planned 15 minutes later. When conditions fail at execution the time is
+    recorded under ACTION_NONE instead of the original action.
+E8. actionVisitHR(): mQualifiedCrewForHire counts candidates with talent >= 70 twice.
+E9. actionVisitHR(): the existing advisor is fired before the replacement is hired; if the
+    hire fails the slot stays empty.
+E10. BotPlanerAlgo.cpp: with kTempStep = 100 the loop always runs ~11 iterations; the
+     100 ms time budget (timeBudgetMS) has no effect.
+E11. BotPlaner.cpp:724-729 "Using mMinScoreRatio" log conditions are inverted.
+E12. findBestRoute() uses qPlayer.Money instead of getMoneyAvailable() (ignores reserves).
+E13. condVisitBoss() keeps planning a boss visit (Low, every 2 h) for the postcard even
+     after a competitor took it.
+E14. howMuchMoneyCanWeGet(): newStock = 100 * (MaxAktien - AnzAktien) / 100 is a no-op.
+
+
+F. Documentation
+----------------
+
+F1. RULES.md says the second return value of GameMechanic::buyStock()/sellStock() is the
+    total amount spent/gained; the code returns the resulting account balance.
