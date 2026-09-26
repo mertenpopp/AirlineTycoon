@@ -164,6 +164,8 @@ Bot::AreWeBroke Bot::areWeBroke() const {
     }
 
     /* no reason to get as much money as possible right now */
+    /* Works as designed, measured (bugs.txt C8): with mDoRoutesMaxCredit the bot is "Somewhat" broke on purpose and then sells
+     * competitor shares. Exempting that case removed every such sale but scored -0.02% (level 2) / -0.07% (level 3). */
     if (moneyAvailable < qPlayer.Credit) {
         return AreWeBroke::Somewhat;
     }

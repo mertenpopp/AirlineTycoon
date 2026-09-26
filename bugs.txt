@@ -88,6 +88,10 @@ C8. Maximum credit on purpose (mDoRoutesMaxCredit) keeps cash below Credit, so
     areWeBroke() returns Somewhat and howToGetMoney() selects share emission / selling
     competitor shares; condEmitShares() and condSellShares() check every hour. Contradicts
     the "don't generate cost or problems" meaning of Somewhat.
+    -> Works as designed, measured (2026-09-26). The effect is smaller than stated: emissions come
+       from the daily rule, not from Somewhat; Somewhat only causes ~4 competitor-share sales per
+       game. Exempting mDoRoutesMaxCredit in areWeBroke() removed all of them but scored -0.02%
+       (level 2, t -1.1) and -0.07% (level 3, t -2.3). Left unchanged, comment in areWeBroke().
 
 C9. Bot.cpp:293-298 RobotPlan(): the fallback actions are added at Prio::Medium; if the only
     real candidate is Low, the fallback becomes the primary action.
