@@ -562,7 +562,7 @@ void Bot::findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::
 std::pair<SLONG, SLONG> Bot::howMuchCrewToHire(__int64 moneyAvailable) {
     SLONG pilotsTarget = 3;     /* sensible default */
     SLONG stewardessTarget = 6; /* sensible default */
-    SLONG planePrice = 56e6;
+    __int64 planePrice = 56e6;
     if (mLongTermStrategy) {
         SLONG bestPlaneTypeId = mDoRoutes ? mBuyPlaneForRouteId : mBestPlaneTypeId;
         if (bestPlaneTypeId >= 0) {
@@ -584,8 +584,10 @@ std::pair<SLONG, SLONG> Bot::howMuchCrewToHire(__int64 moneyAvailable) {
         planePrice = mDesignerPlane.CalcCost();
     }
     if (moneyAvailable > planePrice) {
-        pilotsTarget *= ceil_div(moneyAvailable, planePrice);
-        stewardessTarget *= ceil_div(moneyAvailable, planePrice);
+        /* 64 bit: ceil_div(int, int) wrapped once the bot held more than ~2.1e9 */
+        auto numPlanes = static_cast<SLONG>(std::min<__int64>((moneyAvailable + planePrice - 1) / planePrice, INT32_MAX));
+        pilotsTarget *= numPlanes;
+        stewardessTarget *= numPlanes;
     }
     return std::make_pair(pilotsTarget, stewardessTarget);
 }

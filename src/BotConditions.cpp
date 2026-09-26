@@ -312,7 +312,7 @@ Bot::Prio Bot::condUpgradePlanes() {
 
     if (!shallUpgrade) {
         /* we still may want to cancel upgrades */
-        return (mMoneyReservedForRepairs > 0) ? Prio::Medium : Prio::None;
+        return (mMoneyReservedForUpgrades > 0) ? Prio::Medium : Prio::None;
     }
     return prio;
 }
