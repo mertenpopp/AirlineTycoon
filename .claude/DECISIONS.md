@@ -2048,3 +2048,8 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - `planRoutes()` decided whether a plane needs a positioning flight by comparing its location with `fromCity`, although the first leg departs from `toCity` when the time slot says route B. Now the departure city follows the leg. A plane already at the other end starts one slot later from there (no empty leg); otherwise the buffer is for the auto flight to the real departure city.
 - Free game, paired on 300 seeds against 2419182c: level 2 **+5.06% (t +19.8, better in 288/300)**, 2.394e9 -> 2.515e9; level 3 **+5.44% (t +19.3, better in 287/300)**, 2.292e9 -> 2.416e9. In the level-2 logs: 7,708 "one slot later" starts, 20,791 positioning buffers.
 - Runs in the game dir under `runs/c4_l2`, `runs/c4_l3`. Missions not measured.
+
+## 2026-09-26: MertenBot fix C8 from bugs.txt (measured, not committed)
+- Change: `areWeBroke()` no longer returns Somewhat while `mDoRoutesMaxCredit` is set (the drawn credit line is deliberate, see `condDropMoney()`).
+- Mechanism confirmed in the logs (300 games each): competitor-share sales 1,250 -> 0 (level 2) and 1,334 -> 0 (level 3); "Are we broke? Somewhat" 1,416 -> 0, so in the free game Somewhat only ever happened with the max credit drawn. Emissions unchanged (7,500), they come from the daily rule, not from Somewhat.
+- Score, paired against 2ec7c584: level 2 -0.02% (t -1.1, noise), level 3 -0.07% (t -2.3, slightly worse). The sales did not hurt; the cash they raised, fees included, apparently paid for a little growth. Runs under `runs/c8_l2`, `runs/c8_l3`.
