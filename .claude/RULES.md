@@ -74,6 +74,8 @@ Remember to always update these two functions when you add a new data member to 
 
 Savegame loading shall be backwards compatible. This means that savegames created from previous releases (tagged commits) should still load by checking a version number in the savegame and using default values for any variables added in the meantime. However, only saves from tagged commits shall be compatible, not from any untagged version.
 
+Never bump or change the savegame version that is written into new savegames. Do not introduce new savegame versions.
+
 Game actions
 ============
 

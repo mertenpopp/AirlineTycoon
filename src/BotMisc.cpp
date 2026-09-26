@@ -164,8 +164,8 @@ Bot::AreWeBroke Bot::areWeBroke() const {
     }
 
     /* no reason to get as much money as possible right now */
-    /* Works as designed, measured (bugs.txt C8): with mDoRoutesMaxCredit the bot is "Somewhat" broke on purpose and then sells
-     * competitor shares. Exempting that case removed every such sale but scored -0.02% (level 2) / -0.07% (level 3). */
+    /* Works as designed: With mDoRoutesMaxCredit the bot is "Somewhat" broke on purpose and then sells
+     * competitor shares. Exempting that case removed every such sale but scored worse. */
     if (moneyAvailable < qPlayer.Credit) {
         return AreWeBroke::Somewhat;
     }
@@ -586,8 +586,7 @@ std::pair<SLONG, SLONG> Bot::howMuchCrewToHire(__int64 moneyAvailable) {
         planePrice = mDesignerPlane.CalcCost();
     }
     if (moneyAvailable > planePrice) {
-        /* 64 bit: ceil_div(int, int) wrapped once the bot held more than ~2.1e9 */
-        auto numPlanes = static_cast<SLONG>(std::min<__int64>((moneyAvailable + planePrice - 1) / planePrice, INT32_MAX));
+        auto numPlanes = static_cast<SLONG>(std::min<__int64>(ceil_div(moneyAvailable, planePrice), INT32_MAX));
         pilotsTarget *= numPlanes;
         stewardessTarget *= numPlanes;
     }
