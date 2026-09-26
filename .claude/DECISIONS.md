@@ -2043,3 +2043,8 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - Level-3 baseline recorded first at b9df4b4e: day 59 SaldoGesamt HA 2.268e9 (game dir `baseline/mertenbot_b9df4b4e_l3/`).
 - Level 2, paired against b9df4b4e (`runs/fix_c1c2c3a`): identical in 300/300 games. So C7 never fires in the free game (the spy is always hired before the route box).
 - Level 3, paired against the new baseline: **+1.04% (t +3.8)**, better in 139, worse in 120. Route thefts 1 -> 0 in 300 games. Likely cause: the broken fallback nearly always supplied a target, so RouteTheft (weight 10) kept being drawn and then waited for 8M and 70 hints, blocking other sabotage.
+
+## 2026-09-26: MertenBot fix C4 from bugs.txt (not committed)
+- `planRoutes()` decided whether a plane needs a positioning flight by comparing its location with `fromCity`, although the first leg departs from `toCity` when the time slot says route B. Now the departure city follows the leg. A plane already at the other end starts one slot later from there (no empty leg); otherwise the buffer is for the auto flight to the real departure city.
+- Free game, paired on 300 seeds against 2419182c: level 2 **+5.06% (t +19.8, better in 288/300)**, 2.394e9 -> 2.515e9; level 3 **+5.44% (t +19.3, better in 287/300)**, 2.292e9 -> 2.416e9. In the level-2 logs: 7,708 "one slot later" starts, 20,791 positioning buffers.
+- Runs in the game dir under `runs/c4_l2`, `runs/c4_l3`. Missions not measured.

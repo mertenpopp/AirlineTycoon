@@ -1578,16 +1578,26 @@ void Bot::planRoutes() {
             AT_Log("Bot::planRoutes(): Plane %s: %d instances of route %s were correctly scheduled (until %s %d)", Helper::getPlaneName(qPlane).c_str(),
                    numCorrectlyScheduled, Helper::getRouteName(getRoute(qRoute)).c_str(), Helper::getWeekday(startTime.getDate()).c_str(), startTime.getHour());
 
-            /* plane is not on the route yet */
-            if (numCorrectlyScheduled == 0 && availCity != fromCity) {
-                /* leave room for auto flight */
-                SLONG autoFlightDuration = kDurationExtra + Cities.CalcFlugdauer(availCity, fromCity, qPlane.ptGeschwindigkeit);
-                availTime += autoFlightDuration;
-                while (startTime < availTime) {
-                    startTime += 2 * duration;
+            /* plane is not on the route yet: the first leg departs from fromCity (route A) or toCity (route B) */
+            SLONG departCity = useRouteA ? fromCity : toCity;
+            if (numCorrectlyScheduled == 0 && availCity != departCity) {
+                SLONG otherCity = useRouteA ? toCity : fromCity;
+                if (availCity == otherCity) {
+                    /* plane already stands at the other end: the next time slot departs from there */
+                    startTime += duration;
+                    useRouteA = !useRouteA;
+                    AT_Log("Bot::planRoutes(): Plane %s: Starting one slot later, in %s", Helper::getPlaneName(qPlane).c_str(),
+                           Cities[availCity].Kuerzel.c_str());
+                } else {
+                    /* leave room for auto flight */
+                    SLONG autoFlightDuration = kDurationExtra + Cities.CalcFlugdauer(availCity, departCity, qPlane.ptGeschwindigkeit);
+                    availTime += autoFlightDuration;
+                    while (startTime < availTime) {
+                        startTime += 2 * duration;
+                    }
+                    AT_Log("Bot::planRoutes(): Plane %s: Adding buffer of %d hours for auto flight from %s to %s", Helper::getPlaneName(qPlane).c_str(),
+                           autoFlightDuration, Cities[availCity].Kuerzel.c_str(), Cities[departCity].Kuerzel.c_str());
                 }
-                AT_Log("Bot::planRoutes(): Plane %s: Adding buffer of %d hours for auto flight from %s to %s", Helper::getPlaneName(qPlane).c_str(),
-                       autoFlightDuration, Cities[availCity].Kuerzel.c_str(), Cities[fromCity].Kuerzel.c_str());
             }
 
             if (startTime.getDate() >= Sim.Date + 6) {
