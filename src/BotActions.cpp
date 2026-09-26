@@ -1112,20 +1112,25 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
 
     SLONG pass = 0;
     for (; pass < 10; pass++) {
+        /* refresh every pass: only raise what is still missing after the previous sale */
+        if (pass > 0) {
+            moneyAvailable = getMoneyAvailable();
+        }
         __int64 howMuchToRaise = -(moneyAvailable - qPlayer.Credit);
         if (mRunToFinalObjective == FinalPhase::TargetRun) {
-            howMuchToRaise = std::max(howMuchToRaise, mMoneyForFinalObjective);
+            howMuchToRaise = std::max(howMuchToRaise, mMoneyForFinalObjective - moneyAvailable);
         }
         if (howMuchToRaise <= 0) {
             break;
         }
 
+        __int64 sells = 0;
         auto res = howToGetMoney().first;
         if (res == HowToGetMoney::SellOwnShares) {
             SLONG c = qPlayer.PlayerNum;
             __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
             __int64 sellsMax = std::max(0, qPlayer.OwnsAktien[c] - qPlayer.AnzAktien / 2 - 1);
-            auto sells = std::min(sellsMax, sellsNeeded);
+            sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
                 AT_Log("Bot::actionSellShares(): Selling own stock: %lld", sells);
                 GameMechanic::sellStock(qPlayer, c, sells, true);
@@ -1134,7 +1139,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
             SLONG c = qPlayer.PlayerNum;
             __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
             __int64 sellsMax = qPlayer.OwnsAktien[c];
-            auto sells = std::min(sellsMax, sellsNeeded);
+            sells = std::min(sellsMax, sellsNeeded);
             if (sells > 0) {
                 AT_Log("Bot::actionSellShares(): Selling all own stock: %lld", sells);
                 GameMechanic::sellStock(qPlayer, c, sells, true);
@@ -1147,13 +1152,18 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
 
                 __int64 sellsNeeded = calcAmountToSell(c, howMuchToRaise);
                 __int64 sellsMax = qPlayer.OwnsAktien[c];
-                __int64 sells = std::min(sellsMax, sellsNeeded);
-                AT_Log("Bot::actionSellShares(): Selling stock from player %d: %lld", c, sells);
-                GameMechanic::sellStock(qPlayer, c, sells, true);
+                sells = std::min(sellsMax, sellsNeeded);
+                if (sells > 0) {
+                    AT_Log("Bot::actionSellShares(): Selling stock from player %d: %lld", c, sells);
+                    GameMechanic::sellStock(qPlayer, c, sells, true);
+                }
                 break;
             }
         } else {
             break;
+        }
+        if (sells <= 0) {
+            break; /* no progress, another pass would not sell anything either */
         }
     }
     if (pass == 0) {

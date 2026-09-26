@@ -2021,3 +2021,19 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - Root cause, now fixed in the engine: in the robot leave branch (Takeoff.cpp), leaving the room at index 0 of `Locations[]` emptied the array, `CalcRoom()` kept the stale room, and the robot stood still for the rest of the day. The same branch turned an empty slot under the room into a bogus "entering room 0". Now, when nothing remains, the robot goes back into the airport (`ROOM_AIRPORT | ROOM_ENTERING` at index 0). `PLAYER::LeaveAllRooms()` compares without the ENTERING/LEAVING flags, so it no longer flags the airport itself as being left. `ensureAirportUnderneath()` is removed from ClaudeBot.
 - Verification, `run_multiplayer.sh 2 1 36 0 0 1 1 1234` (walking day, same seed both times): old code with the ClaudeBot workaround had HA 29 actions / PT 47; the engine fix has HA 76 / PT 33. Both runs: 0 layout mismatches, peers agree on every fingerprint. One earlier unseeded fix run showed an HA money/hroute divergence at day end; it did not recur with the seed, and the old code's clean run proves nothing about that unseeded game. Watch for it.
 - Smoke tests (Tycoon and Hurricane, 5 days) pass. `/quick` never walks, so the free-game score is unchanged by construction; not re-measured.
+
+## 2026-09-26: MertenBot baseline, free game and all missions (commit ed60075b)
+- MertenBot was reviewed for rule deviations and bugs; the findings are in `bugs.txt` (committed, nothing fixed). This baseline is the reference for measuring fixes to them.
+- Free game: `./scripts/run_measurement_bot.sh` (HA = MertenBot level 2, FL/PT classic bot, SA idle, seeds 1-300). Day 59 SaldoGesamt HA **2.395e9**, Firmenwert HA 2.094e9. 300/300 games complete. Consistent with the 2.346e9 of 2026-09-22.
+- Missions: `SEEDS="1..50" ./scripts/run_missions.sh 2` (same setup, all 26 missions, 1300 games, ~31 min). All 1300 exit 0, no display failure. Per mission (HA win rate, mean days, BesterGegner = best opponent / us):
+  TUTORIAL 100% 1.1d 54 | FIRST 96% 3.8d 79 | EASY 62% 8.9d 109 | NORMAL 100% 84.4d 20 | HARD 100% 22.1d 18 | FINAL 100% 55.4d 64 |
+  ADDON01 100% 22.7d | ADDON02 94% 11.4d 81 | ADDON03 98% 21d 65 | ADDON04 18% 30d 182 | ADDON05 92% 47d 53 | ADDON06 100% 21d 50 | ADDON07 100% 39.7d 67 | ADDON08 100% 71.4d 51 | ADDON09 98% 47.1d 69 | ADDON10 100% 55.5d 56 |
+  ATFS01 78% 11.9d 79 | ATFS02 92% 39.4d 43 | ATFS03 26% 346d | ATFS04 100% 39d 40 | ATFS05 98% 55.7d 29 | ATFS06 100% 50d 72 | ATFS07 100% 90.9d 37 | ATFS08 98% 43.6d 30 | ATFS09 96% 45d 51 | ATFS10 100% 60d 3.8
+  Weakest: ADDON04 (18%), ATFS03 (26%), EASY (62%), ATFS01 (78%).
+- Archived under the game dir in `baseline/mertenbot_ed60075b/`: `freegame/dataBOT_freegame_*.csv` (for `compare_paired.py`), `missions/m<mission>_b2_s<seed>.csv` (BotMission/BotStatistics lines), `mission_summary.txt` and the aggregation script `summ.py` (point its glob at the new run's logs to compare).
+
+## 2026-09-26: MertenBot fixes C1/C2/C3 from bugs.txt (not committed)
+- C1: `condUpgradePlanes()` early return checks `mMoneyReservedForUpgrades` (was repairs). C2: `actionSellShares()` refreshes money each pass, final-run target is objective minus cash, stops when a pass sells nothing. C3a: `howMuchCrewToHire()` computes the multiplier in 64 bit. C3b: caps it at the planes the next purchase can buy.
+- Free game, paired against the ed60075b baseline (300 games): all three **-0.67% (t -7.7)**; C1+C2 -0.05% (t -2.4); C1+C2+C3a -0.03% (t -1.0, same). So the crew cap C3b costs ~0.6%: spare crew lets the bot buy planes without an HR detour first.
+- FINAL (50 seeds, all three fixes): 100% wins, 55.4 days, BesterGegner 64.2 - identical to baseline; HA op saldo 1.456e9 vs 1.473e9.
+- Per the user's rule ("commit if same or improved") the requested set was not committed. Working tree holds C1+C2+C3a. Results in the game dir under `runs/fix_c1c2c3`, `runs/fix_c1c2`, `runs/fix_c1c2c3a`.
