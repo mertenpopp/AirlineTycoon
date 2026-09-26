@@ -65,8 +65,6 @@ const __int64 kMoneyReserveBuyNemesisShares = 80 * 1e6;
 const __int64 kMoneyReserveSabotage = 200 * 1000;
 const __int64 kPlaneCashReserve = 800000;
 
-SLONG kPlaneScoreForceBest = -1;
-
 const char *Bot::getPrioName(Bot::Prio prio) {
     switch (prio) {
     case Bot::Prio::Top:

@@ -402,13 +402,6 @@ std::vector<SLONG> Bot::findBestAvailablePlaneType() {
     std::vector<SLONG> bestList;
     bestList.reserve(scores.size());
 
-    /* exception: Force specified plane type to be best */
-    if (kPlaneScoreForceBest != -1) {
-        SLONG bestType = kPlaneScoreForceBest + 0x10000000;
-        AT_Log("Bot::findBestAvailablePlaneType(): Forcing best plane type to be %s", PlaneTypes[bestType].Name.c_str());
-        bestList.push_back(bestType);
-    }
-
     for (const auto &i : scores) {
         AT_Log("Bot::findBestAvailablePlaneType(): Plane type %s has score %.2e", PlaneTypes[i.first].Name.c_str(), i.second);
         bestList.push_back(i.first);
