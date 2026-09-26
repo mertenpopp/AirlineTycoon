@@ -291,11 +291,14 @@ void Bot::RobotPlan() {
         }
     }
 
-    if (prioList.size() < 2) {
-        prioList.emplace_back(PrioListItem{ACTION_CHECKAGENT2, Prio::Medium, 10000});
-    }
-    if (prioList.size() < 2) {
-        prioList.emplace_back(PrioListItem{ACTION_CHECKAGENT1, Prio::Medium, 10000});
+    /* add fallback options */
+    for (const auto &fallback : std::array<SLONG, 5>{ACTION_CHECKAGENT1, ACTION_CHECKAGENT2, ACTION_CHECKAGENT3, ACTION_VISITRICK, ACTION_VISITTELESCOPE}) {
+        if (prioList.size() >= 2) {
+            break;
+        }
+        if (Helper::checkRoomOpen(fallback)) {
+            prioList.emplace_back(PrioListItem{fallback, Prio::Lowest, 10000});
+        }
     }
 
     /* sort by priority */
