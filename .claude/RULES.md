@@ -134,13 +134,13 @@ Recommended action ID: ACTION_SET_DIVIDEND
 
 ### Buy stock
 
-`std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Purchase shares in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the total amount of money that will be spent. Note that stock price will increase.
+`std::pair<bool, __int64> GameMechanic::buyStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Purchase shares in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the resulting account balance. Note that stock price will increase.
 
 Recommended action ID: ACTION_BUYSHARES
 
 ### Sell stock
 
-`std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Sell shares held in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the total amount of money that will be gained. Note that stock price will decrease.
+`std::pair<bool, __int64> GameMechanic::sellStock(PLAYER &qPlayer, SLONG airlineNum, SLONG amount, bool commit)`: Sell shares held in another airline identified by airlineNum. Analyze the code to see how high the bank fee is. If commit == false, no action is made. The second return value gives the resulting account balance. Note that stock price will decrease.
 
 Recommended action ID: ACTION_SELLSHARES
 
