@@ -20,6 +20,11 @@ inline constexpr int ceil_div(int a, int b) {
     return a / b + (a % b != 0);
 }
 
+inline constexpr __int64 ceil_div(__int64 a, __int64 b) {
+    assert(b != 0);
+    return a / b + (a % b != 0);
+}
+
 class PlaneTime {
   public:
     PlaneTime() = default;

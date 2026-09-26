@@ -716,7 +716,7 @@ SLONG Bot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
-    SLONG savegameVersion = 104;
+    SLONG savegameVersion = 103;
     File << savegameVersion;
 
     File << bot.LocalRandom;
@@ -1106,8 +1106,8 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> bot.mOptions.kFirstClassTicketSurcharge;
     }
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
-    if (savegameVersion < 104) {
-        bot.mOptions.kRepairBudgetPercent = Bot::ConfigurableOptions{}.kRepairBudgetPercent; /* option did not exist yet: use the default */
+    if (savegameVersion < 103) {
+        bot.mOptions.kRepairBudgetPercent = Bot::ConfigurableOptions{}.kRepairBudgetPercent;
     } else {
         File >> bot.mOptions.kRepairBudgetPercent;
     }
