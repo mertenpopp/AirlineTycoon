@@ -35,7 +35,6 @@ extern const SLONG kMinimumEmployeeSkill;
 extern const SLONG kTargetEmployeeSkill;
 extern const SLONG kPlaneMinimumZustand;
 extern const SLONG kPlaneTargetZustand;
-extern const SLONG kRepairBudgetPercent;
 extern const SLONG kPlaneLuxuryTarget;
 extern const SLONG kPlaneLuxuryTargetLateGame;
 extern const SLONG kPlaneFoodTarget;
@@ -163,6 +162,7 @@ class Bot {
         DOUBLE kFirstClassTicketSurcharge{1.5};
         DOUBLE kMaxKerosinQualiZiel{1.2};
         SLONG kOwnStockPosessionRatio{51};
+        SLONG kRepairBudgetPercent{0}; /* extra repair cost per night (above WorstZustand + 20), in % of daily op saldo; < 0: no limit */
     };
     const char *getPrioName(Prio prio);
     const char *getPrioName(SLONG prio);
