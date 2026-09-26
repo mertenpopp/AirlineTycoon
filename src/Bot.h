@@ -51,8 +51,6 @@ extern const __int64 kMoneyReserveBuyNemesisShares;
 extern const __int64 kMoneyReserveSabotage;
 extern const __int64 kPlaneCashReserve;
 
-extern SLONG kPlaneScoreForceBest;
-
 class Bot {
   public:
     explicit Bot(PLAYER &player);
