@@ -35,6 +35,7 @@ extern const SLONG kMinimumEmployeeSkill;
 extern const SLONG kTargetEmployeeSkill;
 extern const SLONG kPlaneMinimumZustand;
 extern const SLONG kPlaneTargetZustand;
+extern const SLONG kRepairBudgetPercent;
 extern const SLONG kPlaneLuxuryTarget;
 extern const SLONG kPlaneLuxuryTargetLateGame;
 extern const SLONG kPlaneFoodTarget;

@@ -49,6 +49,7 @@ const SLONG kMinimumEmployeeSkill = 50;
 const SLONG kTargetEmployeeSkill = 70;
 const SLONG kPlaneMinimumZustand = 90;
 const SLONG kPlaneTargetZustand = 100;
+const SLONG kRepairBudgetPercent = 0; /* extra repair cost per night, in % of daily op saldo; < 0: no limit */
 const SLONG kPlaneLuxuryTarget = 0;
 const SLONG kPlaneLuxuryTargetLateGame = 2;
 const SLONG kPlaneFoodTarget = 2;

@@ -1201,6 +1201,13 @@ void Bot::actionVisitMech() {
         planeList.emplace_back(c, oldTarget);
     }
 
+    /* Limit the extra cost per night to a share of what we earn per day (like kImagePaybackDays for the airline image).
+     * Without a financial advisor we do not know our earnings: no limit. */
+    __int64 budget = -1;
+    if (kRepairBudgetPercent >= 0 && qPlayer.HasBerater(BERATERTYP_GELD) > 0) {
+        budget = std::max(0LL, mWeeklyOperatingSaldo / 7 * kRepairBudgetPercent / 100);
+    }
+
     /* distribute available money for repair extra costs */
     mMoneyReservedForRepairs = 0;
     auto moneyAvailable = getMoneyAvailable();
@@ -1210,8 +1217,15 @@ void Bot::actionVisitMech() {
         for (const auto &iter : planeList) {
             const auto &qPlane = qPlanes[iter.first];
             auto worstZustand = std::min(qPlane.WorstZustand, qPlane.Zustand);
-            SLONG cost = (qPlane.TargetZustand + 1 > (worstZustand + 20)) ? (qPlane.ptPreis / 110) : 0;
-            if (qPlane.TargetZustand < kPlaneTargetZustand && moneyAvailable >= cost) {
+            /* Points above WorstZustand + 20 cost extra. Only commit to those the mechanic reaches tonight (MechMode 3: +18
+             * below 60, else +15): a target beyond that would be charged on a later night, and nothing guarantees that we
+             * visit the mechanic again to lower it (ADDON01 went bankrupt that way). */
+            SLONG reachTonight = std::min(100, qPlane.Zustand + ((qPlane.Zustand < 60) ? 18 : 15));
+            bool costsExtra = (qPlane.TargetZustand + 1 > (worstZustand + 20));
+            bool reachable = (qPlane.TargetZustand + 1 <= reachTonight);
+            SLONG cost = costsExtra ? (qPlane.ptPreis / 110) : 0;
+            bool withinBudget = (budget < 0) || (mMoneyReservedForRepairs + cost <= budget);
+            if (qPlane.TargetZustand < kPlaneTargetZustand && (!costsExtra || reachable) && moneyAvailable >= cost && withinBudget) {
                 GameMechanic::setPlaneTargetZustand(qPlayer, iter.first, qPlane.TargetZustand + 1);
                 keepGoing = true;
                 mMoneyReservedForRepairs += cost;
@@ -1234,8 +1248,8 @@ void Bot::actionVisitMech() {
                    Helper::getPlaneName(qPlane, 1).c_str(), iter.second, qPlane.TargetZustand, qPlane.Zustand, worstZustand);
         }
     }
-    AT_Log("Bot::actionVisitMech(): We are reserving %s $ for repairs, available money: %s $", Insert1000erDots64(mMoneyReservedForRepairs).c_str(),
-           Insert1000erDots64(getMoneyAvailable()).c_str());
+    AT_Log("Bot::actionVisitMech(): We are reserving %s $ for repairs (budget: %s $), available money: %s $",
+           Insert1000erDots64(mMoneyReservedForRepairs).c_str(), Insert1000erDots64(budget).c_str(), Insert1000erDots64(getMoneyAvailable()).c_str());
 }
 
 bool Bot::actionVisitSaboteur() {
