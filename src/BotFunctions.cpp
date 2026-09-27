@@ -1170,7 +1170,7 @@ void Bot::routesRecalcNextStep() {
         mBuyPlaneForRouteId = mRoutes[mImproveRouteId].planeTypeId;
         /* if RoutesNextStep changes to something else, we won't reset
          * mBuyPlaneForRouteId so that we keep hiring new employees. */
-        AT_Log("Bot::routesRecalcNextStep(): Need to buy another %s for route %s", PlaneTypes[mBuyPlaneForRouteId].Name.c_str(), routeName.c_str());
+        AT_Log("Bot::routesRecalcNextStep(): Need to buy another %s for route %s", getPlaneType(mBuyPlaneForRouteId).Name.c_str(), routeName.c_str());
         break;
     case RoutesNextStep::BuyAdsForRoute:
         AT_Log("Bot::routesRecalcNextStep(): Need to buy ads for route %s with image %d", routeName.c_str(), mRoutes[mImproveRouteId].image);
@@ -1229,7 +1229,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     if (routeToBuyPlanes != -1) {
         __int64 moneyAvailable = getMoneyAvailable();
         const auto &qRoute = mRoutes[routeToBuyPlanes];
-        const auto &qPlaneType = PlaneTypes[qRoute.planeTypeId];
+        const auto &qPlaneType = getPlaneType(qRoute.planeTypeId);
         bool haveMoney = (moneyAvailable >= qPlaneType.Preis);
         bool haveCrew = (mExtraPilots >= qPlaneType.AnzPiloten) && (mExtraBegleiter >= qPlaneType.AnzBegleiter);
         if (haveMoney && haveCrew) {
@@ -1289,7 +1289,7 @@ void Bot::requestPlanRoutes(bool areWeInOffice) {
 
 Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds) {
     const auto &qRoute = Routen[routeId];
-    const auto &qPlaneType = PlaneTypes[planeTypeId];
+    const auto &qPlaneType = getPlaneType(planeTypeId);
 
     int cost = 0;
     int duration = 0;
@@ -1300,6 +1300,9 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     /* check if plane type is suitable for route */
     SLONG distance = Cities.CalcDistance(qRoute.VonCity, qRoute.NachCity);
     if (distance > qPlaneType.Reichweite * 1000 || duration >= 24) {
+        return {};
+    }
+    if (planeTypeId == kDesignerPlaneTypeId && !designerRoutePays(qRoute)) {
         return {};
     }
 
@@ -1334,8 +1337,8 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     }
 
     /* calculate how many planes would be need to get desired route utilization */
-    SLONG numPlanesMin = Helper::getNumberOfPlanesNeededForRoute(qRoute, planeTypeId, 10);
-    SLONG numPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(qRoute, planeTypeId, targetSharePercent);
+    SLONG numPlanesMin = Helper::getNumberOfPlanesNeededForRoute(qRoute, qPlaneType, 10);
+    SLONG numPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(qRoute, qPlaneType, targetSharePercent);
     numPlanesTarget *= 2; /* for each route leg */
     /* numPlanesMin stays since each flight is booked for both directions for required minimum utilization */
 
@@ -1363,6 +1366,60 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     return {profitPerWeek, routeId, planeTypeId, existingPlaneIds[planeTypeId], planesToBuy};
 }
 
+const CPlaneType &Bot::getPlaneType(SLONG planeTypeId) const {
+    if (planeTypeId == kDesignerPlaneTypeId) {
+        assert(mDesignerPlaneType.Passagiere > 0);
+        return mDesignerPlaneType;
+    }
+    return PlaneTypes[planeTypeId];
+}
+
+void Bot::updateDesignerPlaneType() {
+    mDesignerPlaneType = {};
+    if (mDesignerPlane.Name.empty() || !mDesignerPlane.IsBuildable()) {
+        return;
+    }
+    /* same values as PLAYER::BuyPlane() gives the plane */
+    mDesignerPlaneType.Name = mDesignerPlane.Name;
+    mDesignerPlaneType.Passagiere = mDesignerPlane.CalcPassagiere();
+    mDesignerPlaneType.Reichweite = mDesignerPlane.CalcReichweite();
+    mDesignerPlaneType.Geschwindigkeit = mDesignerPlane.CalcSpeed();
+    mDesignerPlaneType.AnzPiloten = mDesignerPlane.CalcPiloten();
+    mDesignerPlaneType.AnzBegleiter = mDesignerPlane.CalcBegleiter();
+    mDesignerPlaneType.Tankgroesse = mDesignerPlane.CalcTank();
+    mDesignerPlaneType.Verbrauch = mDesignerPlane.CalcVerbrauch();
+    mDesignerPlaneType.Preis = mDesignerPlane.CalcCost();
+
+    mDesignerRoutesPay = false;
+    for (SLONG c = 0; c < Routen.AnzEntries() && !mDesignerRoutesPay; c++) {
+        if ((Routen.IsInAlbum(c) != 0) && Routen[c].VonCity < Routen[c].NachCity) {
+            mDesignerRoutesPay = designerRoutePays(Routen[c]);
+        }
+    }
+    AT_Log("Bot::updateDesignerPlaneType(): %s: %d seats, %d km, %d km/h, %d l/h, %s $, pays on routes: %s", mDesignerPlaneType.Name.c_str(),
+           mDesignerPlaneType.Passagiere, mDesignerPlaneType.Reichweite, mDesignerPlaneType.Geschwindigkeit, mDesignerPlaneType.Verbrauch,
+           Insert1000erDots64(mDesignerPlaneType.Preis).c_str(), mDesignerRoutesPay ? "yes" : "no");
+}
+
+bool Bot::designerRoutePays(const CRoute &qRoute) const {
+    const auto &qPlaneType = mDesignerPlaneType;
+    if (qPlaneType.Passagiere <= 0 || qPlaneType.Preis <= 0) {
+        return false;
+    }
+    int cost = 0;
+    int duration = 0;
+    int dist = 0;
+    Helper::calcCostAndDuration(Cities.find(qRoute.VonCity), Cities.find(qRoute.NachCity), qPlaneType, false, cost, duration, dist);
+    duration += kDurationExtra;
+    if (dist > qPlaneType.Reichweite * 1000 || duration >= 24) {
+        return false;
+    }
+    DOUBLE ticketPrice = getRouteBaseCost(qRoute) * 3.0 * mOptions.kMaxTicketPriceFactor.target;
+    DOUBLE profitPerFlight = qPlaneType.Passagiere * kDesignerRouteExpectedLoad * ticketPrice - cost;
+    DOUBLE profitPerWeek = profitPerFlight * (24 * 7 / duration);
+    return profitPerWeek >= kDesignerRouteMinWeeklyReturn * qPlaneType.Preis;
+}
+
 void Bot::findBestRoute() {
     mWantToRentRouteId = -1;
     mPlaneTypeForNewRoute = -1;
@@ -1373,8 +1430,14 @@ void Bot::findBestRoute() {
     if (mRoutes.empty()) {
         for (const auto id : mPlanesForRoutesUnassigned) {
             auto &qPlane = qPlayer.Planes[id];
-            existingPlaneIds[qPlane.TypeId].emplace_back(id);
+            existingPlaneIds[getRoutePlaneTypeId(qPlane)].emplace_back(id);
         }
+    }
+
+    /* the designer plane is the only plane we buy in designer missions, so plan routes for it */
+    std::vector<SLONG> planeTypeIds = mKnownPlaneTypes;
+    if (qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY) && mDesignerPlaneType.Passagiere > 0) {
+        planeTypeIds = {kDesignerPlaneTypeId};
     }
 
     std::vector<RouteScore> bestRoutes;
@@ -1386,8 +1449,8 @@ void Bot::findBestRoute() {
         if (Routen[c].VonCity > Routen[c].NachCity) {
             continue; /* we only need to check one of each pair */
         }
-        for (const auto &planeTypeId : mKnownPlaneTypes) {
-            if (!PlaneTypes.IsInAlbum(planeTypeId)) {
+        for (const auto &planeTypeId : planeTypeIds) {
+            if (planeTypeId != kDesignerPlaneTypeId && !PlaneTypes.IsInAlbum(planeTypeId)) {
                 continue;
             }
 
@@ -1409,7 +1472,7 @@ void Bot::findBestRoute() {
                    Insert1000erDots64(candidate.score).c_str());
         } else {
             AT_Log("Bot::findBestRoute(): Estimated weekly revenue of route %s (using plane type %s, need %d) is: %s $",
-                   Helper::getRouteName(Routen[candidate.routeId]).c_str(), PlaneTypes[candidate.planeTypeId].Name.c_str(), candidate.numPlanesToBuy,
+                   Helper::getRouteName(Routen[candidate.routeId]).c_str(), getPlaneType(candidate.planeTypeId).Name.c_str(), candidate.numPlanesToBuy,
                    Insert1000erDots64(candidate.score).c_str());
         }
     }
@@ -1417,13 +1480,13 @@ void Bot::findBestRoute() {
     /* pick best route we can afford */
     __int64 moneyAvailable = getMoneyAvailable();
     for (const auto &candidate : bestRoutes) {
-        __int64 planeCost = PlaneTypes[candidate.planeTypeId].Preis;
+        __int64 planeCost = getPlaneType(candidate.planeTypeId).Preis;
         if (candidate.numPlanesToBuy * planeCost > moneyAvailable) {
             AT_Log("Bot::findBestRoute(): We cannot afford route %s (plane costs %lld, need %d), our available money is %lld",
                    Helper::getRouteName(Routen[candidate.routeId]).c_str(), planeCost, candidate.numPlanesToBuy, moneyAvailable);
             continue;
         }
-        AT_Log("Bot::findBestRoute(): Best route (using plane type %s) is: ", PlaneTypes[candidate.planeTypeId].Name.c_str());
+        AT_Log("Bot::findBestRoute(): Best route (using plane type %s) is: ", getPlaneType(candidate.planeTypeId).Name.c_str());
         Helper::printRoute(Routen[candidate.routeId]);
 
         mWantToRentRouteId = candidate.routeId;
@@ -1451,13 +1514,13 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
 
     SLONG numberOfPlanesTarget = 0;
     if (planeTypeForNewRoute != -1) {
-        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], planeTypeForNewRoute, mOptions.kMaximumRouteUtilization);
+        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), mOptions.kMaximumRouteUtilization);
         numberOfPlanesTarget *= 2; /* for each route leg */
     }
     mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
     if (planeTypeForNewRoute != -1) {
         AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
-               PlaneTypes[planeTypeForNewRoute].Name.c_str());
+               getPlaneType(planeTypeForNewRoute).Name.c_str());
     }
 
     /* update sorted list */
@@ -1689,18 +1752,8 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
             if (qRoute.planeTypeId == -1) {
                 continue; /* route will be removed */
             }
-            if (qPlane.TypeId == -1) {
-                /* designer plane: no type to match, check range and duration instead */
-                SLONG fromCity = Cities.find(getRoute(qRoute).VonCity);
-                SLONG toCity = Cities.find(getRoute(qRoute).NachCity);
-                if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(fromCity, toCity)) {
-                    continue;
-                }
-                if (Cities.CalcFlugdauer(fromCity, toCity, qPlane.ptGeschwindigkeit) >= 24) {
-                    continue;
-                }
-            } else if (qRoute.planeTypeId != qPlane.TypeId) {
-                continue;
+            if (qRoute.planeTypeId != getRoutePlaneTypeId(qPlane)) {
+                continue; /* a designer plane only flies routes planned for it */
             }
             targetRouteIdx = routeIdx;
             break;

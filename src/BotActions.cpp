@@ -158,7 +158,14 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
             __int64 moneyNeeded = 2 * costRouteAd + bestPlaneType.Preis;
             __int64 moneyCanBeRaised = howMuchMoneyToRaise(true);
             SLONG numPlanes = mPlanesForJobs.size() + mPlanesForJobsUnassigned.size();
-            if ((numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMax)) {
+            bool switchNow = (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMin && moneyAvailable >= moneyNeeded) || (numPlanes >= mOptions.kSwitchToRoutesNumPlanesMax);
+            if (switchNow && qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY) && !mDesignerRoutesPay) {
+                /* the designer plane earns more with jobs, but the credit still buys the next one sooner */
+                if (!mDoRoutesMaxCredit) {
+                    mDoRoutesMaxCredit = true;
+                    AT_Log("Bot::actionStartDay(): Not switching to routes, the designer plane earns more with jobs. Taking out maximum credit.");
+                }
+            } else if (switchNow) {
                 mDoRoutes = true;
                 mDoRoutesMaxCredit = true;
                 AT_Log("Bot::actionStartDay(): Switching to routes. Reserving 2*%s + %s $ for ads and plane.", Insert1000erDots64(costRouteAd).c_str(),
