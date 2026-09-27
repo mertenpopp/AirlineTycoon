@@ -1729,10 +1729,6 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
     /* assign planes to routes */
     SLONG numUnassigned = mPlanesForRoutesUnassigned.size();
     for (SLONG i = 0; i < numUnassigned; i++) {
-        if (mRoutes[mRoutesSortedByOwnUtilization[0]].routeUtilization >= mOptions.kMaximumRouteUtilization) {
-            break; /* No more underutilized routes */
-        }
-
         SLONG planeId = mPlanesForRoutesUnassigned.front();
         const auto &qPlane = qPlayer.Planes[planeId];
         mPlanesForRoutesUnassigned.pop_front();
@@ -1746,7 +1742,7 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
         for (SLONG routeIdx : mRoutesSortedByOwnUtilization) {
             auto &qRoute = mRoutes[routeIdx];
             if (qRoute.routeUtilization >= mOptions.kMaximumRouteUtilization) {
-                break; /* No more underutilized routes */
+                continue;
             }
             if (qRoute.planeTypeId == -1) {
                 continue; /* route will be removed */
