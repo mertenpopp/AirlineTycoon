@@ -43,6 +43,13 @@ const SLONG kImagePaybackDays = 20;
 const SLONG kRouteMaxImage = 97;
 const SLONG kMinimumOwnRouteUtilization = 0;
 const SLONG kUnknownCompetitorUtilization = 30;
+/* A designer route has to pay for its plane: expected weekly profit (flights half full at our
+ * ticket price, minus kerosene) of at least this share of the plane price. Designer planes on
+ * jobs made 12-17 % of their price per week in ATFS05/ATFS08 (Beluga 10M/60.3M, Ecomaster
+ * 2M/17.2M); the Beluga makes ~38 % on Rio de Janeiro -> Berlin, the Ecomaster ~6 % on its best
+ * route, and its route rent and ads then delay the last purchase of the race. */
+const DOUBLE kDesignerRouteExpectedLoad = 0.5;
+const DOUBLE kDesignerRouteMinWeeklyReturn = 0.2;
 const SLONG kMaximumPlaneUtilization = 70;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 50;
@@ -165,6 +172,7 @@ void Bot::RobotInit(SLONG randomSeed) {
                     mDesignerPlane.Save(mDesignerPlaneFile);
                 }
             }
+            updateDesignerPlaneType();
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_MAX20PERCENT)) {
@@ -1020,7 +1028,7 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> info.canUpgrade;
 
         if (savegameVersion < 103) {
-            if (info.planeTypeId != -1) {
+            if (info.planeTypeId >= 0) {
                 info.numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[info.routeId], info.planeTypeId, 90);
             } else {
                 info.numberOfPlanesTarget = 0;
@@ -1099,6 +1107,7 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mDesignerPlane;
     File >> bot.mDesignerPlaneFile;
+    bot.updateDesignerPlaneType();
 
     File >> bot.mOptions.kSchedulingMinScoreRatio >> bot.mOptions.kSchedulingMinScoreRatioLastMinute;
     File >> bot.mOptions.kSwitchToRoutesNumPlanesMin >> bot.mOptions.kSwitchToRoutesNumPlanesMax;

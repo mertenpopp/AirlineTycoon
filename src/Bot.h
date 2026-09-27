@@ -29,6 +29,8 @@ extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
 extern const SLONG kUnknownCompetitorUtilization;
+extern const DOUBLE kDesignerRouteExpectedLoad;
+extern const DOUBLE kDesignerRouteMinWeeklyReturn;
 extern const SLONG kMaximumPlaneUtilization;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;
@@ -112,6 +114,8 @@ class Bot {
         SaveMoney, /* stop investing towards other targets */
         TargetRun  /* invest towards target, liquidize all other assets */
     };
+    /* RouteInfo::planeTypeId of a route planned for mDesignerPlane (-1 means: route will be removed) */
+    static constexpr SLONG kDesignerPlaneTypeId = -2;
     struct RouteInfo {
         RouteInfo() = default;
         RouteInfo(SLONG id, SLONG id2, SLONG typeId, SLONG numPlanes)
@@ -282,6 +286,10 @@ class Bot {
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
     RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds);
+    const CPlaneType &getPlaneType(SLONG planeTypeId) const;
+    void updateDesignerPlaneType();
+    bool designerRoutePays(const CRoute &qRoute) const;
+    static SLONG getRoutePlaneTypeId(const CPlane &qPlane) { return (qPlane.TypeId == -1) ? kDesignerPlaneTypeId : qPlane.TypeId; }
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
     std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
@@ -443,6 +451,8 @@ class Bot {
     /* designer plane */
     CXPlane mDesignerPlane{};
     CString mDesignerPlaneFile{};
+    CPlaneType mDesignerPlaneType{}; /* stats of mDesignerPlane, see getPlaneType() */
+    bool mDesignerRoutesPay{false};  /* some route pays for mDesignerPlane, see designerRoutePays() */
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);

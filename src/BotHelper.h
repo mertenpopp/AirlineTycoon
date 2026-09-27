@@ -323,13 +323,17 @@ inline SLONG getRequiredImageBasedOnLowestRoute(SLONG lowestImage) {
     return howMuchImageDoWeNeed;
 }
 
-inline SLONG getNumberOfPlanesNeededForRoute(const CRoute &qRoute, SLONG planeTypeId, SLONG maxUtilizationPercent) {
-    SLONG duration = kDurationExtra + Cities.CalcFlugdauer(qRoute.VonCity, qRoute.NachCity, PlaneTypes[planeTypeId].Geschwindigkeit);
+inline SLONG getNumberOfPlanesNeededForRoute(const CRoute &qRoute, const CPlaneType &qPlaneType, SLONG maxUtilizationPercent) {
+    SLONG duration = kDurationExtra + Cities.CalcFlugdauer(qRoute.VonCity, qRoute.NachCity, qPlaneType.Geschwindigkeit);
     SLONG numTripsPerWeek = 24 * 7 / duration;
     SLONG maxWeekyRegeneration = qRoute.AnzPassagiere() * 427 / 100;
     SLONG finalTarget = ceil_div(maxWeekyRegeneration * maxUtilizationPercent, 100);
-    SLONG numPlanesTotal = ceil_div(finalTarget, numTripsPerWeek * PlaneTypes[planeTypeId].Passagiere);
+    SLONG numPlanesTotal = ceil_div(finalTarget, numTripsPerWeek * qPlaneType.Passagiere);
     return numPlanesTotal;
+}
+
+inline SLONG getNumberOfPlanesNeededForRoute(const CRoute &qRoute, SLONG planeTypeId, SLONG maxUtilizationPercent) {
+    return getNumberOfPlanesNeededForRoute(qRoute, PlaneTypes[planeTypeId], maxUtilizationPercent);
 }
 
 inline void calcCostAndDuration(int startCity, int destCity, const CPlaneType &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
