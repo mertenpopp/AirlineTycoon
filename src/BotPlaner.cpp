@@ -71,7 +71,7 @@ void BotPlaner::FlightJob::printInfo() const {
 int BotPlaner::FlightJob::calculateDistance() const { return Cities.CalcDistance(getStartCity(), getDestCity()); }
 
 std::pair<int, float> BotPlaner::FlightJob::calculateScore(const Factors &f, int hours, int cost, int numRequired) {
-    int score = getPremium() - cost;
+    int score = getPremium() - (cost * numRequired);
 
     if (wasTaken()) {
         score += getPenalty();
@@ -482,7 +482,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
                     qNodeInfo.jobIdx = jobIdx;
                     qNodeInfo.earliest = job.getDate();
                     qNodeInfo.latest = job.getBisDate();
-                    qNodeInfo.score = score;
+                    qNodeInfo.score = score / numRequired;
                     qNodeInfo.scoreRatio = scoreRatio;
                     qNodeInfo.duration = duration + kDurationExtra;
                 }
