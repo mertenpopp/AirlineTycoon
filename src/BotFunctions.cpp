@@ -1479,6 +1479,10 @@ std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::i
     }
 
     for (auto planeId : it->planeIds) {
+        auto planeIt = std::find(mPlanesForRoutes.begin(), mPlanesForRoutes.end(), planeId);
+        if (planeIt != mPlanesForRoutes.end()) {
+            mPlanesForRoutes.erase(planeIt);
+        }
         mPlanesForRoutesUnassigned.push_back(planeId);
         AT_Log("Bot::removeRoute(): Plane %s does not have a route anymore.", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
     }
@@ -1682,7 +1686,20 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
             if (qRoute.routeUtilization >= mOptions.kMaximumRouteUtilization) {
                 break; /* No more underutilized routes */
             }
-            if (qRoute.planeTypeId != qPlane.TypeId) {
+            if (qRoute.planeTypeId == -1) {
+                continue; /* route will be removed */
+            }
+            if (qPlane.TypeId == -1) {
+                /* designer plane: no type to match, check range and duration instead */
+                SLONG fromCity = Cities.find(getRoute(qRoute).VonCity);
+                SLONG toCity = Cities.find(getRoute(qRoute).NachCity);
+                if (qPlane.ptReichweite * 1000 < Cities.CalcDistance(fromCity, toCity)) {
+                    continue;
+                }
+                if (Cities.CalcFlugdauer(fromCity, toCity, qPlane.ptGeschwindigkeit) >= 24) {
+                    continue;
+                }
+            } else if (qRoute.planeTypeId != qPlane.TypeId) {
                 continue;
             }
             targetRouteIdx = routeIdx;
