@@ -329,6 +329,7 @@ class Bot {
     void findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned);
     void findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::vector<SLONG> &listAvailable);
     bool checkPlaneAvailable(SLONG planeId, bool printIfAvailable, bool areWeInOffice);
+    static bool needsRepairs(const CPlane &qPlane);
     std::pair<SLONG, SLONG> howMuchCrewToHire(__int64 moneyAvailable);
     void setMoodByActionId(SLONG actionId);
     bool useItem(SLONG item);

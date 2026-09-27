@@ -1738,7 +1738,7 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
         const auto &qPlane = qPlayer.Planes[planeId];
         mPlanesForRoutesUnassigned.pop_front();
 
-        if (!checkPlaneAvailable(planeId, true, areWeInOffice) || qPlane.Zustand <= kPlaneMinimumZustand) {
+        if (!checkPlaneAvailable(planeId, true, areWeInOffice) || needsRepairs(qPlane)) {
             mPlanesForRoutesUnassigned.push_back(planeId);
             continue;
         }
