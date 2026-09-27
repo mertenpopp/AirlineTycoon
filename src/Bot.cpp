@@ -131,6 +131,11 @@ void Bot::RobotInit(SLONG randomSeed) {
             mItemAntiVirus = -1; /* item not available */
         }
 
+        if (Sim.Difficulty == DIFF_FREEGAME) {
+            /* no deadline: let planes slowly return to 100 */
+            mOptions.kRepairBudgetPercent = 10;
+        }
+
         if (qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
             mOptions.kMaximumRouteUtilization = 20;
         }
