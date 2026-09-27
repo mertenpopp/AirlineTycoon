@@ -7,10 +7,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <climits>
 #include <cmath>
-#include <cstdint>
 #include <vector>
 
 #ifdef PRINT_DETAIL
