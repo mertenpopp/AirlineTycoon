@@ -273,7 +273,7 @@ __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
     __int64 moneyStockOwn = 0;
     auto stockPrice = static_cast<__int64>(qPlayer.Kurse[0]);
     if (GameMechanic::canEmitStock(qPlayer) == GameMechanic::EmitStockResult::Ok) {
-        __int64 newStock = 100 * (qPlayer.MaxAktien - qPlayer.AnzAktien) / 100;
+        __int64 newStock = (qPlayer.MaxAktien - qPlayer.AnzAktien);
         __int64 emissionsKurs = 0;
         __int64 marktAktien = 0;
         if (kStockEmissionMode == 0) {
