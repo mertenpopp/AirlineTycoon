@@ -2,7 +2,7 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of a15fc168: an entry with a "->" note has been dealt with, all others are open.
+Status as of 088a08df: an entry with a "->" note has been dealt with, all others are open.
 
 
 A. Deviations from .claude/RULES.md
@@ -143,9 +143,11 @@ D1. BotActions.cpp:550-574 actionBuyUsedPlane(): mBestUsedPlaneIdx is not reset 
     IsInAlbum, so two hours later the bot buys a nameless copy of the same plane. Also
     buyUsedPlane() can return -1, only an assert catches it, then Planes[-1] is read
     (BotActions.cpp:560-563). Path is dead today: nothing sets mLongTermStrategy = false.
-    -> Partly fixed in a15fc168: mBestUsedPlaneIdx is reset after the purchase. Still open:
-       buyUsedPlane() returns -1 if the plane is gone, cash fell below the debt limit since
-       planning, or there is no free plane slot; only the assert guards Planes[planeId].
+    -> Fixed in a15fc168 and 088a08df: mBestUsedPlaneIdx is reset after the purchase. The
+       action checks that the slot still holds the chosen plane (name not empty and equal to
+       mBestUsedPlaneName, so a plane a competitor bought, or a refill in its slot, is not
+       bought), checks the full price like the plan-time condition, and handles -1 from
+       buyUsedPlane() instead of relying on the assert.
 
 D2. BotFunctions.cpp:1480-1504 removeRoute() moves the route's planes to
     mPlanesForRoutesUnassigned but does not remove them from mPlanesForRoutes;
@@ -222,6 +224,8 @@ E15. fd7fc400 added mCardWasTaken to the savegame inside the version-103 block w
      savegameVersion (still 103, Bot.cpp:721). Saves written by dev builds since da8eccdf
      (2026-09-17) are now read one field out of step. Master is on version 100 and not
      affected. Fix: write 104, read mCardWasTaken only for savegameVersion >= 104.
+     -> Won't fix: not raising the version is intentional (088a08df adds mBestUsedPlaneName
+        the same way).
 
 
 F. Documentation
