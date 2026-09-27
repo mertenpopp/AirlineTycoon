@@ -799,7 +799,7 @@ bool Bot::tryPickUpItem(SLONG condition, SLONG item, bool wantToKeep) {
 }
 
 void Bot::printRobotFlags() const {
-    const std::array<std::pair<SLONG, bool>, 30> list = {{{ROBOT_USE_FRACHT, true},
+    const std::array<std::pair<SLONG, bool>, 29> list = {{{ROBOT_USE_FRACHT, true},
                                                           {ROBOT_USE_WERBUNG, true},
                                                           {ROBOT_USE_NASA, false},
                                                           {ROBOT_USE_ROUTES, true},
@@ -818,7 +818,6 @@ void Bot::printRobotFlags() const {
                                                           {ROBOT_USE_GROSSESKONTO, false},
                                                           {ROBOT_USE_WORKVERYQUICK, false},
                                                           {ROBOT_USE_DONTBUYANYSHARES, false},
-                                                          {ROBOT_USE_NOCHITCHAT, false},
                                                           {ROBOT_USE_SHORTFLIGHTS, false},
                                                           {ROBOT_USE_EXTREME_SABOTAGE, false},
                                                           {ROBOT_USE_SECURTY_OFFICE, false},

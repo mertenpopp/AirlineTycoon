@@ -8368,7 +8368,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-X--------";
         break;
     case ROBOT_USE_NOCHITCHAT:
-        /* SuperBot: Job agencies (travel, last minute, freight, international) always have at least low priority */
+        /* SuperBot: Ignores this flag */
         pFeatureDesc = "------"
                        "."
                        "----------"
