@@ -2,7 +2,8 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of 088a08df: an entry with a "->" note has been dealt with, all others are open.
+Status as of f22b5cf5: an entry with a "->" note has been dealt with, all others are open
+(A2, E10).
 
 
 A. Deviations from .claude/RULES.md
@@ -20,6 +21,10 @@ A2. CRoute::AnzPassagiere() called outside the route box
     savegame older than version 103, and the result is stored in numberOfPlanesTarget.
     (The call from updateRouteInfoOffice() -> calcRouteScore() at BotFunctions.cpp:1018 also
     reads AnzPassagiere() and, on the laptop, CRoute::Miete, but the result is only logged.)
+    Still open at f22b5cf5: now Bot.cpp:1027 (savegame < 103) and BotFunctions.cpp:1011
+    (updateRouteInfoOffice(), log only; since 510b1c26 also for designer routes). The route
+    check added in 510b1c26 (designerRoutePays()) reads only VonCity/NachCity and
+    CalculateFlightCost(..., 800, 800, -1), which RULES.md allows at any time.
 
 A3. RobotPlan() fallback skips checkRoomOpen()
     Bot.cpp:293-298 adds ACTION_CHECKAGENT2/ACTION_CHECKAGENT1 without checking opening hours
@@ -199,7 +204,8 @@ D3. BotFunctions.cpp:1681 assignPlanesToRoutes() matches planeTypeId == TypeId, 
        Free game identical in 300/300 games. ATFS05/ATFS08 (8 seeds, levels 002 and 222):
        no crashes, same winners; the original trigger never occurred (the starting route
        is gone before the first designer plane), but the new matching changes ATFS05,
-       see C11.
+       see C11. Since 510b1c26 a designer plane only matches routes planned for it
+       (planeTypeId kDesignerPlaneTypeId); the range/duration fallback is gone.
 
 D4. BotPlaner.cpp:895-943 takeAllJobs() logs Auftraege[outAuftragsId] before checking for
     -1; only an assert guards it, so a failed take crashes release builds.
@@ -262,6 +268,7 @@ E9. actionVisitHR(): the existing advisor is fired before the replacement is hir
        and nothing else runs in between. fd7fc400 documents the assumption in a comment.
 E10. BotPlanerAlgo.cpp: with kTempStep = 100 the loop always runs ~11 iterations; the
      100 ms time budget (timeBudgetMS) has no effect.
+     Still open at f22b5cf5 (kTempStep = 100 at BotPlanerAlgo.cpp:32, used at line 1014).
 E11. BotPlaner.cpp:724-729 "Using mMinScoreRatio" log conditions are inverted.
      -> Fixed in fd7fc400.
 E12. findBestRoute() uses qPlayer.Money instead of getMoneyAvailable() (ignores reserves).
