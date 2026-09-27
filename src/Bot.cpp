@@ -389,7 +389,7 @@ void Bot::RobotExecuteAction() {
 
     mOnThePhone = 0;
 
-    if (Sim.CallItADay == 0) {
+    if (Sim.CallItADay == 0 && qAction.ActionId != ACTION_NONE) {
         const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
         if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
             AT_Warn("Bot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway.", Translate_ACTION(qAction.ActionId),
@@ -683,6 +683,9 @@ void Bot::RobotExecuteAction() {
     case ACTION_ENERGY_DRINK:
         /* this only triggers during fast-forward -> we have no use for gloves/energy drink anymore */
         assert(Sim.CallItADay != 0);
+        if (Sim.CallItADay == 0) {
+            AT_Error("Bot::RobotExecuteAction(): Should only trigger during fast-foward!");
+        }
         if (qPlayer.HasItem(ITEM_GLOVE)) {
             dropItem(ITEM_GLOVE);
         } else {
@@ -698,6 +701,10 @@ void Bot::RobotExecuteAction() {
         [[fallthrough]];
     case ACTION_VISIT_OFFICE_D:
         /* this only triggers during fast-forward -> we keep pliers for potential security office sabotage */
+        assert(Sim.CallItADay != 0);
+        if (Sim.CallItADay == 0) {
+            AT_Error("Bot::RobotExecuteAction(): Should only trigger during fast-foward!");
+        }
         qPlayer.WorkCountdown = 2;
         break;
 
