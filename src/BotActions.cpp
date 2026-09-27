@@ -549,19 +549,39 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
            mPlanesForJobsUnassigned.size());
 }
 
-void Bot::actionBuyUsedPlane(__int64 /*moneyAvailable*/) {
+void Bot::actionBuyUsedPlane(__int64 moneyAvailable) {
     if (mBestUsedPlaneIdx < 0) {
         AT_Error("Bot::actionBuyUsedPlane(): We have not yet checked which plane to buy!");
         return;
     }
-
-    if (qPlayer.xPiloten < Sim.UsedPlanes[mBestUsedPlaneIdx].ptAnzPiloten || qPlayer.xBegleiter < Sim.UsedPlanes[mBestUsedPlaneIdx].ptAnzBegleiter) {
+    if (!Sim.UsedPlanes.IsInAlbum(mBestUsedPlaneIdx) || Sim.UsedPlanes[mBestUsedPlaneIdx].Name.GetLength() == 0) {
+        AT_Error("Bot::actionBuyUsedPlane(): Selected plane does not exist anymore (%ld).", mBestUsedPlaneIdx);
+        mBestUsedPlaneIdx = -1;
+        mBestUsedPlaneName = "";
+        return;
+    }
+    const auto &qUsedPlane = Sim.UsedPlanes[mBestUsedPlaneIdx];
+    if (qUsedPlane.Name != mBestUsedPlaneName) {
+        AT_Error("Bot::actionBuyUsedPlane(): Selected plane must have been bought by someone else (%ld).", mBestUsedPlaneIdx);
+        mBestUsedPlaneIdx = -1;
+        mBestUsedPlaneName = "";
+        return;
+    }
+    if (moneyAvailable < qUsedPlane.CalculatePrice()) {
+        AT_Error("Bot::actionBuyUsedPlane(): Not enough money!");
+        return;
+    }
+    if (qPlayer.xPiloten < qUsedPlane.ptAnzPiloten || qPlayer.xBegleiter < qUsedPlane.ptAnzBegleiter) {
         AT_Error("Bot::actionBuyUsedPlane(): Not enough crew for selected plane!");
     }
 
     SLONG planeId = GameMechanic::buyUsedPlane(qPlayer, mBestUsedPlaneIdx);
-    assert(planeId >= 0x1000000);
     mBestUsedPlaneIdx = -1;
+    mBestUsedPlaneName = "";
+    if (planeId < 0) {
+        AT_Error("Bot::actionBuyUsedPlane(): Purchase failed.");
+        return;
+    }
 
     auto &qPlane = qPlayer.Planes[planeId];
     AT_Log("Bot::actionBuyUsedPlane(): Bought used plane %s", Helper::getPlaneName(qPlane).c_str());
@@ -613,10 +633,12 @@ void Bot::actionMuseumCheckPlanes() {
         mBestUsedPlanePilots = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].ptAnzPiloten;
         mBestUsedPlaneCrew = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].ptAnzBegleiter;
         mBestUsedPlanePrice = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].CalculatePrice();
+        mBestUsedPlaneName = Sim.UsedPlanes[0x1000000 + mBestUsedPlaneIdx].Name;
     } else {
         mBestUsedPlanePilots = 0;
         mBestUsedPlaneCrew = 0;
         mBestUsedPlanePrice = 0;
+        mBestUsedPlaneName = "";
     }
 }
 

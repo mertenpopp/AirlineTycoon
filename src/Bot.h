@@ -355,6 +355,7 @@ class Bot {
     SLONG mBestUsedPlanePilots{};
     SLONG mBestUsedPlaneCrew{};
     SLONG mBestUsedPlanePrice{};
+    CString mBestUsedPlaneName{};
     SLONG mBuyPlaneForRouteId{-1};
     SLONG mPlaneTypeForNewRoute{-1};
     std::vector<SLONG> mPlanesForNewRoute{};

@@ -2,7 +2,7 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of fd7fc400: an entry with a "->" note has been dealt with, all others are open.
+Status as of a15fc168: an entry with a "->" note has been dealt with, all others are open.
 
 
 A. Deviations from .claude/RULES.md
@@ -55,9 +55,11 @@ B2. BotPlanerAlgo.cpp:325 / 337 applySolutionToGraph(): g.getNode() can return -
     checked; leads to adjMatrix[currentNode][-1] (passenger) or nodeState[-1] (freight).
     Happens when a scheduled job has no node in that plane type's graph, e.g. a flight of
     exactly 24 h (canFlyThisJob() rejects >= 24, the game accepts 24).
-    -> Partly fixed in 22bd2b1e: the end-of-graph check now covers passenger jobs too, but
-       getNode() == -1 is still not caught. Passenger jobs read g.nodeInfo[-1] in the new
-       check, freight jobs read g.nodeState[-1] in the while loop (-1 < g.nNodes).
+    -> Fixed in 22bd2b1e and a15fc168: the end-of-graph check covers passenger jobs too, and
+       getNode() == -1 is tested before any array access. The job is skipped, which forces
+       the new plan to be applied; clearFlightPlanFrom() then drops it from the flight plan,
+       and without a graph node it is never rescheduled (missed deadline, contract fine).
+       Only jobs the planner itself never schedules can get there (canFlyThisJob()).
 
 
 C. Wrong behaviour
@@ -141,6 +143,9 @@ D1. BotActions.cpp:550-574 actionBuyUsedPlane(): mBestUsedPlaneIdx is not reset 
     IsInAlbum, so two hours later the bot buys a nameless copy of the same plane. Also
     buyUsedPlane() can return -1, only an assert catches it, then Planes[-1] is read
     (BotActions.cpp:560-563). Path is dead today: nothing sets mLongTermStrategy = false.
+    -> Partly fixed in a15fc168: mBestUsedPlaneIdx is reset after the purchase. Still open:
+       buyUsedPlane() returns -1 if the plane is gone, cash fell below the debt limit since
+       planning, or there is no free plane slot; only the assert guards Planes[planeId].
 
 D2. BotFunctions.cpp:1480-1504 removeRoute() moves the route's planes to
     mPlanesForRoutesUnassigned but does not remove them from mPlanesForRoutes;
@@ -163,7 +168,8 @@ E. Minor
 --------
 
 Fixes in fd7fc400 (E1-E8, E11, E13): free game 2.5142e9 vs 2.5154e9 before (-0.05%, same
-seeds; no paired t value recorded).
+seeds; no paired t value recorded). Fixes in a15fc168 (B2, D1 in part, E12, E14):
+2.5144e9 (+0.01% vs fd7fc400).
 
 E1. doWeNeedMoreGates() divides by Gates.NumRented (can be 0).
     -> Fixed in fd7fc400: returns true (need gates) when none are rented.
@@ -203,11 +209,15 @@ E10. BotPlanerAlgo.cpp: with kTempStep = 100 the loop always runs ~11 iterations
 E11. BotPlaner.cpp:724-729 "Using mMinScoreRatio" log conditions are inverted.
      -> Fixed in fd7fc400.
 E12. findBestRoute() uses qPlayer.Money instead of getMoneyAvailable() (ignores reserves).
+     -> Fixed in a15fc168.
 E13. condVisitBoss() keeps planning a boss visit (Low, every 2 h) for the postcard even
      after a competitor took it.
      -> Fixed in fd7fc400: new mCardWasTaken (Sim.ItemPostcard == 0), set in actionVisitBoss().
         See E15.
 E14. howMuchMoneyCanWeGet(): newStock = 100 * (MaxAktien - AnzAktien) / 100 is a no-op.
+     -> Fixed in a15fc168: newStock = MaxAktien - AnzAktien, also in
+        GameMechanic::canEmitStock(). No change in behaviour; removes a theoretical 32-bit
+        overflow of the multiplication.
 E15. fd7fc400 added mCardWasTaken to the savegame inside the version-103 block without raising
      savegameVersion (still 103, Bot.cpp:721). Saves written by dev builds since da8eccdf
      (2026-09-17) are now read one field out of step. Master is on version 100 and not
