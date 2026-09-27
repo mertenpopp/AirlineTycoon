@@ -187,7 +187,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
     assert(mKerosineLevelLastChecked >= qPlayer.TankInhalt);
     mKerosineUsedTodaySoFar += (mKerosineLevelLastChecked - qPlayer.TankInhalt);
     mKerosineLevelLastChecked = qPlayer.TankInhalt;
-    mTankRatioEmptiedYesterday = 1.0 * mKerosineUsedTodaySoFar / qPlayer.Tank;
+    mTankRatioEmptiedYesterday = 1.0 * mKerosineUsedTodaySoFar / std::max(qPlayer.Tank, 1);
     mKerosineUsedTodaySoFar = 0;
 
     /* starting jobs (check every day because of mission DIFF_ADDON09) */
@@ -227,6 +227,8 @@ void Bot::actionBuero() {
     /* we are in office already, so check international calls */
     if ((condCallInternational() != Prio::None) || condCallInternationalHandy() != Prio::None) {
         actionCallInternational(true);
+        mLastTimeInRoom[ACTION_CALL_INTERNATIONAL] = Sim.Time;
+        mLastTimeInRoom[ACTION_CALL_INTER_HANDY] = Sim.Time;
     }
 }
 
@@ -289,7 +291,7 @@ void Bot::actionCheckFreightDepot() {
     if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && Sim.ItemGlue == 1) {
         tryPickUpItem(Sim.ItemGlue, ITEM_GLUE, true);
     }
-    mGlueWasTaken = (Sim.ItemGlue != 0);
+    mGlueWasTaken = (Sim.ItemGlue == 2);
 }
 
 void Bot::actionUpgradePlanes() {
@@ -722,7 +724,7 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
                     }
                 }
             }
-            /* hire new advisor */
+            /* hire new advisor (assumption: Hiring never fails) */
             if (GameMechanic::hireWorker(qPlayer, bestCandidateId)) {
                 mNumEmployees++;
             }
@@ -746,6 +748,9 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
             }
             if (qWorker.Talent < ((pass == 1) ? kTargetEmployeeSkill : kMinimumEmployeeSkill)) {
                 continue;
+            }
+            if ((pass == 2) && qWorker.Talent >= kTargetEmployeeSkill) {
+                continue; /* do not count highly-skilled workers twice */
             }
             if (qWorker.Typ == WORKER_PILOT) {
                 if (qPlayer.xPiloten < pilotsTarget) {
@@ -1063,7 +1068,7 @@ void Bot::actionBuyNemesisShares(__int64 moneyAvailable) {
         if (amount > 0) {
             AT_Log("Bot::actionBuyNemesisShares(): Buying enemy stock from %s: %lld", qTarget.AirlineX.c_str(), amount);
             GameMechanic::buyStock(qPlayer, dislike, amount, true);
-            moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyOwnShares;
+            moneyAvailable = getMoneyAvailable() - kMoneyReserveBuyNemesisShares;
         }
     }
 }
@@ -1345,6 +1350,7 @@ void Bot::actionVisitBoss() {
             mItemPills = 1;
         }
     }
+    mCardWasTaken = (Sim.ItemPostcard == 0);
 
     /* what is available? how much money are we currently bidding in total? */
     mMoneyReservedForAuctions = 0;

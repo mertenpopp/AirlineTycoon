@@ -374,6 +374,7 @@ class Bot {
     SLONG mNemesis{-1};
     __int64 mNemesisScore{0};
     bool mNeedToShutdownSecurity{false};
+    bool mCardWasTaken{false};
     bool mPliersWereTaken{false};
     bool mGlovesWereTaken{false};
     bool mPaperClipsWereTaken{false};

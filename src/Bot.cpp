@@ -397,12 +397,13 @@ void Bot::RobotExecuteAction() {
     }
 
     __int64 moneyAvailable = getMoneyAvailable();
+    SLONG actionId = qAction.ActionId;
     if (condAll(qAction.ActionId) == Prio::None) {
         AT_Warn("Bot::RobotExecuteAction(): Conditions not met anymore.");
-        qAction.ActionId = ACTION_NONE;
+        actionId = ACTION_NONE;
     }
 
-    switch (qAction.ActionId) {
+    switch (actionId) {
     case ACTION_NONE:
         qPlayer.WorkCountdown = 2;
         break;
@@ -774,8 +775,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mMoneyReservedForRepairs << bot.mMoneyReservedForUpgrades;
     File << bot.mMoneyReservedForAuctions << bot.mMoneyReservedForFines;
     File << bot.mNemesis << bot.mNemesisScore << bot.mNeedToShutdownSecurity;
-    File << bot.mPliersWereTaken << bot.mGlovesWereTaken << bot.mPaperClipsWereTaken << bot.mGlueWasTaken << bot.mUsingSecurity;
-    File << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage << bot.mWeeklyOperatingSaldo;
+    File << bot.mCardWasTaken << bot.mPliersWereTaken << bot.mGlovesWereTaken << bot.mPaperClipsWereTaken << bot.mGlueWasTaken;
+    File << bot.mUsingSecurity << bot.mNemesisSabotaged << bot.mArabHintsTracker << bot.mCurrentImage << bot.mWeeklyOperatingSaldo;
 
     File << bot.mBossNumCitiesAvailable;
     File << bot.mBossGateAvailable << bot.mBossCanExpandAirport;
@@ -961,11 +962,13 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mMoneyReservedForAuctions >> bot.mMoneyReservedForFines;
     File >> bot.mNemesis >> bot.mNemesisScore >> bot.mNeedToShutdownSecurity;
     if (savegameVersion < 103) {
+        bot.mCardWasTaken = false;
         bot.mPliersWereTaken = false;
         bot.mGlovesWereTaken = false;
         bot.mPaperClipsWereTaken = false;
         bot.mGlueWasTaken = false;
     } else {
+        File >> bot.mCardWasTaken;
         File >> bot.mPliersWereTaken;
         File >> bot.mGlovesWereTaken;
         File >> bot.mPaperClipsWereTaken;

@@ -56,6 +56,9 @@ SLONG Bot::getImage() const { return (qPlayer.HasBerater(BERATERTYP_GELD) < 50) 
 void Bot::forceReplanning() { qPlayer.RobotActions[1].ActionId = ACTION_NONE; }
 
 bool Bot::doWeNeedMoreGates(bool print) const {
+    if (qPlayer.Gates.NumRented == 0) {
+        return true;
+    }
     DOUBLE gateUtilization = 0;
     for (auto util : qPlayer.Gates.Auslastung) {
         gateUtilization += util;

@@ -486,13 +486,8 @@ Bot::Prio Bot::condBuyKerosineTank(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    if (mTankRatioEmptiedYesterday < 0.5) {
+    if (qPlayer.Tank == 0 || mTankRatioEmptiedYesterday < 0.5) {
         return Prio::None;
-    }
-
-    auto nTankTypes = TankSize.size();
-    if (moneyAvailable > TankPrice[nTankTypes - 1]) {
-        moneyAvailable = TankPrice[nTankTypes - 1]; /* do not spend more than 1x largest tank at once*/
     }
 
     if (moneyAvailable >= TankPrice[1]) {
@@ -923,7 +918,7 @@ Bot::Prio Bot::condVisitBoss(__int64 &moneyAvailable) {
         }
     }
 
-    if (mItemPills == 0 && GameMechanic::numFreeSlots(qPlayer) > 0) {
+    if (!mCardWasTaken && mItemPills == 0 && GameMechanic::numFreeSlots(qPlayer) > 0) {
         prio = std::max(prio, Prio::Low); /* we still need to take the card */
     }
     return prio;
