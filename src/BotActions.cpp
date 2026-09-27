@@ -209,7 +209,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
     if (numToPlan > 0) {
         AT_Log("Bot::actionStartDay(): Have %d jobs to plan", numToPlan);
         BotPlaner planer(qPlayer, qPlayer.Planes);
-        grabFlights(planer, true);
+        grabFlights(planer, areWeInOffice);
     }
 
     /* some conditions might have changed (plane availability) */
