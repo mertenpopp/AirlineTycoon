@@ -892,10 +892,7 @@ bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert) {
     return job.isScheduled();
 }
 
-std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
-    timeBudget = 1000 * std::max(static_cast<int64_t>(1), timeBudget);
-    auto t_begin = std::chrono::steady_clock::now();
-
+std::pair<bool, int> BotPlaner::algo() {
     for (auto &g : mGraphs) {
         for (int n = 0; n < g.nPlanes; n++) {
             g.nodeState[n].startTime = mPlaneStates[n].availTime;
@@ -1009,16 +1006,14 @@ std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
         if (temperature == 1) {
             break;
         }
-        auto t_end = std::chrono::steady_clock::now();
-        auto delta = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_begin).count();
-        int newTemperature = (kTempStep == 0) ? kTempStart - (kTempStart * delta / timeBudget) : temperature - kTempStep;
+        int newTemperature = temperature - kTempStep;
         temperature = std::min(temperature - 1, newTemperature);
         if (temperature < 1) {
             temperature = 1; /* ensure final greedy run */
         }
 
 #ifdef PRINT_OVERALL
-        AT_Log("%f ms left, temp now %d. Current gain = %d (overall = %d)", (timeBudget - delta) / 1000.0, temperature, currentBestGain, overallBestGain);
+        AT_Log("Temp now %d. Current gain = %d (overall = %d)", temperature, currentBestGain, overallBestGain);
 #endif
     }
 
