@@ -149,6 +149,23 @@ C11. Designer planes are assigned to unprofitable routes (since 70c2f3bb).
      Possible fix: assign a designer plane only when the route is expected to pay for it
      (e.g. a calcRouteScore()-style estimate with the plane's own capacity and fuel use),
      otherwise leave it unassigned or give it to jobs.
+     -> Fixed in 1e4f9ef7 and 510b1c26. The -3.0M came from empty flights: every route
+        flight of a designer plane took off with 0 passengers, for every airline.
+        PLAYER::BuyPlane(CXPlane) set MaxPassagiere/FC but not MaxPassagiereTarget/TargetFC,
+        so the first refit left the plane without seats (and PlanProp.cpp divided by zero).
+        1e4f9ef7 sets the target layout. 510b1c26: routes are scored with the designer
+        plane's own stats (planeTypeId kDesignerPlaneTypeId = -2), a designer plane only
+        flies routes planned for it, and a route must earn 20 % of the plane price per week
+        (half-full flights, our ticket price, minus kerosene). The Ecomaster (ATFS08) passes
+        on no route, so its planes stay on jobs instead of idling as "routes unassigned";
+        the bot still takes out the maximum credit the switch to routes used to give.
+        Days to finish (paired):
+          d234bbb6 -> 1e4f9ef7, seeds 1-30: ATFS05 002 55.30 -> 53.20 (-2.10 +- 0.18),
+            ATFS05 222 56.57 -> 54.33 (-2.23 +- 0.16), ATFS08 unchanged.
+          1e4f9ef7 -> 510b1c26, seeds 1-90: ATFS05 002 -0.13 +- 0.06 (15 better, 4 worse),
+            ATFS05 222 -0.04 +- 0.06 (13 better, 8 worse); ATFS08 (seeds 1-30) identical.
+        Free game identical in 300/300 games. Designer planes in savegames from before
+        1e4f9ef7 keep the 0/0 target layout.
 
 
 D. Latent bugs (dead or rare code paths)
