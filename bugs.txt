@@ -70,7 +70,11 @@ C1. BotConditions.cpp:315 condUpgradePlanes() checks mMoneyReservedForRepairs wh
     not lowered when an upgrade is applied and paid, so the reserve can stay set long after
     the money was spent and getMoneyAvailable() understates cash.
     -> Fixed in b9df4b4e (typo only: the early return checks mMoneyReservedForUpgrades).
-       Still open: the upgrade reserve is not lowered when an upgrade is applied and paid.
+       Upgrade reserve is not a bug: actionUpgradePlanes() resets it and resets all targets
+       to the current values, then reserves only for pending upgrades. condUpgradePlanes()
+       keeps the action at Prio::Medium while the reserve is > 0, so it is recomputed every
+       kFrequencyRouteStrategy (1 h). An applied upgrade is counted twice for at most ~1 h,
+       which only understates cash.
 
 C2. BotActions.cpp:1114-1158 actionSellShares(): howMuchToRaise is computed from the
     moneyAvailable parameter, which is never refreshed inside the 10-pass loop. If one sale
