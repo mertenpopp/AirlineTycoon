@@ -2,7 +2,7 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of 46758475: an entry with a "->" note has been dealt with, all others are open.
+Status as of fd7fc400: an entry with a "->" note has been dealt with, all others are open.
 
 
 A. Deviations from .claude/RULES.md
@@ -49,11 +49,15 @@ B1. BotPlanerAlgo.cpp:799 runAddNodeToBestPlaneInner(): the while loop can stop 
     nodeToInsert == g.nNodes, then g.nodeInfo[nodeToInsert] is read without a bounds check
     (line 342 has the check). Happens when a freight job's nodes are the last in the graph,
     all are used, and the job still needs more flights.
+    -> Fixed in 22bd2b1e: the check tests nodeToInsert >= g.nNodes first.
 
 B2. BotPlanerAlgo.cpp:325 / 337 applySolutionToGraph(): g.getNode() can return -1 and is not
     checked; leads to adjMatrix[currentNode][-1] (passenger) or nodeState[-1] (freight).
     Happens when a scheduled job has no node in that plane type's graph, e.g. a flight of
     exactly 24 h (canFlyThisJob() rejects >= 24, the game accepts 24).
+    -> Partly fixed in 22bd2b1e: the end-of-graph check now covers passenger jobs too, but
+       getNode() == -1 is still not caught. Passenger jobs read g.nodeInfo[-1] in the new
+       check, freight jobs read g.nodeState[-1] in the while loop (-1 < g.nNodes).
 
 
 C. Wrong behaviour
@@ -158,31 +162,56 @@ D5. Bot.cpp:681 ACTION_ENERGY_DRINK asserts Sim.CallItADay != 0, but condGetEner
 E. Minor
 --------
 
+Fixes in fd7fc400 (E1-E8, E11, E13): free game 2.5142e9 vs 2.5154e9 before (-0.05%, same
+seeds; no paired t value recorded).
+
 E1. doWeNeedMoreGates() divides by Gates.NumRented (can be 0).
+    -> Fixed in fd7fc400: returns true (need gates) when none are rented.
 E2. actionStartDayLaptop(): mTankRatioEmptiedYesterday divides by Tank; with Tank == 0 the
     NaN passes the < 0.5 check in condBuyKerosineTank(). The assert on
     mKerosineLevelLastChecked there is handled gracefully in actionBuyKerosine() instead.
+    -> Fixed in fd7fc400: divides by max(Tank, 1), condBuyKerosineTank() returns None for
+       Tank == 0. No effect in play: Tank starts at 100 and never shrinks.
 E3. BotActions.cpp:292 mGlueWasTaken = (Sim.ItemGlue != 0) is true while the glue can still
     be picked up (value 1); should test == 2.
+    -> Fixed in fd7fc400.
 E4. condBuyKerosineTank() caps spending at one large tank, but the action receives the
     uncapped amount and can buy three.
+    -> Resolved in fd7fc400: the cap only changed condAll()'s local copy and never reached
+       the action, so it was removed. The action still buys up to three tanks.
 E5. actionBuyNemesisShares() holds back kMoneyReserveBuyNemesisShares (80M) for the first
     purchase but only kMoneyReserveBuyOwnShares (2M) afterwards.
+    -> Fixed in fd7fc400: 80M reserve on every purchase.
 E6. updateRouteInfoOffice() sets routeOwnUtilization from one direction,
     updateRouteInfoBoard() averages both directions.
+    -> Fixed in fd7fc400: both average both directions.
 E7. Calls made inside actionBuero() do not record a time for ACTION_CALL_INTERNATIONAL, so
     another call is planned 15 minutes later. When conditions fail at execution the time is
     recorded under ACTION_NONE instead of the original action.
+    -> Fixed in fd7fc400: actionBuero() records both ACTION_CALL_INTERNATIONAL and
+       ACTION_CALL_INTER_HANDY; RobotExecuteAction() switches on a local copy, so the time is
+       recorded under the original action (the game clears RobotActions[0] afterwards anyway).
 E8. actionVisitHR(): mQualifiedCrewForHire counts candidates with talent >= 70 twice.
+    -> Fixed in fd7fc400: pass 2 skips them. The count is only tested for > 0.
 E9. actionVisitHR(): the existing advisor is fired before the replacement is hired; if the
     hire fails the slot stays empty.
+    -> Not a bug: hireWorker() only fails for an invalid id or a worker who is not jobless.
+       The candidate is picked as jobless, the fire loop only touches the bot's own workers,
+       and nothing else runs in between. fd7fc400 documents the assumption in a comment.
 E10. BotPlanerAlgo.cpp: with kTempStep = 100 the loop always runs ~11 iterations; the
      100 ms time budget (timeBudgetMS) has no effect.
 E11. BotPlaner.cpp:724-729 "Using mMinScoreRatio" log conditions are inverted.
+     -> Fixed in fd7fc400.
 E12. findBestRoute() uses qPlayer.Money instead of getMoneyAvailable() (ignores reserves).
 E13. condVisitBoss() keeps planning a boss visit (Low, every 2 h) for the postcard even
      after a competitor took it.
+     -> Fixed in fd7fc400: new mCardWasTaken (Sim.ItemPostcard == 0), set in actionVisitBoss().
+        See E15.
 E14. howMuchMoneyCanWeGet(): newStock = 100 * (MaxAktien - AnzAktien) / 100 is a no-op.
+E15. fd7fc400 added mCardWasTaken to the savegame inside the version-103 block without raising
+     savegameVersion (still 103, Bot.cpp:721). Saves written by dev builds since da8eccdf
+     (2026-09-17) are now read one field out of step. Master is on version 100 and not
+     affected. Fix: write 104, read mCardWasTaken only for savegameVersion >= 104.
 
 
 F. Documentation
@@ -190,3 +219,4 @@ F. Documentation
 
 F1. RULES.md says the second return value of GameMechanic::buyStock()/sellStock() is the
     total amount spent/gained; the code returns the resulting account balance.
+    -> Fixed in 4718bbc1: RULES.md now says "resulting account balance" for both.

@@ -561,6 +561,7 @@ void Bot::actionBuyUsedPlane(__int64 /*moneyAvailable*/) {
 
     SLONG planeId = GameMechanic::buyUsedPlane(qPlayer, mBestUsedPlaneIdx);
     assert(planeId >= 0x1000000);
+    mBestUsedPlaneIdx = -1;
 
     auto &qPlane = qPlayer.Planes[planeId];
     AT_Log("Bot::actionBuyUsedPlane(): Bought used plane %s", Helper::getPlaneName(qPlane).c_str());

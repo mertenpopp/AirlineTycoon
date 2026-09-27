@@ -1415,7 +1415,7 @@ void Bot::findBestRoute() {
     }
 
     /* pick best route we can afford */
-    __int64 moneyAvailable = qPlayer.Money;
+    __int64 moneyAvailable = getMoneyAvailable();
     for (const auto &candidate : bestRoutes) {
         __int64 planeCost = PlaneTypes[candidate.planeTypeId].Preis;
         if (candidate.numPlanesToBuy * planeCost > moneyAvailable) {

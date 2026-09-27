@@ -335,12 +335,12 @@ int BotPlaner::applySolutionToGraph() {
                     }
                     jobIdx = it->second;
                     nextNode = g.getNode(jobIdx);
-                    while (nextNode < g.nNodes && g.nodeState[nextNode].cameFrom != -1 && g.nodeInfo[nextNode].jobIdx == jobIdx) {
+                    while (nextNode != -1 && nextNode < g.nNodes && g.nodeState[nextNode].cameFrom != -1 && g.nodeInfo[nextNode].jobIdx == jobIdx) {
                         nextNode++;
                     }
                 }
 
-                if ((nextNode >= g.nNodes) || g.nodeInfo[nextNode].jobIdx != jobIdx) {
+                if (nextNode == -1 || nextNode >= g.nNodes || g.nodeInfo[nextNode].jobIdx != jobIdx) {
                     AT_Error("BotPlaner::applySolutionToGraph(): Not enough node instances for job.");
                     mJobList[jobIdx].printInfo();
                     skippedNode = true;
