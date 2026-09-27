@@ -134,6 +134,18 @@ C10. findPlanesNotAvailableForService() takes route planes with Zustand <= 90 of
         extra to raise WorstZustand (kRepairBudgetPercent, now an option in 50579b23):
         ATFS10 company value +8.2%, ADDON01/ADDON07 win faster, free game unchanged.
 
+C11. Designer planes are assigned to unprofitable routes (since 70c2f3bb).
+     A designer plane bought outside BuyMorePlanes lands in mPlanesForRoutesUnassigned.
+     Before 70c2f3bb it never matched a route there and stood idle all game; now
+     assignPlanesToRoutes() puts it on any underutilized route it can fly, without asking
+     whether the route pays for that plane. ATFS05, seed 1, level 002: Offenbach (Designer,
+     60.3M) flies Rio de Janeiro -> Berlin at -3.0M saldo, against -55k idle. ATFS05 is won
+     by owning three large designer planes, so the loss delays the third purchase: 6 of 16
+     games (levels 002/222, seeds 1-8) finish 1-2 days later; ATFS08 unchanged.
+     Possible fix: assign a designer plane only when the route is expected to pay for it
+     (e.g. a calcRouteScore()-style estimate with the plane's own capacity and fuel use),
+     otherwise leave it unassigned or give it to jobs.
+
 
 D. Latent bugs (dead or rare code paths)
 ----------------------------------------
@@ -152,10 +164,21 @@ D1. BotActions.cpp:550-574 actionBuyUsedPlane(): mBestUsedPlaneIdx is not reset 
 D2. BotFunctions.cpp:1480-1504 removeRoute() moves the route's planes to
     mPlanesForRoutesUnassigned but does not remove them from mPlanesForRoutes;
     checkPlaneLists() then drops the unassigned copy and the plane stays without a route.
+    -> Fixed in 70c2f3bb: removeRoute() also erases the plane from mPlanesForRoutes. Only
+       reachable through D3 (the only way a route marked for removal gets planes).
 
 D3. BotFunctions.cpp:1681 assignPlanesToRoutes() matches planeTypeId == TypeId, so a
     designer plane (TypeId -1) is put on a route marked for removal (planeTypeId -1),
     without range/duration checks. Missions with designer planes only.
+    -> Fixed in 70c2f3bb: routes marked for removal are skipped. A designer plane has no
+       type to match, so it goes on the first underutilized route it can fly (range, and
+       CalcFlugdauer < 24 as the game checks jobs). Mixed types on a route were already
+       possible (actionBuyDesignerPlane() in BuyMorePlanes) and nothing depends on them
+       matching: planRoutes() uses each plane's own speed, the buy step only counts planes.
+       Free game identical in 300/300 games. ATFS05/ATFS08 (8 seeds, levels 002 and 222):
+       no crashes, same winners; the original trigger never occurred (the starting route
+       is gone before the first designer plane), but the new matching changes ATFS05,
+       see C11.
 
 D4. BotPlaner.cpp:895-943 takeAllJobs() logs Auftraege[outAuftragsId] before checking for
     -1; only an assert guards it, so a failed take crashes release builds.
