@@ -1568,6 +1568,7 @@ void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
 
         while ((qRoute.image < kRouteMaxImage) && (cost <= moneyAvailable)) {
             if (!GameMechanic::buyAdvertisement(qPlayer, 1, adCampaignSize, qRoute.routeId)) {
+                moneyAvailable = 0; /* escape from nested loops */
                 break;
             }
             moneyAvailable = getMoneyAvailable();

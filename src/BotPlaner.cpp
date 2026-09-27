@@ -971,6 +971,7 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
 #endif
 
     /* apply solution */
+    bool ok = true;
     for (const auto &solution : solutions.list) {
         int planeId = solution.planeId;
 
@@ -978,7 +979,8 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
         auto oldInfo = Helper::calculateScheduleInfo(qPlayer, planeId);
 #endif
 
-        applySolutionForPlane(qPlayer, planeId, solution);
+        bool ret = applySolutionForPlane(qPlayer, planeId, solution);
+        ok = ok && ret;
 
 #ifdef PRINT_DETAIL
         auto newInfo = Helper::calculateScheduleInfo(qPlayer, planeId);
@@ -1009,5 +1011,5 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
     overallInfo.printDetails();
 #endif
 
-    return true;
+    return ok;
 }
