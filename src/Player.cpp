@@ -195,7 +195,9 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     CPlane &p = Planes[Id];
 
     p.MaxPassagiere = plane.CalcPassagiere() * 6 / 8;
+    p.MaxPassagiereTarget = p.MaxPassagiere;
     p.MaxPassagiereFC = plane.CalcPassagiere() * 1 / 8;
+    p.MaxPassagiereTargetFC = p.MaxPassagiereFC;
     p.MaxBegleiter = plane.CalcBegleiter();
 
     p.ptHersteller = "";
