@@ -205,6 +205,9 @@ void Bot::RobotInit(SLONG randomSeed) {
         if ((mActionCounter[Prio::Low] == 0) || (mActionCounter[Prio::Lowest] == 0)) {
             AT_Error("Bot::RobotInit(): Did not run any low prio actions last day, workload problem?");
         }
+        if (std::any_of(mActionCounter.begin(), mActionCounter.end(), [](const auto &val) { return val.second > 200; })) {
+            AT_Warn("Bot::RobotInit(): High-frequency actions, check potential repeated execution.");
+        }
     }
     mActionCounter.clear();
 

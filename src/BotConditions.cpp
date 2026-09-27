@@ -189,9 +189,6 @@ Bot::Prio Bot::condCallInternational() {
     if (minutesPassed(ACTION_CALL_INTERNATIONAL, kCallInternationalEveryXMinutes)) {
         prio = std::max(prio, Prio::High);
     }
-    if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-        prio = std::max(prio, Prio::Low);
-    }
     return prio;
 }
 
@@ -207,11 +204,6 @@ Bot::Prio Bot::condCallInternationalHandy() {
     if (minutesPassed(ACTION_CALL_INTER_HANDY, kCallInternationalHandyEveryXMinutes)) {
         prio = std::max(prio, Prio::High); /* we have a cell phone, so every few minutes */
     }
-    if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-        /* Lowest, not Low: the call needs no walk, so at Low it wins every tie-break against walking
-         * Low actions and starves them (e.g. the broker, without which no plane is ever bought) */
-        prio = std::max(prio, Prio::Lowest);
-    }
     return prio;
 }
 
@@ -223,9 +215,6 @@ Bot::Prio Bot::condCheckLastMinute() {
     Prio prio = Prio::None;
     if (minutesPassed(ACTION_CHECKAGENT1, kCheckLastMinuteEveryXMinutes)) {
         prio = std::max(prio, Prio::High);
-    }
-    if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-        prio = std::max(prio, Prio::Low);
     }
     return prio;
 }
@@ -240,9 +229,6 @@ Bot::Prio Bot::condCheckTravelAgency() {
         auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::High : Prio::Higher;
         prio = std::max(prio, targetPrio);
     }
-    if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-        prio = std::max(prio, Prio::Low);
-    }
     if (mItemAntiVirus == 0) {
         prio = std::max(prio, Prio::Low);
     }
@@ -256,9 +242,6 @@ Bot::Prio Bot::condCheckFreight() {
         if (minutesPassed(ACTION_CHECKAGENT3, kCheckFreightDepotEveryXMinutes)) {
             auto targetPrio = qPlayer.RobotUse(ROBOT_USE_RUN_FRACHT) ? Prio::Higher : Prio::High;
             prio = std::max(prio, targetPrio);
-        }
-        if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-            prio = std::max(prio, Prio::Low);
         }
     }
 
