@@ -485,15 +485,15 @@ void Bot::requestPlanFlights(bool areWeInOffice) {
     if (res == HowToPlan::Laptop) {
         AT_Log("Bot::requestPlanFlights(): Planning using laptop");
         planFlights();
+        mNeedToPlanJobs = false;
+    } else if (res == HowToPlan::Office && areWeInOffice) {
+        AT_Log("Bot::requestPlanFlights(): Already in office, planning right now");
+        planFlights();
+        mNeedToPlanJobs = false;
     } else {
         AT_Log("Bot::requestPlanFlights(): No laptop, need to go to office");
         mNeedToPlanJobs = true;
         forceReplanning();
-    }
-
-    if (res == HowToPlan::Office && areWeInOffice) {
-        AT_Log("Bot::requestPlanFlights(): Already in office, planning right now");
-        planFlights();
     }
 }
 
@@ -1274,16 +1274,15 @@ void Bot::requestPlanRoutes(bool areWeInOffice) {
     if (res == HowToPlan::Laptop) {
         AT_Log("Bot::requestPlanRoutes(): Planning using laptop");
         planRoutes();
+        mNeedToPlanRoutes = false;
+    } else if (res == HowToPlan::Office && areWeInOffice) {
+        AT_Log("Bot::requestPlanRoutes(): Already in office, planning right now");
+        planRoutes();
+        mNeedToPlanRoutes = false;
     } else {
         AT_Log("Bot::requestPlanRoutes(): No laptop, need to go to office");
         mNeedToPlanRoutes = true;
         forceReplanning();
-    }
-
-    if (res == HowToPlan::Office && areWeInOffice) {
-        AT_Log("Bot::requestPlanRoutes(): Already in office, planning right now");
-        planRoutes();
-        mNeedToPlanRoutes = false;
     }
 }
 

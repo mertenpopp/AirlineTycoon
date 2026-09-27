@@ -145,7 +145,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
     checkRentedRoutes();
     if (mDoRoutes) {
         updateRouteInfoOffice(areWeInOffice);
-        requestPlanRoutes(true);
+        requestPlanRoutes(areWeInOffice);
     } else if (qPlayer.RobotUse(ROBOT_USE_ROUTES) && (getNumRentedRoutes() == 0)) {
         /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
@@ -620,7 +620,7 @@ void Bot::actionMuseumCheckPlanes() {
         SLONG improvementNeeded = std::max(0, 80 - worstZustand);
         SLONG repairCost = improvementNeeded * (qPlane.ptPreis / 110);
         if (qPlayer.HasBerater(BERATERTYP_FLUGZEUG) > 0) {
-            score /= repairCost;
+            score /= std::max(repairCost, 1);
         }
 
         AT_Log("Bot::actionMuseumCheckPlanes(): Used plane %s has score %.2f", Helper::getPlaneName(qPlane).c_str(), score);
