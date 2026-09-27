@@ -888,50 +888,45 @@ bool BotPlaner::takeAllJobs(PLAYER &qPlayer, SolutionList &solutions) {
     bool ok = true;
     for (auto &job : solutions.toTake) {
         int outAuftragsId = -1;
+        bool isFreight = false;
+        bool newlyTaken = true;
         switch (job.owner) {
         case JobOwner::TravelAgency:
             GameMechanic::takeFlightJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::LastMinute:
             GameMechanic::takeLastMinuteJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::Freight:
             GameMechanic::takeFreightJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::BacklogFreight;
-            assert(qPlayer.Frachten.IsInAlbum(outAuftragsId));
-            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+            isFreight = true;
             break;
         case JobOwner::International:
             assert(job.sourceId != -1);
             GameMechanic::takeInternationalFlightJob(qPlayer, job.sourceId, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::InternationalFreight:
             assert(job.sourceId != -1);
             GameMechanic::takeInternationalFreightJob(qPlayer, job.sourceId, job.objectId, outAuftragsId);
             job.owner = JobOwner::BacklogFreight;
-            assert(qPlayer.Frachten.IsInAlbum(outAuftragsId));
-            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+            isFreight = true;
             break;
         case JobOwner::Planned:
             [[fallthrough]];
         case JobOwner::Backlog:
             outAuftragsId = job.objectId;
-            assert(qPlayer.Auftraege.IsInAlbum(job.objectId));
+            newlyTaken = false;
             break;
         case JobOwner::PlannedFreight:
             [[fallthrough]];
         case JobOwner::BacklogFreight:
             outAuftragsId = job.objectId;
-            assert(qPlayer.Frachten.IsInAlbum(job.objectId));
+            isFreight = true;
+            newlyTaken = false;
             break;
         default:
             AT_Error("BotPlaner::takeJobs(): Default case should not be reached.");
@@ -940,6 +935,10 @@ bool BotPlaner::takeAllJobs(PLAYER &qPlayer, SolutionList &solutions) {
         if (outAuftragsId == -1) {
             AT_Error("BotPlaner::takeJobs(): GameMechanic returned error when trying to take job!");
             ok = false;
+        } else if (newlyTaken && isFreight) {
+            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+        } else if (newlyTaken) {
+            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
         }
         jobsTaken[job.jobIdx] = outAuftragsId;
     }
