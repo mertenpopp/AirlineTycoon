@@ -164,6 +164,13 @@ D5. Bot.cpp:681 ACTION_ENERGY_DRINK asserts Sim.CallItADay != 0, but condGetEner
     does not check it. In normal play entering ROOM_ELECTRO swaps gloves for the drink
     (Person.cpp:2241) and the assert fails in debug builds. Comment is wrong, as is the one
     on ACTION_VISIT_OFFICE_* (whose conditions require CallItADay == 0).
+    -> Not a bug: at walking pace RobotExecuteAction() only runs when a room is entered
+       (Takeoff.cpp, ROOM_ENTERING). ROOM_ELECTRO is never entered (Person.cpp maps it to 0
+       and swaps the glove on the way), and another player's office throws the character
+       out (Person.cpp, MENU_REQUEST_WRONGROOM, pliers sabotage there) without EnterRoom().
+       The engine then clears the stuck action via StandStillSince. Only the fast-forward
+       path (PERSONS::DoOneStep, SpeedCount) calls RobotExecuteAction() for these actions,
+       so the asserts and both comments are correct.
 
 
 E. Minor
