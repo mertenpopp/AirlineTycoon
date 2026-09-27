@@ -182,6 +182,9 @@ D3. BotFunctions.cpp:1681 assignPlanesToRoutes() matches planeTypeId == TypeId, 
 
 D4. BotPlaner.cpp:895-943 takeAllJobs() logs Auftraege[outAuftragsId] before checking for
     -1; only an assert guards it, so a failed take crashes release builds.
+    -> Fixed in 7e569b80: the job is logged only after the -1 check, and only when it was
+       actually taken (not for jobs already in the backlog or planned). A -1 passed on to
+       the solution is skipped by the IsInAlbum() check in applySolutionForPlane().
 
 D5. Bot.cpp:681 ACTION_ENERGY_DRINK asserts Sim.CallItADay != 0, but condGetEnergyDrink()
     does not check it. In normal play entering ROOM_ELECTRO swaps gloves for the drink
