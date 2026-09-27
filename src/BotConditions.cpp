@@ -208,7 +208,9 @@ Bot::Prio Bot::condCallInternationalHandy() {
         prio = std::max(prio, Prio::High); /* we have a cell phone, so every few minutes */
     }
     if (qPlayer.RobotUse(ROBOT_USE_NOCHITCHAT)) {
-        prio = std::max(prio, Prio::Low);
+        /* Lowest, not Low: the call needs no walk, so at Low it wins every tie-break against walking
+         * Low actions and starves them (e.g. the broker, without which no plane is ever bought) */
+        prio = std::max(prio, Prio::Lowest);
     }
     return prio;
 }
