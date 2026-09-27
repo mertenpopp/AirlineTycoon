@@ -510,12 +510,8 @@ bool Bot::checkPlaneLists() {
     return foundProblem || planesGoneMissing;
 }
 
-bool Bot::needsRepairs(const CPlane &qPlane) {
-    /* A plane below the target the mechanic repairs it to stays out of service. Without the second
-     * condition, a plane the repair budget only lets recover to WorstZustand + 20 (<= 90) would never
-     * return to service (all planes damaged by 40% in DIFF_ATFS10). */
-    return (qPlane.Zustand <= kPlaneMinimumZustand) && (qPlane.Zustand < qPlane.TargetZustand);
-}
+bool Bot::needsRepairs(const CPlane &qPlane) { return (qPlane.Zustand < kPlaneMinimumZustand) && (qPlane.Zustand < qPlane.TargetZustand); }
+bool Bot::stillNeedsRepairs(const CPlane &qPlane) { return (qPlane.Zustand < 100) && (qPlane.Zustand < qPlane.TargetZustand); }
 
 void Bot::findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned) {
     std::vector<SLONG> newAvailable;
@@ -557,7 +553,7 @@ void Bot::findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::
         AT_Log("Bot::findPlanesAvailableForService(): Plane %s: Zustand = %u, WorstZustand = %u, Baujahr = %d", Helper::getPlaneName(qPlane).c_str(),
                qPlane.Zustand, worstZustand, qPlane.Baujahr);
 
-        if (qPlane.Zustand < 100 && (qPlane.Zustand < qPlane.TargetZustand)) {
+        if (stillNeedsRepairs(qPlane)) {
             AT_Log("Bot::findPlanesAvailableForService(): Plane %s still not available for service: Needs repairs.", Helper::getPlaneName(qPlane).c_str());
             newUnassigned.push_back(id);
         } else if (!checkPlaneAvailable(id, false, true)) {
