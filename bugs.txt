@@ -2,8 +2,8 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of f22b5cf5: an entry with a "->" note has been dealt with, all others are open
-(A2, E10).
+Status as of 6654f732: an entry with a "->" note has been dealt with, all others are open
+(A2).
 
 
 A. Deviations from .claude/RULES.md
@@ -268,7 +268,10 @@ E9. actionVisitHR(): the existing advisor is fired before the replacement is hir
        and nothing else runs in between. fd7fc400 documents the assumption in a comment.
 E10. BotPlanerAlgo.cpp: with kTempStep = 100 the loop always runs ~11 iterations; the
      100 ms time budget (timeBudgetMS) has no effect.
-     Still open at f22b5cf5 (kTempStep = 100 at BotPlanerAlgo.cpp:32, used at line 1014).
+     -> Fixed in 79c70acc and 6654f732: the time budget is removed. algo() cools by kTempStep
+        per round (1000 -> 1 in 11 rounds), independent of wall-clock time, so seeded runs
+        are reproducible whatever the machine load. Free game unchanged (2.514425e9).
+        kTempStep == 0 no longer means "cool by elapsed time"; it now cools by 1 per round.
 E11. BotPlaner.cpp:724-729 "Using mMinScoreRatio" log conditions are inverted.
      -> Fixed in fd7fc400.
 E12. findBestRoute() uses qPlayer.Money instead of getMoneyAvailable() (ignores reserves).
