@@ -721,10 +721,10 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     if (mFactors.freeFreightBonus != 0) {
         AT_Log("BotPlaner::generateSolution(): Using mFreeFreightBonus = %d", mFactors.freeFreightBonus);
     }
-    if (std::abs(mMinScoreRatio - 1.0F) < 0.01F) {
+    if (std::abs(mMinScoreRatio - 1.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinScoreRatio = %f", mMinScoreRatio);
     }
-    if (std::abs(mMinScoreRatioLastMinute - 1.0F) < 0.01F) {
+    if (std::abs(mMinScoreRatioLastMinute - 1.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinScoreRatioLastMinute = %f", mMinScoreRatioLastMinute);
     }
     if (std::abs(mMinSpeedRatio - 0.0F) > 0.01F) {

@@ -972,7 +972,7 @@ void Bot::updateRouteInfoOffice(bool areWeInOffice) {
     std::unordered_map<SLONG, std::vector<SLONG>> tmpList;
     for (auto &route : mRoutes) {
         route.image = std::min(getRentRoute(route).Image, getReverseRentRoute(route).Image);
-        route.routeOwnUtilization = getRentRoute(route).RoutenAuslastungBot;
+        route.routeOwnUtilization = (getRentRoute(route).RoutenAuslastungBot + getReverseRentRoute(route).RoutenAuslastungBot) / 2;
         route.planeUtilization = getRentRoute(route).AuslastungBot;
         route.planeUtilizationFC = getRentRoute(route).AuslastungFirstClassBot;
 
