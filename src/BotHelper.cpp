@@ -589,10 +589,10 @@ ScheduleInfo calculateScheduleInfo(const PLAYER &qPlayer, SLONG planeId) {
 
         if (qFPE.ObjectType != 3) {
             info.hoursFlights += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit + 1 - qFPE.Startzeit);
-            info.keroseneFlights = CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
+            info.keroseneFlights += CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
         } else {
             info.hoursAutoFlights += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit + 1 - qFPE.Startzeit);
-            info.keroseneAutoFlights = CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
+            info.keroseneAutoFlights += CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
         }
 
         info.miles += Cities.CalcDistance(qFPE.VonCity, qFPE.NachCity) / 1609;
@@ -976,7 +976,7 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     std::vector<__int64> values;
     auto balanceAvg = qPlayer.BilanzWoche.Hole();
     auto balance = qPlayer.BilanzGesamt;
-    auto moneyAvailable = 0;
+    __int64 moneyAvailable = 0;
     if (qPlayer.IsMertenBot()) {
         moneyAvailable = qPlayer.mBot->getMoneyAvailable();
     } else if (qPlayer.IsClaudeBot()) {
