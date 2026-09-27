@@ -302,7 +302,7 @@ class BotPlaner {
     bool runAddBestNeighbor(int planeIdx, int choice);
     bool runAddNodeToBestPlaneInner(int jobIdxToInsert);
     bool runAddNodeToBestPlane(int jobIdxToInsert);
-    std::pair<bool, int> algo(int64_t timeBudget);
+    std::pair<bool, int> algo();
 
     /* apply solution */
     static bool removeInvalidFlightsForPlane(PLAYER &qPlayer, int planeId);

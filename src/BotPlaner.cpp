@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <deque>
@@ -31,7 +30,6 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 
 const int kAvailTimeExtra = 2;
 const int kScheduleForNextDays = 4;
-const int64_t timeBudgetMS = 100;
 const int kFreightMaxFlights = 4;
 
 inline bool canFlyThisJob(const CPlane &qPlane, int passengers, int distance, int duration) {
@@ -701,8 +699,6 @@ bool BotPlaner::applySolutionForPlane(PLAYER &qPlayer, int planeId, const BotPla
 }
 
 BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &planeIdsInput, const std::deque<int> &planeIdsExtraInput, int extraBufferTime) {
-    auto t_begin = std::chrono::steady_clock::now();
-
     if (mFactors.distanceFactor != 0) {
         AT_Log("BotPlaner::generateSolution(): Using mDistanceFactor = %d", mFactors.distanceFactor);
     }
@@ -821,11 +817,9 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
 #endif
 
     /* start algo */
-    auto t_current = std::chrono::steady_clock::now();
-    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_current - t_begin).count();
     bool needToApplySolution{false};
     int overallGain{0};
-    std::tie(needToApplySolution, overallGain) = algo(timeBudgetMS - diff);
+    std::tie(needToApplySolution, overallGain) = algo();
 
     /* check statistics */
     int nPreviouslyOwnedScheduled = 0;
@@ -842,9 +836,7 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     }
 
 #ifdef PRINT_OVERALL
-    auto t_end = std::chrono::steady_clock::now();
-    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_begin).count();
-    AT_Log("Scheduled %d/%d existing and %d/%d new jobs (%lld ms)", nPreviouslyOwnedScheduled, nPreviouslyOwned, nNewJobsScheduled, nNewJobs, delta);
+    AT_Log("Scheduled %d/%d existing and %d/%d new jobs", nPreviouslyOwnedScheduled, nPreviouslyOwned, nNewJobsScheduled, nNewJobs);
 #endif
 
     if (!needToApplySolution) {
