@@ -2,8 +2,7 @@ Issues found in MertenBot (src/Bot*.*)
 ======================================
 
 Found by code review (2026-09-26). Line numbers refer to commit b0ef407d.
-Status as of 6654f732: an entry with a "->" note has been dealt with, all others are open
-(A2).
+Status as of 40157628: every entry has a "->" note, none is open.
 
 
 A. Deviations from .claude/RULES.md
@@ -21,10 +20,15 @@ A2. CRoute::AnzPassagiere() called outside the route box
     savegame older than version 103, and the result is stored in numberOfPlanesTarget.
     (The call from updateRouteInfoOffice() -> calcRouteScore() at BotFunctions.cpp:1018 also
     reads AnzPassagiere() and, on the laptop, CRoute::Miete, but the result is only logged.)
-    Still open at f22b5cf5: now Bot.cpp:1027 (savegame < 103) and BotFunctions.cpp:1011
-    (updateRouteInfoOffice(), log only; since 510b1c26 also for designer routes). The route
-    check added in 510b1c26 (designerRoutePays()) reads only VonCity/NachCity and
-    CalculateFlightCost(..., 800, 800, -1), which RULES.md allows at any time.
+    -> Resolved by 40157628 (rule change) and the existing "Logging exception" in RULES.md.
+       Bot.cpp:1027: access restrictions are lifted during savegame loading where needed for
+       backwards compatibility. It is needed: the tagged releases (v1.9.0: version 100,
+       v1.9.1-preview*: 101) do not save numberOfPlanesTarget, which is otherwise only set
+       when a route is rented; a default of 0 would stop all plane purchases for loaded routes.
+       BotFunctions.cpp:1011: calcRouteScore() only feeds a log line and changes no bot state
+       (it writes only to a local map), so the logging exception covers it. The route check
+       added in 510b1c26 (designerRoutePays()) reads only VonCity/NachCity and
+       CalculateFlightCost(..., 800, 800, -1), which RULES.md allows at any time.
 
 A3. RobotPlan() fallback skips checkRoomOpen()
     Bot.cpp:293-298 adds ACTION_CHECKAGENT2/ACTION_CHECKAGENT1 without checking opening hours
