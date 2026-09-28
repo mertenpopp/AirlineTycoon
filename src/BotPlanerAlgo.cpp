@@ -31,8 +31,8 @@ double kSATempStart = 1000.0;   /* simulated annealing: temperature in $ of the 
 double kSATempEnd = 100.0;      /* temperature in $ of the second-to-last round (geometric cooling) */
 int kJobSelectRandomization = 1;
 int kAllowDropForInsert = 1; /* a new passenger job may replace a scheduled passenger job if that gains more */
-int kRelocatePercent = 0;    /* per round and plane: chance in % to move one of its passenger jobs to another plane */
-int kSwapPercent = 0;        /* per round and plane: chance in % to swap one of its passenger jobs with another plane's */
+int kRelocatePercent = 10;    /* per round and plane: chance in % to move one of its passenger jobs to another plane */
+int kSwapPercent = 10;        /* per round and plane: chance in % to swap one of its passenger jobs with another plane's */
 bool bDropTakenJobs = false;
 
 inline int pathLength(const Graph &g, int start) {
