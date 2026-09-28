@@ -26,8 +26,9 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 int kNumToAdd = 0;
 int kNumBestToAdd = 2;
 int kNumToRemove = 1;
-int kTempStart = 1000;
-int kTempStep = 100;
+int kSARounds = 11;             /* rounds of remove + insert; the last one is greedy (temperature 0) */
+double kSATempStart = 1000.0;   /* simulated annealing: temperature in $ of the first round */
+double kSATempEnd = 100.0;      /* temperature in $ of the second-to-last round (geometric cooling) */
 int kJobSelectRandomization = 1;
 bool bDropTakenJobs = false;
 
@@ -41,12 +42,15 @@ inline int pathLength(const Graph &g, int start) {
     return num;
 }
 
-inline bool SA_accept(int diff, double temperature, int rand) {
-    if (diff > 0) {
+/* diff: gain of the new solution minus gain of the current one, in $. rand01: uniform in [0, 1). */
+inline bool SA_accept(int diff, double temperature, double rand01) {
+    if (diff >= 0) {
         return true;
     }
-    auto probability = static_cast<int>(std::round(100 * exp(diff / temperature)));
-    return rand <= probability;
+    if (temperature <= 0.0) {
+        return false;
+    }
+    return rand01 < std::exp(diff / temperature);
 }
 
 void BotPlaner::printForPlane(const char *txt, int planeIdx, bool printOnErrorOnly) {
@@ -928,8 +932,13 @@ std::pair<bool, int> BotPlaner::algo() {
     }
 
     /* main algo */
-    int temperature = kTempStart;
-    while (temperature > 0) {
+    const double cooling = (kSARounds > 2) ? std::pow(kSATempEnd / kSATempStart, 1.0 / (kSARounds - 2)) : 1.0;
+    double temperature = kSATempStart;
+    for (int round = 0; round < kSARounds; round++) {
+        if (round == kSARounds - 1) {
+            temperature = 0.0; /* final greedy round */
+        }
+
         for (int i = 0; i < mJobList.size(); i++) {
             assert(mJobList[i].scheduledOK() || !mJobList[i].isScheduled());
         }
@@ -973,7 +982,7 @@ std::pair<bool, int> BotPlaner::algo() {
 
         int iterGain = allPlaneGain();
         int diff = iterGain - currentBestGain;
-        if (!SA_accept(diff, temperature, getRandInt(1, 100))) {
+        if (!SA_accept(diff, temperature, getRandReal())) {
             /* roll back */
             for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
                 killPath(planeIdx);
@@ -1000,19 +1009,10 @@ std::pair<bool, int> BotPlaner::algo() {
             }
         }
 
-        /* adjust temperature based on amount of time left */
-        if (temperature == 1) {
-            break;
-        }
-        int newTemperature = temperature - kTempStep;
-        temperature = std::min(temperature - 1, newTemperature);
-        if (temperature < 1) {
-            temperature = 1; /* ensure final greedy run */
-        }
-
 #ifdef PRINT_OVERALL
-        AT_Log("Temp now %d. Current gain = %d (overall = %d)", temperature, currentBestGain, overallBestGain);
+        AT_Log("Round %d, temperature %.0f: current gain = %d (overall = %d)", round, temperature, currentBestGain, overallBestGain);
 #endif
+        temperature *= cooling;
     }
 
     /* restore best path */
