@@ -844,6 +844,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
         File << solution.totalPremium;
         File << solution.planeId;
         File << solution.scheduleFromTime;
+        File << solution.dummySolution;
     }
     File << static_cast<SLONG>(bot.mPlanerSolution.toTake.size());
     for (const auto &i : bot.mPlanerSolution.toTake) {
@@ -1090,6 +1091,11 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         File >> solution.totalPremium;
         File >> solution.planeId;
         File >> solution.scheduleFromTime;
+        if (savegameVersion < 103) {
+            solution.dummySolution = (solution.scheduleFromTime == PlaneTime{});
+        } else {
+            File >> solution.dummySolution;
+        }
     }
     File >> size;
     bot.mPlanerSolution.toTake.resize(size);
