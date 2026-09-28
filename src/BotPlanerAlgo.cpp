@@ -30,6 +30,7 @@ int kSARounds = 11;             /* rounds of remove + insert; the last one is gr
 double kSATempStart = 1000.0;   /* simulated annealing: temperature in $ of the first round */
 double kSATempEnd = 100.0;      /* temperature in $ of the second-to-last round (geometric cooling) */
 int kJobSelectRandomization = 1;
+int kAllowDropForInsert = 1; /* a new passenger job may replace a scheduled passenger job if that gains more */
 bool bDropTakenJobs = false;
 
 inline int pathLength(const Graph &g, int start) {
@@ -781,6 +782,9 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     int bestPlaneIdx = -1;
     int bestWhereToInsert = 0;
     int bestNode = 0;
+    int bestNodeToDrop = -1;
+    std::vector<int> pathBackup;
+    const bool mayDrop = (kAllowDropForInsert != 0) && !mJobList[jobIdxToInsert].isFreight();
 
     int randOffset = getRandInt(0, mPlaneStates.size() - 1);
     for (int i = 0; i < mPlaneStates.size(); i++) {
@@ -859,6 +863,57 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
                 bestPlaneIdx = planeIdx;
                 bestWhereToInsert = currentNode;
                 bestNode = nodeToInsert;
+                bestNodeToDrop = -1;
+            }
+        }
+
+        /* Second pass: replace a scheduled passenger job by the new one. A job we already took keeps its fine in its
+         * node score, so it is only dropped if the new job is worth more than its premium plus the fine. Only for
+         * passenger jobs: a freight job that ends up incomplete is removed again, the dropped job would stay lost. */
+        if (!mayDrop) {
+            continue;
+        }
+        savePath(planeIdx, pathBackup);
+        for (int nodeToDrop : pathBackup) {
+            if (mJobList[g.nodeInfo[nodeToDrop].jobIdx].isFreight()) {
+                continue;
+            }
+            int prevNode = g.nodeState[nodeToDrop].cameFrom;
+            int nextNode = g.nodeState[nodeToDrop].nextNode;
+            if (g.adjMatrix[prevNode][nodeToInsert].duration < 0 || (nextNode != -1 && g.adjMatrix[nodeToInsert][nextNode].duration < 0)) {
+                continue; /* no edge */
+            }
+
+            /* cheap estimate first: gain of the swap from node scores and edge costs */
+            int score = g.nodeInfo[nodeToInsert].score - g.nodeInfo[nodeToDrop].score;
+            score += g.adjMatrix[prevNode][nodeToDrop].cost - g.adjMatrix[prevNode][nodeToInsert].cost;
+            if (nextNode != -1) {
+                score += g.adjMatrix[nodeToDrop][nextNode].cost - g.adjMatrix[nodeToInsert][nextNode].cost;
+            }
+            if (score <= 0 || score <= bestPlaneScore) {
+                continue;
+            }
+
+            /* does it fit in time? */
+            removeNode(g, planeIdx, nodeToDrop);
+            bool fits = false;
+            if (makeRoom(g, prevNode, g.nodeState[prevNode].nextNode) > 0) {
+                auto currentTime = g.nodeState[prevNode].startTime;
+                currentTime += g.nodeInfo[prevNode].duration;
+                if (currentTime < planeState.availTime) {
+                    currentTime = planeState.availTime;
+                }
+                fits = (currentTime.getDate() <= mScheduleLastDay) && canInsert(g, prevNode, nodeToInsert);
+            }
+            killPath(planeIdx);
+            restorePath(planeIdx, pathBackup);
+
+            if (fits) {
+                bestPlaneScore = score;
+                bestPlaneIdx = planeIdx;
+                bestWhereToInsert = prevNode;
+                bestNode = nodeToInsert;
+                bestNodeToDrop = nodeToDrop;
             }
         }
     }
@@ -866,6 +921,10 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     if (bestPlaneIdx != -1) {
         auto &planeState = mPlaneStates[bestPlaneIdx];
         auto &g = mGraphs[planeState.planeTypeId];
+
+        if (bestNodeToDrop != -1) {
+            removeNode(g, bestPlaneIdx, bestNodeToDrop);
+        }
 
         int gap = makeRoom(g, bestWhereToInsert, g.nodeState[bestWhereToInsert].nextNode);
         (void)gap;

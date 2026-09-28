@@ -22,6 +22,7 @@ extern int kSARounds;
 extern double kSATempStart;
 extern double kSATempEnd;
 extern int kJobSelectRandomization;
+extern int kAllowDropForInsert;
 extern bool bDropTakenJobs;
 
 class Graph {
