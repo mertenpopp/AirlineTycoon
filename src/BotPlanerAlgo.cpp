@@ -31,6 +31,8 @@ double kSATempStart = 1000.0;   /* simulated annealing: temperature in $ of the 
 double kSATempEnd = 100.0;      /* temperature in $ of the second-to-last round (geometric cooling) */
 int kJobSelectRandomization = 1;
 int kAllowDropForInsert = 1; /* a new passenger job may replace a scheduled passenger job if that gains more */
+int kRelocatePercent = 0;    /* per round and plane: chance in % to move one of its passenger jobs to another plane */
+int kSwapPercent = 0;        /* per round and plane: chance in % to swap one of its passenger jobs with another plane's */
 bool bDropTakenJobs = false;
 
 inline int pathLength(const Graph &g, int start) {
@@ -777,7 +779,7 @@ bool BotPlaner::runAddBestNeighbor(int planeIdx, int choice) {
     return false;
 }
 
-bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
+bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert, int excludePlaneIdx) {
     int bestPlaneScore = INT_MIN;
     int bestPlaneIdx = -1;
     int bestWhereToInsert = 0;
@@ -789,6 +791,9 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     int randOffset = getRandInt(0, mPlaneStates.size() - 1);
     for (int i = 0; i < mPlaneStates.size(); i++) {
         int planeIdx = (randOffset + i) % mPlaneStates.size();
+        if (planeIdx == excludePlaneIdx) {
+            continue;
+        }
         auto &planeState = mPlaneStates[planeIdx];
         auto &g = mGraphs[planeState.planeTypeId];
 
@@ -938,10 +943,10 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     return false;
 }
 
-bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert) {
+bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert, int excludePlaneIdx) {
     const auto &job = mJobList[jobIdxToInsert];
     while (!job.isFullyScheduled()) {
-        if (!runAddNodeToBestPlaneInner(jobIdxToInsert)) {
+        if (!runAddNodeToBestPlaneInner(jobIdxToInsert, excludePlaneIdx)) {
             break;
         }
     }
@@ -951,6 +956,66 @@ bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert) {
         return false;
     }
     return job.isScheduled();
+}
+
+int BotPlaner::pickRandomPassengerNode(int planeIdx) {
+    const auto &g = mGraphs[mPlaneStates[planeIdx].planeTypeId];
+    std::vector<int> candidates;
+    for (int n = g.nodeState[planeIdx].nextNode; n != -1; n = g.nodeState[n].nextNode) {
+        if (!mJobList[g.nodeInfo[n].jobIdx].isFreight()) {
+            candidates.push_back(n);
+        }
+    }
+    if (candidates.empty()) {
+        return -1;
+    }
+    return candidates[getRandInt(0, static_cast<int>(candidates.size()) - 1)];
+}
+
+/* Move one random passenger job of this plane to the best position on another plane (back to the best position
+ * anywhere if no other plane can take it). The move may make the plan worse: simulated annealing decides. */
+bool BotPlaner::runRelocate(int planeIdx) {
+    int node = pickRandomPassengerNode(planeIdx);
+    if (node == -1) {
+        return false;
+    }
+    auto &g = mGraphs[mPlaneStates[planeIdx].planeTypeId];
+    int jobIdx = g.nodeInfo[node].jobIdx;
+    removeNode(g, planeIdx, node);
+    if (!runAddNodeToBestPlane(jobIdx, planeIdx)) {
+        runAddNodeToBestPlane(jobIdx);
+    }
+    return true;
+}
+
+/* Swap one random passenger job of this plane with one of a random other plane (each goes to its best position
+ * on the other plane, or back to the best position anywhere). */
+bool BotPlaner::runSwap(int planeIdxA) {
+    if (mPlaneStates.size() < 2) {
+        return false;
+    }
+    int planeIdxB = getRandInt(0, static_cast<int>(mPlaneStates.size()) - 2);
+    if (planeIdxB >= planeIdxA) {
+        planeIdxB++;
+    }
+    int nodeA = pickRandomPassengerNode(planeIdxA);
+    int nodeB = pickRandomPassengerNode(planeIdxB);
+    if (nodeA == -1 || nodeB == -1) {
+        return false;
+    }
+    auto &gA = mGraphs[mPlaneStates[planeIdxA].planeTypeId];
+    auto &gB = mGraphs[mPlaneStates[planeIdxB].planeTypeId];
+    int jobIdxA = gA.nodeInfo[nodeA].jobIdx;
+    int jobIdxB = gB.nodeInfo[nodeB].jobIdx;
+    removeNode(gA, planeIdxA, nodeA);
+    removeNode(gB, planeIdxB, nodeB);
+    if (!runAddNodeToBestPlane(jobIdxA, planeIdxA)) {
+        runAddNodeToBestPlane(jobIdxA);
+    }
+    if (!runAddNodeToBestPlane(jobIdxB, planeIdxB)) {
+        runAddNodeToBestPlane(jobIdxB);
+    }
+    return true;
 }
 
 std::pair<bool, int> BotPlaner::algo() {
@@ -1004,6 +1069,22 @@ std::pair<bool, int> BotPlaner::algo() {
 
         for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
             runRemoveWorst(planeIdx, kNumToRemove);
+        }
+
+        /* moves between planes (random, may make the plan worse) */
+        if (kRelocatePercent > 0) {
+            for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
+                if (getRandInt(1, 100) <= kRelocatePercent) {
+                    runRelocate(planeIdx);
+                }
+            }
+        }
+        if (kSwapPercent > 0) {
+            for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
+                if (getRandInt(1, 100) <= kSwapPercent) {
+                    runSwap(planeIdx);
+                }
+            }
         }
 
         for (int i = 0; i < kNumToAdd; i++) {
