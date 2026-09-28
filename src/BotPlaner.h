@@ -119,6 +119,7 @@ class BotPlaner {
         int totalPremium{0};
         int planeId{-1};
         PlaneTime scheduleFromTime{};
+        bool dummySolution{false};
         inline bool empty() const { return jobs.empty(); }
     };
     struct SolutionList {

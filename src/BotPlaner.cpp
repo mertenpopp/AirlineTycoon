@@ -862,6 +862,7 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     for (auto i : planeIdsExtra) {
         solutions.list.emplace_back();
         solutions.list.back().planeId = i;
+        solutions.list.back().dummySolution = true;
     }
 
     /* generate list of jobs with info required to officially 'take' them */
@@ -956,7 +957,8 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
         /* remove from entire flight plan (also before scheduleFromTime) */
         removeInvalidFlightsForPlane(qPlayer, planeId);
 
-        if (solution.empty()) {
+        /* clear even if empty: relocate/swap may have moved all of this plane's jobs to other planes */
+        if (solution.dummySolution) {
             continue;
         }
 
