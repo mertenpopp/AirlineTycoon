@@ -155,7 +155,7 @@ class Bot {
         DOUBLE upperLimit{};
     };
     struct ConfigurableOptions {
-        float kSchedulingMinScoreRatio{140 * 1000.0F};
+        float kSchedulingMinScoreRatio{100 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
         SLONG kSwitchToRoutesNumPlanesMin{2};
         SLONG kSwitchToRoutesNumPlanesMax{2};
