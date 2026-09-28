@@ -89,7 +89,9 @@ std::pair<int, float> BotPlaner::FlightJob::calculateScore(const Factors &f, int
         score += f.uhrigBonus * auftrag.bUhrigFlight;
     }
 
-    float _scoreRatio = 1.0F * score / (hours * numRequired);
+    /* The filter ratio charges only one flight: kSchedulingMinScoreRatio was tuned on it (-0.45% in the free game
+     * with the exact ratio). The node score above stays exact. */
+    float _scoreRatio = 1.0F * (score + cost * (numRequired - 1)) / (hours * numRequired);
     scoreRatio = std::max(scoreRatio, _scoreRatio);
 
     return {score, _scoreRatio};
