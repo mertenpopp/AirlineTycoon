@@ -18,8 +18,9 @@ extern const int kScheduleForNextDays;
 extern int kNumToAdd;
 extern int kNumBestToAdd;
 extern int kNumToRemove;
-extern int kTempStart;
-extern int kTempStep;
+extern int kSARounds;
+extern double kSATempStart;
+extern double kSATempEnd;
 extern int kJobSelectRandomization;
 extern bool bDropTakenJobs;
 
@@ -311,6 +312,10 @@ class BotPlaner {
     /* randomness */
     inline int getRandInt(int min, int max) {
         std::uniform_int_distribution<int> dist(min, max);
+        return dist(mMT);
+    }
+    inline double getRandReal() {
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
         return dist(mMT);
     }
 
