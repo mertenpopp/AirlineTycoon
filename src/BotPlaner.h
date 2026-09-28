@@ -23,6 +23,8 @@ extern double kSATempStart;
 extern double kSATempEnd;
 extern int kJobSelectRandomization;
 extern int kAllowDropForInsert;
+extern int kRelocatePercent;
+extern int kSwapPercent;
 extern bool bDropTakenJobs;
 
 class Graph {
@@ -302,8 +304,11 @@ class BotPlaner {
     int runRemoveWorst(int planeIdx, int numToRemove);
     int runPruneFreightJobs();
     bool runAddBestNeighbor(int planeIdx, int choice);
-    bool runAddNodeToBestPlaneInner(int jobIdxToInsert);
-    bool runAddNodeToBestPlane(int jobIdxToInsert);
+    bool runAddNodeToBestPlaneInner(int jobIdxToInsert, int excludePlaneIdx = -1);
+    bool runAddNodeToBestPlane(int jobIdxToInsert, int excludePlaneIdx = -1);
+    int pickRandomPassengerNode(int planeIdx);
+    bool runRelocate(int planeIdx);
+    bool runSwap(int planeIdxA);
     std::pair<bool, int> algo();
 
     /* apply solution */
