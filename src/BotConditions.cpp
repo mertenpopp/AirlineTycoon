@@ -331,12 +331,6 @@ Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
     if (mDoRoutes && (mRoutesNextStep != RoutesNextStep::BuyMorePlanes)) {
         return Prio::None;
     }
-    for (auto planeId : mPlanesForRoutesUnassigned) {
-        const auto &qPlane = qPlayer.Planes[planeId];
-        if (qPlane.TypeId == bestPlaneTypeId) {
-            return Prio::None; /* we already have an unused plane of desired type */
-        }
-    }
     if ((mExtraPilots < PlaneTypes[bestPlaneTypeId].AnzPiloten) || (mExtraBegleiter < PlaneTypes[bestPlaneTypeId].AnzBegleiter)) {
         return Prio::None; /* not enough crew */
     }

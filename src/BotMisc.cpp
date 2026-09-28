@@ -510,8 +510,15 @@ bool Bot::checkPlaneLists() {
     return foundProblem || planesGoneMissing;
 }
 
-bool Bot::needsRepairs(const CPlane &qPlane) { return (qPlane.Zustand < kPlaneMinimumZustand) && (qPlane.Zustand < qPlane.TargetZustand); }
-bool Bot::stillNeedsRepairs(const CPlane &qPlane) { return (qPlane.Zustand < 100) && (qPlane.Zustand < qPlane.TargetZustand); }
+/* Grounding a damaged plane only saves one day of wear: the mechanic repairs every night anyway. Measured, it never
+ * pays (kPlaneGroundZustand = 0): lost flights cost more than extra repairs or breakdowns, and a grounded plane of
+ * the type to buy used to stall plane purchases. The second condition: a plane repaired as far as we pay for flies. */
+bool Bot::needsRepairs(const CPlane &qPlane) { return (qPlane.Zustand < kPlaneGroundZustand) && (qPlane.Zustand < qPlane.TargetZustand); }
+
+/* A grounded plane returns to service at its repair target, or once kPlaneGroundHysteresis above the threshold */
+bool Bot::stillNeedsRepairs(const CPlane &qPlane) {
+    return (qPlane.Zustand < std::min(100, kPlaneGroundZustand + kPlaneGroundHysteresis)) && (qPlane.Zustand < qPlane.TargetZustand);
+}
 
 void Bot::findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned) {
     std::vector<SLONG> newAvailable;
