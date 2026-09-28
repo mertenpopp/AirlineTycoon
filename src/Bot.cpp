@@ -49,7 +49,8 @@ const SLONG kMaximumPlaneUtilization = 70;
 const SLONG kTargetEmployeeHappiness = 90;
 const SLONG kMinimumEmployeeSkill = 50;
 const SLONG kTargetEmployeeSkill = 70;
-const SLONG kPlaneMinimumZustand = 90;
+const SLONG kPlaneGroundZustand = 0;    /* ground a plane below this Zustand (if repairs are pending) */
+const SLONG kPlaneGroundHysteresis = 0; /* grounded plane returns at its repair target or kPlaneGroundZustand + this */
 const SLONG kPlaneTargetZustand = 100;
 const SLONG kPlaneLuxuryTarget = 0;
 const SLONG kPlaneLuxuryTargetLateGame = 2;
@@ -129,11 +130,6 @@ void Bot::RobotInit(SLONG randomSeed) {
         }
         if (Sim.Difficulty == DIFF_TUTORIAL || Sim.Difficulty == DIFF_FIRST) {
             mItemAntiVirus = -1; /* item not available */
-        }
-
-        if (Sim.Difficulty == DIFF_FREEGAME) {
-            /* no deadline: let planes slowly return to 100 */
-            mOptions.kRepairBudgetPercent = 10;
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
