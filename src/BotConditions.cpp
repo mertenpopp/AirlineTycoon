@@ -757,6 +757,7 @@ Bot::Prio Bot::condVisitMech() {
         prio = std::max(prio, res.second);
     }
     if (hoursPassed(ACTION_VISITMECH, 4)) { /* Not broke: Do not need to visit too often */
+        prio = std::max(prio, Prio::Low);
         if (getMoneyAvailable() >= 0 || mMoneyReservedForRepairs > 0) {
             prio = std::max(prio, Prio::Medium);
         }
