@@ -41,8 +41,10 @@ extern SLONG ReifenCosts[];
 extern SLONG ElektronikCosts[];
 extern SLONG SicherheitCosts[];
 
+/* Room: any (only reads VonCity/NachCity) */
 inline SLONG getRouteBaseCost(const CRoute &qRoute) { return CalculateFlightCost(qRoute.VonCity, qRoute.NachCity, 800, 800, -1) * 3 / 180 * 2; }
 
+/* Room: any */
 void Bot::grabNewFlights() {
     /* this will cause the planning algo to assume that we have not checked these today */
     mLastTimeInRoom.erase(ACTION_CALL_INTERNATIONAL);
@@ -52,6 +54,7 @@ void Bot::grabNewFlights() {
     mLastTimeInRoom.erase(ACTION_CHECKAGENT3);
 }
 
+/* Room: office or laptop, financial advisor >= 0 for BilanzWoche, spy >= 50 for any competitor */
 __int64 Bot::getNemesisScore(SLONG p) const {
     __int64 score = 0;
     auto &qTarget = Sim.Players.Players[p];
@@ -79,6 +82,7 @@ __int64 Bot::getNemesisScore(SLONG p) const {
     return score;
 }
 
+/* Room: office or laptop, has advisor check */
 void Bot::determineNemesis() {
     auto nemesisOld = mNemesis;
 
@@ -173,6 +177,7 @@ void Bot::determineNemesis() {
     }
 }
 
+/* Room: any; office only if areWeInOffice == true (reads plane upgrade levels) */
 void Bot::switchToFinalTarget(bool areWeInOffice) {
     if (mRunToFinalObjective == FinalPhase::TargetRun) {
         AT_Log("Bot::switchToFinalTarget(): We are in final target run.");
@@ -368,6 +373,7 @@ void Bot::switchToFinalTarget(bool areWeInOffice) {
            Insert1000erDots64(cash).c_str(), Insert1000erDots64(availableMoney - cash).c_str());
 }
 
+/* Room: plane broker, because of getAvailablePlaneTypes() */
 std::vector<SLONG> Bot::findBestAvailablePlaneType() {
     auto list = GameMechanic::getAvailablePlaneTypes();
     if (list.empty()) {
@@ -415,6 +421,7 @@ std::vector<SLONG> Bot::findBestAvailablePlaneType() {
     return bestList;
 }
 
+/* Room: room of the planer's job source (ACTION_CHECKAGENT1/2/3, office or ACTION_CALL_INTER_HANDY); areWeInOffice must be truthful */
 void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
     auto res = howToPlanFlightsLaptopFix();
     if (HowToPlan::None == res) {
@@ -480,6 +487,7 @@ void Bot::grabFlights(BotPlaner &planer, bool areWeInOffice) {
     }
 }
 
+/* Room: any (plans right away in office or with laptop, otherwise defers to the office) */
 void Bot::requestPlanFlights(bool areWeInOffice) {
     auto res = howToPlanFlightsLaptopFix();
     if (res == HowToPlan::Laptop) {
@@ -497,6 +505,7 @@ void Bot::requestPlanFlights(bool areWeInOffice) {
     }
 }
 
+/* Room: office or laptop */
 void Bot::planFlights() {
     mNeedToPlanJobs = false;
 
@@ -568,6 +577,7 @@ void Bot::planFlights() {
     forceReplanning();
 }
 
+/* Room: office or laptop */
 SLONG Bot::replaceAutomaticFlights(SLONG planeId) {
     auto &qPlane = qPlayer.Planes[planeId];
     auto &qFlightPlan = qPlane.Flugplan.Flug;
@@ -621,6 +631,7 @@ SLONG Bot::replaceAutomaticFlights(SLONG planeId) {
     return count;
 }
 
+/* Room: Arab (ACTION_BUY_KEROSIN) or office (kerosine price, TankInhalt) */
 std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, DOUBLE targetFillRatio) const {
     AT_Log("Bot::kerosineQualiOptimization(): Buying kerosine for no more than %lld $ and %.2f %% of capacity", moneyAvailable, targetFillRatio * 100);
 
@@ -708,6 +719,7 @@ std::pair<SLONG, SLONG> Bot::kerosineQualiOptimization(__int64 moneyAvailable, D
     return res;
 }
 
+/* Room: any (competitor data gated by spy checks); used at the saboteur */
 SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
     std::map<SabotageMode, int> candidates;
 
@@ -843,6 +855,7 @@ SabotageMode Bot::determineSabotageMode(__int64 moneyAvailable, bool print) {
     return sabotageMode;
 }
 
+/* Room: any */
 SpecialSabotage Bot::determineSpecialSabotage() const {
     /* return "no" to not start chain again */
     if (qPlayer.HasItem(ITEM_ZANGE)) {
@@ -872,6 +885,7 @@ SpecialSabotage Bot::determineSpecialSabotage() const {
     return SpecialSabotage::Any;
 }
 
+/* Room: any (only checks Rang != 0) */
 SLONG Bot::getNumRentedRoutes() const {
     SLONG numRented = 0;
     const auto &qRRouten = qPlayer.RentRouten.RentRouten;
@@ -884,6 +898,7 @@ SLONG Bot::getNumRentedRoutes() const {
     return (numRented / 2);
 }
 
+/* Room: office or laptop (clearFlightPlan()) */
 void Bot::checkRentedRoutes() {
     /* check for additional routes */
     const auto &qRRouten = qPlayer.RentRouten.RentRouten;
@@ -938,6 +953,7 @@ void Bot::checkRentedRoutes() {
     std::swap(mPlanesForRoutes, planesForRoutesNew);
 }
 
+/* Room: any (cached data only) */
 void Bot::updateRoutesSortedList() {
     mRoutesSortedByOwnUtilization.resize(mRoutes.size());
     if (!mRoutes.empty()) {
@@ -961,6 +977,7 @@ void Bot::updateRoutesSortedList() {
     }
 }
 
+/* Room: office or laptop; office only if areWeInOffice == true (reads plane upgrade targets) */
 void Bot::updateRouteInfoOffice(bool areWeInOffice) {
     /* copy most import information from routes
      * updates: image, routeOwnUtilization, planeUtilization(FC), canUpgrade, mPlanesForRoutesUnassigned
@@ -1021,6 +1038,7 @@ void Bot::updateRouteInfoOffice(bool areWeInOffice) {
     mRoutesUpdated = true;
 }
 
+/* Room: route box (ACTION_VISITROUTEBOX), because of competitor Rang */
 void Bot::updateRouteInfoBoard() {
     /* copy most import information from routes
      * updates: image, routeOwnUtilization, routeUtilization, mRouteToSteal
@@ -1093,6 +1111,7 @@ void Bot::updateRouteInfoBoard() {
     mRoutesUtilizationUpdated = true;
 }
 
+/* Room: any (cached data only) */
 SLONG Bot::calcRequiredImageForAirline() {
     bool targetRunStarted = (mRunToFinalObjective > FinalPhase::No);
     SLONG targetImage = kMinimumImage;
@@ -1114,6 +1133,7 @@ SLONG Bot::calcRequiredImageForAirline() {
     return targetImage;
 }
 
+/* Room: any (cached data only) */
 SLONG Bot::calcAirlineImageTarget() const {
     SLONG lowestRouteImage = 100;
     for (const auto &qRoute : mRoutes) {
@@ -1141,6 +1161,7 @@ SLONG Bot::calcAirlineImageTarget() const {
     return std::min(1000, target + mImageDecayPerDay * daysToCover);
 }
 
+/* Room: any (cached data only, also called from RobotPlan()) */
 void Bot::routesRecalcNextStep() {
     mRoutesNextStep = RoutesNextStep::None;
     if (!mRoutesUpdated || !mRoutesUtilizationUpdated) {
@@ -1187,6 +1208,7 @@ void Bot::routesRecalcNextStep() {
     }
 }
 
+/* Room: any (cached data only) */
 std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     assert(mRoutesUpdated && mRoutesUtilizationUpdated);
 
@@ -1283,6 +1305,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     return {RoutesNextStep::None, -1};
 }
 
+/* Room: any (plans right away in office or with laptop, otherwise defers to the office) */
 void Bot::requestPlanRoutes(bool areWeInOffice) {
     if (mRoutes.empty() || (mRoutesToRemove && !mDoRoutes)) {
         return; /* no route yet or only starter route */
@@ -1303,6 +1326,7 @@ void Bot::requestPlanRoutes(bool areWeInOffice) {
     }
 }
 
+/* Room: route box (CRoute::Miete, CRoute::AnzPassagiere()) */
 Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy) {
     const auto &qRoute = Routen[routeId];
     const auto &qPlaneType = getPlaneType(planeTypeId);
@@ -1390,6 +1414,7 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     return {profitPerWeek, routeId, planeTypeId, existingPlaneIds[planeTypeId], planesToBuy};
 }
 
+/* Room: any */
 const CPlaneType &Bot::getPlaneType(SLONG planeTypeId) const {
     if (planeTypeId == kDesignerPlaneTypeId) {
         assert(mDesignerPlaneType.Passagiere > 0);
@@ -1398,6 +1423,7 @@ const CPlaneType &Bot::getPlaneType(SLONG planeTypeId) const {
     return PlaneTypes[planeTypeId];
 }
 
+/* Room: any */
 void Bot::updateDesignerPlaneType() {
     mDesignerPlaneType = {};
     if (mDesignerPlane.Name.empty() || !mDesignerPlane.IsBuildable()) {
@@ -1425,6 +1451,7 @@ void Bot::updateDesignerPlaneType() {
            Insert1000erDots64(mDesignerPlaneType.Preis).c_str(), mDesignerRoutesPay ? "yes" : "no");
 }
 
+/* Room: any */
 bool Bot::designerRoutePays(const CRoute &qRoute) const {
     const auto &qPlaneType = mDesignerPlaneType;
     if (qPlaneType.Passagiere <= 0 || qPlaneType.Preis <= 0) {
@@ -1444,6 +1471,7 @@ bool Bot::designerRoutePays(const CRoute &qRoute) const {
     return profitPerWeek >= kDesignerRouteMinWeeklyReturn * qPlaneType.Preis;
 }
 
+/* Room: route box (getBuyableRoutes()) */
 void Bot::findBestRoute() {
     mWantToRentRouteId = -1;
     mPlaneTypeForNewRoute = -1;
@@ -1534,6 +1562,7 @@ void Bot::findBestRoute() {
     AT_Log("Bot::findBestRoute(): No routes match criteria.");
 }
 
+/* Room: route box if planeTypeForNewRoute != -1 (CRoute::AnzPassagiere()), any otherwise */
 bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
     /* find route in reverse direction */
     SLONG routeB = -1;
@@ -1577,7 +1606,36 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
     return true;
 }
 
+/* Room: route box, office or laptop (killRoute()) */
+SLONG Bot::removeInvalidatedRoutes() {
+    /* kill routes marked for deletion (no plane type id assigned) */
+    SLONG numWaitForRemoval = 0;
+    auto it = mRoutes.begin();
+    while (it != mRoutes.end()) {
+        if (it->planeTypeId == -1) {
+            SLONG routeID = it->routeId;
+            if (GameMechanic::getAnyPlaneOnRoute(qPlayer, routeID) != -1) {
+                AT_Log("Bot::removeRoute(): Cannot remove route %s, still in flightplans", Helper::getRouteName(Routen[routeID]).c_str());
+                numWaitForRemoval++;
+                ++it; /* only increase if not erased */
+            } else {
+                GameMechanic::killRoute(qPlayer, routeID);
+                it = removeRoute(it);
+                AT_Log("Bot::removeRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+            }
+        } else {
+            ++it; /* only increase if not erased */
+        }
+    }
+    mRoutesToRemove = (numWaitForRemoval > 0);
+    return numWaitForRemoval;
+}
+
+/* Room: office or laptop (clearFlightPlan()) */
 void Bot::releaseStarterRoutes() {
+    if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
+        return;
+    }
     for (auto &qRoute : mRoutes) {
         if (qRoute.planeTypeId == -1) {
             continue;
@@ -1589,15 +1647,19 @@ void Bot::releaseStarterRoutes() {
             if (it != mPlanesForRoutes.end()) {
                 mPlanesForRoutes.erase(it);
             }
-            mPlanesForJobs.push_back(planeId);
+            mPlanesForJobsUnassigned.push_back(planeId);
             AT_Log("Bot::releaseStarterRoutes(): Plane %s flies jobs again", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
         }
         qRoute.planeIds.clear();
         qRoute.planeTypeId = -1;
         mRoutesToRemove = true;
     }
+    if (mRoutesToRemove) {
+        removeInvalidatedRoutes();
+    }
 }
 
+/* Room: any (bookkeeping only) */
 std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::iterator it) {
     SLONG routeIdx = std::distance(mRoutes.begin(), it);
     if (routeIdx < 0 || routeIdx >= mRoutes.size()) {
@@ -1628,6 +1690,7 @@ std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::i
     return it;
 }
 
+/* Room: office or laptop */
 void Bot::planRoutes() {
     mNeedToPlanRoutes = false;
 
@@ -1789,6 +1852,7 @@ void Bot::planRoutes() {
     }
 }
 
+/* Room: any; areWeInOffice must be truthful */
 void Bot::assignPlanesToRoutes(bool areWeInOffice) {
     if (mRoutes.empty()) {
         return;

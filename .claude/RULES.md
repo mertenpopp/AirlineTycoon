@@ -374,7 +374,9 @@ The action ID ACTION_VISITROUTEBOX or ACTION_VISITROUTEBOX2 shall be used to wal
 
 `BUFFER_V<BOOL> GameMechanic::getBuyableRoutes(PLAYER &qPlayer)`: Check which routes are buyable. It returns an array with a boolean for each route at the corresponding index. A route always connects two cities. A route is buyable if either city is the home airport or either city is already connected by a different route that the player flies sufficiently enough. This can checked via `qPlayer.RentRouten.RentRouten[c].RoutenAuslastung  >= 20` where `c` is the index of any route which has either the same `VonCity` or same `NachCity` as the route that you want to rent.
 
-`bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`: Stop renting the specified route. First ensure that no plane will be flying this route anymore.
+`bool GameMechanic::killRoute(PLAYER &qPlayer, SLONG routeA)`: Stop renting the specified route. First ensure that no plane will be flying this route anymore. This function may also be called while in office or when having access to a laptop.
+
+`SLONG GameMechanic::getAnyPlaneOnRoute(PLAYER &qPlayer, SLONG routeA)`: Check if any plane is still flying the specified route. May be called at any time.
 
 ### Route mechanics
 

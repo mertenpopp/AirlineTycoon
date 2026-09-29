@@ -143,6 +143,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
 
     /* check routes */
     checkRentedRoutes();
+    removeInvalidatedRoutes();
     updateRouteInfoOffice(areWeInOffice);
     requestPlanRoutes(areWeInOffice);
 
@@ -179,6 +180,7 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
         if (mDoRoutes) {
             /* the first route for bought planes ends the starter route: the starter planes earn more with jobs */
             releaseStarterRoutes();
+            findPlanesAvailableForService(mPlanesForJobsUnassigned, mPlanesForJobs);
         }
     }
     if (mDoRoutes && !mLongTermStrategy) {
@@ -1459,17 +1461,7 @@ void Bot::actionVisitBoss() {
 }
 
 bool Bot::actionVisitRouteBox() {
-    bool didWork = false;
-    if (qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
-        updateRouteInfoBoard();
-        assignPlanesToRoutes(false);
-        routesRecalcNextStep();
-        if (mRoutesNextStep == RoutesNextStep::RentNewRoute) {
-            findBestRoute();
-        }
-        didWork = true;
-    }
-
+    /* item handling */
     bool didWorkItems = false;
     if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE)) {
         /* we only try to keep the paperclips if we did not start another sabotage item chain.
@@ -1478,39 +1470,26 @@ bool Bot::actionVisitRouteBox() {
         didWorkItems = tryPickUpItem(Sim.ItemClips, ITEM_PAPERCLIP, wantToKeep);
     }
     mPaperClipsWereTaken = (Sim.ItemClips == 0);
-    return didWork || didWorkItems;
-}
 
-void Bot::actionRentRoute() {
-    if (mRoutesToRemove) {
-        /* kill routes marked for deletion (no plane type id assigned) */
-        /* this includes routes that were rented at the beginning of the game */
-        SLONG numWaitForRemoval = 0;
-        auto it = mRoutes.begin();
-        while (it != mRoutes.end()) {
-            if (it->planeTypeId == -1) {
-                SLONG routeID = it->routeId;
-                if (GameMechanic::getAnyPlaneOnRoute(qPlayer, routeID) != -1) {
-                    AT_Log("Bot::actionRentRoute(): Cannot remove route %s, still in flightplans", Helper::getRouteName(Routen[routeID]).c_str());
-                    numWaitForRemoval++;
-                    ++it; /* only increase if not erased */
-                } else {
-                    GameMechanic::killRoute(qPlayer, routeID);
-                    it = removeRoute(it);
-                    AT_Log("Bot::actionRentRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
-                }
-            } else {
-                ++it; /* only increase if not erased */
-            }
-        }
-        mRoutesToRemove = (numWaitForRemoval > 0);
+    if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
+        return didWorkItems;
     }
 
+    /* routes */
+    removeInvalidatedRoutes();
+    updateRouteInfoBoard();
+    assignPlanesToRoutes(false);
+    findBestRoute();
+
+    routesRecalcNextStep();
+    if (mRoutesNextStep != RoutesNextStep::RentNewRoute) {
+        return true;
+    }
+    if (mRunToFinalObjective > FinalPhase::No) {
+        return true;
+    }
     if (mWantToRentRouteId == -1) {
-        if (mDoRoutes) {
-            AT_Error("Bot::actionRentRoute(): No route marked for renting.");
-        }
-        return;
+        return true;
     }
 
     auto routeA = mWantToRentRouteId;
@@ -1519,8 +1498,8 @@ void Bot::actionRentRoute() {
 
     /* rent route */
     if (!GameMechanic::rentRoute(qPlayer, routeA)) {
-        AT_Error("Bot::actionRentRoute(): Failed to rent route.");
-        return;
+        AT_Error("Bot::actionVisitRouteBox(): Failed to rent route.");
+        return true;
     }
 
     addNewRoute(routeA, mPlaneTypeForNewRoute);
@@ -1529,20 +1508,21 @@ void Bot::actionRentRoute() {
     /* use existing planes */
     for (auto id : mPlanesForNewRoute) {
         const auto &qPlane = qPlayer.Planes[id];
-        AT_Log("Bot::actionRentRoute(): Using existing plane: %s", Helper::getPlaneName(qPlane).c_str());
+        AT_Log("Bot::actionVisitRouteBox(): Using existing plane: %s", Helper::getPlaneName(qPlane).c_str());
 
         mRoutes.back().planeIds.push_back(id);
         mPlanesForRoutes.push_back(id);
         bool erased = eraseFirst(mPlanesForRoutesUnassigned, id);
         if (!erased) {
-            AT_Error("Bot::actionRentRoute(): Plane with ID = %d should have been in unassigned list", id);
+            AT_Error("Bot::actionVisitRouteBox(): Plane with ID = %d should have been in unassigned list", id);
         }
     }
     mPlanesForNewRoute.clear();
 
     updateRouteInfoBoard();
-
     requestPlanRoutes(false);
+
+    return true;
 }
 
 void Bot::actionBuyAdsForRoutes(__int64 moneyAvailable) {
