@@ -272,27 +272,27 @@ class Bot {
     std::pair<SLONG, SLONG> kerosineQualiOptimization(__int64 moneyAvailable, DOUBLE targetFillRatio) const;
     SabotageMode determineSabotageMode(__int64 moneyAvailable, bool print);
     SpecialSabotage determineSpecialSabotage() const;
+    SLONG calcRequiredImageForAirline();
+    SLONG calcAirlineImageTarget() const;
+    const CPlaneType &getPlaneType(SLONG planeTypeId) const;
+    void updateDesignerPlaneType();
 
-    /* routes */
+    /* in BotRoutes.cpp */
     SLONG getNumRentedRoutes() const;
+    static SLONG getRoutePlaneTypeId(const CPlane &qPlane) { return (qPlane.TypeId == -1) ? kDesignerPlaneTypeId : qPlane.TypeId; }
     void checkRentedRoutes();
     void updateRoutesSortedList();
     void updateRouteInfoOffice(bool areWeInOffice);
     void updateRouteInfoBoard();
-    SLONG calcRequiredImageForAirline();
-    SLONG calcAirlineImageTarget() const;
+    void requestPlanRoutes(bool areWeInOffice);
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
-    void requestPlanRoutes(bool areWeInOffice);
-    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy);
-    const CPlaneType &getPlaneType(SLONG planeTypeId) const;
-    void updateDesignerPlaneType();
     bool designerRoutePays(const CRoute &qRoute) const;
-    static SLONG getRoutePlaneTypeId(const CPlane &qPlane) { return (qPlane.TypeId == -1) ? kDesignerPlaneTypeId : qPlane.TypeId; }
+    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy);
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
-    SLONG removeInvalidatedRoutes();
     std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
+    SLONG removeInvalidatedRoutes();
     void releaseStarterRoutes();
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
