@@ -294,6 +294,7 @@ class Bot {
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
     std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
+    void releaseStarterRoutes();
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
 

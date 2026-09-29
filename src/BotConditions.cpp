@@ -949,8 +949,8 @@ Bot::Prio Bot::condVisitRouteBoxRenting() {
     /* no hoursPassed(): Action frequency is controlled by mRoutesNextStep */
 
     Prio prio = Prio::None;
-    if (mRoutesToRemove) {
-        prio = std::max(prio, Prio::Low);
+    if (mRoutesToRemove && hoursPassed(ACTION_VISITROUTEBOX2, 6)) {
+        prio = std::max(prio, Prio::Low); /* a route still in flight plans needs its last legs flown first */
     }
     if (mDoRoutes || mRoutes.empty()) {
         bool shallRentNewRoute = true;

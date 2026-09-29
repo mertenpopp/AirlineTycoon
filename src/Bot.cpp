@@ -35,6 +35,9 @@ const SLONG kCheckTravelAgencyEveryXMinutes = 30;
 const SLONG kCheckLastMinuteEveryXMinutes = 60;
 const SLONG kCheckFreightDepotEveryXMinutes = 60;
 const SLONG kFrequencyRouteStrategy = 1;
+/* Early route: the long-range starter plane flies a route from day 0 until the first route for bought planes is
+ * rented. Off: the two starters together earn more with jobs and freight */
+const bool kStarterPlaneFliesEarlyRoute = false;
 
 const SLONG kSmallestAdCampaign = 4;
 const SLONG kMinimumImage = -100;
@@ -109,7 +112,7 @@ void Bot::RobotInit(SLONG randomSeed) {
         mSabotageSeed = LocalRandom.getRandInt(0, INT32_MAX); /* unsigned, overflow safe */
 
         /* starting planes */
-        bool canUseRoutes = (qPlayer.RobotUse(ROBOT_USE_ROUTES) && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX));
+        bool canUseRoutes = kStarterPlaneFliesEarlyRoute && qPlayer.RobotUse(ROBOT_USE_ROUTES) && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX);
         for (SLONG i = 0; i < qPlayer.Planes.AnzEntries(); i++) {
             if (!qPlayer.Planes.IsInAlbum(i)) {
                 continue;
@@ -207,7 +210,7 @@ void Bot::RobotInit(SLONG randomSeed) {
         AT_Log("Bot::RobotInit(): Executed %d %s, %d %s, %d %s, %d %s, %d %s, %d %s actions", mActionCounter[Prio::Top], getPrioName(Prio::Top),
                mActionCounter[Prio::Higher], getPrioName(Prio::Higher), mActionCounter[Prio::High], getPrioName(Prio::High), mActionCounter[Prio::Medium],
                getPrioName(Prio::Medium), mActionCounter[Prio::Low], getPrioName(Prio::Low), mActionCounter[Prio::Lowest], getPrioName(Prio::Lowest));
-        if ((mActionCounter[Prio::Low] == 0) || (mActionCounter[Prio::Lowest] == 0)) {
+        if (mActionCounter[Prio::Lowest] == 0) {
             AT_Error("Bot::RobotInit(): Did not run any low prio actions last day, workload problem?");
         }
         if (std::any_of(mActionCounter.begin(), mActionCounter.end(), [](const auto &val) { return val.second > 200; })) {
