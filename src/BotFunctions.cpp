@@ -1615,13 +1615,13 @@ SLONG Bot::removeInvalidatedRoutes() {
         if (it->planeTypeId == -1) {
             SLONG routeID = it->routeId;
             if (GameMechanic::getAnyPlaneOnRoute(qPlayer, routeID) != -1) {
-                AT_Log("Bot::removeRoute(): Cannot remove route %s, still in flightplans", Helper::getRouteName(Routen[routeID]).c_str());
+                AT_Log("Bot::removeInvalidatedRoutes(): Cannot remove route %s, still in flightplans", Helper::getRouteName(Routen[routeID]).c_str());
                 numWaitForRemoval++;
                 ++it; /* only increase if not erased */
             } else {
                 GameMechanic::killRoute(qPlayer, routeID);
                 it = removeRoute(it);
-                AT_Log("Bot::removeRoute(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
+                AT_Log("Bot::removeInvalidatedRoutes(): Removing route %s", Helper::getRouteName(Routen[routeID]).c_str());
             }
         } else {
             ++it; /* only increase if not erased */
