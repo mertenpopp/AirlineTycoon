@@ -175,6 +175,11 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
                        Insert1000erDots64(moneyCanBeRaised).c_str());
             }
         }
+
+        if (mDoRoutes) {
+            /* the first route for bought planes ends the starter route: the starter planes earn more with jobs */
+            releaseStarterRoutes();
+        }
     }
     if (mDoRoutes && !mLongTermStrategy) {
         mLongTermStrategy = true;
@@ -1499,13 +1504,6 @@ void Bot::actionRentRoute() {
             }
         }
         mRoutesToRemove = (numWaitForRemoval > 0);
-    }
-
-    if (!mDoRoutes && !mRoutesToRemove && qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
-        /* in route mission, do not loose any time! */
-        mDoRoutes = true;
-        mDoRoutesMaxCredit = false;
-        AT_Log("Bot::actionRentRoute(): Switching to routes (forced).");
     }
 
     if (mWantToRentRouteId == -1) {

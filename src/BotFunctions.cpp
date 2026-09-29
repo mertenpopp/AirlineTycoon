@@ -1553,7 +1553,14 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
         numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), mOptions.kMaximumRouteUtilization);
         numberOfPlanesTarget *= 2; /* for each route leg */
     }
+    /* a route for planes we already own (the starter plane) keeps that many planes,
+     * so that the next route is planned for the best plane type we can buy */
+    if (!mDoRoutes) {
+        numberOfPlanesTarget = mPlanesForNewRoute.size();
+    }
+
     mRoutes.emplace_back(routeA, routeB, planeTypeForNewRoute, numberOfPlanesTarget);
+
     if (planeTypeForNewRoute != -1) {
         AT_Log("Bot::addNewRoute(): Renting route %s (using plane type %s): ", Helper::getRouteName(getRoute(mRoutes.back())).c_str(),
                getPlaneType(planeTypeForNewRoute).Name.c_str());
@@ -1568,6 +1575,27 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
     mRoutesSortedByOwnUtilization[0] = mRoutes.size() - 1;
 
     return true;
+}
+
+void Bot::releaseStarterRoutes() {
+    for (auto &qRoute : mRoutes) {
+        if (qRoute.planeTypeId == -1) {
+            continue;
+        }
+        AT_Log("Bot::releaseStarterRoutes(): Giving up starter route %s", Helper::getRouteName(getRoute(qRoute)).c_str());
+        for (auto planeId : qRoute.planeIds) {
+            GameMechanic::clearFlightPlan(qPlayer, planeId);
+            auto it = std::find(mPlanesForRoutes.begin(), mPlanesForRoutes.end(), planeId);
+            if (it != mPlanesForRoutes.end()) {
+                mPlanesForRoutes.erase(it);
+            }
+            mPlanesForJobs.push_back(planeId);
+            AT_Log("Bot::releaseStarterRoutes(): Plane %s flies jobs again", Helper::getPlaneName(qPlayer.Planes[planeId]).c_str());
+        }
+        qRoute.planeIds.clear();
+        qRoute.planeTypeId = -1;
+        mRoutesToRemove = true;
+    }
 }
 
 std::vector<Bot::RouteInfo>::iterator Bot::removeRoute(std::vector<RouteInfo>::iterator it) {
@@ -1742,7 +1770,10 @@ void Bot::planRoutes() {
         SLONG cost = getRouteBaseCost(getRoute(qRoute));
         SLONG highCost = 3 * cost;
 
-        const RoutePriceLevels &factors = (Sim.Date >= mImagePreservationMode) ? mOptions.kMaxTicketPriceFactor : mOptions.kMaxTicketPriceFactorLowImage;
+        /* a starter route (only starter planes) keeps its price low: every flight above 150% costs airline image
+         * (Schedule.cpp, "Preispolitik bewerten"), which the first route for bought planes would inherit */
+        const RoutePriceLevels &factors =
+            (mDoRoutes && Sim.Date >= mImagePreservationMode) ? mOptions.kMaxTicketPriceFactor : mOptions.kMaxTicketPriceFactorLowImage;
         SLONG priceNew = static_cast<SLONG>(std::round(factors.target * highCost)) / 10 * 10;
         SLONG priceNewFC = static_cast<SLONG>(std::round(mOptions.kFirstClassTicketSurcharge * factors.target * highCost)) / 10 * 10;
 
