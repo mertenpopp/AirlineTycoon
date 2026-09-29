@@ -157,8 +157,8 @@ class Bot {
     struct ConfigurableOptions {
         float kSchedulingMinScoreRatio{100 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
-        SLONG kSwitchToRoutesNumPlanesMin{1};
-        SLONG kSwitchToRoutesNumPlanesMax{1};
+        SLONG kSwitchToRoutesNumPlanesMin{2};
+        SLONG kSwitchToRoutesNumPlanesMax{2};
         SLONG kMaximumRouteUtilization{90};
         RoutePriceLevels kMaxTicketPriceFactor{1.60, 1.90, 1.98}; /* threshold, because increasing ticket price resets HoursBefore */
         RoutePriceLevels kMaxTicketPriceFactorLowImage{1.10, 1.40, 1.48};
@@ -207,8 +207,7 @@ class Bot {
     Prio condVisitDutyFree(__int64 &moneyAvailable);
     Prio condVisitBoss(__int64 &moneyAvailable);
     Prio condExpandAirport(__int64 &moneyAvailable);
-    Prio condVisitRouteBoxPlanning();
-    Prio condVisitRouteBoxRenting();
+    Prio condVisitRouteBox();
     Prio condVisitSecurity(__int64 &moneyAvailable);
     Prio condSabotageSecurity();
     Prio condVisitDesigner(__int64 &moneyAvailable);
@@ -254,7 +253,6 @@ class Bot {
     bool actionVisitDutyFree(__int64 moneyAvailable);
     void actionVisitBoss();
     bool actionVisitRouteBox();
-    void actionRentRoute();
     void actionBuyAdsForRoutes(__int64 moneyAvailable);
     void actionBuyAds(__int64 moneyAvailable);
     void actionVisitAds();
@@ -293,6 +291,7 @@ class Bot {
     static SLONG getRoutePlaneTypeId(const CPlane &qPlane) { return (qPlane.TypeId == -1) ? kDesignerPlaneTypeId : qPlane.TypeId; }
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
+    SLONG removeInvalidatedRoutes();
     std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
     void releaseStarterRoutes();
     void planRoutes();
