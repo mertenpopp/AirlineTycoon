@@ -109,8 +109,14 @@ void Bot::RobotInit(SLONG randomSeed) {
         mSabotageSeed = LocalRandom.getRandInt(0, INT32_MAX); /* unsigned, overflow safe */
 
         /* starting planes */
+        bool canUseRoutes = (qPlayer.RobotUse(ROBOT_USE_ROUTES) && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX));
         for (SLONG i = 0; i < qPlayer.Planes.AnzEntries(); i++) {
-            if (qPlayer.Planes.IsInAlbum(i)) {
+            if (!qPlayer.Planes.IsInAlbum(i)) {
+                continue;
+            }
+            if (canUseRoutes && qPlayer.Planes[i].ptReichweite > 6000) {
+                mPlanesForRoutesUnassigned.push_back(qPlayer.Planes.GetIdFromIndex(i));
+            } else {
                 mPlanesForJobsUnassigned.push_back(qPlayer.Planes.GetIdFromIndex(i));
             }
         }
@@ -137,7 +143,10 @@ void Bot::RobotInit(SLONG randomSeed) {
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
-            std::swap(mPlanesForJobsUnassigned, mPlanesForRoutesUnassigned);
+            for (const auto &i : mPlanesForJobsUnassigned) {
+                mPlanesForRoutesUnassigned.push_back(i);
+            }
+            mPlanesForJobsUnassigned.clear();
         }
 
         if (qPlayer.RobotUse(ROBOT_USE_GROSSESKONTO)) {
@@ -1048,7 +1057,7 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
 
     File >> bot.mRoutesUpdated >> bot.mRoutesUtilizationUpdated;
     if (savegameVersion < 101) {
-        bot.mRoutesToRemove = -1;
+        bot.mRoutesToRemove = true;
     } else {
         File >> bot.mRoutesToRemove;
     }

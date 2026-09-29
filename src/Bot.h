@@ -157,8 +157,8 @@ class Bot {
     struct ConfigurableOptions {
         float kSchedulingMinScoreRatio{100 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
-        SLONG kSwitchToRoutesNumPlanesMin{2};
-        SLONG kSwitchToRoutesNumPlanesMax{2};
+        SLONG kSwitchToRoutesNumPlanesMin{1};
+        SLONG kSwitchToRoutesNumPlanesMax{1};
         SLONG kMaximumRouteUtilization{90};
         RoutePriceLevels kMaxTicketPriceFactor{1.60, 1.90, 1.98}; /* threshold, because increasing ticket price resets HoursBefore */
         RoutePriceLevels kMaxTicketPriceFactorLowImage{1.10, 1.40, 1.48};
@@ -286,7 +286,7 @@ class Bot {
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     void requestPlanRoutes(bool areWeInOffice);
-    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds);
+    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy);
     const CPlaneType &getPlaneType(SLONG planeTypeId) const;
     void updateDesignerPlaneType();
     bool designerRoutePays(const CRoute &qRoute) const;

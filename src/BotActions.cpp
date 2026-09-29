@@ -143,11 +143,11 @@ void Bot::actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice) {
 
     /* check routes */
     checkRentedRoutes();
-    if (mDoRoutes) {
-        updateRouteInfoOffice(areWeInOffice);
-        requestPlanRoutes(areWeInOffice);
-    } else if (qPlayer.RobotUse(ROBOT_USE_ROUTES) && (getNumRentedRoutes() == 0)) {
-        /* logic for switching to routes. Before switching, make sure any initially rented routes have been cancelled */
+    updateRouteInfoOffice(areWeInOffice);
+    requestPlanRoutes(areWeInOffice);
+
+    if (!mDoRoutes && !mRoutesToRemove && qPlayer.RobotUse(ROBOT_USE_ROUTES)) {
+        /* logic for switching to routes. */
         if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
             mDoRoutes = true;
             mDoRoutesMaxCredit = true;
@@ -222,12 +222,11 @@ void Bot::actionBuero() {
     if (mNeedToPlanJobs) {
         planFlights();
     }
-    if (mDoRoutes) {
-        updateRouteInfoOffice(true);
-        assignPlanesToRoutes(true);
-        if (mNeedToPlanRoutes) {
-            planRoutes();
-        }
+
+    updateRouteInfoOffice(true);
+    assignPlanesToRoutes(true);
+    if (mNeedToPlanRoutes) {
+        planRoutes();
     }
 
     /* we are in office already, so check international calls */
@@ -1456,10 +1455,13 @@ void Bot::actionVisitBoss() {
 
 bool Bot::actionVisitRouteBox() {
     bool didWork = false;
-    if (qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) && mDoRoutes) {
+    if (qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
         updateRouteInfoBoard();
         assignPlanesToRoutes(false);
-        findBestRoute();
+        routesRecalcNextStep();
+        if (mRoutesNextStep == RoutesNextStep::RentNewRoute) {
+            findBestRoute();
+        }
         didWork = true;
     }
 
@@ -1499,18 +1501,17 @@ void Bot::actionRentRoute() {
         mRoutesToRemove = (numWaitForRemoval > 0);
     }
 
-    if (!mDoRoutes) {
+    if (!mDoRoutes && !mRoutesToRemove && qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
         /* in route mission, do not loose any time! */
-        if (qPlayer.RobotUse(ROBOT_USE_FORCEROUTES)) {
-            mDoRoutes = true;
-            mDoRoutesMaxCredit = false;
-            AT_Log("Bot::actionRentRoute(): Switching to routes (forced).");
-        }
-        return;
+        mDoRoutes = true;
+        mDoRoutesMaxCredit = false;
+        AT_Log("Bot::actionRentRoute(): Switching to routes (forced).");
     }
 
     if (mWantToRentRouteId == -1) {
-        AT_Error("Bot::actionRentRoute(): No route marked for renting.");
+        if (mDoRoutes) {
+            AT_Error("Bot::actionRentRoute(): No route marked for renting.");
+        }
         return;
     }
 
