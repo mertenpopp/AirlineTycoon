@@ -284,6 +284,7 @@ void Bot::switchToFinalTarget(bool areWeInOffice) {
                 forceSwitch = true;
             }
         }
+        mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatioLastMinute; /* planes have to fly for upgrades to apply */
     } else if (qPlayer.RobotUse(ROBOT_USE_GROSSESKONTO)) {
         requiredMoney = BTARGET_KONTO;
     } else if (qPlayer.RobotUse(ROBOT_USE_LUXERY) && Sim.Difficulty == DIFF_ATFS02 && areWeInOffice) {
@@ -312,6 +313,7 @@ void Bot::switchToFinalTarget(bool areWeInOffice) {
         } else {
             AT_Log("Bot::switchToFinalTarget(): Need %lld to upgrade existing planes.", requiredMoney);
         }
+        mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatioLastMinute; /* planes have to fly for upgrades to apply */
     } else {
         /* no race to finish for this mission */
         return;
