@@ -908,10 +908,6 @@ void Bot::checkRentedRoutes() {
         }
     }
 
-    if (!mDoRoutes) {
-        return; /* we do not care about routes, so we do not need to check whether some got lost */
-    }
-
     auto numRented = getNumRentedRoutes();
     assert(numRented <= mRoutes.size());
     if (numRented >= mRoutes.size()) {
@@ -1008,7 +1004,7 @@ void Bot::updateRouteInfoOffice(bool areWeInOffice) {
                route.numberOfPlanesTarget, route.planeUtilization, route.planeUtilizationFC, luxusSumme);
 
         if (route.planeTypeId != -1) {
-            __int64 estimatedWeeklyRevenue = calcRouteScore(route.routeId, route.planeTypeId, tmpList).score;
+            __int64 estimatedWeeklyRevenue = calcRouteScore(route.routeId, route.planeTypeId, tmpList, true).score;
             AT_Log("Bot::updateRouteInfoOffice(): Route %s has estimated weekly revenue=%s $ (current=%s $)", Helper::getRouteName(getRoute(route)).c_str(),
                    Insert1000erDots64(estimatedWeeklyRevenue).c_str(), Insert1000erDots64(currentWeeklyRevenue).c_str());
         }
@@ -1161,7 +1157,11 @@ void Bot::routesRecalcNextStep() {
 
     switch (mRoutesNextStep) {
     case RoutesNextStep::None:
-        AT_Error("Bot::routesRecalcNextStep(): No strategy!");
+        if (mDoRoutes) {
+            AT_Error("Bot::routesRecalcNextStep(): No strategy!");
+        } else {
+            AT_Log("Bot::routesRecalcNextStep(): None, because routes are not our primary strategy yet");
+        }
         break;
     case RoutesNextStep::RentNewRoute:
         AT_Log("Bot::routesRecalcNextStep(): We will rent a new route");
@@ -1188,12 +1188,14 @@ void Bot::routesRecalcNextStep() {
 }
 
 std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
-    assert(mDoRoutes);
     assert(mRoutesUpdated && mRoutesUtilizationUpdated);
 
     /* find route with not enough planes */
     SLONG routeToBuyPlanes = -1;
     for (auto i : mRoutesSortedByOwnUtilization) {
+        if (mRoutes[i].planeTypeId == -1) {
+            continue;
+        }
         if (mRoutes[i].planeIds.size() < mRoutes[i].numberOfPlanesTarget) {
             if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
                 routeToBuyPlanes = i;
@@ -1206,6 +1208,9 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     SLONG routeWithLowImage = -1;
     SLONG lowestImage = 9999;
     for (auto i : mRoutesSortedByOwnUtilization) {
+        if (mRoutes[i].planeTypeId == -1) {
+            continue;
+        }
         if (mRoutes[i].image < lowestImage) {
             routeWithLowImage = i;
             lowestImage = mRoutes[i].image;
@@ -1215,6 +1220,9 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     /* find route with pending plane upgrades */
     SLONG routeWithPendingPlaneUpgrades = -1;
     for (auto i : mRoutesSortedByOwnUtilization) {
+        if (mRoutes[i].planeTypeId == -1) {
+            continue;
+        }
         if (mRoutes[i].canUpgrade) {
             routeWithPendingPlaneUpgrades = i;
             break;
@@ -1226,7 +1234,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     /* Step 1: Is the default, at the bottom */
 
     /* Step 2: Buy additional plane when we have the money */
-    if (routeToBuyPlanes != -1) {
+    if (routeToBuyPlanes != -1 && mDoRoutes) {
         __int64 moneyAvailable = getMoneyAvailable();
         const auto &qRoute = mRoutes[routeToBuyPlanes];
         const auto &qPlaneType = getPlaneType(qRoute.planeTypeId);
@@ -1238,7 +1246,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 3: Buy first plane for underutilized route */
-    if (routeToBuyPlanes != -1) {
+    if (routeToBuyPlanes != -1 && mDoRoutes) {
         const auto &qRoute = mRoutes[routeToBuyPlanes];
         if (qRoute.planeIds.empty()) {
             return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
@@ -1259,17 +1267,26 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
     }
 
     /* Step 6: Planes are all upgraded, buy next one */
-    if (routeToBuyPlanes != -1) {
+    if (routeToBuyPlanes != -1 && mDoRoutes) {
         return {RoutesNextStep::BuyMorePlanes, routeToBuyPlanes};
     }
 
     /* We do not return RoutesNextStep::ImproveAirlineImage anymore, this is handled in parallel */
 
-    /* Step 1: No routes underutilized, rent new route */
-    return {RoutesNextStep::RentNewRoute, -1};
+    if (mDoRoutes) { /* routes are our primary strategy */
+        /* Step 1: No routes underutilized, rent new route */
+        return {RoutesNextStep::RentNewRoute, -1};
+    }
+    if (mRoutes.empty() && !mPlanesForRoutesUnassigned.empty()) { /* routes not the primary strategy yet */
+        return {RoutesNextStep::RentNewRoute, -1};
+    }
+    return {RoutesNextStep::None, -1};
 }
 
 void Bot::requestPlanRoutes(bool areWeInOffice) {
+    if (mRoutes.empty() || (mRoutesToRemove && !mDoRoutes)) {
+        return; /* no route yet or only starter route */
+    }
     auto res = howToPlanFlightsLaptopFix();
     if (res == HowToPlan::Laptop) {
         AT_Log("Bot::requestPlanRoutes(): Planning using laptop");
@@ -1286,7 +1303,7 @@ void Bot::requestPlanRoutes(bool areWeInOffice) {
     }
 }
 
-Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds) {
+Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy) {
     const auto &qRoute = Routen[routeId];
     const auto &qPlaneType = getPlaneType(planeTypeId);
 
@@ -1341,14 +1358,22 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     numPlanesTarget *= 2; /* for each route leg */
     /* numPlanesMin stays since each flight is booked for both directions for required minimum utilization */
 
+    /* account for the fact that we already have suitable planes */
+    SLONG numExistingPlanes = static_cast<SLONG>(existingPlaneIds[planeTypeId].size());
+    SLONG planesToBuy = std::max(0, numPlanesMin - numExistingPlanes);
+
+    /* base score on the following number of planes */
+    SLONG numPlanes = canBuy ? numPlanesTarget : numExistingPlanes;
+
     /* estimate revenue */
     __int64 baseCost = getRouteBaseCost(qRoute);
     __int64 revenue = qPlaneType.Passagiere * baseCost * 3.0 * mOptions.kMaxTicketPriceFactor.target;
     SLONG numTripsPerWeek = 24 * 7 / duration;
-    __int64 profitPerWeek = (revenue - cost) * numTripsPerWeek * numPlanesTarget - (qRoute.Miete / 30 * 2 * 7);
+    __int64 profitPerWeek = (revenue - cost) * numTripsPerWeek * numPlanes - (qRoute.Miete / 30 * 2 * 7);
 
-    /* account for the fact that we already have suitable planes */
-    SLONG planesToBuy = std::max(0, numPlanesMin - static_cast<SLONG>(existingPlaneIds[planeTypeId].size()));
+    if (!canBuy && numPlanes < numPlanesMin) {
+        profitPerWeek = 0; /* we initially won't buy planes for this route, so we need to meet minimum right away */
+    }
 
     /* is this route important for our mission */
     if (qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
@@ -1424,20 +1449,30 @@ void Bot::findBestRoute() {
     mPlaneTypeForNewRoute = -1;
     mPlanesForNewRoute.clear();
 
+    std::vector<std::pair<SLONG, bool>> planeTypeIds;
+    if (qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY) && mDesignerPlaneType.Passagiere > 0) {
+        planeTypeIds.emplace_back(kDesignerPlaneTypeId, true);
+    } else {
+        for (const auto &typeId : mKnownPlaneTypes) {
+            planeTypeIds.emplace_back(typeId, true);
+        }
+    }
+
     /* check existing planes */
     std::unordered_map<SLONG, std::vector<SLONG>> existingPlaneIds;
     if (mRoutes.empty()) {
         for (const auto id : mPlanesForRoutesUnassigned) {
             auto &qPlane = qPlayer.Planes[id];
             existingPlaneIds[getRoutePlaneTypeId(qPlane)].emplace_back(id);
+
+            SLONG typeId = getRoutePlaneTypeId(qPlane);
+            if (planeTypeIds.end() == std::find_if(planeTypeIds.begin(), planeTypeIds.end(), [typeId](const auto &p) { return p.first == typeId; })) {
+                planeTypeIds.emplace_back(typeId, false);
+            }
         }
     }
 
     /* the designer plane is the only plane we buy in designer missions, so plan routes for it */
-    std::vector<SLONG> planeTypeIds = mKnownPlaneTypes;
-    if (qPlayer.RobotUse(ROBOT_USE_DESIGNER_BUY) && mDesignerPlaneType.Passagiere > 0) {
-        planeTypeIds = {kDesignerPlaneTypeId};
-    }
 
     std::vector<RouteScore> bestRoutes;
     auto isBuyable = GameMechanic::getBuyableRoutes(qPlayer);
@@ -1448,12 +1483,14 @@ void Bot::findBestRoute() {
         if (Routen[c].VonCity > Routen[c].NachCity) {
             continue; /* we only need to check one of each pair */
         }
-        for (const auto &planeTypeId : planeTypeIds) {
+        for (const auto &i : planeTypeIds) {
+            SLONG planeTypeId = i.first;
+            bool canBuy = i.second && mDoRoutes;
             if (planeTypeId != kDesignerPlaneTypeId && !PlaneTypes.IsInAlbum(planeTypeId)) {
                 continue;
             }
 
-            RouteScore score = calcRouteScore(c, planeTypeId, existingPlaneIds);
+            RouteScore score = calcRouteScore(c, planeTypeId, existingPlaneIds, canBuy);
             if (score.score > 0) {
                 bestRoutes.emplace_back(std::move(score));
             }

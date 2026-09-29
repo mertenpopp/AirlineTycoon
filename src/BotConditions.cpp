@@ -168,7 +168,7 @@ Bot::Prio Bot::condBuero() {
     if (mNeedToPlanJobs || mNeedToPlanRoutes) {
         prio = std::max(prio, Prio::Top);
     }
-    if (mDoRoutes && !mRoutesUpdated) {
+    if (!mRoutesUpdated && !mRoutes.empty() && !mRoutesToRemove) {
         prio = std::max(prio, (checkLateGame() ? Prio::High : Prio::Medium)); /* update cached route info */
     }
     return prio;
@@ -460,7 +460,7 @@ Bot::Prio Bot::condBuyKerosineTank(__int64 &moneyAvailable) {
         return Prio::None;
     }
     if (!mDoRoutes || mRoutes.size() < kNumRoutesStartBuyingTanks) {
-        return Prio::None; /* wait until we started using routes */
+        return Prio::None; /* wait until we started to use routes primarily */
     }
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
@@ -795,20 +795,14 @@ Bot::Prio Bot::condVisitMisc() {
 }
 
 Bot::Prio Bot::condVisitMakler() {
-    if (!hoursPassed(ACTION_VISITMAKLER, 4)) {
+    if (!hoursPassed(ACTION_VISITMAKLER, 24)) {
         return Prio::None;
     }
 
     Prio prio = Prio::None;
-    if (mDoRoutes && mKnownPlaneTypes.empty()) {
+    if (mDoRoutes || mLongTermStrategy) {
         /* to unblock findBestRoute() */
-        prio = std::max(prio, Prio::High);
-    }
-    if (mLongTermStrategy) {
-        if (hoursPassed(ACTION_VISITMAKLER, 24) || (mBestPlaneTypeId == -1)) {
-            /* check available plane types at least once per day */
-            prio = std::max(prio, Prio::Low);
-        }
+        prio = std::max(prio, Prio::Medium);
     }
     if (mItemAntiStrike == 0) {
         prio = std::max(prio, Prio::Low); /* take BH */
@@ -933,7 +927,7 @@ Bot::Prio Bot::condVisitRouteBoxPlanning() {
 
     /* route strategy */
     bool timePassedRoutes = hoursPassed(ACTION_VISITROUTEBOX, kFrequencyRouteStrategy);
-    if (timePassedRoutes && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX) && mDoRoutes && !mKnownPlaneTypes.empty()) {
+    if (timePassedRoutes && qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
         if (!mRoutesUtilizationUpdated) {
             prio = std::max(prio, Prio::Medium); /* update cached route info */
         }
@@ -958,7 +952,7 @@ Bot::Prio Bot::condVisitRouteBoxRenting() {
     if (mRoutesToRemove) {
         prio = std::max(prio, Prio::Low);
     }
-    if (mDoRoutes) {
+    if (mDoRoutes || mRoutes.empty()) {
         bool shallRentNewRoute = true;
         if (!qPlayer.RobotUse(ROBOT_USE_ROUTEBOX)) {
             shallRentNewRoute = false;
@@ -1054,7 +1048,7 @@ Bot::Prio Bot::condBuyAdsForRoutes(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    if (!mDoRoutes || (mRoutesNextStep != RoutesNextStep::BuyAdsForRoute)) {
+    if (mRoutesNextStep != RoutesNextStep::BuyAdsForRoute) {
         return Prio::None;
     }
 
