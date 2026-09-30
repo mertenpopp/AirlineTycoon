@@ -341,6 +341,14 @@ static const SLONG kTakeoverSafetyPermille = 10;
  * sold in full. */
 static const SLONG kTakeoverDefenceFromDay = 30;
 
+/* Buy a rival's majority when its free float allows it and take it over (false) or
+ * liquidate it (true) - see tryOvertake(). */
+static const bool kOvertakeAirlines = true;
+static const bool kOvertakeLiquidate = true;
+
+/* Cash a share purchase for a takeover leaves in the account. */
+static const __int64 kOvertakeCashReserve = 2000000;
+
 /* Emission mode forced for every emission (0, 1 or 2), or -1 to pick the mode that raises
  * the most cash today. */
 static const SLONG kEmitMode = -1;
@@ -3964,6 +3972,8 @@ void ClaudeBot::executeStock() {
         }
     }
 
+    tryOvertake();
+
     SLONG maxShares = 0;
     if (GameMechanic::canEmitStock(qPlayer, &maxShares) != GameMechanic::EmitStockResult::Ok) {
         return;
@@ -4038,6 +4048,75 @@ void ClaudeBot::executeStock() {
     AT_Log("ClaudeBot::executeStock(): Emitted %ld shares (mode %ld) for %s at %ld, own stake %ld of %ld, cash now %s.", bestShares, bestMode,
            Insert1000erDots64(qPlayer.Money - before).c_str(), static_cast<SLONG>(qPlayer.Kurse[0]), qPlayer.OwnsAktien[self], qPlayer.AnzAktien,
            Insert1000erDots64(qPlayer.Money).c_str());
+}
+
+/* Takeover of a rival. canOvertakeAirline() wants AnzAktien / 2 of its shares and none of
+ * ours in its hands at 30% or more; AnzAktien and every holding may be read in the bank.
+ * The classic bots usually hold a majority of themselves, but sell up to 20,000 of their
+ * own shares at a time once their credit passes 3M, which opens the float in about a
+ * third of the games from day 38 on. The purchase is not scored, and the takeover takes
+ * effect in the next morning's boss dialog (GameMechanic::executeAirlineOvertake()). */
+void ClaudeBot::tryOvertake() {
+    if (!kOvertakeAirlines || Sim.Overtake != 0) {
+        return;
+    }
+    const SLONG self = qPlayer.PlayerNum;
+
+    SLONG bestTarget = -1;
+    SLONG bestShares = 0;
+    __int64 bestCost = 0;
+    for (SLONG c = 0; c < 4; c++) {
+        const auto &qRival = Sim.Players.Players[c];
+        if (c == self || qRival.IsOut != 0) {
+            continue;
+        }
+        if (GameMechanic::canOvertakeAirline(qPlayer, c) == GameMechanic::OvertakeAirlineResult::Ok) {
+            bestTarget = c;
+            bestShares = 0;
+            bestCost = 0;
+            break;
+        }
+        if (qRival.OwnsAktien[self] >= qPlayer.AnzAktien * 3 / 10) {
+            continue;
+        }
+        SLONG freeFloat = qRival.AnzAktien;
+        for (SLONG d = 0; d < 4; d++) {
+            freeFloat -= Sim.Players.Players[d].OwnsAktien[c];
+        }
+        const SLONG missing = qRival.AnzAktien / 2 - qPlayer.OwnsAktien[c];
+        if (missing <= 0 || missing > freeFloat) {
+            continue;
+        }
+        const auto preview = GameMechanic::buyStock(qPlayer, c, missing, false);
+        if (!preview.first || preview.second < kOvertakeCashReserve) {
+            continue;
+        }
+        const __int64 cost = qPlayer.Money - preview.second;
+        if (bestTarget == -1 || cost < bestCost) {
+            bestTarget = c;
+            bestShares = missing;
+            bestCost = cost;
+        }
+    }
+    if (bestTarget == -1) {
+        return;
+    }
+
+    const auto &qTarget = Sim.Players.Players[bestTarget];
+    if (bestShares > 0) {
+        if (!GameMechanic::buyStock(qPlayer, bestTarget, bestShares, true).first) {
+            return;
+        }
+        AT_Log("ClaudeBot::tryOvertake(): Bought %ld shares of %s for %s, now %ld of %ld.", bestShares, qTarget.AirlineX.c_str(),
+               Insert1000erDots64(bestCost).c_str(), qPlayer.OwnsAktien[bestTarget], qTarget.AnzAktien);
+    }
+    if (GameMechanic::canOvertakeAirline(qPlayer, bestTarget) != GameMechanic::OvertakeAirlineResult::Ok) {
+        AT_Warn("ClaudeBot::tryOvertake(): Still cannot take over %s.", qTarget.AirlineX.c_str());
+        return;
+    }
+    if (GameMechanic::overtakeAirline(qPlayer, bestTarget, kOvertakeLiquidate)) {
+        AT_Log("ClaudeBot::tryOvertake(): %s %s on day %ld.", kOvertakeLiquidate ? "Liquidating" : "Taking over", qTarget.AirlineX.c_str(), Sim.Date);
+    }
 }
 
 /* Own shares we need after an emission to a total of anzAktien: a rival needs
