@@ -288,6 +288,8 @@ class Bot {
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
     bool designerRoutePays(const CRoute &qRoute) const;
+    bool isMissionRoute(const CRoute &qRoute) const;
+    SLONG routeUtilizationTarget(const CRoute &qRoute) const;
     RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy);
     void findBestRoute();
     bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);

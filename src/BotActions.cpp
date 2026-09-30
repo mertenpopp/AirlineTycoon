@@ -495,7 +495,9 @@ void Bot::actionBuyNewPlane(__int64 moneyAvailable) {
     if (mDoRoutes) {
         assert(mImproveRouteId != -1);
         auto &qRoute = mRoutes[mImproveRouteId];
-        numToBuy = std::min(numToBuy, qRoute.numberOfPlanesTarget - static_cast<SLONG>(qRoute.planeIds.size()));
+        /* a mission route may grow past its plan until its own utilization clears the goal (routesFindNextStep()) */
+        SLONG planesCap = isMissionRoute(getRoute(qRoute)) ? 2 * std::max<SLONG>(1, qRoute.numberOfPlanesTarget) : qRoute.numberOfPlanesTarget;
+        numToBuy = std::min(numToBuy, planesCap - static_cast<SLONG>(qRoute.planeIds.size()));
         if (numToBuy < 1) {
             AT_Error("Bot::actionBuyNewPlane(): No more planes needed for route %s", Helper::getRouteName(getRoute(qRoute)).c_str());
             return;
