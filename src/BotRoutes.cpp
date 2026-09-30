@@ -328,7 +328,16 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         if (mRoutes[i].planeTypeId == -1) {
             continue;
         }
-        if (mRoutes[i].planeIds.size() < mRoutes[i].numberOfPlanesTarget) {
+        const auto &qRoute = getRoute(mRoutes[i]);
+        const auto numPlanes = static_cast<SLONG>(mRoutes[i].planeIds.size());
+        if (isMissionRoute(qRoute)) {
+            /* the goal needs our own share above the threshold, whoever else flies the route: keep adding planes while
+             * we are short of it, up to twice the planned number */
+            if (mRoutes[i].routeOwnUtilization < routeUtilizationTarget(qRoute) && numPlanes < 2 * std::max<SLONG>(1, mRoutes[i].numberOfPlanesTarget)) {
+                routeToBuyPlanes = i;
+                break;
+            }
+        } else if (numPlanes < mRoutes[i].numberOfPlanesTarget) {
             if (mRoutes[i].routeUtilization < 90 && mRoutes[i].routeOwnUtilization < mOptions.kMaximumRouteUtilization) {
                 routeToBuyPlanes = i;
                 break;
@@ -435,6 +444,30 @@ bool Bot::designerRoutePays(const CRoute &qRoute) const {
     return profitPerWeek >= kDesignerRouteMinWeeklyReturn * qPlaneType.Preis;
 }
 
+/* Own route utilization aimed for on a mission route (DIFF_NORMAL). The goal counts a direction only above
+ * 20% (Aufsicht.cpp), so aiming at exactly 20% left routes hovering around the threshold. */
+static const SLONG kMissionRouteUtilization = 30;
+
+/* Room: any (only reads VonCity/NachCity). True for a route between home and a mission city in a route mission. */
+bool Bot::isMissionRoute(const CRoute &qRoute) const {
+    if (!qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
+        return false;
+    }
+    auto homeAirport = static_cast<ULONG>(Sim.HomeAirportId);
+    for (SLONG d = 0; d < 6; d++) {
+        auto missionCity = static_cast<ULONG>(Sim.MissionCities[d]);
+        if ((qRoute.VonCity == homeAirport && qRoute.NachCity == missionCity) || (qRoute.NachCity == homeAirport && qRoute.VonCity == missionCity)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Room: any. Own utilization in % of weekly demand we size a route for. */
+SLONG Bot::routeUtilizationTarget(const CRoute &qRoute) const {
+    return isMissionRoute(qRoute) ? kMissionRouteUtilization : mOptions.kMaximumRouteUtilization;
+}
+
 /* Room: route box (CRoute::Miete, CRoute::AnzPassagiere()) */
 Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy) {
     const auto &qRoute = Routen[routeId];
@@ -464,8 +497,11 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
 
     /* estimate our target share, considering current utilization of route */
     SLONG routeUtilization = 0;
-    SLONG targetSharePercent = mOptions.kMaximumRouteUtilization;
-    if (qPlayer.HasBerater(BERATERTYP_INFO) > 0) {
+    const bool missionRoute = isMissionRoute(qRoute);
+    SLONG targetSharePercent = routeUtilizationTarget(qRoute);
+    if (missionRoute) {
+        /* we need this route whoever else flies it: competitors do not reduce our target */
+    } else if (qPlayer.HasBerater(BERATERTYP_INFO) > 0) {
         for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
             const auto &qqPlayer = Sim.Players.Players[i];
             if (i == qPlayer.PlayerNum || qqPlayer.IsOut != 0) {
@@ -509,16 +545,9 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     }
 
     /* is this route important for our mission */
-    if (qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
-        auto homeAirport = static_cast<ULONG>(Sim.HomeAirportId);
-        for (SLONG d = 0; d < 6; d++) {
-            auto missionCity = static_cast<ULONG>(Sim.MissionCities[d]);
-            if ((qRoute.VonCity == homeAirport && qRoute.NachCity == missionCity) || (qRoute.NachCity == homeAirport && qRoute.VonCity == missionCity)) {
-
-                AT_Log("Bot::calcRouteScore(): Route %s is important for mission, increasing score.", Helper::getRouteName(qRoute).c_str());
-                profitPerWeek *= 10;
-            }
-        }
+    if (missionRoute) {
+        AT_Log("Bot::calcRouteScore(): Route %s is important for mission, increasing score.", Helper::getRouteName(qRoute).c_str());
+        profitPerWeek *= 10;
     }
     return {profitPerWeek, routeId, planeTypeId, existingPlaneIds[planeTypeId], planesToBuy};
 }
@@ -631,7 +660,7 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
 
     SLONG numberOfPlanesTarget = 0;
     if (planeTypeForNewRoute != -1) {
-        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), mOptions.kMaximumRouteUtilization);
+        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), routeUtilizationTarget(Routen[routeA]));
         numberOfPlanesTarget *= 2; /* for each route leg */
     }
     /* a route for planes we already own (the starter plane) keeps that many planes,
@@ -925,7 +954,12 @@ void Bot::assignPlanesToRoutes(bool areWeInOffice) {
         SLONG targetRouteIdx = -1;
         for (SLONG routeIdx : mRoutesSortedByOwnUtilization) {
             auto &qRoute = mRoutes[routeIdx];
-            if (qRoute.routeUtilization >= mOptions.kMaximumRouteUtilization) {
+            const auto &qRouteData = getRoute(qRoute);
+            if (isMissionRoute(qRouteData)) {
+                if (qRoute.routeOwnUtilization >= routeUtilizationTarget(qRouteData)) {
+                    continue; /* competitors do not count against a mission route, only our own share does */
+                }
+            } else if (qRoute.routeUtilization >= mOptions.kMaximumRouteUtilization) {
                 continue;
             }
             if (qRoute.planeTypeId == -1) {
