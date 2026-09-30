@@ -333,6 +333,21 @@ static const SLONG kDividend = 25;
  * Turn it back on once a flight is profitable - see DECISIONS.md. */
 static const bool kEmitStock = true;
 
+/* Own shares held on top of the bare majority, in permille of all shares - see
+ * sharesToHold(). */
+static const SLONG kTakeoverSafetyPermille = 10;
+
+/* First day the takeover defence in executeStock() applies; before it every emission is
+ * sold in full. */
+static const SLONG kTakeoverDefenceFromDay = 30;
+
+/* Emission mode forced for every emission (0, 1 or 2), or -1 to pick the mode that raises
+ * the most cash today. */
+static const SLONG kEmitMode = -1;
+
+/* Emission sizes tried between the minimum (10% of what may be issued) and the maximum. */
+static const SLONG kEmitSteps = 20;
+
 /* Below this much cash we top up at the bank. */
 static const __int64 kCashBuffer = 500000;
 
@@ -3917,18 +3932,143 @@ void ClaudeBot::executeStock() {
         GameMechanic::setDividend(qPlayer, kDividend);
     }
 
+    const SLONG self = qPlayer.PlayerNum;
+    SLONG freeFloat = qPlayer.AnzAktien;
+    for (SLONG c = 0; c < 4; c++) {
+        freeFloat -= Sim.Players.Players[c].OwnsAktien[self];
+        if (c != self && Sim.Players.Players[c].OwnsAktien[self] > 0) {
+            AT_Log("ClaudeBot::executeStock(): %s holds %ld of our %ld shares.", Sim.Players.Players[c].AirlineX.c_str(), Sim.Players.Players[c].OwnsAktien[self],
+                   qPlayer.AnzAktien);
+        }
+    }
+
+    /* Once the defence is on, first close any gap in our own stake - also on days without an
+     * emission, and also when it costs more than the next emission raises. As much as the
+     * cash allows without going into the red. */
+    if (Sim.Date >= kTakeoverDefenceFromDay) {
+        SLONG missing = std::min(freeFloat, sharesToHold(qPlayer.AnzAktien) - qPlayer.OwnsAktien[self]);
+        while (missing > 0) {
+            const auto preview = GameMechanic::buyStock(qPlayer, self, missing, false);
+            if (preview.first && preview.second >= 0) {
+                break;
+            }
+            missing = missing * 3 / 4;
+        }
+        if (missing > 0) {
+            const __int64 before = qPlayer.Money;
+            if (GameMechanic::buyStock(qPlayer, self, missing, true).first) {
+                freeFloat -= missing;
+                AT_Log("ClaudeBot::executeStock(): Bought back %ld own shares for %s to block a takeover, own stake %ld of %ld.", missing,
+                       Insert1000erDots64(before - qPlayer.Money).c_str(), qPlayer.OwnsAktien[self], qPlayer.AnzAktien);
+            }
+        }
+    }
+
     SLONG maxShares = 0;
     if (GameMechanic::canEmitStock(qPlayer, &maxShares) != GameMechanic::EmitStockResult::Ok) {
-            return;
+        return;
+    }
+
+    /* Takeover defence. A rival may take us over (and liquidate us, which freezes the score)
+     * once he holds AnzAktien / 2 of our shares, and he can buy every share nobody holds in
+     * one bank visit. Only our own emissions change AnzAktien or our own stake, so holding
+     * more than half ourselves after every emission makes a takeover impossible for good.
+     *
+     * The three emission modes keep 0 / 20 / 40% of the new shares for us and pay
+     * 0.9 * (P - 5) / 0.7 * (P - 3) / 0.5 * (P - 1) per share issued. Pick the mode and size
+     * that raise the most cash, buying back from the free float whatever an option leaves
+     * missing below sharesToHold(): a share bought back costs about 1.1 P and makes room for
+     * two more emitted in mode 0 or ten in mode 2, so it pays for itself many times over. */
+    const SLONG own = qPlayer.OwnsAktien[self];
+    const SLONG minShares = 10 * maxShares / 100;
+    SLONG bestMode = -1;
+    SLONG bestShares = 0;
+    SLONG bestBuy = 0;
+    __int64 bestNet = 0;
+    for (SLONG mode = 0; mode <= 2; mode++) {
+        if (kEmitMode >= 0 && mode != kEmitMode) {
+            continue;
+        }
+        for (SLONG step = 0; step <= kEmitSteps; step++) {
+            const SLONG shares = minShares + static_cast<SLONG>(static_cast<__int64>(maxShares - minShares) * step / kEmitSteps);
+            const SLONG kept = shares - (mode == 0 ? shares : (mode == 1 ? shares * 8 / 10 : shares * 6 / 10));
+            const SLONG shortfall =
+                Sim.Date < kTakeoverDefenceFromDay ? 0 : std::max(0, sharesToHold(qPlayer.AnzAktien + shares) - own - kept);
+            if (shortfall > freeFloat) {
+                continue;
+            }
+            __int64 cost = 0;
+            if (shortfall > 0) {
+                const auto preview = GameMechanic::buyStock(qPlayer, self, shortfall, false);
+                if (!preview.first || preview.second < 0) {
+                    continue;
+                }
+                cost = qPlayer.Money - preview.second;
+            }
+            const __int64 net = emissionCash(shares, mode) - cost;
+            if (net > bestNet) {
+                bestNet = net;
+                bestMode = mode;
+                bestShares = shares;
+                bestBuy = shortfall;
+            }
+        }
+    }
+    if (bestMode < 0) {
+        AT_Log("ClaudeBot::executeStock(): No emission keeps us safe (own %ld of %ld, free %ld).", own, qPlayer.AnzAktien, freeFloat);
+        return;
     }
 
     const __int64 before = qPlayer.Money;
-    if (!GameMechanic::emitStock(qPlayer, maxShares, 0)) {
+    if (bestBuy > 0) {
+        if (!GameMechanic::buyStock(qPlayer, self, bestBuy, true).first) {
             return;
+        }
+        AT_Log("ClaudeBot::executeStock(): Bought back %ld own shares for %s.", bestBuy, Insert1000erDots64(before - qPlayer.Money).c_str());
+    }
+    const SLONG keptByMode = bestShares - (bestMode == 0 ? bestShares : (bestMode == 1 ? bestShares * 8 / 10 : bestShares * 6 / 10));
+    if (Sim.Date >= kTakeoverDefenceFromDay && qPlayer.OwnsAktien[self] + keptByMode < sharesToHold(qPlayer.AnzAktien + bestShares)) {
+        AT_Warn("ClaudeBot::executeStock(): Emission would put our stake below the takeover limit, skipped.");
+        return;
+    }
+    if (!GameMechanic::emitStock(qPlayer, bestShares, bestMode)) {
+        return;
     }
 
-    AT_Log("ClaudeBot::executeStock(): Emitted %ld shares for %s at %ld, cash now %s.", maxShares, Insert1000erDots64(qPlayer.Money - before).c_str(),
-           static_cast<SLONG>(qPlayer.Kurse[0]), Insert1000erDots64(qPlayer.Money).c_str());
+    AT_Log("ClaudeBot::executeStock(): Emitted %ld shares (mode %ld) for %s at %ld, own stake %ld of %ld, cash now %s.", bestShares, bestMode,
+           Insert1000erDots64(qPlayer.Money - before).c_str(), static_cast<SLONG>(qPlayer.Kurse[0]), qPlayer.OwnsAktien[self], qPlayer.AnzAktien,
+           Insert1000erDots64(qPlayer.Money).c_str());
+}
+
+/* Own shares we need after an emission to a total of anzAktien: a rival needs
+ * AnzAktien / 2 for a takeover (GameMechanic::canOvertakeAirline()), so he must never be
+ * able to buy that many from what we do not hold. */
+SLONG ClaudeBot::sharesToHold(SLONG anzAktien) const {
+    return anzAktien - anzAktien / 2 + 1 + static_cast<SLONG>(static_cast<__int64>(anzAktien) * kTakeoverSafetyPermille / 1000);
+}
+
+/* Cash GameMechanic::emitStock() books for an emission: issue value, fee and the
+ * compensation for the price drop on the shares we do not hold. */
+__int64 ClaudeBot::emissionCash(SLONG neueAktien, SLONG mode) const {
+    const __int64 anzAktien = qPlayer.AnzAktien;
+    const auto stockPrice = static_cast<__int64>(qPlayer.Kurse[0]);
+    __int64 emissionsKurs = stockPrice - 5;
+    __int64 marktAktien = neueAktien;
+    if (mode == 1) {
+        emissionsKurs = stockPrice - 3;
+        marktAktien = neueAktien * 8 / 10;
+    } else if (mode == 2) {
+        emissionsKurs = stockPrice - 1;
+        marktAktien = neueAktien * 6 / 10;
+    }
+    const __int64 emissionsWert = marktAktien * emissionsKurs;
+    const __int64 emissionsGebuehr = neueAktien * emissionsKurs / 10 / 100 * 100;
+    DOUBLE neuerKurs = (qPlayer.Kurse[0] * anzAktien + emissionsWert) / (anzAktien + marktAktien);
+    if (neuerKurs < 0) {
+        neuerKurs = 0;
+    }
+    const auto entschaedigung = static_cast<__int64>(std::round((anzAktien - qPlayer.OwnsAktien[qPlayer.PlayerNum]) * (qPlayer.Kurse[0] - neuerKurs)));
+    return emissionsWert - emissionsGebuehr + entschaedigung;
 }
 
 
