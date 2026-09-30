@@ -293,6 +293,8 @@ class ClaudeBot {
     void executeMech();
     void executeBank();
     void executeStock();
+    SLONG sharesToHold(SLONG anzAktien) const;
+    __int64 emissionCash(SLONG neueAktien, SLONG mode) const;
     void executeRouteBox();
     void executeBoss();
     void bidOnOffices(SLONG numPlanes);
