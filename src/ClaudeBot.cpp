@@ -4646,10 +4646,8 @@ void ClaudeBot::executeKerosinTanks() {
 
     cacheKerosinPrice();
 
-    /* Planes only draw from the tank while it is open, and a closed tank is dead capital.
-     * Set unconditionally: `TankOpen` may only be *read* in the personal office (RULES.md),
-     * and the call is idempotent. */
-    GameMechanic::setKerosinTankOpen(qPlayer, TRUE);
+    /* The tank is opened in the office, not here: setKerosinTankOpen() is an office action
+     * (RULES.md) - see executeOffice(). */
 
     const SLONG target = fuelTankTarget();
 
@@ -4737,6 +4735,13 @@ void ClaudeBot::executeOffice() {
      * of them anywhere else is cached here. */
     cacheKerosinPrice();
     cacheFuelBurn();
+
+    /* Planes only draw from the tank while it is open, and a closed tank is dead capital. Both
+     * the switch and `TankOpen` are office-only (RULES.md), so this is where the tank the Arab
+     * sold us is opened. Only where the bot runs a tank at all, so nothing else changes. */
+    if ((kUseFuelArbitrage || mMission.fuelFromTank) && qPlayer.Tank > 0 && qPlayer.TankOpen == 0) {
+        GameMechanic::setKerosinTankOpen(qPlayer, TRUE);
+    }
 
     /* The weekly balance is legal here (office plus financial advisor) and nowhere else,
      * so this is where the running score is logged. Once a day is enough. */
@@ -5848,16 +5853,21 @@ void ClaudeBot::executeSabotage() {
     mVisitedSaboteurToday = true;
 
     if (mMission.wantNoSabotage) {
+        /* RULES.md: WorkCountdown may only be released when nothing was done here. */
+        bool actedHere = false;
         if (Sim.ItemZange != 0) {
             /* Yesterday's pair only takes up a slot. */
             if (qPlayer.HasItem(ITEM_ZANGE) != 0) {
-                GameMechanic::removeItem(qPlayer, ITEM_ZANGE);
+                actedHere = GameMechanic::removeItem(qPlayer, ITEM_ZANGE) || actedHere;
             }
             auto res = GameMechanic::pickUpItem(qPlayer, ITEM_ZANGE);
+            actedHere = (res == GameMechanic::PickUpItemResult::PickedUp) || actedHere;
             AT_Log("ClaudeBot::executeSabotage(): Keeping today's pliers away from the others: %s.",
                    res == GameMechanic::PickUpItemResult::PickedUp ? "taken" : "failed");
         }
-        qPlayer.WorkCountdown = 2;
+        if (!actedHere) {
+            qPlayer.WorkCountdown = 2;
+        }
         return;
     }
 
