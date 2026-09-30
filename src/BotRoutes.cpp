@@ -333,7 +333,7 @@ std::pair<Bot::RoutesNextStep, SLONG> Bot::routesFindNextStep() const {
         if (isMissionRoute(qRoute)) {
             /* the goal needs our own share above the threshold, whoever else flies the route: keep adding planes while
              * we are short of it, up to twice the planned number */
-            if (mRoutes[i].routeOwnUtilization < routeUtilizationTarget(qRoute) && numPlanes < 2 * std::max<SLONG>(1, mRoutes[i].numberOfPlanesTarget)) {
+            if (mRoutes[i].routeOwnUtilization < routeUtilizationTarget(qRoute) && numPlanes < 2 * std::max(1, mRoutes[i].numberOfPlanesTarget)) {
                 routeToBuyPlanes = i;
                 break;
             }
@@ -444,10 +444,6 @@ bool Bot::designerRoutePays(const CRoute &qRoute) const {
     return profitPerWeek >= kDesignerRouteMinWeeklyReturn * qPlaneType.Preis;
 }
 
-/* Own route utilization aimed for on a mission route (DIFF_NORMAL). The goal counts a direction only above
- * 20% (Aufsicht.cpp), so aiming at exactly 20% left routes hovering around the threshold. */
-static const SLONG kMissionRouteUtilization = 30;
-
 /* Room: any (only reads VonCity/NachCity). True for a route between home and a mission city in a route mission. */
 bool Bot::isMissionRoute(const CRoute &qRoute) const {
     if (!qPlayer.RobotUse(ROBOT_USE_ROUTEMISSION)) {
@@ -464,9 +460,9 @@ bool Bot::isMissionRoute(const CRoute &qRoute) const {
 }
 
 /* Room: any. Own utilization in % of weekly demand we size a route for. */
-SLONG Bot::routeUtilizationTarget(const CRoute &qRoute) const {
-    return isMissionRoute(qRoute) ? kMissionRouteUtilization : mOptions.kMaximumRouteUtilization;
-}
+/* Own route utilization aimed for on a mission route (DIFF_NORMAL). The goal counts a direction only above
+ * 20% (Aufsicht.cpp), so aiming at exactly 20% left routes hovering around the threshold. */
+SLONG Bot::routeUtilizationTarget(const CRoute &qRoute) const { return isMissionRoute(qRoute) ? 30 : mOptions.kMaximumRouteUtilization; }
 
 /* Room: route box (CRoute::Miete, CRoute::AnzPassagiere()) */
 Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy) {
@@ -660,7 +656,8 @@ bool Bot::addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute) {
 
     SLONG numberOfPlanesTarget = 0;
     if (planeTypeForNewRoute != -1) {
-        numberOfPlanesTarget = Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), routeUtilizationTarget(Routen[routeA]));
+        numberOfPlanesTarget =
+            Helper::getNumberOfPlanesNeededForRoute(Routen[routeA], getPlaneType(planeTypeForNewRoute), routeUtilizationTarget(Routen[routeA]));
         numberOfPlanesTarget *= 2; /* for each route leg */
     }
     /* a route for planes we already own (the starter plane) keeps that many planes,
