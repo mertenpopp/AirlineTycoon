@@ -386,8 +386,15 @@ class ClaudeBot {
                        bool alreadyOurs = false) const;
     /* One out-and-back into one idle window, for any city pair and date range. The kerosene
      * of the empty return the game inserts itself is part of outCost. */
-    static bool fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
-                              PlaneTime &outBack, SLONG &outCost);
+    bool fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
+                       PlaneTime &outBack, SLONG &outCost) const;
+
+    /* --- cost estimates, all priced at the cached mKerosinPrice --- */
+    /* Only legal in the personal office or at the Arab: reads today's price into the cache. */
+    void cacheKerosinPrice();
+    void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) const;
+    SLONG routePriceBase(ULONG vonCity, ULONG nachCity) const;
+    SLONG routeValuePerHour(const CPlane &qPlane, const CRoute &qRoute) const;
     /* Spreads a freight job over the idle windows of the given planes, earliest window
      * first. Returns the tons that can be delivered before the deadline; outCost is the
      * kerosene of every leg plus one refit charge per window used. The windows passed in
@@ -509,6 +516,14 @@ class ClaudeBot {
      * balance. The Arab and the broker size the fuel manoeuvre from this, because neither
      * may read the balance itself. */
     SLONG mFuelUnitsPerDay{0};
+
+    /* The kerosene price as this airline last saw it in the office or at the Arab, the day it
+     * was read, and its running mean x100. Per bot, not per game: a second ClaudeBot airline
+     * must not price its flights with what the first one looked up. The default is the opening
+     * price (Sim.cpp:590) and stands until the first office or Arab visit. */
+    SLONG mKerosinPrice{500};
+    SLONG mKerosinPriceDay{-1};
+    SLONG mKerosinAvgX100{500 * 100};
 
     /* Yesterday's ticket revenue, cached in the office (BilanzGestern needs the office and a
      * financial advisor) for the advertising agency to size the airline image by. */

@@ -770,35 +770,20 @@ static SLONG sabotageJobCost(const SabotageJob &qJob) {
     return SabotagePrice3[qJob.number - 1];
 }
 
-/* The kerosene price, cached once a day.
+/* The kerosene price, cached once a day - see mKerosinPrice.
  *
  * RULES.md permits `Sim.Kerosin` / `Sim.HoleKerosinPreis()` at the Arab and in the personal
  * office, and records that the price is fixed for the whole day - so it may be read once and
- * used in any room. Every cost estimate in the bot goes through this value: the route
- * valuation at the route box, the aeroplane ranking at the broker, the museum, and every
- * fit-a-job-into-a-window calculation.
- *
- * File scope rather than a member because the price is global - it is the same number for
- * every airline - and because the two cost helpers below are free functions. The value is
- * still bot state, so it is serialised with the rest of it.
- *
- * The default is the midpoint of the [300, 700] band SIM::NewDay clamps the walk to, and
- * stands only until the first office or Arab visit of the game. */
-static SLONG gKerosinPrice = 500;
-static SLONG gKerosinPriceDay = -1;
-/* Running mean of the daily price, x100 to keep a fraction. Seeded at the opening price. */
-static SLONG gKerosinAvgX100 = 500 * 100;
-
-/* Only legal in the personal office or at the Arab. */
-static void cacheKerosinPrice() {
+ * used in any room. Only legal in the personal office or at the Arab. */
+void ClaudeBot::cacheKerosinPrice() {
     const SLONG price = Sim.HoleKerosinPreis(1);
     if (price > 0) {
-        if (gKerosinPriceDay != Sim.Date) {
+        if (mKerosinPriceDay != Sim.Date) {
             /* One sample a day, exponentially weighted over about a fortnight. */
-            gKerosinAvgX100 += (price * 100 - gKerosinAvgX100) / 14;
+            mKerosinAvgX100 += (price * 100 - mKerosinAvgX100) / 14;
         }
-        gKerosinPrice = price;
-        gKerosinPriceDay = Sim.Date;
+        mKerosinPrice = price;
+        mKerosinPriceDay = Sim.Date;
     }
 }
 
@@ -2249,7 +2234,7 @@ void ClaudeBot::RobotExecuteAction() {
 /* Cost / duration / distance of one flight leg.
  * Mirrors CITIES::CalcFlugdauer(), CalculateFlightKerosin() and
  * CalculateFlightCostNoTank(); taken from RULES.md. */
-static void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
+void ClaudeBot::calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) const {
     assert(startCity >= 0 && startCity < Cities.AnzEntries());
     assert(destCity >= 0 && destCity < Cities.AnzEntries());
 
@@ -2263,7 +2248,7 @@ static void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlan
                      * qPlane.ptVerbrauch / 160 // Liter pro Barrel
                      / qPlane.ptGeschwindigkeit;
 
-    cost = kerosene * gKerosinPrice;
+    cost = kerosene * mKerosinPrice;
     if (cost < 1000) {
         cost = 1000;
     }
@@ -2282,9 +2267,9 @@ static void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlan
  * Mirrors CalculateFlightCost(von, nach, 800, 800, -1) * 3 / 180 * 2 from
  * CFlugplanEintrag::CalcPassengers(). Passenger numbers scale with 1/price above three
  * times this value, so revenue is flat beyond that: three times it is the best price. */
-static SLONG routePriceBase(ULONG vonCity, ULONG nachCity) {
+SLONG ClaudeBot::routePriceBase(ULONG vonCity, ULONG nachCity) const {
     SLONG kerosene = Cities.CalcDistance(vonCity, nachCity) / 1000 * kRefVerbrauch / 160 / kRefGeschwindigkeit;
-    return kerosene * gKerosinPrice * 3 / 180 * 2;
+    return kerosene * mKerosinPrice * 3 / 180 * 2;
 }
 
 /* What one pair is worth per plane hour to a given aeroplane.
@@ -2295,7 +2280,7 @@ static SLONG routePriceBase(ULONG vonCity, ULONG nachCity) {
  *
  * Returns a value that only makes sense if the plane can actually reach the pair; callers
  * check ptReichweite themselves. */
-static SLONG routeValuePerHour(const CPlane &qPlane, const CRoute &qRoute) {
+SLONG ClaudeBot::routeValuePerHour(const CPlane &qPlane, const CRoute &qRoute) const {
     int cost = 0;
     int duration = 0;
     int dist = 0;
@@ -2516,7 +2501,7 @@ void ClaudeBot::hireAdvisors() {
  *
  * [fromDate, toDate] is the contract window the departure has to fall into. */
 bool ClaudeBot::fitLegIntoGap(const PlaneGap &qGap, const CPlane &qPlane, ULONG vonCity, ULONG nachCity, SLONG fromDate, SLONG toDate, PlaneTime &outStart,
-                              PlaneTime &outBack, SLONG &outCost) {
+                              PlaneTime &outBack, SLONG &outCost) const {
     if (qGap.city < 0) {
         return false;
     }
@@ -3301,7 +3286,7 @@ void ClaudeBot::executeBuyPlane() {
         }
 
         SLONG kerosene = target->distance / 1000 * qType.Verbrauch / 160 / qType.Geschwindigkeit;
-        SLONG cost = std::max<SLONG>(1000, kerosene * gKerosinPrice);
+        SLONG cost = std::max<SLONG>(1000, kerosene * mKerosinPrice);
 
         /* A new plane is fitted out 6/8 economy, 1/8 first class (Planetyp.cpp:241), and is
          * valued at the load that cabin will actually carry rather than at a full one -
@@ -4603,7 +4588,7 @@ SLONG ClaudeBot::takeFreightFromBoard(CFrachten &board, const JobTaker &take, co
 // Arab: tanks, and kerosene bought when it is cheap.
 //
 // The kerosene price may be read here and in the personal office (RULES.md), and holds for
-// the whole day - cacheKerosinPrice() seeds gKerosinPrice from whichever comes first.
+// the whole day - cacheKerosinPrice() seeds mKerosinPrice from whichever comes first.
 //--------------------------------------------------------------------------------------------
 /* Measures the day's burn off yesterday's balance and caches it for the Arab and the broker,
  * neither of which may read it.
@@ -4618,11 +4603,11 @@ void ClaudeBot::cacheFuelBurn() {
         return; /* not allowed to look; keep yesterday's figure */
     }
     mTicketsYesterday = qPlayer.BilanzGestern.Tickets;
-    if (gKerosinPrice <= 0) {
+    if (mKerosinPrice <= 0) {
         return;
     }
     const __int64 spentYesterday = qPlayer.BilanzGestern.KerosinGespart - qPlayer.BilanzGestern.KerosinFlug;
-    mFuelUnitsPerDay = static_cast<SLONG>(std::max<__int64>(0, spentYesterday / gKerosinPrice));
+    mFuelUnitsPerDay = static_cast<SLONG>(std::max<__int64>(0, spentYesterday / mKerosinPrice));
 }
 
 /* Capacity we want: a few days of flying, so a cheap phase of the price walk can be stocked
@@ -4639,7 +4624,7 @@ SLONG ClaudeBot::fuelTankTarget() const {
 /* Whether today is a day to stock up. The price is cached once a day in the office or at the
  * Arab (RULES.md permits it in both and fixes it for the day), so this may be asked anywhere
  * - including from RobotPlan(), which decides whether the walk to the Arab is worth it. */
-bool ClaudeBot::fuelIsCheap() const { return gKerosinPrice > 0 && gKerosinPrice * 100 * 100 <= gKerosinAvgX100 * kKerosinBuyBelowPercent; }
+bool ClaudeBot::fuelIsCheap() const { return mKerosinPrice > 0 && mKerosinPrice * 100 * 100 <= mKerosinAvgX100 * kKerosinBuyBelowPercent; }
 
 void ClaudeBot::executeKerosinTanks() {
     mVisitedTanksToday = true;
@@ -4722,7 +4707,7 @@ void ClaudeBot::executeBuyKerosin() {
 
     if (GameMechanic::buyKerosin(qPlayer, kKerosinGrade, amount)) {
         AT_Log("ClaudeBot::executeBuyKerosin(): Bought %ld units at %ld (running mean %ld), tank now %ld/%ld at an average of %.0f.", amount, price,
-               gKerosinAvgX100 / 100, static_cast<SLONG>(qPlayer.TankInhalt), static_cast<SLONG>(qPlayer.Tank), qPlayer.TankPreis);
+               mKerosinAvgX100 / 100, static_cast<SLONG>(qPlayer.TankInhalt), static_cast<SLONG>(qPlayer.Tank), qPlayer.TankPreis);
     }
 }
 
@@ -6418,10 +6403,10 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
     File << bot.mMood;
     File << bot.mMoodNext;
 
-    /* The cached kerosene price is bot state even though it lives at file scope. */
-    File << gKerosinPrice;
-    File << gKerosinPriceDay;
-    File << gKerosinAvgX100;
+    /* The cached kerosene price, same place in the block as when it lived at file scope. */
+    File << bot.mKerosinPrice;
+    File << bot.mKerosinPriceDay;
+    File << bot.mKerosinAvgX100;
 
     /* Routes we rent, cached at the route box. Without these the bot would not advertise,
      * buy an aeroplane or schedule a route leg until its next route box visit. */
@@ -6515,9 +6500,9 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
     File >> bot.mMood;
     File >> bot.mMoodNext;
 
-    File >> gKerosinPrice;
-    File >> gKerosinPriceDay;
-    File >> gKerosinAvgX100;
+    File >> bot.mKerosinPrice;
+    File >> bot.mKerosinPriceDay;
+    File >> bot.mKerosinAvgX100;
 
     SLONG numRoutes = 0;
     File >> numRoutes;
