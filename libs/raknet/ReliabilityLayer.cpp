@@ -2885,8 +2885,14 @@ void ReliabilityLayer::InsertIntoSplitPacketList(InternalPacket *internalPacket,
         ReleaseToInternalPacketPool(internalPacket);
     }
 #else
-    // Insert the packet into the SplitPacketChannel
-    splitPacketChannelList[index]->splitPacketList.Insert(internalPacket, __FILE__, __LINE__);
+    // Insert the packet into the SplitPacketChannel, keeping the list sorted by splitPacketIndex.
+    // Fragments arrive in any order (UDP reordering, resends) and BuildPacketFromSplitPacketList
+    // concatenates the list as it stands: appending here reassembled the message with fragments swapped.
+    DataStructures::List<InternalPacket *> &splitPacketList = splitPacketChannelList[index]->splitPacketList;
+    unsigned insertAt = splitPacketList.Size();
+    while (insertAt > 0 && splitPacketList[insertAt - 1]->splitPacketIndex > internalPacket->splitPacketIndex)
+        insertAt--;
+    splitPacketList.Insert(internalPacket, insertAt, __FILE__, __LINE__);
     splitPacketChannelList[index]->lastUpdateTime = time;
 
     // If the index is 0, then this is the first packet. Record this so it can be returned to the user with download progress
