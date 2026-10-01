@@ -1138,17 +1138,85 @@ void PumpNetwork() {
                 SLONG Anz = 0;
                 SLONG PlayerNum = 0;
 
-                Message >> Anz;
+                /* This message used to be read straight into the live players. A reader that
+                   failed halfway left a player with half overwritten planes, and the game died a
+                   few steps later. Read into scratch objects first and only take them over once
+                   the whole message has parsed. */
+                struct PendingPlanes {
+                    SLONG PlayerNum{};
+                    CPlanes Planes;
+                    CAuftraege Auftraege;
+                    CFrachten Frachten;
+                    CRentCities RentCities;
+                };
+                std::deque<PendingPlanes> Pending;
 
-                while (Anz > 0) {
-                    Message >> PlayerNum;
-                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                const char *Stage = "count";
+                SLONG StageStart = Message.MemPointer;
+                SLONG Entry = 0;
+                bool bParsed = false;
 
-                    PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                try {
+                    Message >> Anz;
+                    if (Anz < 0 || Anz > 4) {
+                        TeakLibW_Exception(FNL, "Invalid player count %ld in message %s", static_cast<long>(Anz), Translate_ATNET(MessageType));
+                    }
 
-                    Message >> qPlayer.Planes >> qPlayer.Auftraege >> qPlayer.Frachten >> qPlayer.RentCities;
+                    for (Entry = 0; Entry < Anz; Entry++) {
+                        Stage = "playernum";
+                        StageStart = Message.MemPointer;
+                        Message >> PlayerNum;
+                        PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                    Anz--;
+                        Pending.emplace_back();
+                        PendingPlanes &qPending = Pending.back();
+                        qPending.PlayerNum = PlayerNum;
+
+                        Stage = "planes";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Planes;
+
+                        Stage = "orders";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Auftraege;
+
+                        Stage = "freight";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Frachten;
+
+                        Stage = "rentcities";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.RentCities;
+                    }
+                    bParsed = true;
+                } catch (TeakLibException &ex) {
+                    AT_Log("SYNC_PLANES rejected: %s", ex.what());
+                    ex.caught();
+                } catch (std::exception &ex) {
+                    /* A misread length ends in std::length_error or std::bad_alloc, which nobody
+                       above catches. */
+                    AT_Log("SYNC_PLANES rejected: %s", ex.what());
+                }
+
+                if (!bParsed) {
+                    AT_Log("SYNC_PLANES rejected: entry=%ld/%ld player=%ld stage=%s stagestart=%ld failedat=%ld bytes=%ld day=%ld t=%ld",
+                           static_cast<long>(Entry), static_cast<long>(Anz), static_cast<long>(PlayerNum), Stage, static_cast<long>(StageStart),
+                           static_cast<long>(Message.MemPointer), static_cast<long>(Message.MemBufferUsed), static_cast<long>(Sim.Date),
+                           static_cast<long>(Sim.Time));
+                    NetTraceEvent("DROP name=%s reason=stage %s", Translate_ATNET(MessageType), Stage);
+
+                    /* Nothing was taken over, so the tail check below has nothing to say. */
+                    Message.MemPointer = static_cast<SLONG>(Message.MemBufferUsed);
+                    break;
+                }
+
+                for (auto &qPending : Pending) {
+                    PLAYER &qPlayer = Sim.Players.Players[qPending.PlayerNum];
+
+                    qPlayer.Planes = std::move(qPending.Planes);
+                    qPlayer.Auftraege = std::move(qPending.Auftraege);
+                    qPlayer.Frachten = std::move(qPending.Frachten);
+                    qPlayer.RentCities = std::move(qPending.RentCities);
                 }
             } break;
 
