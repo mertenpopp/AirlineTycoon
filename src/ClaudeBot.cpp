@@ -616,7 +616,7 @@ static const SLONG kCrewSparePlanes = 3;
  * A 767 needs 2 and 4, so the fleet cannot grow by more than 2.5 aeroplanes a day out of that, while the broker
  * buys 7 to 9 a day in the last week: in a sample game 19 aeroplanes bought on days 55-58 never flew. Applicants
  * left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
-static const SLONG kCrewStockpileFromPlanes = 8;
+static const SLONG kCrewStockpileFromPlanes = 4;
 
 /* Image is worth roughly a factor two in route passengers ((400 + ImageTotal) / 1100 with
  * ImageTotal = 4 * routeImage + airlineImage + 200, capped at 1000). Advertising is not
