@@ -96,6 +96,7 @@ class NewGamePopup : public CStdRaum {
     void RefreshKlackerField(void);
     void CheckNames(void);
     SLONG MaxBotLevel() const;
+    SLONG GetBotLevelByIndex(SLONG index) const;
     static void PushNames(void);
     static void PushName(SLONG n);
 
