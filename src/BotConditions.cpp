@@ -643,6 +643,9 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     if (qPlayer.RobotUse(ROBOT_USE_DONTBUYANYSHARES)) {
         return Prio::None;
     }
+    if (!mOptions.kStockWarfarce) {
+        return Prio::None;
+    }
     if (moneyAvailable <= 0) {
         return Prio::None;
     }
@@ -703,6 +706,9 @@ Bot::Prio Bot::condBuyOwnShares(__int64 &moneyAvailable) {
 
 Bot::Prio Bot::condOvertakeAirline() {
     if (!hoursPassed(ACTION_OVERTAKE_AIRLINE, 24)) {
+        return Prio::None;
+    }
+    if (!mOptions.kStockWarfarce) {
         return Prio::None;
     }
     if ((qPlayer.HasBerater(BERATERTYP_INFO) < 50) || (qPlayer.HasBerater(BERATERTYP_GELD) < 50)) {
