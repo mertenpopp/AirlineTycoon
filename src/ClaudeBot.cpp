@@ -113,10 +113,12 @@ static const bool kUseFreight = true;
  * never fly routes and live on the job boards instead: travel agency, last minute, freight and the
  * international offices. The route legs fill every other aeroplane's week, so without a plane kept
  * free for them these boards have nowhere to put a job - see isJobPlane(). */
-/* Two: the second (the 757) joins once the first bought aeroplane can take over its pair - see
- * isJobPlane(). One job plane measured +9.5% / +10.5% against none, the second +0.91% / +0.79%
- * on top (seed bases 0 / 1000). */
-static const SLONG kJobPlanes = 2;
+/* One. A second one (the 757, joining once the first bought aeroplane can take over its pair) was thought to be
+ * worth +0.9%, but it never flew a job: its route legs renew themselves every week, so its plan never ended and it
+ * kept flying its old pair. Measured paired over 300 seeded games once that was understood: the 757 really on jobs
+ * (kJobPlanesDropRouteLegs) -2.92% (t -2.6), the 757 as an ordinary route aeroplane (this setting) -0.03%
+ * (identical in 266 games) against the frozen plan. One job plane measured +9.5% / +10.5% against none. */
+static const SLONG kJobPlanes = 1;
 /* ...until this day, after which they fly routes like any other aeroplane. 99 = the whole game:
  * switching the 737 to routes on day 25 measured -8.6% against -1.9% for keeping it on jobs (48 h
  * horizon) - it brings a new pair, its rent and 2.7M of route image due just when the cash buys
@@ -131,6 +133,9 @@ static const SLONG kJobPlanePasses = 50;
  * 48 h -1.9%, 96 h -11.1%; 24 h on seed base 1000 +10.5%. Too short and the plane idles between
  * two rounds of calls, too long and it is booked out with what was on offer at the first one. */
 static const SLONG kJobPlaneOfferHorizonHours = 24;
+/* Whether a starting aeroplane that turns into a job plane gives up the route legs already in its plan - see
+ * executeOffice(). */
+static const bool kJobPlanesDropRouteLegs = true;
 
 /* International offices.
  *
@@ -4983,6 +4988,40 @@ void ClaudeBot::executeOffice() {
         if (GameMechanic::clearFlightPlan(qPlayer, c)) {
             AT_Log("ClaudeBot::executeOffice(): Cleared plan of grounded plane %s (%ld hours).", qPlayer.Planes[c].ptName.c_str(),
                    static_cast<SLONG>(qPlayer.Planes[c].Problem));
+        }
+    }
+
+    /* A starting aeroplane that has just become a job plane (see isJobPlane()) still carries the route legs it was
+     * given before, and the game moves every flown route leg a week ahead (CPlane::CheckFlugplaene, "Routen in die
+     * Zukunft verschieben"). Such a plan never ends, so neither planJobPlanes() nor the tail window of collectGaps()
+     * ever finds room in it, and the aeroplane kept flying its old route for the rest of the game. Take the route
+     * legs out; the ones flown today come back tomorrow and are removed then. */
+    if (kJobPlanesDropRouteLegs && !mMission.isMission) {
+        for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+            if (qPlayer.Planes.IsInAlbum(c) == 0 || !isJobPlane(qPlayer.Planes[c])) {
+                continue;
+            }
+            SLONG removed = 0;
+            bool again = true;
+            while (again) {
+                again = false;
+                const auto &qPlan = qPlayer.Planes[c].Flugplan.Flug;
+                for (SLONG e = 0; e < qPlan.AnzEntries(); e++) {
+                    const auto &qFPE = qPlan[e];
+                    if (qFPE.ObjectType != 1 || (qFPE.Startdate == Sim.Date && qFPE.Startzeit <= Sim.GetHour() + 1)) {
+                        continue; /* not a route leg, or already locked */
+                    }
+                    if (qFPE.Startdate < Sim.Date || !GameMechanic::removeFromFlightPlan(qPlayer, c, e)) {
+                        continue;
+                    }
+                    removed++;
+                    again = true; /* the plan was re-checked, start over */
+                    break;
+                }
+            }
+            if (removed > 0) {
+                AT_Log("ClaudeBot::executeOffice(): Job plane %s: removed %ld route leg(s).", qPlayer.Planes[c].Name.c_str(), removed);
+            }
         }
     }
 
