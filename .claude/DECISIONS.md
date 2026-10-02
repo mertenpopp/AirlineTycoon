@@ -2222,3 +2222,9 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - Day 59 means: planes 65 -> 73, route pairs 4.5 -> 5.5, idle cash 547M -> 363M, employees 432 -> 531, Personal 1.90M -> 2.52M. Day 40 is unchanged (15 planes), the gain comes after day 50.
 - Game 0 now ends its days with 60-130 spare attendants and 2-12 spare pilots: pilots are the next limit, and 363M is still idle on day 59.
 - Next: stockpile pilots the same way (10-12 offered per day), then seats per crew member when choosing the plane type.
+
+## 2026-10-02: MertenBot - stockpile pilots too; scores before day 59
+- `kStockpilePilots` (Bot.cpp): same rule as for attendants, from `checkLateGame()` on every qualified pilot on the board is hired.
+- Free game level 2, 300 paired seeded games, day 59: against attendants only (9ede0294) **+1.26% (t +4.3)**, better 192 / worse 108; against no stockpiling (5dcb563b) **+6.71% (t +14.3)**, 2.7864e9 -> 2.9734e9, better 259 / worse 41.
+- Cumulated saldo on earlier days, pilots + attendants against no stockpiling: day 30 -0.01% (t -0.3), day 35 -0.07% (t -0.8), day 40 **-0.38% (t -2.4)**, day 45 0.00%, day 50 +1.82% (t +5.7), day 55 +4.09% (t +10.1). Attendants only: day 40 -0.07%, day 45 +0.24%, day 50 +1.13%, day 55 +2.94%.
+- So the salaries cost up to 0.4% (1.5M) around day 40 and are paid back by day 45. In most games the stockpiling build is slightly behind until then (worse in 206 of 248 differing games on day 40), by small amounts.

@@ -66,8 +66,9 @@ const SLONG kStockEmissionMode = 2;
 const bool kBuyKerosineOncePerDay = true;
 /* key in mLastTimeInRoom (no action ID): time of today's kerosene purchase */
 const SLONG kKerosineBoughtToday = -ACTION_BUY_KEROSIN;
-/* From the late game on (checkLateGame()), hire every qualified attendant on offer instead of only those needed
- * for the planes we can afford today */
+/* From the late game on (checkLateGame()), hire every qualified pilot / attendant on offer instead of only those
+ * needed for the planes we can afford today */
+const bool kStockpilePilots = true;
 const bool kStockpileAttendants = true;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
