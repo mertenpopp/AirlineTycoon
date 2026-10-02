@@ -46,6 +46,7 @@ extern const SLONG kNumRoutesStartBuyingTanks;
 extern const SLONG kStockEmissionMode;
 extern const bool kBuyKerosineOncePerDay;
 extern const SLONG kKerosineBoughtToday;
+extern const bool kStockpilePilots;
 extern const bool kStockpileAttendants;
 extern const bool kReduceDividend;
 extern const SLONG kMaxSabotageHints;
