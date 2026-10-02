@@ -8,14 +8,32 @@ Therefore, you need an existing installation of the game. You can purchase the g
 
 ## Major Additions
 
-- Native Linux support
-- Dedicated server browser and NAT-punchthrough multiplayer (open source server at: https://github.com/WizzardMaker/ATDMasterServer)
-- New computer player that plays well without cheating
+- Many new computer players 
+    - you can choose from many different play styles
+    - from an easier laid-back competitor to brutal rival
+    - from "fair play" to cruel nemesis who will target you specifically
+- Massive multiplayer overhaul to reduce desyncs and improve stability
+- Native Linux and MacOS support
+
+### Since last release
+
+MertenBot got a lot tougher - update and see if you can still keep up.
+
+The computer opponent that plays by the rules has been rebuilt from the ground up. In our test games it now earns seven times as much in the first 60 days as it did in 1.9.0 and ends with a fleet of around 74 planes instead of 12.
+
+What you'll notice:
+
+* It expands fast. It opens routes early, borrows to grow and buys several planes a day once the money flows.
+* It runs a tight airline. Smarter flight planning, better ticket prices, and advertising that is bought when it pays off.
+* It plans ahead. It hires crews before it needs them, so it doesn't stall when its fleet explodes late in the game.
+* It plays dirty when allowed. On the harder levels it sabotages, and it will buy up your shares and take you over if you leave the door open.
+* It still plays fair. No cheating: Same rules, acts only on same information available to you.
+
+**If 1.9.0's bot felt like a sparring partner, this one is a rival. Good luck.**
 
 ## License
 
-The code in the repository is licensed under the terms included in the GOG release. As such the code can
-only be used for non-commercial purposes and remains property of BFG.
+The code in the repository is licensed under the terms included in the GOG release. As such the code can only be used for non-commercial purposes and remains property of BFG.
 
 It is therefore *not* open-source in the free software sense, for more information refer to the License.txt.
 
@@ -40,12 +58,26 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 
 ### General
 * Now runnable on Linux (including support for FLC animations found in some versions)
+* Can run on MacOS as well
 * Game can be configured for windowed / borderless / fullscreen display
 
 ### New computer player
-* Respects the rules of the game
 
-| Rules | Existing computer player | New computer player |
+When starting a new game, you can pick a play style for each computer-controlled airline. I tried to make each one feels different to play against:
+
+* **Classic**: The original computer player you know from the base game. It is cheating (see the table below), but it is not a particularly clever manager. Pick it for the nostalgia.
+* **Laid-Back**: The nicest of the new competitors. It plays by the rules and builds a proper airline, but it strolls through the airport instead of running, is not picky about which jobs it takes, charges modest ticket prices and does not bother with buying kerosene in bulk. A good first opponent if you want to learn the game or just have a relaxed round.
+* **Freight Baron**: A bit tougher competitor with a passion for cargo. It heads for the freight office first and fills its fleet with freight jobs. A fair opponent with a noticeably different rhythm than the others.
+* **Route Tycoon**: A pure profit machine, fair but relentless. It never uses sabotage. Instead it starts building a huge route network almost immediately, trades kerosene cleverly and keeps an eye on the stock market, where it will happily buy up a struggling rival. Keep hold of your own shares if you want to see the end of the game.
+* **Challenger**: The best strategist. Picks only lucrative jobs to then bootstrap a route network, pushes ticket prices as far as the passengers tolerate and stocks up on cheap kerosene. Compared to the *Route Tycoon*, it expands its route network slower and will always fully operate the most profitable routes. It never plays dirty, so expect a tough but honest race for the top spot.
+* **Saboteur**: Runs its airline just as well as the *Challenger*, but is also a regular customer of the saboteur. Expect trouble with your aeroplanes and your office whenever you pull ahead, so a visit to the security office is money well spent.
+* **Nemesis**: Everything the *Saboteur* does, and it is personal. The Nemesis singles out the human player with extra dirty tricks that no other level uses. Pick it if you want an opponent who is out to ruin your day, not just to win.
+
+All new computer players have one thing in common:
+
+**They always respect the rules of the game**
+
+| Rules | Old computer player | New computer players |
 | -------- | ------- | ------- |
 | Plane constraints | ❌ Ignores maximum range | ✅ Respects maximum range |
 | | ❌ Ignores number of seats | ✅ Respects number of seats |
@@ -61,22 +93,6 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 | Illness | ❌ No action taken | ✅ Uses medicine |
 | Missions | ❌ Uses various cheats | ✅ No cheating |
 | Info | ❌ Accesses game state directly | ✅ Only acts on information that would be available to human player |
-
-* Improved core aspects of the computer player
-
-| Features | Existing computer player | New computer player |
-| -------- | ------- | ------- |
-| Flight planning | ❌ Simple greedy heuristic | ✅ 'Simulated annealing' heuristic minimizing empty flights |
-| Delays | ❌ Does not fix schedule if flight was bumped to next day | ✅ Tries to reorganize to avoid delays |
-| Route selection | ❌ Very simple selection based on demand and rent | ✅ Selects route with highest anticipated weekly gain considering all available plane types |
-| Route ticket pricing | ❌ Only based on competitor prices | ✅ Sophisticated strategy to improve route utilization and optimize income |
-| Kerosene | ❌ Does not buy kerosene at ArabAir | ✅ Buys tanks and kerosene to save money when price is low |
-| Bankruptcy avoidance | ❌ Frequently goes bankrupt, especially in last mission | ✅ Able to forecast high future expenses, acts accordingly |
-| Missions | ❌ Only small strategy adaptations | ✅ Intricate strategies for several missions |
-| Overtake | ❌ Will not overtake competitors | ✅ Overtakes competitors if given the chance |
-| Items | ❌ Only uses pliers | ✅ Uses more items |
-| Sabotage | ❌ No strategy, sabotages very often and mostly randomly | ✅ Sabotage strategy to maximize harm for competitor and block them from winning certain missions |
-| Planes | Buys only used planes | Buys only new planes |
 
 ### Statistics screen
 * Showing far more categories where money was spent

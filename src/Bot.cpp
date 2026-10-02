@@ -195,10 +195,13 @@ void Bot::RobotInit(SLONG randomSeed) {
 
         /* bot level */
         AT_Log("Bot::RobotInit(): We are player %d with bot level = %s.", qPlayer.PlayerNum, StandardTexte.GetS(TOKEN_NEWGAME, 5001 + qPlayer.BotLevel));
-        if (qPlayer.BotLevel <= BotDifficultyLaidBack) {
+        if (qPlayer.BotLevel == BotDifficultyLaidBack) {
             mOptions.kMaxTicketPriceFactor = mOptions.kMaxTicketPriceFactorLowImage;
             mOptions.kSchedulingMinScoreRatio = mOptions.kSchedulingMinScoreRatio / 10.0F;
             mOptions.kMaxKerosinQualiZiel = std::min(1.0, mOptions.kMaxKerosinQualiZiel);
+        }
+        if (qPlayer.BotLevel == BotDifficultyLaidBack || qPlayer.BotLevel == BotDifficultyFreightBaron) {
+            mOptions.kStockWarfarce = false;
         }
 
         printRobotFlags();
@@ -881,7 +884,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
          << bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit;
     File << bot.mOptions.kFirstClassTicketSurcharge;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
-    File << bot.mOptions.kRepairBudgetPercent;
+    File << bot.mOptions.kRepairBudgetPercent << bot.mOptions.kStockWarfarce;
 
     File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay << bot.mImagePreservationMode;
 
@@ -1149,8 +1152,9 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     File >> bot.mOptions.kMaxKerosinQualiZiel >> bot.mOptions.kOwnStockPosessionRatio;
     if (savegameVersion < 103) {
         bot.mOptions.kRepairBudgetPercent = Bot::ConfigurableOptions{}.kRepairBudgetPercent;
+        bot.mOptions.kStockWarfarce = Bot::ConfigurableOptions{}.kStockWarfarce;
     } else {
-        File >> bot.mOptions.kRepairBudgetPercent;
+        File >> bot.mOptions.kRepairBudgetPercent >> bot.mOptions.kStockWarfarce;
     }
 
     if (savegameVersion < 103) {
