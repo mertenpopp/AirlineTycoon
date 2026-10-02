@@ -423,7 +423,10 @@ static const SLONG kMinRouteValuePerHour = 10000;
  * removes the cliff and costs 160M at the top of the range (45 -> 1,776.9M,
  * 60 -> 1,798.5M): the early network wants to be as large as the fleet can just about keep
  * busy, and one pair either way decides it. */
-static const SLONG kRoutePairsPerHundredPlanes = 38;
+/* Re-swept paired on the day-59 objective with crew stockpiling in place, 300 seeded games each: 30 -> -18.8%
+ * (the rounding cliff again), 34 -> +0.96% / +0.87% (seed bases 0 / 1000, the latter on top of
+ * kMaxNightShiftHours = 2), 42 -> -1.0%, 46 -> -1.7%. */
+static const SLONG kRoutePairsPerHundredPlanes = 34;
 /* Re-measured on the clean harness (session 17d) once the fleet had grown past 190: 45 was
  * chosen when the airline was half the size. 38 -> +34.0M against 45. The fleet is now large
  * enough that concentration beats spread - a pair flown by more aeroplanes amortises its
@@ -490,7 +493,9 @@ static const SLONG kUsableHoursPerDay = 17;
 
 /* Longest a route leg is held back so that neither its departure nor its landing falls into the
  * night (before 05:00 or after 22:00). 0 flies around the clock - see scheduleRouteFlights(). */
-static const SLONG kMaxNightShiftHours = 4;
+/* Swept paired against 4, 300 seeded games: 0 -> +1.0%, 1 -> -1.2%, 2 -> +2.9% (+2.6% on seed base 1000),
+ * 3 -> identical in 289 games. */
+static const SLONG kMaxNightShiftHours = 2;
 
 /* Share of the waiting queue one departure actually carries away, in percent. See
  * legTakes() in scheduleRouteFlights(): the price factor (3B - 10) / Ticketpreis is 1/1.9

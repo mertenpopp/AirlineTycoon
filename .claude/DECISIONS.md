@@ -2228,3 +2228,12 @@ walk of f8aae494 and MertenBot's item chains as the model.
 - Free game level 2, 300 paired seeded games, day 59: against attendants only (9ede0294) **+1.26% (t +4.3)**, better 192 / worse 108; against no stockpiling (5dcb563b) **+6.71% (t +14.3)**, 2.7864e9 -> 2.9734e9, better 259 / worse 41.
 - Cumulated saldo on earlier days, pilots + attendants against no stockpiling: day 30 -0.01% (t -0.3), day 35 -0.07% (t -0.8), day 40 **-0.38% (t -2.4)**, day 45 0.00%, day 50 +1.82% (t +5.7), day 55 +4.09% (t +10.1). Attendants only: day 40 -0.07%, day 45 +0.24%, day 50 +1.13%, day 55 +2.94%.
 - So the salaries cost up to 0.4% (1.5M) around day 40 and are paid back by day 45. In most games the stockpiling build is slightly behind until then (worse in 206 of 248 differing games on day 40), by small amounts.
+
+## 2026-10-02: ClaudeBot - crew stockpiling, night shift 2 h, 34 route pairs per 100 planes
+All paired, 300 seeded games, level 6, day 59. Baseline HEAD bf25dc97: 2.4743e9 (`dataCREF_*`).
+- **Crew stockpiling** (`kCrewStockpileFromPlanes`, executePersonal()): hire every applicant once the fleet has N aeroplanes (free game only). N = 8: **+6.58% (t +17.5)**, better in 291. N = 4 against 8: **+1.02% (t +4.1)** -> 2.6639e9 (`dataC4_*`), committed. N = 3 against 4: -1.69% (t -9.4); N = 6 against 4: -0.30% (t -1.7). With N = 4 the mean fleet on day 59 is 96 (92), employees 892 (463), Personal 5M (2M), "not enough crew" warnings in 40 games 2369 -> 366.
+- Rejected, each against `dataC4_*`: `kPlanesPerGate` 15 -> 5 **-1.65% (t -12.9)** (the gate suspicion from the review was wrong); `kImagePaybackDays` 7 -3.36%, 14 -0.44% (t -1.3); `kNoAirlineImageUpToPlanes` 3 identical in 299 games; `kRoutePairsPerHundredPlanes` 30 -18.8%, 42 -1.04%, 46 -1.71%; `kMaxNightShiftHours` 0 +0.98% (t +2.0), 1 -1.17%, 3 identical in 289.
+- **`kMaxNightShiftHours` 4 -> 2**: +2.93% (t +7.1) on seed base 0, +2.59% (t +5.4) on seed base 1000.
+- **`kRoutePairsPerHundredPlanes` 38 -> 34**: +0.96% (t +8.0) alone; on top of night shift 2: +0.83% (t +8.3) / +0.87% (t +9.9) on seed bases 0 / 1000.
+- Both together against `dataC4_*`: **+3.79% (t +8.7)** on seed base 0 (2.7650e9), **+3.48% (t +7.1)** on seed base 1000. Committed. Total against the morning's baseline on seed base 0: 2.4743e9 -> 2.7650e9 (+11.7%).
+- Next: job planes (the 757's frozen plan, call rounds before the fruitless board visits), stop buying aeroplanes that can no longer fly before day 59 is irrelevant to the score; early game (days 10-30) is where MertenBot is ahead.
