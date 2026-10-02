@@ -61,6 +61,11 @@ const SLONG kPlaneFoodTarget = 2;
 const SLONG kUsedPlaneMinimumScore = 40;
 const SLONG kNumRoutesStartBuyingTanks = 3;
 const SLONG kStockEmissionMode = 2;
+/* Top up the kerosene tank once per day instead of every 4 hours: larger purchases reach the bulk discount
+ * (5% from 10,000, 10% from 50,000 units per purchase) more often */
+const bool kBuyKerosineOncePerDay = true;
+/* key in mLastTimeInRoom (no action ID): time of today's kerosene purchase */
+const SLONG kKerosineBoughtToday = -ACTION_BUY_KEROSIN;
 const bool kReduceDividend = false;
 const SLONG kMaxSabotageHints = 99;
 
