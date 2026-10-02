@@ -861,26 +861,6 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
 void Bot::actionBuyKerosine(__int64 moneyAvailable) {
     actionVisitArab();
 
-    auto Preis = Sim.HoleKerosinPreis(1); /* range: 300 - 700 */
-    __int64 moneyToSpend = (moneyAvailable - 2500 * 1000LL);
-    DOUBLE targetFillRatio = 0.5;
-    if (Preis < 500) {
-        moneyToSpend = (moneyAvailable - 1500 * 1000LL);
-        targetFillRatio = 0.7;
-    }
-    if (Preis < 450) {
-        moneyToSpend = (moneyAvailable - 1000 * 1000LL);
-        targetFillRatio = 0.8;
-    }
-    if (Preis < 400) {
-        moneyToSpend = (moneyAvailable - 500 * 1000LL);
-        targetFillRatio = 0.9;
-    }
-    if (Preis < 350) {
-        moneyToSpend = moneyAvailable;
-        targetFillRatio = 1.0;
-    }
-
     /* update how much kerosine was used */
     if (mKerosineLevelLastChecked < qPlayer.TankInhalt) {
         AT_Error("Bot::actionBuyKerosine(): mKerosineLevelLastChecked >= qPlayer.TankInhalt should hold");
@@ -888,6 +868,9 @@ void Bot::actionBuyKerosine(__int64 moneyAvailable) {
     }
     mKerosineUsedTodaySoFar += (mKerosineLevelLastChecked - qPlayer.TankInhalt);
     mKerosineLevelLastChecked = qPlayer.TankInhalt;
+
+    __int64 moneyToSpend = moneyAvailable;
+    DOUBLE targetFillRatio = 1.0;
 
     if (moneyToSpend > 0) {
         auto res = kerosineQualiOptimization(moneyToSpend, targetFillRatio);
@@ -902,7 +885,8 @@ void Bot::actionBuyKerosine(__int64 moneyAvailable) {
             mLastTimeInRoom[kKerosineBoughtToday] = Sim.Time; /* short of money: the top-up may be repeated today */
         }
 
-        AT_Log("Bot::actionBuyKerosine(): Kerosine quantity: %d => %d", amountOld, qPlayer.TankInhalt);
+        AT_Log("Bot::actionBuyKerosine(): Kerosine quantity: %d (%.2f %%) => %d (%.2f %%)", amountOld, static_cast<double>(amountOld) / qPlayer.Tank * 100,
+               qPlayer.TankInhalt, static_cast<double>(qPlayer.TankInhalt) / qPlayer.Tank * 100);
         AT_Log("Bot::actionBuyKerosine(): Kerosine quality: %.2f => %.2f", qualiOld, qPlayer.KerosinQuali);
     }
 }
@@ -910,15 +894,35 @@ void Bot::actionBuyKerosine(__int64 moneyAvailable) {
 void Bot::actionBuyKerosineTank(__int64 moneyAvailable) {
     actionVisitArab();
 
+    DOUBLE deltaTankTooSmall = (mTankRatioEmptiedYesterday / kMinRatioEmptied) - 1.0;
+    SLONG capacityNeeded = static_cast<SLONG>(std::ceil(deltaTankTooSmall * qPlayer.Tank));
+    if (capacityNeeded <= 0) {
+        AT_Error("Bot::actionBuyKerosineTank(): No tank needed (tank ratio emptied yesterday = %.2f, min ratio = %.2f)", mTankRatioEmptiedYesterday,
+                 kMinRatioEmptied);
+        return;
+    }
+
     auto nTankTypes = TankSize.size();
-    for (SLONG i = nTankTypes - 1; i >= 1; i--) // avoid cheapest tank (not economical)
-    {
-        if (moneyAvailable >= TankPrice[i]) {
-            SLONG amount = std::min(3LL, moneyAvailable / TankPrice[i]);
-            AT_Log("Bot::actionBuyKerosineTank(): Buying %d times tank type %d", amount, i);
-            GameMechanic::buyKerosinTank(qPlayer, i, amount);
-            moneyAvailable = getMoneyAvailable();
-            break;
+    SLONG typeToBuy = 2;
+    SLONG amount = 1;
+    bool keepGoing = true;
+    for (SLONG i = 2; i < nTankTypes && keepGoing; i++) { /* avoid smallest tanks (not economical) */
+        for (SLONG c = 1; c <= 5 && keepGoing; c++) {
+            if (c * (TankSize[i] / 1000) >= capacityNeeded && moneyAvailable >= c * TankPrice[i]) {
+                typeToBuy = i;
+                amount = c;
+                keepGoing = false;
+            }
+        }
+    }
+    if (moneyAvailable >= amount * TankPrice[typeToBuy]) {
+        AT_Log("Bot::actionBuyKerosineTank(): Buying %d times tank type %d (tank ratio emptied yesterday = %.2f, min ratio = %.2f)", amount, typeToBuy,
+               mTankRatioEmptiedYesterday, kMinRatioEmptied);
+        GameMechanic::buyKerosinTank(qPlayer, typeToBuy, amount);
+
+        moneyAvailable = getMoneyAvailable();
+        if (moneyAvailable >= 0) {
+            actionBuyKerosine(moneyAvailable);
         }
     }
 }

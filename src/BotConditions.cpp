@@ -420,7 +420,7 @@ Bot::Prio Bot::condBuyKerosine(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_BUY_KEROSIN, 4)) {
         return Prio::None;
     }
-    if (kBuyKerosineOncePerDay && !hoursPassed(kKerosineBoughtToday, 24)) {
+    if (!hoursPassed(kKerosineBoughtToday, 24)) {
         return Prio::None; /* one large purchase per day gets more bulk discount than several top-ups */
     }
     if (!qPlayer.RobotUse(ROBOT_USE_PETROLAIR)) {
@@ -466,14 +466,11 @@ Bot::Prio Bot::condBuyKerosineTank(__int64 &moneyAvailable) {
     if (mRunToFinalObjective > FinalPhase::No) {
         return Prio::None;
     }
-    /* A single top-up per day fills to 50% (actionBuyKerosine()), so no more than half a tank can be used per day:
-     * the tank is too small once most of that was used */
-    const DOUBLE minRatioEmptied = kBuyKerosineOncePerDay ? 0.4 : 0.5;
-    if (qPlayer.Tank == 0 || mTankRatioEmptiedYesterday < minRatioEmptied) {
+    if (qPlayer.Tank == 0 || mTankRatioEmptiedYesterday <= kMinRatioEmptied) {
         return Prio::None;
     }
 
-    if (moneyAvailable >= TankPrice[1]) {
+    if (moneyAvailable >= TankPrice[2]) {
         return Prio::Medium;
     }
     return Prio::None;
