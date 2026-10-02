@@ -887,6 +887,9 @@ void Bot::actionBuyKerosine(__int64 moneyAvailable) {
         GameMechanic::buyKerosin(qPlayer, 1, res.first);
         GameMechanic::buyKerosin(qPlayer, 2, res.second);
         mKerosineLevelLastChecked = qPlayer.TankInhalt;
+        if (qPlayer.TankInhalt >= qPlayer.Tank * targetFillRatio * 0.95) {
+            mLastTimeInRoom[kKerosineBoughtToday] = Sim.Time; /* short of money: the top-up may be repeated today */
+        }
 
         AT_Log("Bot::actionBuyKerosine(): Kerosine quantity: %d => %d", amountOld, qPlayer.TankInhalt);
         AT_Log("Bot::actionBuyKerosine(): Kerosine quality: %.2f => %.2f", qualiOld, qPlayer.KerosinQuali);
