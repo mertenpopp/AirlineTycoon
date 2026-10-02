@@ -358,7 +358,7 @@ inline void calcCostAndDuration(int startCity, int destCity, const CPlaneType &q
     }
 
     if (emptyFlight) {
-        cost -= (qPlane.Passagiere * distance / 1000 / 40);
+        cost -= (qPlane.Passagiere * (distance / 1000) / 40);
     }
 }
 
@@ -384,7 +384,7 @@ inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlan
     }
 
     if (emptyFlight) {
-        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
+        cost -= (qPlane.ptPassagiere * (distance / 1000) / 40);
     }
 }
 

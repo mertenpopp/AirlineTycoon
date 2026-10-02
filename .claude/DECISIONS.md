@@ -2211,3 +2211,7 @@ walk of f8aae494 and MertenBot's item chains as the model.
   - once per day with the 40% trigger (`dataBOT_*`): **+0.08% (t +0.33)**, better in 131 / worse in 169. Purchases 93 -> 51 per game; good fuel without discount 24% -> 11% of units, at 10% 19% -> 26%; bad fuel still 70% without discount (20% of the mix, rarely 10,000 units). Fuel bill (Vorrat + Flug) 234.7M -> 233.9M; stock after the last purchase 76k -> 89k units.
 - The discount is worth little here: all fuel at 10% instead of today's ~5% would be ~8M a game (0.3%), about one standard error of the paired difference.
 - Next: decide whether to keep the tank at all in the free game (+1.4% without), or stop refilling in the last days; the bad-fuel share could be bought in lumps of >= 10,000 every few days.
+
+## 2026-10-02: MertenBot - integer overflow in the empty-leg cost fixed
+- `Helper::calcCostAndDuration()` (BotHelper.h, both overloads): `Passagiere * (distance / 1000) / 40` instead of `Passagiere * distance / 1000 / 40`, as CFlugplanEintrag::GetEinnahmen() case 3 computes it. The old form wrapped int32 from ~8,600 km at 250 seats (5,100 km at 420) and made such empty legs look up to ~53,000 dearer.
+- Free game level 2, 300 paired seeded games against e857c891: -0.13% (t -0.97), better 59 / worse 59 / identical 182. Neutral, kept as a correctness fix.
