@@ -1629,6 +1629,13 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         return;
     }
 
+    /* 6a) The branch offices, phoned from the personal office, before the boards: nearly everything the job plane
+     *     flies comes from these calls, and behind ~30 board visits the second round only came after 14:30. Any
+     *     office visit makes the calls as well. */
+    if (wantCallInternational() && (qPlayer.OfficeState != 2) && canUseAction(ACTION_CALL_INTERNATIONAL)) {
+        out.push_back(ACTION_CALL_INTERNATIONAL);
+    }
+
     if (mLastMinuteVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mJobsTakenToday < kMaxJobsPerDay && canUseAction(ACTION_CHECKAGENT1)) {
         out.push_back(ACTION_CHECKAGENT1);
     }
@@ -1641,11 +1648,6 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         out.push_back(ACTION_CHECKAGENT3);
     }
 
-    /* 8) The branch offices, phoned from the personal office. Any office visit makes the calls
-     *    as well, so this only brings us there when none has happened for a while. */
-    if (wantCallInternational() && (qPlayer.OfficeState != 2) && canUseAction(ACTION_CALL_INTERNATIONAL)) {
-        out.push_back(ACTION_CALL_INTERNATIONAL);
-    }
 }
 
 //--------------------------------------------------------------------------------------------
