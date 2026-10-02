@@ -2215,3 +2215,10 @@ walk of f8aae494 and MertenBot's item chains as the model.
 ## 2026-10-02: MertenBot - integer overflow in the empty-leg cost fixed
 - `Helper::calcCostAndDuration()` (BotHelper.h, both overloads): `Passagiere * (distance / 1000) / 40` instead of `Passagiere * distance / 1000 / 40`, as CFlugplanEintrag::GetEinnahmen() case 3 computes it. The old form wrapped int32 from ~8,600 km at 250 seats (5,100 km at 420) and made such empty legs look up to ~53,000 dearer.
 - Free game level 2, 300 paired seeded games against e857c891: -0.13% (t -0.97), better 59 / worse 59 / identical 182. Neutral, kept as a correctness fix.
+
+## 2026-10-02: MertenBot - stockpile attendants from the late game
+- `kStockpileAttendants` (Bot.cpp): in `actionVisitHR()` the attendant target is unlimited once `checkLateGame()` holds (100M cash or weekly saldo, or 8 planes; ~day 35), so every qualified attendant (Talent >= 50) on the board is hired. `howMuchCrewToHire()` and `condVisitHR()` are unchanged, so no extra HR visits.
+- Free game level 2, 300 paired seeded games against 5dcb563b: **+5.39% (t +12.9)**, 2.7864e9 -> 2.9365e9, better in 241 / worse in 59.
+- Day 59 means: planes 65 -> 73, route pairs 4.5 -> 5.5, idle cash 547M -> 363M, employees 432 -> 531, Personal 1.90M -> 2.52M. Day 40 is unchanged (15 planes), the gain comes after day 50.
+- Game 0 now ends its days with 60-130 spare attendants and 2-12 spare pilots: pilots are the next limit, and 363M is still idle on day 59.
+- Next: stockpile pilots the same way (10-12 offered per day), then seats per crew member when choosing the plane type.

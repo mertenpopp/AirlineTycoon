@@ -772,6 +772,11 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
     SLONG pilotsTarget = 3;     /* sensible default */
     SLONG stewardessTarget = 6; /* sensible default */
     std::tie(pilotsTarget, stewardessTarget) = howMuchCrewToHire(moneyAvailable);
+    if (kStockpileAttendants && checkLateGame()) {
+        /* Attendants limit how many planes we can buy at the end: once the reserve is drained, only 10 new ones
+         * appear per day (CWorkers::AddToPool()), and only while the reserve is below its target. Hire all of them. */
+        stewardessTarget = INT_MAX;
+    }
 
     mQualifiedCrewForHire = 0;
     SLONG numPilotsHired = 0;
