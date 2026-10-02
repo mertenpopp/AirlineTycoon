@@ -609,6 +609,14 @@ static const bool kCabinUpgrades = false;
 
 /* Aeroplanes' worth of crew executePersonal() keeps on the payroll beyond what the fleet needs. */
 static const SLONG kCrewSparePlanes = 3;
+/* ...until the fleet has this many aeroplanes: from then on every applicant is hired.
+ *
+ * The board is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates
+ * at most 10 pilots and 10 attendants a day - and only while the reserve is below its target (CWorkers::AddToPool).
+ * A 767 needs 2 and 4, so the fleet cannot grow by more than 2.5 aeroplanes a day out of that, while the broker
+ * buys 7 to 9 a day in the last week: in a sample game 19 aeroplanes bought on days 55-58 never flew. Applicants
+ * left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
+static const SLONG kCrewStockpileFromPlanes = 8;
 
 /* Image is worth roughly a factor two in route passengers ((400 + ImageTotal) / 1100 with
  * ImageTotal = 4 * routeImage + airlineImage + 200, capped at 1000). Advertising is not
@@ -2405,8 +2413,9 @@ void ClaudeBot::executePersonal() {
             maxAttendantsPerPlane = std::max<SLONG>(maxAttendantsPerPlane, qPlayer.Planes[c].ptAnzBegleiter);
         }
     }
-    const SLONG wantPilots = needPilots + kCrewSparePlanes * maxPilotsPerPlane;
-    const SLONG wantAttendants = needAttendants + kCrewSparePlanes * maxAttendantsPerPlane;
+    const bool stockpile = !mMission.isMission && countPlanes() >= kCrewStockpileFromPlanes;
+    const SLONG wantPilots = stockpile ? INT32_MAX : needPilots + kCrewSparePlanes * maxPilotsPerPlane;
+    const SLONG wantAttendants = stockpile ? INT32_MAX : needAttendants + kCrewSparePlanes * maxAttendantsPerPlane;
 
     std::vector<SLONG> applicants;
     for (SLONG i = 0; i < Workers.Workers.AnzEntries(); i++) {
