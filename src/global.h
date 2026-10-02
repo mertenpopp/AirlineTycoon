@@ -493,3 +493,5 @@ extern const SLONG BTARGET_NDAYS10;    // Spielziel ATFS-Level 10
 
 inline constexpr SLONG kCurrentYear{2026};
 inline constexpr SLONG kYearsSinceRelease{kCurrentYear - 2002};
+
+extern const std::array<SLONG, std::max(BotDifficultyMaxFreegame, BotDifficultyMax) + 1> BotDifficultyLevels;

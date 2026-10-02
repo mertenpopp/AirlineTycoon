@@ -502,3 +502,7 @@ const SLONG BTARGET_DAYS7 = 30;        // Spielziel ATFS-Level 7
 const SLONG BTARGET_VERBRAUCH = 500;   // Spielziel ATFS-Level 8
 const SLONG BTARGET_NDAYS9 = 45;       // Spielziel ATFS-Level 9
 const SLONG BTARGET_NDAYS10 = 60;      // Spielziel ATFS-Level 10
+
+const std::array<SLONG, std::max(BotDifficultyMaxFreegame, BotDifficultyMax) + 1> BotDifficultyLevels = {
+    BotDifficultyClassic,    BotDifficultyLaidBack, BotDifficultyFreightBaron, BotDifficultyTycoon,
+    BotDifficultyChallenger, BotDifficultySaboteur, BotDifficultyNemesis};
