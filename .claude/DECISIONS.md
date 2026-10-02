@@ -2237,3 +2237,9 @@ All paired, 300 seeded games, level 6, day 59. Baseline HEAD bf25dc97: 2.4743e9 
 - **`kRoutePairsPerHundredPlanes` 38 -> 34**: +0.96% (t +8.0) alone; on top of night shift 2: +0.83% (t +8.3) / +0.87% (t +9.9) on seed bases 0 / 1000.
 - Both together against `dataC4_*`: **+3.79% (t +8.7)** on seed base 0 (2.7650e9), **+3.48% (t +7.1)** on seed base 1000. Committed. Total against the morning's baseline on seed base 0: 2.4743e9 -> 2.7650e9 (+11.7%).
 - Next: job planes (the 757's frozen plan, call rounds before the fruitless board visits), stop buying aeroplanes that can no longer fly before day 59 is irrelevant to the score; early game (days 10-30) is where MertenBot is ahead.
+
+## 2026-10-02: ClaudeBot - job planes
+All paired, 300 seeded games, level 6, day 59, against 79cba872 (2.7650e9, `dataXcomb_*`).
+- The second job plane (757) never flew a job, see the review above. With its route legs removed in executeOffice() (`kJobPlanesDropRouteLegs`) it gets ~80 job items a game like the 737 - and the score is **-2.92% (t -2.6)**: a 757 earns more on a route than on jobs. With `kJobPlanes = 1` (the 757 is scheduled like every other route aeroplane): -0.03%, identical in 266 games. Committed with kJobPlanes = 1 and the removal code kept, so a job plane cannot be stuck on a route plan again.
+- ACTION_CALL_INTERNATIONAL ahead of the three job boards in collectActions(): call rounds 167 -> 232 in game 0. Seed base 0: +1.58% (t +2.6), better 166 / worse 133. Seed base 1000: +0.17% (t +0.3), better 165 / worse 135. Together about +0.9% (t ~2.0). Weak but positive on both sets, kept.
+- Not tried: a longer or shorter offer horizon with the earlier rounds, fewer board visits (590 + 510 + 554 visits for 16 jobs a game).
