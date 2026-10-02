@@ -44,7 +44,7 @@ extern const SLONG kPlaneFoodTarget;
 extern const SLONG kUsedPlaneMinimumScore;
 extern const SLONG kNumRoutesStartBuyingTanks;
 extern const SLONG kStockEmissionMode;
-extern const bool kBuyKerosineOncePerDay;
+extern const DOUBLE kMinRatioEmptied;
 extern const SLONG kKerosineBoughtToday;
 extern const bool kStockpilePilots;
 extern const bool kStockpileAttendants;
