@@ -623,6 +623,11 @@ void NewGamePopup::RefreshKlackerField() {
     {
         pNetworkConnections = gNetwork.GetConnectionList();
 
+        /* The saved choice is an index into the list, and the list has lost entries since. */
+        if (Selection < 0 || Selection >= static_cast<SLONG>(pNetworkConnections->GetNumberOfElements())) {
+            Selection = 0;
+        }
+
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_NEWGAME, 700));
         KlackerTafel.PrintAt(0, 15, StandardTexte.GetS(TOKEN_NEWGAME, 4001));                                                    // Zurück
         KlackerTafel.PrintAt(24 - strlen(StandardTexte.GetS(TOKEN_NEWGAME, 4002)), 15, StandardTexte.GetS(TOKEN_NEWGAME, 4002)); // Weiter

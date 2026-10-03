@@ -303,8 +303,6 @@ SBNetwork::SBNetwork(bool) : mState(SBNETWORK_IDLE), mType() {
 
     mNetwork = nullptr;
 
-    mConnections.Add(ENET_TYPE);
-
     mConnections.Add(RAKNET_TYPE_DIRECT_JOIN);
     mConnections.Add(RAKNET_TYPE_DIRECT_HOST);
     mConnections.Add(RAKNET_TYPE_NAT_JOIN);
