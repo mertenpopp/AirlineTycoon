@@ -2122,7 +2122,7 @@ void ClaudeBot::RobotExecuteAction() {
      * Either way the room restrictions of RULES.md are honoured by construction rather than
      * by this check: each action handler only touches the state its own room grants access
      * to, which is why the cached-price and cached-burn machinery above exists. */
-    const SLONG wantRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId);
+    const SLONG wantRoom = (qAction.ActionId != ACTION_NONE) ? Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId) : -1;
     if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
         if (mWrongRoomDay != Sim.Date) {
             AT_Warn("ClaudeBot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway; "
