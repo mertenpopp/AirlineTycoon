@@ -17,16 +17,16 @@ Therefore, you need an existing installation of the game. You can purchase the g
 
 ### Since last release
 
-MertenBot got a lot tougher - update and see if you can still keep up.
+The new bots got a lot tougher! Update and see if you can still keep up.
 
-The computer opponent that plays by the rules has been rebuilt from the ground up. In our test games it now earns seven times as much in the first 60 days as it did in 1.9.0 and ends with a fleet of around 74 planes instead of 12.
+The computer opponent has been rebuilt from the ground up. In our test games it now earns seven times as much in the first 60 days as it did in 1.9.0 and ends with a fleet of around 70+ planes instead of 10+.
 
 What you'll notice:
 
 * It expands fast. It opens routes early, borrows to grow and buys several planes a day once the money flows.
-* It runs a tight airline. Smarter flight planning, better ticket prices, and advertising that is bought when it pays off.
+* It runs a tight airline. Smarter flight planning, better ticket prices and advertising that is bought when it pays off.
 * It plans ahead. It hires crews before it needs them, so it doesn't stall when its fleet explodes late in the game.
-* It plays dirty when allowed. On the harder levels it sabotages, and it will buy up your shares and take you over if you leave the door open.
+* It plays dirty when allowed. On the harder levels it sabotages and it will take you over if you leave the door open.
 * It still plays fair. No cheating: Same rules, acts only on same information available to you.
 
 **If 1.9.0's bot felt like a sparring partner, this one is a rival. Good luck.**
@@ -47,14 +47,16 @@ It is therefore *not* open-source in the free software sense, for more informati
 
 ## Building
 
-Before building, remember to clone the submodules:
+This is for the experts who want to contribute to development.
+
+Check out the repository as usual. Before building, remember to clone the submodules:
 ```
 git submodule update --init
 ```
 
 You can see the instructions to build and run the project in [BUILDING.md](BUILDING.md).
 
-## Changes
+## All changes
 
 ### General
 * Now runnable on Linux (including support for FLC animations found in some versions)
