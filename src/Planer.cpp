@@ -777,8 +777,8 @@ void CPlaner::DoPollingStuff() {
                     }
 
                     /* Grabbed by the landing end, the start can fall before today. Clamp the day before
-                       the hour, or the start lands earlier today than the next two hours: the flight then
-                       counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
+                       the hour, or the start lands earlier today than the next two hours (week view) or
+                       stays on yesterday (day view): the flight then counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
                        around it, and it is stuck. */
                     if (Date < Sim.Date) {
                         Date = Sim.Date;
@@ -895,8 +895,8 @@ void CPlaner::DoPollingStuff() {
                     }
 
                     /* Grabbed by the landing end, the start can fall before today. Clamp the day before
-                       the hour, or the start lands earlier today than the next two hours: the flight then
-                       counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
+                       the hour, or the start lands earlier today than the next two hours (week view) or
+                       stays on yesterday (day view): the flight then counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
                        around it, and it is stuck. */
                     if (Date < Sim.Date) {
                         Date = Sim.Date;
