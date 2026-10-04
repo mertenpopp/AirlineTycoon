@@ -506,6 +506,7 @@ class TEAKFILE {
     template <typename T> friend TEAKFILE &operator>>(TEAKFILE &File, BUFFER_V<T> &buffer) {
         SLONG size, offset;
         File >> size >> offset;
+        File.CheckLengthPrefix(static_cast<ULONG>(size));
         buffer.ReSize(size);
         buffer.incIter(offset);
         for (SLONG i = 0; i < buffer.AnzEntries(); i++) {
@@ -526,6 +527,7 @@ class TEAKFILE {
     template <typename T> friend TEAKFILE &operator>>(TEAKFILE &File, BUFFER<T> &buffer) {
         SLONG size, offset;
         File >> size;
+        File.CheckLengthPrefix(static_cast<ULONG>(size));
         buffer.ReSize(0);
         buffer.ReSize(size);
         File >> offset;
@@ -1402,6 +1404,7 @@ template <typename T> class ALBUM_V {
         SLONG size, filler;
         File >> size;
         File >> filler;
+        File.CheckLengthPrefix(static_cast<ULONG>(size));
         buffer.ReSize(size);
         for (SLONG i = 0; i < size; i++) {
             File >> buffer.List[i].first;
@@ -1411,6 +1414,7 @@ template <typename T> class ALBUM_V {
 
         File >> size;
         File >> filler;
+        File.CheckLengthPrefix(static_cast<ULONG>(size));
         buffer.ReSize(size);
 #ifdef DEBUG_ALBUM
         assert(buffer.AnzEntries() == size);

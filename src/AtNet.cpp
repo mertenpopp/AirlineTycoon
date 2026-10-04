@@ -992,76 +992,144 @@ void PumpNetwork() {
                 SLONG Anz = 0;
                 SLONG PlayerNum = 0;
 
-                Message >> Anz;
+                /* Like the plane sync, this was read straight into the live players, and a
+                   garbled message (seen: a human player suddenly renting 223 routes) stayed in
+                   the game and in its savegames. Read into copies first, check that the copy
+                   makes sense, and only then take it over. */
+                struct PendingRoutes {
+                    SLONG PlayerNum{};
+                    std::vector<CRentRoute> Routes;
+                    bool bApplyUsage{true};
+                };
+                std::deque<PendingRoutes> Pending;
 
-                while (Anz > 0) {
-                    Message >> PlayerNum;
-                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                const char *Stage = "count";
+                SLONG StageStart = Message.MemPointer;
+                SLONG Entry = 0;
+                bool bParsed = false;
 
-                    PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
-                    SLONG d = 0;
-
-                    /* What the flights change - the day a route was last flown, its image and its
-                       usage - is taken from the owner only if both have booked the same flights of
-                       the player today: a state from before a flight we have booked already would
-                       undo it, one from after a flight we have still to book would count it twice.
-                       The owner sends it again every half hour. */
-                    SLONG Stamp = 0;
-                    Message >> Stamp;
-                    const bool bApplyUsage = (Stamp == qPlayer.NetTankStamp());
-                    if (!bApplyUsage) {
-                        NetTraceEvent("SKIP what=routeusage player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
-                                      static_cast<long>(qPlayer.NetTankStamp()));
+                try {
+                    Message >> Anz;
+                    if (Anz < 0 || Anz > 4) {
+                        TeakLibW_Exception(FNL, "Invalid player count %ld in message %s", static_cast<long>(Anz), Translate_ATNET(MessageType));
                     }
 
-                    for (d = Routen.AnzEntries() - 1; d >= 0; d--) {
-                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
-                        SLONG LastFlown = 0;
-                        UBYTE RouteImage = 0;
-                        Message >> qRoute.Rang >> LastFlown >> RouteImage >> qRoute.Miete >> qRoute.Ticketpreis >> qRoute.TicketpreisFC >> qRoute.TageMitVerlust >>
-                            qRoute.TageMitGering;
-                        if (bApplyUsage) {
-                            qRoute.LastFlown = LastFlown;
-                            qRoute.Image = RouteImage;
-                        }
-                    }
+                    for (Entry = 0; Entry < Anz; Entry++) {
+                        Stage = "playernum";
+                        StageStart = Message.MemPointer;
+                        Message >> PlayerNum;
+                        PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                    SLONG Rented = 0;
-                    Message >> Rented;
-
-                    while (Rented > 0) {
-                        SLONG RouteId = 0;
-
-                        Message >> RouteId;
-                        /* RouteId indexes a plain array below, where out of range is not an error
-                           but a write into whatever happens to lie there. */
-                        if (RouteId < 0 || RouteId >= Routen.AnzEntries()) {
-                            NetTraceEvent("DROP name=%s reason=route %ld out of range", Translate_ATNET(MessageType), static_cast<long>(RouteId));
-                            Anz = 0; // The rest of the message cannot be read any more either
-                            break;
+                        PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                        const SLONG NumRoutes = Routen.AnzEntries();
+                        if (qPlayer.RentRouten.RentRouten.AnzEntries() < NumRoutes) {
+                            TeakLibW_Exception(FNL, "Player %ld has %ld route slots for %ld routes", static_cast<long>(PlayerNum),
+                                               static_cast<long>(qPlayer.RentRouten.RentRouten.AnzEntries()), static_cast<long>(NumRoutes));
                         }
 
-                        CRentRoute Usage;
-                        Message >> Usage.Auslastung >> Usage.AuslastungFC >> Usage.RoutenAuslastung >> Usage.HeuteBefoerdert;
-                        for (d = 0; d < 7; d++) {
-                            Message >> Usage.WocheBefoerdert[d];
+                        /* What the flights change - the day a route was last flown, its image and its
+                           usage - is taken from the owner only if both have booked the same flights
+                           of the player today: a state from before a flight we have booked already
+                           would undo it, one from after a flight we have still to book would count
+                           it twice. The owner sends it again every half hour. */
+                        Stage = "stamp";
+                        StageStart = Message.MemPointer;
+                        SLONG Stamp = 0;
+                        Message >> Stamp;
+                        const bool bApplyUsage = (Stamp == qPlayer.NetTankStamp());
+                        if (!bApplyUsage) {
+                            NetTraceEvent("SKIP what=routeusage player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
+                                          static_cast<long>(qPlayer.NetTankStamp()));
                         }
 
-                        if (bApplyUsage) {
-                            CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[RouteId];
-                            qRoute.Auslastung = Usage.Auslastung;
-                            qRoute.AuslastungFC = Usage.AuslastungFC;
-                            qRoute.RoutenAuslastung = Usage.RoutenAuslastung;
-                            qRoute.HeuteBefoerdert = Usage.HeuteBefoerdert;
-                            for (d = 0; d < 7; d++) {
-                                qRoute.WocheBefoerdert[d] = Usage.WocheBefoerdert[d];
+                        /* Start from the current values: the message does not carry every field. */
+                        Pending.emplace_back();
+                        PendingRoutes &qPending = Pending.back();
+                        qPending.PlayerNum = PlayerNum;
+                        qPending.bApplyUsage = bApplyUsage;
+                        qPending.Routes.reserve(NumRoutes);
+                        for (SLONG d = 0; d < NumRoutes; d++) {
+                            qPending.Routes.push_back(qPlayer.RentRouten.RentRouten[d]);
+                        }
+
+                        Stage = "routes";
+                        StageStart = Message.MemPointer;
+                        SLONG RentedRead = 0;
+                        for (SLONG d = NumRoutes - 1; d >= 0; d--) {
+                            CRentRoute &qRoute = qPending.Routes[d];
+                            Message >> qRoute.Rang >> qRoute.LastFlown >> qRoute.Image >> qRoute.Miete >> qRoute.Ticketpreis >> qRoute.TicketpreisFC >>
+                                qRoute.TageMitVerlust >> qRoute.TageMitGering;
+                            if (qRoute.Rang != 0U) {
+                                RentedRead++;
                             }
                         }
 
-                        Rented--;
+                        /* The sender counts the rented routes it just sent, so the count must agree. */
+                        Stage = "usage";
+                        StageStart = Message.MemPointer;
+                        SLONG Rented = 0;
+                        Message >> Rented;
+                        if (Rented != RentedRead) {
+                            TeakLibW_Exception(FNL, "%ld rented routes announced, %ld read", static_cast<long>(Rented), static_cast<long>(RentedRead));
+                        }
+
+                        for (; Rented > 0; Rented--) {
+                            SLONG RouteId = 0;
+                            Message >> RouteId;
+                            /* RouteId indexes the array below; it must also be one of the rented routes. */
+                            if (RouteId < 0 || RouteId >= NumRoutes || qPending.Routes[RouteId].Rang == 0U) {
+                                TeakLibW_Exception(FNL, "Route %ld out of range or not rented", static_cast<long>(RouteId));
+                            }
+
+                            CRentRoute &qRoute = qPending.Routes[RouteId];
+                            Message >> qRoute.Auslastung >> qRoute.AuslastungFC >> qRoute.RoutenAuslastung >> qRoute.HeuteBefoerdert;
+                            for (SLONG d = 0; d < 7; d++) {
+                                Message >> qRoute.WocheBefoerdert[d];
+                            }
+                        }
                     }
 
-                    Anz--;
+                    Stage = "end";
+                    StageStart = Message.MemPointer;
+                    if (Message.BytesRemaining() != 0) {
+                        TeakLibW_Exception(FNL, "%ld bytes left over", static_cast<long>(Message.BytesRemaining()));
+                    }
+                    bParsed = true;
+                } catch (TeakLibException &ex) {
+                    AT_Log("SYNC_ROUTES rejected: %s", ex.what());
+                    ex.caught();
+                } catch (std::exception &ex) {
+                    AT_Log("SYNC_ROUTES rejected: %s", ex.what());
+                }
+
+                if (!bParsed) {
+                    AT_Log("SYNC_ROUTES rejected: entry=%ld/%ld player=%ld stage=%s stagestart=%ld failedat=%ld bytes=%ld day=%ld t=%ld", static_cast<long>(Entry),
+                           static_cast<long>(Anz), static_cast<long>(PlayerNum), Stage, static_cast<long>(StageStart), static_cast<long>(Message.MemPointer),
+                           static_cast<long>(Message.MemBufferUsed), static_cast<long>(Sim.Date), static_cast<long>(Sim.Time));
+                    NetTraceEvent("DROP name=%s reason=stage %s", Translate_ATNET(MessageType), Stage);
+
+                    /* Nothing was taken over, so the tail check below has nothing to say. */
+                    Message.MemPointer = static_cast<SLONG>(Message.MemBufferUsed);
+                    break;
+                }
+
+                for (auto &qPending : Pending) {
+                    PLAYER &qPlayer = Sim.Players.Players[qPending.PlayerNum];
+                    for (SLONG d = 0; d < static_cast<SLONG>(qPending.Routes.size()); d++) {
+                        CRentRoute &qRoute = qPlayer.RentRouten.RentRouten[d];
+                        if (qPending.bApplyUsage) {
+                            qRoute = qPending.Routes[d];
+                        } else {
+                            /* Only the fields the flights do not change. */
+                            const CRentRoute &qNew = qPending.Routes[d];
+                            qRoute.Rang = qNew.Rang;
+                            qRoute.Miete = qNew.Miete;
+                            qRoute.Ticketpreis = qNew.Ticketpreis;
+                            qRoute.TicketpreisFC = qNew.TicketpreisFC;
+                            qRoute.TageMitVerlust = qNew.TageMitVerlust;
+                            qRoute.TageMitGering = qNew.TageMitGering;
+                        }
+                    }
                 }
             } break;
 
@@ -1138,17 +1206,85 @@ void PumpNetwork() {
                 SLONG Anz = 0;
                 SLONG PlayerNum = 0;
 
-                Message >> Anz;
+                /* This message used to be read straight into the live players. A reader that
+                   failed halfway left a player with half overwritten planes, and the game died a
+                   few steps later. Read into scratch objects first and only take them over once
+                   the whole message has parsed. */
+                struct PendingPlanes {
+                    SLONG PlayerNum{};
+                    CPlanes Planes;
+                    CAuftraege Auftraege;
+                    CFrachten Frachten;
+                    CRentCities RentCities;
+                };
+                std::deque<PendingPlanes> Pending;
 
-                while (Anz > 0) {
-                    Message >> PlayerNum;
-                    PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
+                const char *Stage = "count";
+                SLONG StageStart = Message.MemPointer;
+                SLONG Entry = 0;
+                bool bParsed = false;
 
-                    PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                try {
+                    Message >> Anz;
+                    if (Anz < 0 || Anz > 4) {
+                        TeakLibW_Exception(FNL, "Invalid player count %ld in message %s", static_cast<long>(Anz), Translate_ATNET(MessageType));
+                    }
 
-                    Message >> qPlayer.Planes >> qPlayer.Auftraege >> qPlayer.Frachten >> qPlayer.RentCities;
+                    for (Entry = 0; Entry < Anz; Entry++) {
+                        Stage = "playernum";
+                        StageStart = Message.MemPointer;
+                        Message >> PlayerNum;
+                        PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                    Anz--;
+                        Pending.emplace_back();
+                        PendingPlanes &qPending = Pending.back();
+                        qPending.PlayerNum = PlayerNum;
+
+                        Stage = "planes";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Planes;
+
+                        Stage = "orders";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Auftraege;
+
+                        Stage = "freight";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.Frachten;
+
+                        Stage = "rentcities";
+                        StageStart = Message.MemPointer;
+                        Message >> qPending.RentCities;
+                    }
+                    bParsed = true;
+                } catch (TeakLibException &ex) {
+                    AT_Log("SYNC_PLANES rejected: %s", ex.what());
+                    ex.caught();
+                } catch (std::exception &ex) {
+                    /* A misread length ends in std::length_error or std::bad_alloc, which nobody
+                       above catches. */
+                    AT_Log("SYNC_PLANES rejected: %s", ex.what());
+                }
+
+                if (!bParsed) {
+                    AT_Log("SYNC_PLANES rejected: entry=%ld/%ld player=%ld stage=%s stagestart=%ld failedat=%ld bytes=%ld day=%ld t=%ld",
+                           static_cast<long>(Entry), static_cast<long>(Anz), static_cast<long>(PlayerNum), Stage, static_cast<long>(StageStart),
+                           static_cast<long>(Message.MemPointer), static_cast<long>(Message.MemBufferUsed), static_cast<long>(Sim.Date),
+                           static_cast<long>(Sim.Time));
+                    NetTraceEvent("DROP name=%s reason=stage %s", Translate_ATNET(MessageType), Stage);
+
+                    /* Nothing was taken over, so the tail check below has nothing to say. */
+                    Message.MemPointer = static_cast<SLONG>(Message.MemBufferUsed);
+                    break;
+                }
+
+                for (auto &qPending : Pending) {
+                    PLAYER &qPlayer = Sim.Players.Players[qPending.PlayerNum];
+
+                    qPlayer.Planes = std::move(qPending.Planes);
+                    qPlayer.Auftraege = std::move(qPending.Auftraege);
+                    qPlayer.Frachten = std::move(qPending.Frachten);
+                    qPlayer.RentCities = std::move(qPending.RentCities);
                 }
             } break;
 

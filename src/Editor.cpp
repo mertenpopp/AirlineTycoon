@@ -2569,6 +2569,11 @@ TEAKFILE &operator>>(TEAKFILE &File, CXPlane &p) {
 
     File >> dwSize >> lCost >> lWeight >> lConsumption >> lNoise >> lReliability >> lSpeed;
     dwSize -= sizeof(DWORD) + sizeof(SLONG) * 5;
+    /* dwSize comes off the wire or off disk. Dummy lives on the stack: a length that does not
+       fit must not be read into it. */
+    if (dwSize >= sizeof(Dummy)) {
+        TeakLibW_Exception(FNL, "Implausible designer plane header size %lu", static_cast<unsigned long>(dwSize));
+    }
     File.Read(reinterpret_cast<UBYTE *>(Dummy), dwSize + 1);
 
     File >> p.Name;
