@@ -1856,7 +1856,7 @@ void CPlaner::HandleLButtonDown() {
                         qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                         if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                            DebugBreak();
+                            AtDebugBreak();
                         }
 
                         if (qPlan.Flug[c].ObjectType == 1) {
@@ -2040,7 +2040,7 @@ void CPlaner::HandleLButtonDown() {
                             qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                             if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             if (qPlan.Flug[c].ObjectType == 1) {
@@ -2385,7 +2385,7 @@ void CPlaner::HandleLButtonDown() {
 
 #ifdef _DEBUG
                 if (RouteB == -1) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
 #endif
 
@@ -2598,7 +2598,7 @@ void CPlaner::HandleLButtonUp() {
                             qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                             if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             if (qPlan.Flug[c].ObjectType == 1) {
@@ -2961,7 +2961,7 @@ void CPlaner::HandleLButtonDouble() {
                                     qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                                     if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                        DebugBreak();
+                                        AtDebugBreak();
                                     }
 
                                     if (qPlan.Flug[c].ObjectType == 1) {

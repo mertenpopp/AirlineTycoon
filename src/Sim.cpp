@@ -1875,7 +1875,7 @@ void SIM::DoTimeStep() {
                                         break;
                                     default:
                                         hprintf("Sim.cpp: Default case should not be reached.");
-                                        DebugBreak();
+                                        AtDebugBreak();
                                     }
 
                                     if (bCanHappenToThisPlane) {
@@ -3788,7 +3788,7 @@ void SIM::NetRefill(SLONG Type, SLONG City) const {
         break;
     default:
         hprintf("Sim.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     Time = Time - Delta;
@@ -3964,7 +3964,7 @@ SLONG SIM::HoleKerosinPreis(SLONG typ) const {
         return Kerosin / 2;
     default:
         hprintf("Sim.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
     return 0;
 }

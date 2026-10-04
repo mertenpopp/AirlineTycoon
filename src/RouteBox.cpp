@@ -48,7 +48,7 @@ SLONG CalcDistanceLine2Dot(XY LineP1, XY LineP2, XY p) {
     // p.y>=LineP2.y))
     {
         return (SLONG((p - LineP2).abs()));
-    } else // DebugBreak();
+    } else // AtDebugBreak();
     {
         XY r(LineP1.y - LineP2.y, LineP2.x - LineP1.x);
 
@@ -665,7 +665,7 @@ void CRouteBox::UpdateDataTable() {
     } break;
     default:
         hprintf("RouteBox.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
     RoutePageMax = (Table.AnzRows - 1) / ListSize + 1;
     RepaintList();

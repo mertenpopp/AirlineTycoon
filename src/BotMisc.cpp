@@ -739,7 +739,7 @@ void Bot::setMoodByActionId(SLONG actionId) {
         mMoodNext = 4;
         break;
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 

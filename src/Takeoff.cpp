@@ -1393,7 +1393,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         break;
                     default:
                         printf("Takeoff.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
                     NumSimSteps *= Multiplier;
                     Faktor *= Multiplier;

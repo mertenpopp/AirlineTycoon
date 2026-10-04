@@ -737,7 +737,7 @@ void CStdRaum::MakeSayWindow(BOOL TextAlign, const char *GroupId, ULONG SubIdVon
     // Die gesammten Parameter "reinvestieren":
     for (c = CurrentTextSubIdVon; c <= static_cast<SLONG>(CurrentTextSubIdBis); c++) {
         if (c - CurrentTextSubIdVon < 0 || c - CurrentTextSubIdVon >= 10) {
-            DebugBreak();
+            AtDebugBreak();
         }
 
         // Sind die Paramter eine Liste für die Antworten oder jeweils alle für alle?
@@ -1885,7 +1885,7 @@ void CStdRaum::StartDialog(SLONG DialogPartner, BOOL Medium, SLONG DialogPar1, S
         break;
     default:
         hprintf("StdRaum.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 
@@ -3665,7 +3665,7 @@ void CStdRaum::RepaintTip() {
         break;
     default:
         hprintf("StdRaum.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     CStdRaum::LastTipType = CStdRaum::CurrentTipType;
@@ -5786,7 +5786,7 @@ void CStdRaum::MenuLeftClick(XY Pos) {
                         break;
                     default:
                         hprintf("StdRaum.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
 
                     if (HandyRoomRemapper[MouseClickPar2] != ROOM_WORLD && HandyRoomRemapper[MouseClickPar2] != 254) {

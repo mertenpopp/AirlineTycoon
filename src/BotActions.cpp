@@ -440,7 +440,7 @@ void Bot::actionUpgradePlanes() {
                 break;
             default:
                 AT_Error("Bot::actionUpgradePlanes(): Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
         }
     }

@@ -234,7 +234,7 @@ void CPlaneProps::OnPaint() {
                             break;
                         default:
                             hprintf("PlanProp.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                     }
                 }
@@ -298,7 +298,7 @@ void CPlaneProps::OnPaint() {
                             break;
                         default:
                             hprintf("PlanProp.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                     }
                 }
@@ -537,7 +537,7 @@ void CPlaneProps::OnPaint() {
                                 break;
                             default:
                                 hprintf("PlanProp.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
                         }
                     }
@@ -623,7 +623,7 @@ void CPlaneProps::OnPaint() {
                                 break;
                             default:
                                 hprintf("PlanProp.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
                         }
                     }

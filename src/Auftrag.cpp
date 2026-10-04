@@ -234,7 +234,7 @@ void CAuftrag::RandomCities(SLONG AreaType, SLONG HomeCity, TEAKRAND *pRandom) {
                 break;
             default:
                 hprintf("Auftrag.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
             break;
 
@@ -257,12 +257,12 @@ void CAuftrag::RandomCities(SLONG AreaType, SLONG HomeCity, TEAKRAND *pRandom) {
                 break;
             default:
                 hprintf("Auftrag.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
             break;
         default:
             hprintf("Auftrag.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         TimeOut++;
@@ -685,7 +685,7 @@ too_large:
             break;
         default:
             hprintf("Auftrag.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     } while (VonCity == NachCity || (AreaType == 4 && Cities.CalcDistance(VonCity, NachCity) > 10000000));
 

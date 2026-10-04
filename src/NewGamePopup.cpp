@@ -2903,7 +2903,7 @@ void NewGamePopup::PumpLobbyNetwork() {
                 break;
             default:
                 hprintf("NewGamePopup.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
 
             // if (gNetwork.Connect (pNetworkConnections->Get(NetMediumMapper[Selection]+1), (char*)(LPCTSTR)gHostIP))

@@ -268,7 +268,7 @@ void Bot::switchToFinalTarget(bool areWeInOffice) {
                     break;
                 default:
                     AT_Error("Bot::switchToFinalTarget(): Default case should not be reached.");
-                    DebugBreak();
+                    AtDebugBreak();
                 }
             }
         }

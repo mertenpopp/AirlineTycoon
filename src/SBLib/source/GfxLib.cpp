@@ -150,10 +150,10 @@ SLONG GfxLib::Load(SDL_RWops *file, GfxLibHeader *header) {
             ReadGfxChunk(file, chunk, 0, 0);
             break;
         case CHUNK_NAME:
-            // DebugBreak();
+            // AtDebugBreak();
             break;
         case CHUNK_PALETTE:
-            DebugBreak();
+            AtDebugBreak();
             break;
         default:
             break;

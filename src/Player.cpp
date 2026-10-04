@@ -414,7 +414,7 @@ void PLAYER::ChangeMoney(__int64 Money, SLONG Reason, const CString &Par1, const
     case 2090:
         /* nicht benutzt */
         /* D::Kerosin */
-        DebugBreak();
+        AtDebugBreak();
         break;
     case 2091:
         /* D::Kerosintanks, %sl x %s */
@@ -1238,7 +1238,7 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
 
     default:
         AT_Log("Player.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     return (0);
@@ -1514,7 +1514,7 @@ void PLAYER::NewDay() {
         break;
     default:
         AT_Log("Player.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     // LastFlown-Feld bei den Routen aktualisieren:
@@ -1750,7 +1750,7 @@ void PLAYER::NewDay() {
                     break;
                 default:
                     AT_Log("Player.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    AtDebugBreak();
                 }
 
                 if (Planes[c].Zustand > Planes[c].TargetZustand) {
@@ -4734,7 +4734,7 @@ void PLAYER::RobotExecuteAction() {
                                 break;
                             default:
                                 AT_Log("Player.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             bpass = 4;
@@ -4778,7 +4778,7 @@ void PLAYER::RobotExecuteAction() {
                     break;
                 default:
                     AT_Log("Player.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    AtDebugBreak();
                 }
             }
         }
@@ -4927,7 +4927,7 @@ void PLAYER::RobotExecuteAction() {
                         break;
                     default:
                         AT_Log("Player.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
 
                     if ((ArabMode != 0) || (ArabMode2 != 0) || (ArabMode3 != 0)) {
@@ -5926,7 +5926,7 @@ void PLAYER::RobotExecuteAction() {
         break;
 
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
 
     // NetGenericSync (110, PlayerNum);
@@ -7193,7 +7193,7 @@ void PLAYER::BroadcastPosition(bool bForce) {
             PLAYER &qPlayer = (*this);
             PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(PlayerNum)];
 
-            // if (qPerson.Position.x==qPerson.Target.x && qPerson.Position.y==qPerson.Target.y+5000) DebugBreak();
+            // if (qPerson.Position.x==qPerson.Target.x && qPerson.Position.y==qPerson.Target.y+5000) AtDebugBreak();
 
             // Read the message data:
             Message << qPlayer.PrimaryTarget.x << qPlayer.PrimaryTarget.y;
@@ -7290,7 +7290,7 @@ void PLAYERS::CheckFlighplans() {
 
                         default:
                             AT_Log("Player.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                     }
                 }

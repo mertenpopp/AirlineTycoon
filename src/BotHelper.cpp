@@ -113,7 +113,7 @@ std::string SabotageMode::getName() const {
         break;
     }
     AT_Error("SabotageMode::getName(): Invalid sabotage mode with category %d and job number %d", static_cast<int>(mCategory), mJobNumber);
-    DebugBreak();
+    AtDebugBreak();
     return "INVALID";
 }
 
@@ -855,7 +855,7 @@ SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId) {
     case ACTION_VISIT_OFFICE_D:
         return ROOM_BURO_D;
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
     return -1;
 }
@@ -937,7 +937,7 @@ const char *getItemName(SLONG item) {
         return "Stinking perfume";
     default:
         AT_Error("BotHelper.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
         return "INVALID";
     }
     return "INVALID";

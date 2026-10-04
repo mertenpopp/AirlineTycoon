@@ -182,7 +182,7 @@ void CWeltAll::OnPaint() {
                     break;
                 default:
                     hprintf("Weltall.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    AtDebugBreak();
                 }
 
                 break;
@@ -241,7 +241,7 @@ void CWeltAll::OnPaint() {
             break;
         default:
             hprintf("Weltall.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         StationPos -= ViewPos;

@@ -1183,7 +1183,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
         default:
             hprintf("Misc.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 
@@ -1972,12 +1972,12 @@ void CheckEventSync(SLONG EventId) {
     hprintf("%li,", EventId);
 
     if (EventId != PastRandoms[iPastRandoms]) {
-        DebugBreak();
+        AtDebugBreak();
     }
     iPastRandoms++;
 
     if (PastRandoms[iPastRandoms] == 0xdead && PastRandoms[iPastRandoms + 1] == 0xdead && PastRandoms[iPastRandoms + 2] == 0xdead) {
-        DebugBreak(); /**/
+        AtDebugBreak(); /**/
     }
 }
 
@@ -2171,9 +2171,19 @@ BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy) {
     pRect->bottom += dy;
     return TRUE;
 }
-
-void DebugBreak() { assert(0); }
 #endif
+
+void AtDebugBreak() {
+#ifndef NDEBUG
+#ifdef WIN32
+    if (IsDebuggerPresent()) {
+        ::DebugBreak();
+    }
+#else
+    assert(0);
+#endif
+#endif
+}
 
 DWORD AtGetTime() {
     static std::chrono::nanoseconds now = std::chrono::steady_clock::now().time_since_epoch();

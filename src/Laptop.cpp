@@ -211,7 +211,7 @@ CLaptop::CLaptop(BOOL bHandy, ULONG PlayerNum) : CPlaner(bHandy, PlayerNum, Sim.
             break;
         default:
             hprintf("Laptop.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 
@@ -825,7 +825,7 @@ void CLaptop::OnPaint() {
                             break;
                         default:
                             hprintf("Laptop.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                     }
 
@@ -1528,7 +1528,7 @@ void CLaptop::QuickJump(SLONG par) {
                 break;
             default:
                 hprintf("Laptop.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
 
             if (pBlock->Page >= pBlock->AnzPages) {
@@ -1576,7 +1576,7 @@ void CLaptop::QuickJump(SLONG par) {
                 break;
             default:
                 hprintf("Laptop.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
 
             if (pBlock->PageB >= pBlock->AnzPagesB) {
