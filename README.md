@@ -254,6 +254,11 @@ All new computer players have one thing in common:
 * Director's board now allow for more post-it
 * Added options "OptionRentOffice*" to customize the branch number available / day.
 * Director's board post-it system improved and allow for more cities (up to 7)
+* Safety upgrades now protect against the intended problem
+    * Spring: Cockpit upgrade protect against "Migrating birds, due to the cockpit"
+    * Summer: Safety upgrade protect against "Missing life vests"
+    * Fall: Engine upgrade protect against "Engine damage, due to foliage"
+    * Winter: Tire upgrade protect against "Landing gear frozen solid"
 
 ## Credits and Contributors
 
