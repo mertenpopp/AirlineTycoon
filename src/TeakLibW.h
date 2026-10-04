@@ -315,6 +315,14 @@ class TEAKFILE {
         }
     }
 
+    /* Throws when the saved position inside a buffer of size elements lies outside of it: such
+       an offset would leave the buffer's iterator pointing into foreign memory. */
+    void CheckBufferOffset(SLONG offset, SLONG size) const {
+        if (offset < 0 || offset > size) {
+            TeakLibW_Exception(nullptr, 0, ExcRead, "buffer (offset outside of buffer)");
+        }
+    }
+
     SDL_RWops *Ctx;
     char *Path;
     BUFFER<UBYTE> MemBuffer;
@@ -507,6 +515,7 @@ class TEAKFILE {
         SLONG size, offset;
         File >> size >> offset;
         File.CheckLengthPrefix(static_cast<ULONG>(size));
+        File.CheckBufferOffset(offset, size);
         buffer.ReSize(size);
         buffer.incIter(offset);
         for (SLONG i = 0; i < buffer.AnzEntries(); i++) {
@@ -531,6 +540,7 @@ class TEAKFILE {
         buffer.ReSize(0);
         buffer.ReSize(size);
         File >> offset;
+        File.CheckBufferOffset(offset, size);
         for (SLONG i = 0; i < buffer.Size; i++) {
             File >> buffer.MemPointer[i];
         }
