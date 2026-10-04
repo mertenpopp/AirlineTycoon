@@ -1545,7 +1545,7 @@ GameMechanic::BuyItemResult GameMechanic::buyDutyFreeItem(PLAYER &qPlayer, UBYTE
             break;
         default:
             AT_Error("GameMechanic.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         Sim.LaptopSoldTo = qPlayer.PlayerNum;
@@ -1763,7 +1763,7 @@ GameMechanic::PickUpItemResult GameMechanic::pickUpItem(PLAYER &qPlayer, SLONG i
         break;
     default:
         AT_Error("GameMechanic::pickUpItem(%s): Invalid item (%ld).", qPlayer.AirlineX.c_str(), item);
-        DebugBreak();
+        AtDebugBreak();
     }
     return PickUpItemResult::None;
 }
@@ -2124,7 +2124,7 @@ bool GameMechanic::useItem(PLAYER &qPlayer, SLONG item) {
 
     default:
         AT_Error("GameMechanic.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     /* Most branches above use the item up by clearing its slot, and none of them told the other
@@ -3491,7 +3491,7 @@ void GameMechanic::executeSabotageMode1() {
             break;
         default:
             AT_Error("GameMechanic.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
         if (qOpfer.Kurse[0] < 0) {
             qOpfer.Kurse[0] = 0;
@@ -3622,7 +3622,7 @@ void GameMechanic::executeSabotageMode2(bool &outBAnyBombs) {
             break;
         default:
             AT_Error("GameMechanic.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         // Für's nächste Briefing vermerken:
@@ -3743,7 +3743,7 @@ void GameMechanic::executeSabotageMode3() {
             break;
         default:
             AT_Error("GameMechanic.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         // Für's nächste Briefing vermerken:
@@ -3799,7 +3799,7 @@ void GameMechanic::injectFakeSabotage() {
             break;
         default:
             AT_Log("Sim.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
         if (res.result != GameMechanic::CheckSabotageResult::Ok) {
             continue;

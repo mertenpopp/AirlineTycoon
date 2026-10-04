@@ -1084,7 +1084,7 @@ void CompressWave(BUFFER_V<SND_TYPE> &Input, BUFFER_V<SND_TYPE> &Output) {
             c += (d - 1);
         } else {
             Output[o++] = Input[c];
-            // if (Output[o-1]==Tokens[0]) DebugBreak();
+            // if (Output[o-1]==Tokens[0]) AtDebugBreak();
         }
     }
 

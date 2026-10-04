@@ -983,7 +983,7 @@ void CSmackerPerson::NextClip() {
             }
         }
     }
-    DebugBreak();
+    AtDebugBreak();
 
 found_next_clip:
     BOOL LastTalking = static_cast<BOOL>(CurrentMood == SPM_TALKING || CurrentMood == SPM_ANGRY_TALKING);

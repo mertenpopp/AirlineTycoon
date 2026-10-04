@@ -1180,12 +1180,12 @@ void BLOCK::LinkeSeiteInhalt(XY TitleArea, XY ClientArea) {
 
         default:
             hprintf("Block.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
         break;
     default:
         hprintf("Block.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 
@@ -1390,7 +1390,7 @@ void BLOCK::RechteSeiteIndex(XY TitleAreaB, XY ClientAreaB) {
         break;
     default:
         hprintf("Block.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 
@@ -1646,7 +1646,7 @@ bool BLOCK::RechteSeiteInhalt(XY TitleAreaB, XY ClientAreaB) {
     } break;
     default:
         hprintf("Block.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
     return false;
 }
@@ -2163,7 +2163,7 @@ void BLOCK::UpdatePageSize() {
             break;
         default:
             hprintf("Block.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 

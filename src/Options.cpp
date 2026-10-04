@@ -519,7 +519,7 @@ void Options::OnPaint() {
             break;
         default:
             hprintf("Options.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         RoomBm.PrintAt(VersionString, FontSmallRed, TEC_FONT_RIGHT, XY(0, 429), XY(519, 480));
@@ -936,7 +936,7 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
             break;
         default:
             hprintf("Options.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 }

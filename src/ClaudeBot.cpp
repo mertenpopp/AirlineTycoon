@@ -2264,7 +2264,7 @@ void ClaudeBot::RobotExecuteAction() {
 
     default:
         AT_Error("ClaudeBot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
-        DebugBreak();
+        AtDebugBreak();
     }
 
     /* Last, so that they override the WorkCountdown the action left behind. */

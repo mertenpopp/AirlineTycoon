@@ -493,7 +493,7 @@ void SBPRIMARYBM::Flip(XY /*WindowPos*/, BOOL /*ShowFPS*/) {
             if (gBlendState >= 0 && gBlendState <= 8) {
                 if (Sim.Players.Players[Sim.localPlayer].LocationWin != nullptr) {
                     if (gBlendBm.Size.y == 0) {
-                        DebugBreak();
+                        AtDebugBreak();
                     }
 
                     // if (((CStdRaum*)Sim.Players.Players[Sim.localPlayer].LocationWin)->PicBitmap.Size.y==480)

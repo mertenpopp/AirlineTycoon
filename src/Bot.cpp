@@ -93,7 +93,7 @@ const char *Bot::getPrioName(Bot::Prio prio) {
         return "None";
     default:
         AT_Error("Bot.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
         return "INVALID";
     }
     return "INVALID";
@@ -734,7 +734,7 @@ void Bot::RobotExecuteAction() {
 
     default:
         AT_Error("Bot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
-        DebugBreak();
+        AtDebugBreak();
     }
 
     mLastTimeInRoom[qAction.ActionId] = Sim.Time;

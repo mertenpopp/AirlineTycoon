@@ -433,7 +433,7 @@ void CWorkers::ReInit(const CString &TabFilename, const CString &TabFilename2) {
         }
 
         if (i1 >= FNames.AnzEntries() || i2 >= MNames.AnzEntries() || i3 >= LNames.AnzEntries()) {
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 

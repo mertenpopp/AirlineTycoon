@@ -113,7 +113,7 @@ void TEAKFILE::Write(const unsigned char *buffer, SLONG size) {
 
 void TEAKFILE::ReadTrap(SLONG trap) const {
     if (SDL_ReadLE32(Ctx) != trap) {
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 

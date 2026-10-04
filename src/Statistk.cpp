@@ -1029,7 +1029,7 @@ void CStatistik::RepaintTextWindow() {
                     }
                     default:
                         hprintf("Statistik.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
 
                     TextTableBm.PrintAt(output, StatFonts[p], TEC_FONT_RIGHT, rc.left, rc.top, rc.right - 5, rc.bottom);

@@ -314,7 +314,7 @@ void Bot::routesRecalcNextStep() {
         break;
     default:
         AT_Error("Bot::routesRecalcNextStep(): Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 

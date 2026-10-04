@@ -3536,7 +3536,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                                 break;
                             default:
                                 hprintf("Dialog.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
                         }
 
@@ -3583,7 +3583,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                                 break;
                             default:
                                 hprintf("Dialog.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
                         } else {
                             TmpStr += bprintf(DialogTexte.GetS(TOKEN_BOSS, 2044)) + Space;
@@ -3606,7 +3606,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                                 break;
                             default:
                                 hprintf("Dialog.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
                         }
                     }
@@ -5457,7 +5457,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
             break;
         default:
             hprintf("Dialog.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         return (TRUE);

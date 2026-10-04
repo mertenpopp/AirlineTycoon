@@ -203,7 +203,7 @@ void CPlaneTypes::BlitPlaneAt(SBPRIMARYBM &TargetBm, SLONG PlaneType, SLONG Size
     } break;
     default:
         hprintf("Planetyp.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 

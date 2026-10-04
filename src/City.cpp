@@ -200,7 +200,7 @@ SLONG CITIES::GetRandomUsedIndex(TEAKRAND *pRand) {
         }
     }
 
-    DebugBreak();
+    AtDebugBreak();
     return (0);
 }
 
@@ -232,7 +232,7 @@ SLONG CITIES::GetRandomUsedIndex(SLONG AreaCode, TEAKRAND *pRand) {
         }
     }
 
-    DebugBreak();
+    AtDebugBreak();
     return (0);
 }
 

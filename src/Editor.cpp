@@ -2637,7 +2637,7 @@ void CXPlane::BlitPlaneAt(SBPRIMARYBM &TargetBm, SLONG Size, XY Pos, SLONG Ownin
     } break;
     default:
         hprintf("Editor.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 

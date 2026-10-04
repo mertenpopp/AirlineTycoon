@@ -63,7 +63,7 @@ TEAKFILE &operator>>(TEAKFILE &File, CRoute &r) {
 //============================================================================================
 CRouten::CRouten(const CString & /*TabFilename*/) : ALBUM_V<CRoute>("Routen") {
     // ReInit (TabFilename);
-    DebugBreak();
+    AtDebugBreak();
 }
 
 //--------------------------------------------------------------------------------------------
