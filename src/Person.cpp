@@ -2838,6 +2838,12 @@ void PERSON::LookAt(SLONG Dir) {
 // Eine Person hat einen Checkpunkt (Sekundärziel) erreicht und braucht neue Anweisungen:
 //--------------------------------------------------------------------------------------------
 void PERSON::PersonReachedTarget() {
+    // Person is removed after this step. It can still be standing on its target here, e.g. a waiting passenger
+    // of an airline that was just overtaken during the morning briefing (executeAirlineOvertake):
+    if ((State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)) == PERSON_LEAVING) {
+        return;
+    }
+
     // Das hängt davon ab, warum sie am Flughafen ist:
     switch (Reason) {
     // Die Person geht nur einkaufen:
