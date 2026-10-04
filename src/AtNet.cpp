@@ -1256,6 +1256,14 @@ void PumpNetwork() {
                         StageStart = Message.MemPointer;
                         Message >> qPending.RentCities;
                     }
+
+                    /* A message that parses but does not end where the last player ends was read
+                       with a different layout than it was written with. */
+                    Stage = "end";
+                    StageStart = Message.MemPointer;
+                    if (Message.BytesRemaining() != 0) {
+                        TeakLibW_Exception(FNL, "%ld bytes left over", static_cast<long>(Message.BytesRemaining()));
+                    }
                     bParsed = true;
                 } catch (TeakLibException &ex) {
                     AT_Log("SYNC_PLANES rejected: %s", ex.what());
