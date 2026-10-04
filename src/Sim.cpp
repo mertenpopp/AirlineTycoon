@@ -3893,19 +3893,19 @@ void SIM::SaveHighscores() {
                 k1 = k2 = k3 = k4 = k5 = 0;
             }
 
-            str = bprintf("%I64i;", k1);
+            str = bprintf("%lli;", k1);
             OutputFile.Write(reinterpret_cast<const UBYTE *>((LPCTSTR)str), str.GetLength());
 
-            str = bprintf("%I64i;", k2);
+            str = bprintf("%lli;", k2);
             OutputFile.Write(reinterpret_cast<const UBYTE *>((LPCTSTR)str), str.GetLength());
 
-            str = bprintf("%I64i;", k3);
+            str = bprintf("%lli;", k3);
             OutputFile.Write(reinterpret_cast<const UBYTE *>((LPCTSTR)str), str.GetLength());
 
-            str = bprintf("%I64i;", k4);
+            str = bprintf("%lli;", k4);
             OutputFile.Write(reinterpret_cast<const UBYTE *>((LPCTSTR)str), str.GetLength());
 
-            str = bprintf("%I64i\xd\xa", k5);
+            str = bprintf("%lli\xd\xa", k5);
             OutputFile.Write(reinterpret_cast<const UBYTE *>((LPCTSTR)str), str.GetLength());
         }
     } catch (TeakLibException &e) {
