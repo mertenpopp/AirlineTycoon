@@ -426,6 +426,7 @@ void PumpNetwork() {
             switch (MessageType) {
             case ATNET_SETSPEED:
                 Message >> Par1 >> Par2;
+                Par1 = NetCheckPlayerNum(Par1, MessageType);
                 Sim.Players.Players[Par1].GameSpeed = Par2;
                 if (Sim.Players.Players[Sim.localPlayer].LocationWin != nullptr) {
                     (Sim.Players.Players[Sim.localPlayer].LocationWin)->StatusCount = 3;
@@ -800,7 +801,8 @@ void PumpNetwork() {
                         pTalker2->IncreaseLocking();
                     }
 
-                    if (Sim.RoomBusy[RoomEntered] == 0) {
+                    /* RoomBusy has an unchecked operator[] in release: skip only the busy update when out of range. */
+                    if (RoomEntered >= 0 && RoomEntered < Sim.RoomBusy.AnzEntries() && Sim.RoomBusy[RoomEntered] == 0) {
                         Sim.RoomBusy[RoomEntered]++;
                     }
                 }
@@ -874,7 +876,8 @@ void PumpNetwork() {
                         break;
                     }
 
-                    if (Sim.RoomBusy[RoomLeft] != 0U) {
+                    /* RoomBusy has an unchecked operator[] in release: skip only the busy update when out of range. */
+                    if (RoomLeft >= 0 && RoomLeft < Sim.RoomBusy.AnzEntries() && Sim.RoomBusy[RoomLeft] != 0U) {
                         Sim.RoomBusy[RoomLeft]--;
                     }
                 }
@@ -1355,11 +1358,16 @@ void PumpNetwork() {
                     break;
                 }
 
-                if (qPlayer.RentRouten.RentRouten[Routen(RouteId)].Ticketpreis != Ticketpreis) {
-                    DebugBreak();
-                }
-                if (qPlayer.RentRouten.RentRouten[Routen(RouteId)].TicketpreisFC != TicketpreisFC) {
-                    DebugBreak();
+                /* The prices legitimately differ when the preceding ATNET_SYNC_ROUTES was lost or
+                   refused. DebugBreak() is a real breakpoint trap on Windows and kills a release
+                   build without a debugger, so only log the difference and apply the new prices. */
+                {
+                    const auto &qRentRoute = qPlayer.RentRouten.RentRouten[Routen(RouteId)];
+                    if (qRentRoute.Ticketpreis != Ticketpreis || qRentRoute.TicketpreisFC != TicketpreisFC) {
+                        NetTraceEvent("ROUTECHANGE mismatch p=%ld route=%ld theirs=%ld/%ld mine=%ld/%ld", static_cast<long>(PlayerNum),
+                                      static_cast<long>(RouteId), static_cast<long>(Ticketpreis), static_cast<long>(TicketpreisFC),
+                                      static_cast<long>(qRentRoute.Ticketpreis), static_cast<long>(qRentRoute.TicketpreisFC));
+                    }
                 }
 
                 qPlayer.UpdateTicketpreise(RouteId, Ticketpreis, TicketpreisFC);
@@ -1505,10 +1513,15 @@ void PumpNetwork() {
                 SLONG PlayerNum = 0;
 
                 Message >> PlaneId >> PlayerNum;
+                PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+                /* Do not index a plane that is not in the album; the next message is handled by the loop. */
                 if (qPlayer.Planes.IsInAlbum(PlaneId) == 0) {
                     hprintf("Plane not in Album: %li, %li", PlayerNum, PlaneId);
+                    NetTraceEvent("DROP name=%s reason=plane %ld of player %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneId),
+                                  static_cast<long>(PlayerNum));
+                    break;
                 }
 
                 CPlane &qPlane = qPlayer.Planes[PlaneId];
@@ -1527,10 +1540,13 @@ void PumpNetwork() {
                     }
                 }
 
-                Message >> qPlane.Flugplan;
+                /* Read into a scratch copy first, so a read that throws leaves the live plan untouched. */
+                CFlugplan NewPlan = qPlane.Flugplan;
+                Message >> NewPlan;
                 SLONG PlanDate = 0;
                 SLONG PlanHour = 0;
                 Message >> PlanDate >> PlanHour;
+                qPlane.Flugplan = NewPlan;
 
                 for (e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
                     CFlugplanEintrag &qFlight = qPlane.Flugplan.Flug[e];
@@ -2236,6 +2252,7 @@ void PumpNetwork() {
                 PLAYER &qPlayer = Sim.Players.Players[Sim.localPlayer];
 
                 Message >> Money >> OtherPlayer;
+                OtherPlayer = NetCheckPlayerNum(OtherPlayer, MessageType);
 
                 Sim.Players.Players[Sim.localPlayer].ChangeMoney(Money, 3700, Sim.Players.Players[OtherPlayer].NameX);
                 Sim.Players.Players[OtherPlayer].ChangeMoney(-Money, 3701, Sim.Players.Players[Sim.localPlayer].NameX);
