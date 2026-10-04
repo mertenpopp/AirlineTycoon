@@ -1865,7 +1865,7 @@ void SIM::DoTimeStep() {
                                         }
                                         break;
                                     case 3:
-                                        if (qPlane.Elektronik != 2) {
+                                        if (qPlane.Reifen != 2) {
                                             bCanHappenToThisPlane = true;
                                         }
                                         break;
