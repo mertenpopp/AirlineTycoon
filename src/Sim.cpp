@@ -65,9 +65,13 @@ extern SLONG gTimerCorrection;
 
 void CalcPlayerMaximums(bool bForce);
 
+// The format this build writes: version 1.9.1
+static const SLONG kCurrentSaveVersion = 1;
+static const SLONG kCurrentSaveVersionSub = 204;
+
 // Daten des aktuellen Savegames beim laden:
-SLONG SaveVersion = 1;
-SLONG SaveVersionSub = 204;
+SLONG SaveVersion = kCurrentSaveVersion;
+SLONG SaveVersionSub = kCurrentSaveVersionSub;
 
 // Öffnungszeiten:
 extern SLONG timeDutyOpen;
@@ -3295,6 +3299,14 @@ BOOL SIM::LoadGame(SLONG Number) {
         }
     }
 
+    /* The readers and writers that network messages share with the savegame look at these, so
+       they must describe the format this build writes, not the one just loaded. Otherwise a game
+       continued from an older savegame reads every message in the old layout until the next
+       save, and a peer that autosaves (an option each peer sets for itself) switches to the new
+       layout while the others keep the old one. */
+    SaveVersion = kCurrentSaveVersion;
+    SaveVersionSub = kCurrentSaveVersionSub;
+
     /* Every peer loads its own copy of the savegame, so this is the first chance to see whether
        they saved the same game. */
     NetTraceFingerprint("loaded");
@@ -3317,8 +3329,8 @@ void SIM::SaveGame(SLONG Number, const CString &Name) const {
     CString Filename = FullFilename((LPCTSTR)bprintf(pNamebaseStr, Number), SavegamePath);
     SLONG NumSaveGameCities = Cities.AnzEntries();
 
-    SaveVersion = 1;
-    SaveVersionSub = 204; // Version 1.9.1
+    SaveVersion = kCurrentSaveVersion;
+    SaveVersionSub = kCurrentSaveVersionSub;
 
     fs::path path{Filename.c_str()};
     fs::create_directory(path.parent_path());
