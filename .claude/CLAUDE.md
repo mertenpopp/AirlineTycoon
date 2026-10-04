@@ -49,7 +49,7 @@ How to test
 -----------
 
 In top-level directory, run the command:
-- `./scripts/run_test.sh`
+- `./scripts/run_test_tycoon.sh`
 
 This runs the game in a mode which requires no human input. Note:
 - Players "Falcon Lines" and "Phoenix Travel" will be controlled by the regular CPU player
@@ -60,7 +60,7 @@ This runs the game in a mode which requires no human input. Note:
 - ClaudeBot.csv contains important stats with one line of data per in-game day. Very first filtered line are column headers
 - You can also filter for the other airlines by adapting the grep command above: Search for "BotStatistics/<abbreviation>" instead
 
-For a quick smoke test, use `./scripts/run_smoketest.sh`. This ends the game automatically after 5 in-game days.
+For a quick smoke test, use `./scripts/run_smoketest_tycoon.sh`. This ends the game automatically after 5 in-game days.
 
 How to measure performance of bot
 ---------------------------------
