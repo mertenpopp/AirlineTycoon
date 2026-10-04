@@ -1571,16 +1571,18 @@ void PERSON::DoOneCustomerStep() {
                 }
                 if (Position.x >= Target.x) {
                     Dir = 2;
-                    if (Mood == MoodPersonSick) {
-                        if (qClan.Type == CLAN_MALE) {
-                            Target = Airport.GetRandomTypedRune(RUNE_2SHOP, ROOM_WC_M, false, &PersonalRandWalk);
-                            StatePar = ROOM_WC_M;
-                        } else if (qClan.Type == CLAN_FEMALE) {
-                            Target = Airport.GetRandomTypedRune(RUNE_2SHOP, ROOM_WC_F, false, &PersonalRandWalk);
-                            StatePar = ROOM_WC_F;
-                        } else {
-                            DebugBreak();
-                        }
+                    /* Tanned passengers (CLAN_BROWNMALE / CLAN_BROWNFEMALE) arrive on planes too and can be sick. Use the
+                     * same toilets as their untanned counterparts. Any other clan type that is sick simply leaves
+                     * normally instead of trapping in DebugBreak(). */
+                    SLONG wc = -1;
+                    if (qClan.Type == CLAN_MALE || qClan.Type == CLAN_BROWNMALE) {
+                        wc = ROOM_WC_M;
+                    } else if (qClan.Type == CLAN_FEMALE || qClan.Type == CLAN_BROWNFEMALE) {
+                        wc = ROOM_WC_F;
+                    }
+                    if (Mood == MoodPersonSick && wc != -1) {
+                        Target = Airport.GetRandomTypedRune(RUNE_2SHOP, static_cast<UBYTE>(wc), false, &PersonalRandWalk);
+                        StatePar = static_cast<UBYTE>(wc);
                         State = PERSON_2SHOP;
                     } else {
                         State = PERSON_2EXIT;
