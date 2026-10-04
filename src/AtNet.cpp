@@ -1521,6 +1521,9 @@ void PumpNetwork() {
                     hprintf("Plane not in Album: %li, %li", PlayerNum, PlaneId);
                     NetTraceEvent("DROP name=%s reason=plane %ld of player %ld unknown", Translate_ATNET(MessageType), static_cast<long>(PlaneId),
                                   static_cast<long>(PlayerNum));
+
+                    /* Nothing was taken over, so the tail check below has nothing to say. */
+                    Message.MemPointer = static_cast<SLONG>(Message.MemBufferUsed);
                     break;
                 }
 
