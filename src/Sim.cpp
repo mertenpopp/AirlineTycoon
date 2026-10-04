@@ -1860,7 +1860,7 @@ void SIM::DoTimeStep() {
                                         }
                                         break;
                                     case 2:
-                                        if (qPlane.Elektronik != 2) {
+                                        if (qPlane.Triebwerk != 2) {
                                             bCanHappenToThisPlane = true;
                                         }
                                         break;
