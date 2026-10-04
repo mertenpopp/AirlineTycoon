@@ -13,7 +13,8 @@ Therefore, you need an existing installation of the game. You can purchase the g
     - from an easier laid-back competitor to brutal rival
     - from "fair play" to cruel nemesis who will target you specifically
 - Massive multiplayer overhaul to reduce desyncs and improve stability
-- Native Linux and MacOS support
+- Native Linux support
+- Support for Macos, including native Apple Silicon builds
 
 ### Since last release
 
@@ -62,10 +63,11 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 * Now runnable on Linux (including support for FLC animations found in some versions)
 * Can run on MacOS as well
 * Game can be configured for windowed / borderless / fullscreen display
+* Language can be selected in the options menu (Misc page)
 
 ### New computer player
 
-When starting a new game, you can pick a play style for each computer-controlled airline. I tried to make each one feels different to play against:
+When starting a new game, you can pick a play style for each computer-controlled airline. I tried to make each one feel different to play against:
 
 * **Classic**: The original computer player you know from the base game. It is cheating (see the table below), but it is not a particularly clever manager. Pick it for the nostalgia.
 * **Laid-Back**: The nicest of the new competitors. It plays by the rules and builds a proper airline, but it strolls through the airport instead of running, is not picky about which jobs it takes, charges modest ticket prices and does not bother with buying kerosene in bulk. A good first opponent if you want to learn the game or just have a relaxed round.
@@ -129,7 +131,7 @@ All new computer players have one thing in common:
 * Arrow key navigation for many different menus
 
 ### Employees
-* More pilots/attendants available for hire
+* About twice as many advisors and flight attendants are up for hire (#26).
 * Slightly increase competence of randomly generated employees
 * Generate more and also randomized advisors
 * Advisors are now drawn per type with weights depending on usefulness
@@ -160,13 +162,16 @@ All new computer players have one thing in common:
 ### Music
 * New sound options (OGG/MIDI)
 * Patched stuttering glitch when switching music on Windows 11
+* All 16 original MIDI tracks are now played; before it was 8 (#37).
 * Add your own music: Game will play all OGG and all MIDI files found in the game directory
 
 ### Multiplayer
 * Massive sync overhaul covering staff, salaries, strikes, items, kerosene, flight plans, gate/city bids, plane problems, the game clock and bankruptcy.
 * Hardening against malformed messages, a use-after-free fix and several crash fixes.
-* The game calendar uses UTC in network games, and the version is also checked when rejoining a saved game.
+* The game calendar uses UTC in network games.
 * The game version is now checked when rejoining a saved game.
+    * Preview builds can no longer join games running the release build, because peers now also compare a network protocol version.
+* The ENET connection type was removed because it didn't work.
 
 ### Bug fixes
 * Fixed frozen windows on laptop
@@ -211,6 +216,8 @@ All new computer players have one thing in common:
 * Evolution mission 02: Only need to have five planes with full safety upgrades, not all of them in case more than five were bought
 * Fixed crash when quickly clicking through dialog options
 * Stocks are traded in chunks of 2000 with the price updated after each chunk (exploit fix)
+* Food costs now include first-class passengers
+* Dragging a flight in the flight planner could make it start before its plane arrived (#44).
 * Fixed many random crashes
 
 ### Default computer player
