@@ -738,6 +738,11 @@ void Bot::setMoodByActionId(SLONG actionId) {
     case ACTION_VISIT_OFFICE_D:
         mMoodNext = 4;
         break;
+    case ACTION_DROP_GLUE:
+        [[fallthrough]];
+    case ACTION_DROP_BOMB:
+        mMoodNext = 4;
+        break;
     default:
         AtDebugBreak();
     }

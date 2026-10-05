@@ -854,6 +854,10 @@ SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId) {
         return ROOM_BURO_C;
     case ACTION_VISIT_OFFICE_D:
         return ROOM_BURO_D;
+    case ACTION_DROP_GLUE:
+        return 0;
+    case ACTION_DROP_BOMB:
+        return 0;
     default:
         AtDebugBreak();
     }

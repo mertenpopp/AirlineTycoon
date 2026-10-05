@@ -228,6 +228,8 @@ class Bot {
     Prio condSabotageOfficeB();
     Prio condSabotageOfficeC();
     Prio condSabotageOfficeD();
+    Prio condDropGlue();
+    Prio condDropBomb();
 
     /* in BotActions.cpp */
     void actionStartDay(__int64 moneyAvailable);

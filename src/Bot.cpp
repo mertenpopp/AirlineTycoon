@@ -275,16 +275,16 @@ void Bot::RobotPlan() {
 
     auto &qRobotActions = qPlayer.RobotActions;
 
-    std::array<SLONG, 46> actions = {ACTION_STARTDAY, ACTION_STARTDAY_LAPTOP,
-                                     /* repeated actions */
-                                     ACTION_BUERO, ACTION_CALL_INTERNATIONAL, ACTION_CALL_INTER_HANDY, ACTION_CHECKAGENT1, ACTION_CHECKAGENT2,
-                                     ACTION_CHECKAGENT3, ACTION_UPGRADE_PLANES, ACTION_BUYNEWPLANE, ACTION_BUYUSEDPLANE, ACTION_VISITMUSEUM, ACTION_PERSONAL,
-                                     ACTION_BUY_KEROSIN, ACTION_BUY_KEROSIN_TANKS, ACTION_SABOTAGE, ACTION_SET_DIVIDEND, ACTION_RAISEMONEY, ACTION_DROPMONEY,
-                                     ACTION_EMITSHARES, ACTION_SELLSHARES, ACTION_BUYSHARES, ACTION_VISITMECH, ACTION_VISITNASA, ACTION_VISITTELESCOPE,
-                                     ACTION_VISITMAKLER, ACTION_VISITARAB, ACTION_VISITRICK, ACTION_VISITKIOSK, ACTION_VISITDUTYFREE, ACTION_VISITAUFSICHT,
-                                     ACTION_EXPANDAIRPORT, ACTION_VISITROUTEBOX, ACTION_VISITSECURITY, ACTION_VISITSECURITY2, ACTION_VISITDESIGNER,
-                                     ACTION_WERBUNG_ROUTES, ACTION_WERBUNG, ACTION_VISITADS, ACTION_OVERTAKE_AIRLINE, ACTION_VISITSABOTEUR, ACTION_ENERGY_DRINK,
-                                     ACTION_VISIT_OFFICE_A, ACTION_VISIT_OFFICE_B, ACTION_VISIT_OFFICE_C, ACTION_VISIT_OFFICE_D};
+    std::array<SLONG, 48> actions = {
+        ACTION_STARTDAY, ACTION_STARTDAY_LAPTOP,
+        /* repeated actions */
+        ACTION_BUERO, ACTION_CALL_INTERNATIONAL, ACTION_CALL_INTER_HANDY, ACTION_CHECKAGENT1, ACTION_CHECKAGENT2, ACTION_CHECKAGENT3, ACTION_UPGRADE_PLANES,
+        ACTION_BUYNEWPLANE, ACTION_BUYUSEDPLANE, ACTION_VISITMUSEUM, ACTION_PERSONAL, ACTION_BUY_KEROSIN, ACTION_BUY_KEROSIN_TANKS, ACTION_SABOTAGE,
+        ACTION_SET_DIVIDEND, ACTION_RAISEMONEY, ACTION_DROPMONEY, ACTION_EMITSHARES, ACTION_SELLSHARES, ACTION_BUYSHARES, ACTION_VISITMECH, ACTION_VISITNASA,
+        ACTION_VISITTELESCOPE, ACTION_VISITMAKLER, ACTION_VISITARAB, ACTION_VISITRICK, ACTION_VISITKIOSK, ACTION_VISITDUTYFREE, ACTION_VISITAUFSICHT,
+        ACTION_EXPANDAIRPORT, ACTION_VISITROUTEBOX, ACTION_VISITSECURITY, ACTION_VISITSECURITY2, ACTION_VISITDESIGNER, ACTION_WERBUNG_ROUTES, ACTION_WERBUNG,
+        ACTION_VISITADS, ACTION_OVERTAKE_AIRLINE, ACTION_VISITSABOTEUR, ACTION_ENERGY_DRINK, ACTION_VISIT_OFFICE_A, ACTION_VISIT_OFFICE_B,
+        ACTION_VISIT_OFFICE_C, ACTION_VISIT_OFFICE_D, ACTION_DROP_GLUE, ACTION_DROP_BOMB};
 
     if (qRobotActions[0].ActionId != ACTION_NONE || qRobotActions[1].ActionId != ACTION_NONE) {
         AT_Log("Bot.cpp: Leaving RobotPlan() (actions already planned)\n");
@@ -324,9 +324,19 @@ void Bot::RobotPlan() {
         }
     }
 
-    /* add fallback options */
+    /* The item drops have no room. PLAYER::RobotPump() does not walk anywhere for them, and they
+     * are only executed when the character steps out of a room into the airport (Takeoff.cpp).
+     * Queued while it already stands in the airport, a drop never runs and the stand-still check
+     * in RobotPump() throws it away. So a drop may be the first action only while we are in a
+     * room, and the second only behind an action that ends in a room - not another drop, and
+     * not the vending machine, which is no room either. */
+    auto isDrop = [](SLONG actionId) { return actionId == ACTION_DROP_GLUE || actionId == ACTION_DROP_BOMB; };
+    const bool inAirport = (qPlayer.GetRoom() == ROOM_AIRPORT);
+
+    /* add fallback options. Drops do not count: there must be two other actions to fill both
+     * slots with, whatever the rules above leave out. */
     for (const auto &fallback : std::array<SLONG, 5>{ACTION_CHECKAGENT1, ACTION_CHECKAGENT2, ACTION_CHECKAGENT3, ACTION_VISITRICK, ACTION_VISITTELESCOPE}) {
-        if (prioList.size() >= 2) {
+        if (std::count_if(prioList.begin(), prioList.end(), [&](const PrioListItem &item) { return !isDrop(item.actionId); }) >= 2) {
             break;
         }
         if (Helper::checkRoomOpen(fallback)) {
@@ -345,14 +355,19 @@ void Bot::RobotPlan() {
 
     auto threshNoRun = (qPlayer.BotLevel > BotDifficultyLaidBack ? Prio::Low : Prio::Top);
 
-    /* determine first action */
-    qFirstAction.ActionId = prioList.back().actionId;
-    qFirstAction.Prio = static_cast<SLONG>(prioList.back().prio);
-    qFirstAction.Running = (prioList.back().prio > threshNoRun);
+    /* determine first action (the best one allowed, see the drop rules above) */
+    auto first = std::find_if(prioList.rbegin(), prioList.rend(), [&](const PrioListItem &item) { return !(isDrop(item.actionId) && inAirport); });
+    if (first == prioList.rend()) {
+        first = prioList.rbegin(); /* not enough fallback rooms open */
+    }
+    qFirstAction.ActionId = first->actionId;
+    qFirstAction.Prio = static_cast<SLONG>(first->prio);
+    qFirstAction.Running = (first->prio > threshNoRun);
 
     /* update walk distance: from first room to second room and sort again */
-    prioList.resize(prioList.size() - 1); /* remove action selected as first action */
+    prioList.erase(std::next(first).base()); /* remove action selected as first action */
     SLONG roomA = Helper::getRoomFromAction(qPlayer.PlayerNum, qFirstAction.ActionId);
+    const bool firstEndsInRoom = (roomA > 0 && qFirstAction.ActionId != ACTION_ENERGY_DRINK);
     if (roomA > 0 && Sim.Time > 540000) {
         auto originRune = Airport.GetRandomTypedRune(RUNE_2SHOP, roomA);
         for (auto &prio : prioList) {
@@ -365,9 +380,13 @@ void Bot::RobotPlan() {
     }
 
     /* determine second action */
-    qSecondAction.ActionId = prioList.back().actionId;
-    qSecondAction.Prio = static_cast<SLONG>(prioList.back().prio);
-    qSecondAction.Running = (prioList.back().prio > threshNoRun);
+    auto second = std::find_if(prioList.rbegin(), prioList.rend(), [&](const PrioListItem &item) { return !(isDrop(item.actionId) && !firstEndsInRoom); });
+    if (second == prioList.rend()) {
+        second = prioList.rbegin(); /* not enough fallback rooms open */
+    }
+    qSecondAction.ActionId = second->actionId;
+    qSecondAction.Prio = static_cast<SLONG>(second->prio);
+    qSecondAction.Running = (second->prio > threshNoRun);
 
     AT_Log("Bot::RobotPlan(): Current: %s, planned: %s, %s", Translate_ACTION(qRobotActions[0].ActionId), Translate_ACTION(qFirstAction.ActionId),
            Translate_ACTION(qSecondAction.ActionId));
@@ -742,6 +761,16 @@ void Bot::RobotExecuteAction() {
         }
         qPlayer.WorkCountdown = 2;
         break;
+    case ACTION_DROP_GLUE:
+        if (!mBotWalk.startItemDrop({mNemesis}, ITEM_GLUE)) {
+            qPlayer.WorkCountdown = 2;
+        }
+        break;
+    case ACTION_DROP_BOMB:
+        if (!mBotWalk.startItemDrop({mNemesis}, ITEM_STINKBOMBE)) {
+            qPlayer.WorkCountdown = 2;
+        }
+        break;
 
     default:
         AT_Error("Bot::RobotExecuteAction(): Trying to execute invalid action: %s", Translate_ACTION(qAction.ActionId));
@@ -749,10 +778,6 @@ void Bot::RobotExecuteAction() {
     }
 
     mLastTimeInRoom[qAction.ActionId] = Sim.Time;
-
-    if (mNemesis != -1) {
-        mBotWalk.startItemDrop({mNemesis}, true, true);
-    }
 
     AT_Log("");
 }

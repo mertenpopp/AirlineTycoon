@@ -2249,3 +2249,17 @@ All paired, 300 seeded games, level 6, day 59, against 79cba872 (2.7650e9, `data
 - Run as `./AT190 /quick -1 /seed N`, N = 1..300 (`data190_freegame_*`). 1.9.0's /quick always gives HA bot level 3 ("Saboteur" there). All 300 games reach day 59 (61 statistics lines each), seed 1 replays byte-identically; a game takes ~15 s (4,300 bot actions against 6,700 on dev).
 - Day 59, 300 seeds: v1.9.0 **4.372e8** (median 3.28e8, min 8.6e6, max 1.54e9), dev MertenBot level 2 (`dataBOT_*`, build bf25dc97) **2.9734e9**: x6.8, dev better in 300/300. The same seed is not the same game across the two versions (only the start weekday and the seeds match), correlation 0.85.
 - By day (1.9.0 / dev): saldo day 10 8.7M / 10.1M, day 20 34M / 40M, day 30 78M / 122M, day 40 153M / 384M, day 50 276M / 1,282M. Planes 4 / 6 on day 30, 6 / 15 on day 40, 12 / 74 on day 59. Route revenue 250M / 3,102M; jobs + freight 247M / 153M (the old version keeps flying jobs). Airline image 5 / 364 on day 30 (ads 2.2M / 25.9M); employees 90 / 631.
+
+## 2026-10-06: Item drops as ACTION_DROP_GLUE / ACTION_DROP_BOMB
+
+- The glue and stink bomb drops were started at the end of every RobotExecuteAction(). They are now
+  planned actions without a room (getRoomFromAction() == 0), executed by Takeoff.cpp when the
+  character steps out of a room. collectActions() lists them first while wantItemDrop() holds.
+- RobotPlan() slot rules: a roomless action may take slot 1 only while we stand in a room, and
+  slot 2 only behind an action that ends in a room (not the vending machine). Queued in the
+  airport it never runs and RobotPump()'s stand-still check drops it after ten ticks.
+- A drop that finds no spot counts as a try, so the planner gives up after kMaxDropTriesPerDay.
+- Same changes mirrored in BotWalk (MertenBot): startItemDrop(victims, item) -> bool, wantItemDrop().
+- Score: unchanged by construction - the headless harness has CallItADay set all day, so
+  wantItemDrop() is always false there. Verified in a 2-day walking run
+  (run_multiplayer.sh 2 2 57 0): glue dropped on both days, stink bomb on day 1, no errors.

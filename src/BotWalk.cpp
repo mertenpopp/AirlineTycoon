@@ -331,51 +331,58 @@ bool BotWalk::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const {
     return true;
 }
 
-void BotWalk::startItemDrop(const std::vector<SLONG> &victims, bool allowBomb, bool allowGlue) {
+bool BotWalk::wantItemDrop(SLONG item) const {
     if (Sim.CallItADay != 0 || mDropStage != DropStage::None) {
-        return;
+        return false;
     }
     if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {
-        return; /* the host plays the computer players */
+        return false; /* the host plays the computer players */
     }
-    if (Sim.GetHour() >= kLastDropHour) {
-        return;
+    if (Sim.GetHour() >= kLastDropHour || qPlayer.HasItem(item) == 0) {
+        return false;
     }
-    const bool haveBomb = allowBomb && qPlayer.HasItem(ITEM_STINKBOMBE) != 0 && !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
-    const bool haveGlue = allowGlue && qPlayer.HasItem(ITEM_GLUE) != 0 && !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
-    if (!haveBomb && !haveGlue) {
-        return;
+    if (item == ITEM_STINKBOMBE) {
+        return !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
     }
+    return !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
+}
+
+bool BotWalk::startItemDrop(const std::vector<SLONG> &victims, SLONG item) {
+    if (!wantItemDrop(item)) {
+        return false;
+    }
+    const bool isBomb = (item == ITEM_STINKBOMBE);
+    SLONG &qTries = isBomb ? mBombTriesToday : mGlueTriesToday;
 
     for (SLONG victim : victims) {
-        XY plate;
-        XY drop;
-        if (haveBomb && findStenchPlate(victim, plate)) {
-            mBombTriesToday++;
-            if (!walkToPlate(plate)) {
-                return;
-            }
-            mDropStage = DropStage::StinkBomb;
-            mDropPlate = plate;
-        } else if (haveGlue && findGluePlates(victim, plate, drop)) {
-            mGlueTriesToday++;
-            if (!walkToPlate(plate)) {
-                return;
-            }
-            mDropStage = DropStage::GlueApproach;
-            mDropPlate = plate;
-            mDropFinal = drop;
-        } else {
+        if (victim < 0 || victim >= 4 || victim == qPlayer.PlayerNum || Sim.Players.Players[victim].IsOut != 0) {
             continue;
         }
+        XY plate;
+        XY drop(-1, -1);
+        if (isBomb ? !findStenchPlate(victim, plate) : !findGluePlates(victim, plate, drop)) {
+            continue;
+        }
+        qTries++;
+        if (!walkToPlate(plate)) {
+            return false;
+        }
+        mDropStage = isBomb ? DropStage::StinkBomb : DropStage::GlueApproach;
+        mDropPlate = plate;
+        mDropFinal = drop;
         mDropVictim = victim;
         mDropStart = Sim.TimeSlice;
         mDropUseTries = 0;
         AT_Log("BotWalk::startItemDrop(): Walking to plate %ld/%ld to drop %s against %s (try %ld today).", (long)mDropPlate.x, (long)mDropPlate.y,
-               mDropStage == DropStage::StinkBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(),
-               mDropStage == DropStage::StinkBomb ? mBombTriesToday : mGlueTriesToday);
-        return;
+               isBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(), qTries);
+        return true;
     }
+
+    /* Nowhere to put it. Counted as a try all the same, or the caller would keep coming back
+     * for a drop this layout does not allow. */
+    qTries++;
+    AT_Log("BotWalk::startItemDrop(): No spot for %s against any victim (try %ld today).", isBomb ? "a stink bomb" : "glue", qTries);
+    return false;
 }
 
 void BotWalk::abortItemDrop(const char *why) {
