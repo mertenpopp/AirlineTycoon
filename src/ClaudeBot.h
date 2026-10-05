@@ -348,8 +348,11 @@ class ClaudeBot {
     /* Where to drop a stink bomb next to one of the victim's gates, lower floor. False if the
      * victim rents no gate we can reach. */
     bool findStenchPlate(SLONG victim, XY &outPlate) const;
-    /* Starts the walk that places a held item, from RobotExecuteAction(). */
-    void startItemDrop();
+    /* Whether ACTION_DROP_GLUE / ACTION_DROP_BOMB is worth planning for this item now. */
+    bool wantItemDrop(SLONG item) const;
+    /* Starts the walk that places the item, from RobotExecuteAction(). False if no walk was
+     * started; that still counts as one of the day's tries. */
+    bool startItemDrop(SLONG item);
     /* Follows that walk once a tick and uses the item on arrival. */
     void tickItemDrop();
     void abortItemDrop(const char *why);

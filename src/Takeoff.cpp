@@ -1941,6 +1941,10 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                         qPlayer.RobotExecuteAction();
                                                     } else if (qPlayer.RobotActions[0].ActionId == ACTION_STARTDAY_LAPTOP) {
                                                         qPlayer.RobotExecuteAction();
+                                                    } else if (qPlayer.RobotActions[0].ActionId == ACTION_DROP_GLUE) {
+                                                        qPlayer.RobotExecuteAction();
+                                                    } else if (qPlayer.RobotActions[0].ActionId == ACTION_DROP_BOMB) {
+                                                        qPlayer.RobotExecuteAction();
                                                     }
 
                                                     SLONG Room = (qPlayer.Locations[d] & ~ROOM_LEAVING);

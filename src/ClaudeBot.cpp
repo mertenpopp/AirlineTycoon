@@ -1444,6 +1444,16 @@ void ClaudeBot::startNewDay() {
  * preconditions on arrival, so a candidate that has gone stale costs a walk and nothing
  * more - which is exactly what the filler action it replaces cost. */
 void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
+    /* 0) Hurricane: an item in hand is placed before anything else - the victim still has
+     *    to walk into it before 18:00. Neither drop has a room, so RobotPlan() decides which
+     *    slot it may take, and wantItemDrop() is false on every day not played at walking pace. */
+    if (wantItemDrop(ITEM_STINKBOMBE)) {
+        out.push_back(ACTION_DROP_BOMB);
+    }
+    if (wantItemDrop(ITEM_GLUE)) {
+        out.push_back(ACTION_DROP_GLUE);
+    }
+
     /* 1) Make sure the planes are crewed. Worker data may only be read in the HR
      *    room, so we go there once a day and decide on arrival. */
     if (!mVisitedPersonalToday && canUseAction(ACTION_PERSONAL)) {
@@ -2022,11 +2032,24 @@ void ClaudeBot::RobotPlan() {
     std::vector<SLONG> candidates;
     collectActions(candidates);
 
-    const SLONG firstRoom = candidates.empty() ? -1 : Helper::getRoomFromAction(qPlayer.PlayerNum, candidates[0]);
-    if (!candidates.empty()) {
-        qFirstAction.ActionId = candidates[0];
+    /* An action without a room (the item drops) is only executed when the character steps
+     * out of a room into the airport (Takeoff.cpp). Queued while it already stands there, it
+     * never runs, and the stand-still check in RobotPump() throws it away after ten ticks. So
+     * it may take the first slot only if we are in a room now, and the second only behind an
+     * action that ends in one - the vending machine does not (see below). Two of them never
+     * follow each other: the second slot needs a different room. */
+    const auto isRoomless = [&](SLONG action) { return Helper::getRoomFromAction(qPlayer.PlayerNum, action) == 0; };
+    for (SLONG candidate : candidates) {
+        if (!isRoomless(candidate) || qPlayer.GetRoom() != ROOM_AIRPORT) {
+            qFirstAction.ActionId = candidate;
+            break;
+        }
+    }
+    if (qFirstAction.ActionId != ACTION_NONE) {
+        const SLONG firstRoom = Helper::getRoomFromAction(qPlayer.PlayerNum, qFirstAction.ActionId);
+        const bool firstEndsInRoom = firstRoom > 0 && qFirstAction.ActionId != ACTION_ENERGY_DRINK;
         for (SLONG candidate : candidates) {
-            if (Helper::getRoomFromAction(qPlayer.PlayerNum, candidate) != firstRoom) {
+            if (Helper::getRoomFromAction(qPlayer.PlayerNum, candidate) != firstRoom && (firstEndsInRoom || !isRoomless(candidate))) {
                 qSecondAction.ActionId = candidate;
                 break;
             }
@@ -2117,7 +2140,7 @@ void ClaudeBot::RobotExecuteAction() {
      * by this check: each action handler only touches the state its own room grants access
      * to, which is why the cached-price and cached-burn machinery above exists. */
     const SLONG wantRoom = (qAction.ActionId != ACTION_NONE) ? Helper::getRoomFromAction(qPlayer.PlayerNum, qAction.ActionId) : -1;
-    if (wantRoom != -1 && qPlayer.GetRoom() != wantRoom) {
+    if (wantRoom > 0 && qPlayer.GetRoom() != wantRoom) {
         if (mWrongRoomDay != Sim.Date) {
             AT_Warn("ClaudeBot::RobotExecuteAction(): Not in the room for %s (in %ld, wanted %ld). Doing it anyway; "
                     "further mismatches today are counted only.",
@@ -2232,6 +2255,15 @@ void ClaudeBot::RobotExecuteAction() {
         qPlayer.WorkCountdown = 2;
         break;
 
+    case ACTION_DROP_GLUE:
+    case ACTION_DROP_BOMB:
+        /* No room: executed as the character steps back into the airport (Takeoff.cpp). The
+         * walk takes over WorkCountdown; without one there is nothing to wait for. */
+        if (!startItemDrop(qAction.ActionId == ACTION_DROP_BOMB ? ITEM_STINKBOMBE : ITEM_GLUE)) {
+            qPlayer.WorkCountdown = 2;
+        }
+        break;
+
     case ACTION_VISITKIOSK:
         if (executeKiosk()) {
             break;
@@ -2261,9 +2293,8 @@ void ClaudeBot::RobotExecuteAction() {
         AtDebugBreak();
     }
 
-    /* Last, so that they override the WorkCountdown the action left behind. */
+    /* Last, so that it overrides the WorkCountdown the action left behind. */
     walkDemo();
-    startItemDrop();
 
     AT_Log("");
 }
@@ -6492,21 +6523,28 @@ bool ClaudeBot::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const
     return true;
 }
 
-void ClaudeBot::startItemDrop() {
+bool ClaudeBot::wantItemDrop(SLONG item) const {
     if (!isHurricane() || !itemSabotageDay() || mDropStage != DropStage::None) {
-        return;
+        return false;
     }
     if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {
-        return; /* the host plays the computer players */
+        return false; /* the host plays the computer players */
     }
-    if (Sim.GetHour() >= kLastDropHour) {
-        return;
+    if (Sim.GetHour() >= kLastDropHour || qPlayer.HasItem(item) == 0) {
+        return false;
     }
-    const bool haveBomb = qPlayer.HasItem(ITEM_STINKBOMBE) != 0 && !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
-    const bool haveGlue = qPlayer.HasItem(ITEM_GLUE) != 0 && !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
-    if (!haveBomb && !haveGlue) {
-        return;
+    if (item == ITEM_STINKBOMBE) {
+        return !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
     }
+    return !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
+}
+
+bool ClaudeBot::startItemDrop(SLONG item) {
+    if (!wantItemDrop(item)) {
+        return false;
+    }
+    const bool isBomb = (item == ITEM_STINKBOMBE);
+    SLONG &qTries = isBomb ? mBombTriesToday : mGlueTriesToday;
 
     /* The sabotage victim first, then everybody else still in the game. */
     std::vector<SLONG> victims;
@@ -6522,33 +6560,30 @@ void ClaudeBot::startItemDrop() {
 
     for (SLONG victim : victims) {
         XY plate;
-        XY drop;
-        if (haveBomb && findStenchPlate(victim, plate)) {
-            mBombTriesToday++;
-            if (!walkToPlate(plate)) {
-                return;
-            }
-            mDropStage = DropStage::StinkBomb;
-            mDropPlate = plate;
-        } else if (haveGlue && findGluePlates(victim, plate, drop)) {
-            mGlueTriesToday++;
-            if (!walkToPlate(plate)) {
-                return;
-            }
-            mDropStage = DropStage::GlueApproach;
-            mDropPlate = plate;
-            mDropFinal = drop;
-        } else {
+        XY drop(-1, -1);
+        if (isBomb ? !findStenchPlate(victim, plate) : !findGluePlates(victim, plate, drop)) {
             continue;
         }
+        qTries++;
+        if (!walkToPlate(plate)) {
+            return false;
+        }
+        mDropStage = isBomb ? DropStage::StinkBomb : DropStage::GlueApproach;
+        mDropPlate = plate;
+        mDropFinal = drop;
         mDropVictim = victim;
         mDropStart = Sim.TimeSlice;
         mDropUseTries = 0;
         AT_Log("ClaudeBot::startItemDrop(): Walking to plate %ld/%ld to drop %s against %s (try %ld today).", (long)mDropPlate.x, (long)mDropPlate.y,
-               mDropStage == DropStage::StinkBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(),
-               mDropStage == DropStage::StinkBomb ? mBombTriesToday : mGlueTriesToday);
-        return;
+               isBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(), qTries);
+        return true;
     }
+
+    /* Nowhere to put it. Counted as a try all the same, or the planner would keep coming back
+     * for a drop this layout does not allow. */
+    qTries++;
+    AT_Log("ClaudeBot::startItemDrop(): No spot for %s against any competitor (try %ld today).", isBomb ? "a stink bomb" : "glue", qTries);
+    return false;
 }
 
 void ClaudeBot::abortItemDrop(const char *why) {

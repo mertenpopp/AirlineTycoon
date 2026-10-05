@@ -115,6 +115,10 @@ Bot::Prio Bot::condAll(SLONG actionId) {
         return condSabotageOfficeC();
     case ACTION_VISIT_OFFICE_D:
         return condSabotageOfficeD();
+    case ACTION_DROP_GLUE:
+        return condDropGlue();
+    case ACTION_DROP_BOMB:
+        return condDropBomb();
     default:
         AT_Error("Bot::condAll(): Default case should not be reached. Missing conditions for action: %s", Translate_ACTION(actionId));
         return Prio::None;
@@ -1164,6 +1168,32 @@ Bot::Prio Bot::condSabotageOfficeD() {
     if (qPlayer.RobotUse(ROBOT_USE_EXTRA_SABOTAGE) && qPlayer.HasItem(ITEM_ZANGE) && (mNemesis == 3)) {
         const auto &qNemesis = Sim.Players.Players[mNemesis];
         return (qNemesis.OfficeState == 0 && qNemesis.IsOut == 0) ? Prio::Low : Prio::None;
+    }
+    return Prio::None;
+}
+
+Bot::Prio Bot::condDropGlue() {
+    if (!hoursPassed(ACTION_DROP_GLUE, 24)) {
+        return Prio::None;
+    }
+    if (!mBotWalk.wantItemDrop(ITEM_GLUE)) {
+        return Prio::None;
+    }
+    if (mNemesis != -1 && Sim.Players.Players[mNemesis].IsOut == 0) {
+        return Prio::Low;
+    }
+    return Prio::None;
+}
+
+Bot::Prio Bot::condDropBomb() {
+    if (!hoursPassed(ACTION_DROP_BOMB, 24)) {
+        return Prio::None;
+    }
+    if (!mBotWalk.wantItemDrop(ITEM_STINKBOMBE)) {
+        return Prio::None;
+    }
+    if (mNemesis != -1 && Sim.Players.Players[mNemesis].IsOut == 0) {
+        return Prio::Low;
     }
     return Prio::None;
 }

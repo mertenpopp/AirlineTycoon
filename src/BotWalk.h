@@ -19,7 +19,12 @@ class BotWalk {
     }
     void setInExecuteAction(bool val) { mInExecuteAction = val; }
 
-    void startItemDrop(const std::vector<SLONG> &victims, bool allowBomb, bool allowGlue);
+    /* Whether a drop of the item (ITEM_GLUE or ITEM_STINKBOMBE) can be started now. */
+    bool wantItemDrop(SLONG item) const;
+    /* Walks to a spot of the first victim that has one and drops the item there. False if no
+     * walk was started; that still counts as one of the day's tries. Call it from
+     * RobotExecuteAction() for ACTION_DROP_GLUE / ACTION_DROP_BOMB. */
+    bool startItemDrop(const std::vector<SLONG> &victims, SLONG item);
     void tickItemDrop(bool isOnThePhone);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const BotWalk &bot);
