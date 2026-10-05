@@ -1,9 +1,9 @@
-#include "Bot.h"
+#include "BotWalk.h"
 
 #include "AtNet.h"
 #include "Proto.h"
-#include "TeakLibW.h"
 #include "global.h"
+#include "GameMechanic.h"
 
 #include <SDL_log.h>
 
@@ -18,6 +18,15 @@ static const SLONG kMinWalkHoldTicks = 20;
  * wall clock standing about - far more than crossing the airport takes, and a bound on the
  * damage an unreachable target can do to the day. */
 static const SLONG kMaxWalkHoldTicks = 20 * 60;
+
+/* How long a drop walk may take in all before it is given up, in RobotPump() ticks. */
+static const SLONG kMaxDropTicks = 2 * 20 * 60;
+/* Ticks spent at the spot trying to use the item, or standing still short of it. */
+static const SLONG kMaxDropStandTicks = 20;
+/* Tries at a drop per day, so that a layout we cannot place an item in does not eat the day. */
+static const SLONG kMaxDropTriesPerDay = 4;
+/* No new drop from this hour on: the victim still has to walk into it before 18:00. */
+static const SLONG kLastDropHour = 16;
 
 /* Plate coordinates from position coordinates. Mirrors PLAYER::WalkToRoom() */
 static XY plateFromPosition(XY position) {
@@ -96,21 +105,21 @@ static bool resolvePlate(XY &plate) {
     return true;
 }
 
-XY Bot::getPosition() const { return Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].Position; }
+XY BotWalk::getPosition() const { return Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].Position; }
 
-XY Bot::getPlate() const { return plateFromPosition(getPosition()); }
+XY BotWalk::getPlate() const { return plateFromPosition(getPosition()); }
 
 /* PERSON::DoOnePlayerStep() looks for a room announcement one step ahead of the character and
  * walks it into whatever it finds, with the tolerance below. Room entrances are therefore not
  * places to stand: the character walks in instead. */
-SLONG Bot::roomAtPosition(XY position) { return Airport.GetRuneParNear(position, XY(qPlayer.WalkSpeed * 2, qPlayer.WalkSpeed * 2), RUNE_2SHOP); }
+SLONG BotWalk::roomAtPosition(XY position) const { return Airport.GetRuneParNear(position, XY(qPlayer.WalkSpeed * 2, qPlayer.WalkSpeed * 2), RUNE_2SHOP); }
 
-SLONG Bot::roomAtPlate(XY plate) { return roomAtPosition(positionFromPlate(plate)); }
+SLONG BotWalk::roomAtPlate(XY plate) const { return roomAtPosition(positionFromPlate(plate)); }
 
 /* A free walk is one the airport machinery is running with no room at the end of it. */
-bool Bot::isWalking() const { return (qPlayer.iWalkActive != 0) && qPlayer.DirectToRoom == 0 && qPlayer.GetRoom() == ROOM_AIRPORT; }
+bool BotWalk::isWalking() const { return (qPlayer.iWalkActive != 0) && qPlayer.DirectToRoom == 0 && qPlayer.GetRoom() == ROOM_AIRPORT; }
 
-void Bot::stopWalking() {
+void BotWalk::stopWalking() {
     /* WalkStopEx() plants every target on the character's own plate, so nothing walks it on.
      * It refuses while the character is entering or leaving a room, which is also the one
      * moment where there is no free walk to stop. */
@@ -118,7 +127,7 @@ void Bot::stopWalking() {
     qPlayer.WorkCountdown = 0;
 }
 
-SLONG Bot::estimateWalkTicks(XY plate, bool run) const {
+SLONG BotWalk::estimateWalkTicks(XY plate, bool run) const {
     const XY here = getPosition();
     const XY there = positionFromPlate(plate);
 
@@ -143,7 +152,7 @@ SLONG Bot::estimateWalkTicks(XY plate, bool run) const {
 }
 
 /* Leaves every real room we are in, so that the walk below has the airport to walk in. */
-void Bot::leaveRoomsForWalk() {
+void BotWalk::leaveRoomsForWalk() {
     bool bLeft = false;
     for (SLONG c = 9; c >= 0; c--) {
         const UWORD room = UWORD(qPlayer.Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING));
@@ -158,7 +167,7 @@ void Bot::leaveRoomsForWalk() {
     }
 }
 
-bool Bot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
+bool BotWalk::walkToPlate(XY plate, SLONG holdTicks, bool run) {
     const XY requested = plate;
 
     if (qPlayer.IsOut != 0) {
@@ -168,23 +177,23 @@ bool Bot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
      * straight to the next action while Sim.CallItADay is set, and the main loop stops calling
      * UpdateWaypointWalkingDirection() altogether. */
     if (Sim.CallItADay != 0) {
-        AT_Log("Bot::walkToPlate(): Not walking to %ld/%ld, the day is being fast forwarded", (long)plate.x, (long)plate.y);
+        AT_Log("BotWalk::walkToPlate(): Not walking to %ld/%ld, the day is being fast forwarded", (long)plate.x, (long)plate.y);
         return false;
     }
     if (qPlayer.RunningToToilet != 0 || qPlayer.IsStuck != 0) {
-        AT_Log("Bot::walkToPlate(): Not walking to %ld/%ld, the character is not ours to steer right now", (long)plate.x, (long)plate.y);
+        AT_Log("BotWalk::walkToPlate(): Not walking to %ld/%ld, the character is not ours to steer right now", (long)plate.x, (long)plate.y);
         return false;
     }
 
     if (!resolvePlate(plate)) {
-        AT_Warn("Bot::walkToPlate(): There is nowhere to stand at plate %ld/%ld", (long)requested.x, (long)requested.y);
+        AT_Warn("BotWalk::walkToPlate(): There is nowhere to stand at plate %ld/%ld", (long)requested.x, (long)requested.y);
         return false;
     }
 
     const SLONG announced = roomAtPlate(plate);
     if (announced != 0) {
-        AT_Warn("Bot::walkToPlate(): Plate %ld/%ld announces room %ld - the character will walk into it rather than stand there", (long)plate.x, (long)plate.y,
-                (long)announced);
+        AT_Warn("BotWalk::walkToPlate(): Plate %ld/%ld announces room %ld - the character will walk into it rather than stand there", (long)plate.x,
+                (long)plate.y, (long)announced);
     }
 
     /* The target is out in the airport, so whatever room we are in has to be left first. The
@@ -196,7 +205,7 @@ bool Bot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
     qPlayer.WalkToPlate(plate);
 
     PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    qPerson.Running = run ? TRUE : FALSE;
+    qPerson.SetIsRunning(run ? TRUE : FALSE);
 
     SLONG hold = (holdTicks >= 0) ? holdTicks : estimateWalkTicks(plate, run);
     if (mInExecuteAction) {
@@ -223,7 +232,7 @@ bool Bot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
      * means "re-plan now" and there is no reason to leave one behind. */
     qPlayer.SpeedCount = std::max<SLONG>(1, hold);
 
-    AT_Log("Bot::walkToPlate(): Walking from plate %ld/%ld to %ld/%ld (asked for %ld/%ld), holding for %ld ticks", (long)getPlate().x, (long)getPlate().y,
+    AT_Log("BotWalk::walkToPlate(): Walking from plate %ld/%ld to %ld/%ld (asked for %ld/%ld), holding for %ld ticks", (long)getPlate().x, (long)getPlate().y,
            (long)plate.x, (long)plate.y, (long)requested.x, (long)requested.y, (long)hold);
     return true;
 }
@@ -241,7 +250,7 @@ static bool findRune(ULONG brickId, UBYTE par, XY &outPosition) {
     return true;
 }
 
-bool Bot::findStenchPlate(SLONG victim, XY &outPlate) const {
+bool BotWalk::findStenchPlate(SLONG victim, XY &outPlate) const {
     std::vector<SLONG> gates;
     const auto &qGates = Sim.Players.Players[victim].Gates.Gates;
     for (SLONG e = 0; e < qGates.AnzEntries(); e++) {
@@ -269,7 +278,7 @@ bool Bot::findStenchPlate(SLONG victim, XY &outPlate) const {
             if (plate.y < 5 || plate.y > 14 || !plateIsWalkable(plate) || roomAtPlate(plate) != 0) {
                 continue;
             }
-            AT_Log("Bot::findStenchPlate(): Gate %ld of %s, entrance at plate %ld/%ld, dropping at %ld/%ld.", gate,
+            AT_Log("BotWalk::findStenchPlate(): Gate %ld of %s, entrance at plate %ld/%ld, dropping at %ld/%ld.", gate,
                    Sim.Players.Players[victim].AirlineX.c_str(), (long)center.x, (long)center.y, (long)plate.x, (long)plate.y);
             outPlate = plate;
             return true;
@@ -278,7 +287,7 @@ bool Bot::findStenchPlate(SLONG victim, XY &outPlate) const {
     return false;
 }
 
-bool Bot::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const {
+bool BotWalk::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const {
     XY position;
     if (!findRune(RUNE_2SHOP, static_cast<UBYTE>(ROOM_BURO_A + victim * 10), position) || position.y < 4000) {
         return false;
@@ -316,14 +325,14 @@ bool Bot::findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const {
     const auto &qPick = candidates[mGlueTriesToday % static_cast<SLONG>(candidates.size())];
     outApproach = qPick.first;
     outDrop = qPick.second;
-    AT_Log("Bot::findGluePlates(): Office of %s at plate %ld/%ld, dropping from %ld/%ld (candidate %ld of %ld).", Sim.Players.Players[victim].AirlineX.c_str(),
-           (long)door.x, (long)door.y, (long)outDrop.x, (long)outDrop.y, mGlueTriesToday % static_cast<SLONG>(candidates.size()) + 1,
-           static_cast<SLONG>(candidates.size()));
+    AT_Log("BotWalk::findGluePlates(): Office of %s at plate %ld/%ld, dropping from %ld/%ld (candidate %ld of %ld).",
+           Sim.Players.Players[victim].AirlineX.c_str(), (long)door.x, (long)door.y, (long)outDrop.x, (long)outDrop.y,
+           mGlueTriesToday % static_cast<SLONG>(candidates.size()) + 1, static_cast<SLONG>(candidates.size()));
     return true;
 }
 
-void Bot::startItemDrop() {
-    if (!isHurricane() || !itemSabotageDay() || mDropStage != DropStage::None) {
+void BotWalk::startItemDrop(const std::vector<SLONG> &victims, bool allowBomb, bool allowGlue) {
+    if (Sim.CallItADay != 0 || mDropStage != DropStage::None) {
         return;
     }
     if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {
@@ -332,22 +341,10 @@ void Bot::startItemDrop() {
     if (Sim.GetHour() >= kLastDropHour) {
         return;
     }
-    const bool haveBomb = qPlayer.HasItem(ITEM_STINKBOMBE) != 0 && !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
-    const bool haveGlue = qPlayer.HasItem(ITEM_GLUE) != 0 && !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
+    const bool haveBomb = allowBomb && qPlayer.HasItem(ITEM_STINKBOMBE) != 0 && !mStinkBombDroppedToday && mBombTriesToday < kMaxDropTriesPerDay;
+    const bool haveGlue = allowGlue && qPlayer.HasItem(ITEM_GLUE) != 0 && !mGlueDroppedToday && mGlueTriesToday < kMaxDropTriesPerDay;
     if (!haveBomb && !haveGlue) {
         return;
-    }
-
-    /* The sabotage victim first, then everybody else still in the game. */
-    std::vector<SLONG> victims;
-    const SLONG primary = pickSabotageVictim();
-    if (primary >= 0) {
-        victims.push_back(primary);
-    }
-    for (SLONG p = 0; p < 4; p++) {
-        if (p != qPlayer.PlayerNum && p != primary && Sim.Players.Players[p].IsOut == 0) {
-            victims.push_back(p);
-        }
     }
 
     for (SLONG victim : victims) {
@@ -374,20 +371,20 @@ void Bot::startItemDrop() {
         mDropVictim = victim;
         mDropStart = Sim.TimeSlice;
         mDropUseTries = 0;
-        AT_Log("Bot::startItemDrop(): Walking to plate %ld/%ld to drop %s against %s (try %ld today).", (long)mDropPlate.x, (long)mDropPlate.y,
+        AT_Log("BotWalk::startItemDrop(): Walking to plate %ld/%ld to drop %s against %s (try %ld today).", (long)mDropPlate.x, (long)mDropPlate.y,
                mDropStage == DropStage::StinkBomb ? "a stink bomb" : "glue", Sim.Players.Players[victim].AirlineX.c_str(),
                mDropStage == DropStage::StinkBomb ? mBombTriesToday : mGlueTriesToday);
         return;
     }
 }
 
-void Bot::abortItemDrop(const char *why) {
+void BotWalk::abortItemDrop(const char *why) {
     const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    AT_Log("Bot::abortItemDrop(): Giving up the %s drop at plate %ld/%ld after %ld ticks: %s. Now at plate %ld/%ld, room %ld, StatePar %ld, "
+    AT_Log("BotWalk::abortItemDrop(): Giving up the %s drop at plate %ld/%ld after %ld ticks: %s. Now at plate %ld/%ld, room %ld, StatePar %ld, "
            "walking %ld, Dir %ld, NewDir %ld, primary target %ld/%ld.",
            mDropStage == DropStage::StinkBomb ? "stink bomb" : "glue", (long)mDropPlate.x, (long)mDropPlate.y, (long)(Sim.TimeSlice - mDropStart), why,
-           (long)getPlate().x, (long)getPlate().y, static_cast<SLONG>(qPlayer.GetRoom()), static_cast<SLONG>(qPerson.StatePar),
-           static_cast<SLONG>(qPlayer.iWalkActive), static_cast<SLONG>(qPerson.Dir), static_cast<SLONG>(qPlayer.NewDir), (long)qPlayer.PrimaryTarget.x,
+           (long)getPlate().x, (long)getPlate().y, static_cast<SLONG>(qPlayer.GetRoom()), static_cast<SLONG>(qPerson.GetStatePar()),
+           static_cast<SLONG>(qPlayer.iWalkActive), static_cast<SLONG>(qPerson.GetDir()), static_cast<SLONG>(qPlayer.NewDir), (long)qPlayer.PrimaryTarget.x,
            (long)qPlayer.PrimaryTarget.y);
     /* Hand the character back to the bot, unless it has already moved on by itself. */
     if (qPlayer.GetRoom() == ROOM_AIRPORT && qPlayer.DirectToRoom == 0 && qPlayer.WorkCountdown > 0) {
@@ -396,7 +393,7 @@ void Bot::abortItemDrop(const char *why) {
     mDropStage = DropStage::None;
 }
 
-void Bot::tickItemDrop() {
+void BotWalk::tickItemDrop(bool isOnThePhone) {
     if (mDropStage == DropStage::None) {
         return;
     }
@@ -426,7 +423,7 @@ void Bot::tickItemDrop() {
     qPlayer.WorkCountdown = std::max<SLONG>(qPlayer.WorkCountdown, 20);
 
     const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.Dir == 8 && qPerson.StatePar == 0;
+    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.GetDir() == 8 && qPerson.GetStatePar() == 0;
     if (!stopped) {
         return;
     }
@@ -452,7 +449,7 @@ void Bot::tickItemDrop() {
     }
 
     /* The phone animation puts 6 into Phase, which is the facing the glue goes by. */
-    if (mOnThePhone > 0) {
+    if (isOnThePhone) {
         return;
     }
     const SLONG item = (mDropStage == DropStage::StinkBomb) ? ITEM_STINKBOMBE : ITEM_GLUE;
@@ -468,14 +465,48 @@ void Bot::tickItemDrop() {
     if (item == ITEM_STINKBOMBE) {
         mStinkBombDroppedToday = true;
         mStinkBombDrops++;
-        AT_Log("Bot::tickItemDrop(): Dropped a stink bomb at plate %ld/%ld against %s after %ld ticks (#%ld).", (long)mDropPlate.x, (long)mDropPlate.y,
+        AT_Log("BotWalk::tickItemDrop(): Dropped a stink bomb at plate %ld/%ld against %s after %ld ticks (#%ld).", (long)mDropPlate.x, (long)mDropPlate.y,
                victimName, (long)(Sim.TimeSlice - mDropStart), mStinkBombDrops);
     } else {
         mGlueDroppedToday = true;
         mGlueDrops++;
-        AT_Log("Bot::tickItemDrop(): Dropped glue from plate %ld/%ld (facing %ld) against %s after %ld ticks (#%ld).", (long)mDropPlate.x, (long)mDropPlate.y,
-               static_cast<SLONG>(qPerson.Phase), victimName, (long)(Sim.TimeSlice - mDropStart), mGlueDrops);
+        AT_Log("BotWalk::tickItemDrop(): Dropped glue from plate %ld/%ld (facing %ld) against %s after %ld ticks (#%ld).", (long)mDropPlate.x,
+               (long)mDropPlate.y, static_cast<SLONG>(qPerson.GetPhase()), victimName, (long)(Sim.TimeSlice - mDropStart), mGlueDrops);
     }
     mDropStage = DropStage::None;
     stopWalking();
+}
+
+TEAKFILE &operator<<(TEAKFILE &File, const BotWalk &bot) {
+    SLONG savegameVersion = 100;
+    File << savegameVersion;
+
+    File << bot.mGlueTriesToday << bot.mBombTriesToday;
+    File << bot.mGlueDrops << bot.mStinkBombDrops;
+    File << bot.mStinkBombDroppedToday << bot.mGlueDroppedToday;
+
+    SLONG magicnumber = 0x23;
+    File << magicnumber;
+
+    return (File);
+}
+
+TEAKFILE &operator>>(TEAKFILE &File, BotWalk &bot) {
+    SLONG savegameVersion;
+    File >> savegameVersion;
+
+    bot.mInExecuteAction = false;
+    bot.mDropStage = BotWalk::DropStage::None;
+    bot.mDropVictim = -1;
+    bot.mDropUseTries = 0;
+
+    File >> bot.mGlueTriesToday >> bot.mBombTriesToday;
+    File >> bot.mGlueDrops >> bot.mStinkBombDrops;
+    File >> bot.mStinkBombDroppedToday >> bot.mGlueDroppedToday;
+
+    SLONG magicnumber = 0;
+    File >> magicnumber;
+    assert(magicnumber == 0x23);
+
+    return (File);
 }

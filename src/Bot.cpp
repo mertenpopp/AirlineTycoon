@@ -100,9 +100,11 @@ const char *Bot::getPrioName(Bot::Prio prio) {
 }
 const char *Bot::getPrioName(SLONG prio) { return getPrioName(static_cast<Bot::Prio>(prio)); }
 
-Bot::Bot(PLAYER &player) : qPlayer(player) {}
+Bot::Bot(PLAYER &player) : qPlayer{player}, mBotWalk{qPlayer} {}
 
 void Bot::RobotInit(SLONG randomSeed) {
+    mBotWalk.setInExecuteAction(false);
+
     auto balance = qPlayer.BilanzWoche.Hole();
     AT_Info("Bot.cpp: Enter RobotInit() for %s: Current day: %d, money: %s $ (op saldo %s = %s %s)", qPlayer.Abk.c_str(), Sim.Date,
             Insert1000erDots64(qPlayer.Money).c_str(), Insert1000erDots64(balance.GetOpSaldo()).c_str(), Insert1000erDots64(balance.GetOpGewinn()).c_str(),
@@ -209,6 +211,8 @@ void Bot::RobotInit(SLONG randomSeed) {
         mFirstRun = false;
     }
 
+    mBotWalk.startNewDay();
+
     for (auto &i : qPlayer.RobotActions) {
         i = {};
     }
@@ -260,6 +264,8 @@ void Bot::RobotInit(SLONG randomSeed) {
 }
 
 void Bot::RobotPlan() {
+    mBotWalk.setInExecuteAction(false);
+
     if (mFirstRun) {
         AT_Error("Bot::RobotPlan(): Bot was not initialized!");
         RobotInit(0);
@@ -377,6 +383,11 @@ void Bot::RobotPlan() {
 }
 
 void Bot::RobotExecuteAction() {
+    /* Cleared again in RobotPlan() and RobotInit(). walkToPlate() needs to know that it is
+     * running inside this callback, because PLAYER::RobotExecuteAction() scales WorkCountdown
+     * down after it returns. */
+    mBotWalk.setInExecuteAction(true);
+
     if (mFirstRun) {
         AT_Error("Bot::RobotExecuteAction(): Bot was not initialized!");
         RobotInit(0);
@@ -739,6 +750,10 @@ void Bot::RobotExecuteAction() {
 
     mLastTimeInRoom[qAction.ActionId] = Sim.Time;
 
+    if (mNemesis != -1) {
+        mBotWalk.startItemDrop({mNemesis}, true, true);
+    }
+
     AT_Log("");
 }
 
@@ -887,6 +902,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
     File << bot.mOptions.kRepairBudgetPercent << bot.mOptions.kStockWarfarce;
 
     File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay << bot.mImagePreservationMode;
+
+    File << bot.mBotWalk;
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -1166,6 +1183,10 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
         bot.mImagePreservationMode = -1;
     } else {
         File >> bot.mTicketsYesterday >> bot.mImageDecayPerDay >> bot.mImageAfterAds >> bot.mImageAdsDay >> bot.mImagePreservationMode;
+    }
+
+    if (savegameVersion >= 103) {
+        File >> bot.mBotWalk;
     }
 
     SLONG magicnumber = 0;

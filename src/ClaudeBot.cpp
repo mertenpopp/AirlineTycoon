@@ -1869,7 +1869,7 @@ void ClaudeBot::traceWalk() {
     }
 
     /* Walked over a room's announcement on the way and was pulled in - see walkToPlate(). */
-    const SLONG statePar = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].StatePar;
+    const SLONG statePar = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)].GetStatePar();
     if (room != ROOM_AIRPORT || statePar > 0) {
         AT_Log("Walk demo %s: walked into room %ld at plate %ld/%ld after %ld ticks, on the way to %ld/%ld", qPlayer.Abk.c_str(),
                (long)(statePar > 0 ? statePar : room), (long)here.x, (long)here.y, (long)ticks, (long)mWalkDemoTarget.x, (long)mWalkDemoTarget.y);
@@ -1950,7 +1950,7 @@ bool ClaudeBot::walkToPlate(XY plate, SLONG holdTicks, bool run) {
     qPlayer.WalkToPlate(plate);
 
     PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    qPerson.Running = run ? TRUE : FALSE;
+    qPerson.SetIsRunning(run ? TRUE : FALSE);
 
     SLONG hold = (holdTicks >= 0) ? holdTicks : estimateWalkTicks(plate, run);
     if (mInExecuteAction) {
@@ -6556,8 +6556,8 @@ void ClaudeBot::abortItemDrop(const char *why) {
     AT_Log("ClaudeBot::abortItemDrop(): Giving up the %s drop at plate %ld/%ld after %ld ticks: %s. Now at plate %ld/%ld, room %ld, StatePar %ld, "
            "walking %ld, Dir %ld, NewDir %ld, primary target %ld/%ld.",
            mDropStage == DropStage::StinkBomb ? "stink bomb" : "glue", (long)mDropPlate.x, (long)mDropPlate.y, (long)(Sim.TimeSlice - mDropStart), why,
-           (long)getPlate().x, (long)getPlate().y, static_cast<SLONG>(qPlayer.GetRoom()), static_cast<SLONG>(qPerson.StatePar),
-           static_cast<SLONG>(qPlayer.iWalkActive), static_cast<SLONG>(qPerson.Dir), static_cast<SLONG>(qPlayer.NewDir), (long)qPlayer.PrimaryTarget.x,
+           (long)getPlate().x, (long)getPlate().y, static_cast<SLONG>(qPlayer.GetRoom()), static_cast<SLONG>(qPerson.GetStatePar()),
+           static_cast<SLONG>(qPlayer.iWalkActive), static_cast<SLONG>(qPerson.GetDir()), static_cast<SLONG>(qPlayer.NewDir), (long)qPlayer.PrimaryTarget.x,
            (long)qPlayer.PrimaryTarget.y);
     /* Hand the character back to the bot, unless it has already moved on by itself. */
     if (qPlayer.GetRoom() == ROOM_AIRPORT && qPlayer.DirectToRoom == 0 && qPlayer.WorkCountdown > 0) {
@@ -6596,7 +6596,7 @@ void ClaudeBot::tickItemDrop() {
     qPlayer.WorkCountdown = std::max<SLONG>(qPlayer.WorkCountdown, 20);
 
     const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.Dir == 8 && qPerson.StatePar == 0;
+    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.GetDir() == 8 && qPerson.GetStatePar()  == 0;
     if (!stopped) {
         return;
     }
@@ -6644,7 +6644,7 @@ void ClaudeBot::tickItemDrop() {
         mGlueDroppedToday = true;
         mGlueDrops++;
         AT_Log("ClaudeBot::tickItemDrop(): Dropped glue from plate %ld/%ld (facing %ld) against %s after %ld ticks (#%ld).", (long)mDropPlate.x,
-               (long)mDropPlate.y, static_cast<SLONG>(qPerson.Phase), victimName, (long)(Sim.TimeSlice - mDropStart), mGlueDrops);
+               (long)mDropPlate.y, static_cast<SLONG>(qPerson.GetPhase()), victimName, (long)(Sim.TimeSlice - mDropStart), mGlueDrops);
     }
     mDropStage = DropStage::None;
     stopWalking();
