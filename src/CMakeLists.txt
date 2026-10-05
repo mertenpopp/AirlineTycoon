@@ -78,6 +78,7 @@ add_executable (AT
     BotPlaner.cpp
     BotPlanerAlgo.cpp
     BotRoutes.cpp
+    BotWalk.cpp
     Brick.cpp
     Checkup.cpp
     ClaudeBot.cpp

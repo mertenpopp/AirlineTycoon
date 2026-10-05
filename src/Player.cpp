@@ -3371,6 +3371,7 @@ void PLAYER::RobotPump() {
                 mClaudeBot->decOnThePhone();
             }
         }
+        mClaudeBot->tickCallback();
     } else {
         if (mBot->getOnThePhone()) {
             PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
@@ -3379,6 +3380,7 @@ void PLAYER::RobotPump() {
                 mBot->decOnThePhone();
             }
         }
+        mBot->tickCallback();
     }
 
     if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {

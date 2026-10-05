@@ -27,14 +27,16 @@ class ClaudeBot {
 
     __int64 getMoneyAvailable() const { return qPlayer.Money; }
 
-    /* anim state. Not const any more: RobotPump() asks this once a tick (Player.cpp:3362-3370),
-     * which is the only per-tick hook a bot has, and the walk demo's trace rides on it. */
-    bool getOnThePhone() {
+    /* anim state */
+    bool getOnThePhone() { return mOnThePhone > 0; }
+    void decOnThePhone() { mOnThePhone--; }
+
+    /* RobotPump() asks this once a tick (Player.cpp:3362-3370),
+     * only per-tick hook a bot has */
+    void tickCallback() {
         traceWalk();
         tickItemDrop();
-        return mOnThePhone > 0;
     }
-    void decOnThePhone() { mOnThePhone--; }
 
     /* --- free walking ---
      *
@@ -168,18 +170,18 @@ class ClaudeBot {
          * unless jobs alone fill them - see collectGaps(). */
         bool noRouteBox{false};
         /* Goals. At most one is set; several missions share a goal. */
-        bool wantDebtFree{false};    /* ADDON01: Credit == 0 and Money >= 0 */
-        bool wantImage{false};       /* HARD: Image >= TARGET_IMAGE */
+        bool wantDebtFree{false}; /* ADDON01: Credit == 0 and Money >= 0 */
+        bool wantImage{false};    /* HARD: Image >= TARGET_IMAGE */
         /* ADDON07, ATFS02: how many planes the goal wants at 90 or better, 0 for none.
          * Only that many are repaired: the extra repair charge is Improvement * ptPreis /
          * 110 a night, which is the largest bill in the game, and a mission fleet starts at
          * Zustand 35 with a million in the bank. */
         SLONG conditionPlanes{0};
-        bool wantUpgrades{false};    /* ADDON05, ATFS02: service points / the four fittings */
+        bool wantUpgrades{false}; /* ADDON05, ATFS02: service points / the four fittings */
         /* How many planes have to carry the fittings, or -1 for the whole fleet (ADDON05
          * counts every level on every plane). */
         SLONG upgradePlanes{0};
-        bool wantFreight{false};     /* ADDON02, ADDON03: tonnage is the goal */
+        bool wantFreight{false}; /* ADDON02, ADDON03: tonnage is the goal */
         /* ADDON04: most miles after 30 days. Every leg counts, the empty ones the game inserts
          * included (Schedule.cpp:668), so distance flown is the goal and the premium only has to
          * keep the airline solvent. */
@@ -187,7 +189,7 @@ class ClaudeBot {
         /* Buy branch offices, phone them, and let planJobPlanes() chain the whole fleet: a mission
          * that flies jobs only is starved of work without them - see setupMission(). */
         bool useOffices{false};
-        bool wantFreeFreight{false}; /* ADDON03: only Praemie == 0 contracts count */
+        bool wantFreeFreight{false};   /* ADDON03: only Praemie == 0 contracts count */
         bool wantMissionCities{false}; /* NORMAL: routes to Sim.MissionCities win */
         /* Routes are the free game's engine, but they are an investment: a pair has to be
          * rented, priced, advertised and flown for days before the route image makes it pay.
@@ -356,9 +358,9 @@ class ClaudeBot {
     /* The walk in flight, none of it serialised: the loader drops it, and the day's tries and
      * drop flags, which are saved, decide whether to go again. */
     DropStage mDropStage{DropStage::None};
-    XY mDropPlate{-1, -1};  /* the plate we are walking to now */
-    XY mDropFinal{-1, -1};  /* glue: the plate to step onto for the drop */
-    SLONG mDropStart{0};    /* Sim.TimeSlice the walk began */
+    XY mDropPlate{-1, -1}; /* the plate we are walking to now */
+    XY mDropFinal{-1, -1}; /* glue: the plate to step onto for the drop */
+    SLONG mDropStart{0};   /* Sim.TimeSlice the walk began */
     SLONG mDropVictim{-1};
     SLONG mDropUseTries{0}; /* ticks spent at the spot trying to use the item */
 
