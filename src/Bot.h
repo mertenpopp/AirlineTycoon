@@ -2,6 +2,7 @@
 #define BOT_H_
 
 #include "BotPlaner.h"
+#include "BotWalk.h"
 #include "class.h"
 #include "defines.h"
 
@@ -77,10 +78,7 @@ class Bot {
     void decOnThePhone() { mOnThePhone--; }
     void setOnThePhone(SLONG steps) { mOnThePhone = steps; }
 
-    void tickCallback() {
-        traceWalk();
-        tickItemDrop();
-    }
+    void tickCallback() { mBotWalk.tickItemDrop(getOnThePhone()); }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);
     friend TEAKFILE &operator>>(TEAKFILE &File, Bot &bot);
@@ -352,25 +350,9 @@ class Bot {
     bool tryPickUpItem(SLONG condition, SLONG item, bool wantToKeep);
     void printRobotFlags() const;
 
-    /* item dropping (in BotWalk.cpp) */
-    XY getPosition() const;
-    XY getPlate() const;
-    SLONG roomAtPosition(XY position);
-    SLONG roomAtPlate(XY plate);
-    bool isWalking() const;
-    void stopWalking();
-    SLONG estimateWalkTicks(XY plate, bool run) const;
-    void leaveRoomsForWalk();
-    bool walkToPlate(XY plate, SLONG holdTicks, bool run);
-
-    bool findStenchPlate(SLONG victim, XY &outPlate) const;
-    bool findGluePlates(SLONG victim, XY &outApproach, XY &outDrop) const;
-    void startItemDrop();
-    void abortItemDrop(const char *why);
-    void tickItemDrop();
-
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
+    BotWalk mBotWalk;
 
     /* options */
     ConfigurableOptions mOptions{};
