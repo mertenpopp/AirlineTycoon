@@ -206,7 +206,6 @@ static const SLONG kMilesValue = 100;
 /* FIRST (Mission::wantPassengers): what a passenger on a job is worth when ranking jobs. */
 static const SLONG kMissionGainPerPassenger = 2000;
 
-
 /* ADDON09: what one of Uhrig's jobs is worth to the planner on top of its premium and the
  * fine it avoids. The goal counts them and nothing else, so any flyable one beats any
  * saving in kerosene. */
@@ -1180,8 +1179,7 @@ void ClaudeBot::prepareDesignerPlane() {
     /* Never take the search's word for it: a design that misses the bar would be bought over and
      * over without ever advancing the goal. */
     const SLONG speed = plane.CalcSpeed();
-    const bool qualifies = isLarge ? (plane.CalcPassagiere() >= BTARGET_PLANESIZE)
-                                   : (speed > 0 && plane.CalcVerbrauch() * 100 / speed <= BTARGET_VERBRAUCH);
+    const bool qualifies = isLarge ? (plane.CalcPassagiere() >= BTARGET_PLANESIZE) : (speed > 0 && plane.CalcVerbrauch() * 100 / speed <= BTARGET_VERBRAUCH);
     if (!qualifies || !plane.IsBuildable()) {
         AT_Error("ClaudeBot::prepareDesignerPlane(): Design does not clear the bar, falling back to the reference design.");
         plane = isLarge ? Helper::getHardcodedDesignerPlaneLarge() : Helper::getHardcodedDesignerPlaneEco();
@@ -1193,9 +1191,9 @@ void ClaudeBot::prepareDesignerPlane() {
     mDesignerPlaneFile = FullFilename(isLarge ? "claudebot_atfs05.plane" : "claudebot_atfs08.plane", MyPlanePath);
     mDesignerPlaneReady = true;
 
-    AT_Log("ClaudeBot::prepareDesignerPlane(): %s costs %s $, %ld passengers, %ld km, verbrauch %ld, speed %ld. Need %ld of them.",
-           mDesignerPlane.Name.c_str(), Insert1000erDots(mDesignerPlaneCost).c_str(), mDesignerPlane.CalcPassagiere(), mDesignerPlane.CalcReichweite(),
-           mDesignerPlane.CalcVerbrauch(), mDesignerPlane.CalcSpeed(), mMission.designerPlanes);
+    AT_Log("ClaudeBot::prepareDesignerPlane(): %s costs %s $, %ld passengers, %ld km, verbrauch %ld, speed %ld. Need %ld of them.", mDesignerPlane.Name.c_str(),
+           Insert1000erDots(mDesignerPlaneCost).c_str(), mDesignerPlane.CalcPassagiere(), mDesignerPlane.CalcReichweite(), mDesignerPlane.CalcVerbrauch(),
+           mDesignerPlane.CalcSpeed(), mMission.designerPlanes);
 }
 
 /* Mirrors the counting in PLAYER::HasWon() for the two designer missions. */
@@ -1295,8 +1293,6 @@ void ClaudeBot::executeDesigner() {
     AT_Log("ClaudeBot::executeDesigner(): Bought %s for %s $. Now own %ld of the %ld the mission wants, cash %s $.", mDesignerPlane.Name.c_str(),
            Insert1000erDots(mDesignerPlaneCost).c_str(), countQualifyingPlanes(), mMission.designerPlanes, Insert1000erDots64(qPlayer.Money).c_str());
 }
-
-
 
 /* DIFF_NORMAL is won by connecting the mission cities, and a pair that scores a flag is
  * worth having whatever it earns - so it is ranked as though it earned a lot. The bonus is
@@ -1593,8 +1589,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
         }
     }
 
-    if (!mMission.hoardCash && !mMission.noAds && !mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) && qPlayer.Money > kAdCashBuffer + gWerbePrice[3] &&
-        canUseAction(ACTION_WERBUNG)) {
+    if (!mMission.hoardCash && !mMission.noAds && !mVisitedAdsToday && !savingForDesigner() && (!mRoutes.empty() || mMission.wantImage) &&
+        qPlayer.Money > kAdCashBuffer + gWerbePrice[3] && canUseAction(ACTION_WERBUNG)) {
         out.push_back(ACTION_WERBUNG);
     }
 
@@ -1616,8 +1612,8 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *    the travel agency: a passenger job pays its whole premium on one flight, a freight
      *    contract only on its last one. Where tonnage is the goal it comes first instead. */
     const SLONG freightCap = mMission.wantFreight ? kMaxJobsPerDay : kMaxFreightPerDay;
-    const bool wantFreightVisit =
-        kUseFreight && !mMission.noFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale && mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3);
+    const bool wantFreightVisit = kUseFreight && !mMission.noFreight && mFreightVisitsToday < kMaxAgencyVisitsPerDay && !mPlaneStateStale &&
+                                  mFreightTakenToday < freightCap && canUseAction(ACTION_CHECKAGENT3);
     if (mMission.wantFreight && wantFreightVisit) {
         out.push_back(ACTION_CHECKAGENT3);
     }
@@ -1784,9 +1780,7 @@ XY ClaudeBot::getPlate() const { return plateFromPosition(getPosition()); }
 /* PERSON::DoOnePlayerStep() looks for a room announcement one step ahead of the character and
  * walks it into whatever it finds (Person.cpp:2183-2277), with the tolerance below. Room
  * entrances are therefore not places to stand: the character walks in instead. */
-SLONG ClaudeBot::roomAtPosition(XY position) const {
-    return Airport.GetRuneParNear(position, XY(qPlayer.WalkSpeed * 2, qPlayer.WalkSpeed * 2), RUNE_2SHOP);
-}
+SLONG ClaudeBot::roomAtPosition(XY position) const { return Airport.GetRuneParNear(position, XY(qPlayer.WalkSpeed * 2, qPlayer.WalkSpeed * 2), RUNE_2SHOP); }
 
 SLONG ClaudeBot::roomAtPlate(XY plate) const { return roomAtPosition(positionFromPlate(plate)); }
 
@@ -2803,8 +2797,7 @@ void ClaudeBot::executeMech() {
                 rebuild.push_back(c);
             }
         }
-        std::sort(rebuild.begin(), rebuild.end(),
-                  [&](SLONG a, SLONG b) { return qPlayer.Planes[a].Zustand > qPlayer.Planes[b].Zustand; });
+        std::sort(rebuild.begin(), rebuild.end(), [&](SLONG a, SLONG b) { return qPlayer.Planes[a].Zustand > qPlayer.Planes[b].Zustand; });
         if (static_cast<SLONG>(rebuild.size()) > mMission.conditionPlanes) {
             rebuild.resize(mMission.conditionPlanes);
         }
@@ -3054,9 +3047,8 @@ void ClaudeBot::executeRouteBox() {
         }
 
         if (bestRoute < 0) {
-            AT_Log(
-                "ClaudeBot::executeRouteBox(): Nothing worth renting: %d buyable pair(s) touch home, %d in range, best %s at %d/h against a floor of %d.",
-                nHome, nInRange, bestRejected < 0 ? "none" : Cities[Routen[bestRejected].NachCity].Name.c_str(), bestRejectedValue, floor);
+            AT_Log("ClaudeBot::executeRouteBox(): Nothing worth renting: %d buyable pair(s) touch home, %d in range, best %s at %d/h against a floor of %d.",
+                   nHome, nInRange, bestRejected < 0 ? "none" : Cities[Routen[bestRejected].NachCity].Name.c_str(), bestRejectedValue, floor);
             return false;
         }
 
@@ -3669,8 +3661,8 @@ void ClaudeBot::executeBuyUsedPlane() {
     mVisitedPersonalToday = false;
     mPlaneStateStale = true;
     mNeedSchedule = true;
-    AT_Log("ClaudeBot::executeBuyUsedPlane(): Bought %s (%ld seats) for %s, fleet now %ld, cash %s.", name.c_str(), seats, Insert1000erDots64(bestPrice).c_str(),
-           have + 1, Insert1000erDots64(qPlayer.Money).c_str());
+    AT_Log("ClaudeBot::executeBuyUsedPlane(): Bought %s (%ld seats) for %s, fleet now %ld, cash %s.", name.c_str(), seats,
+           Insert1000erDots64(bestPrice).c_str(), have + 1, Insert1000erDots64(qPlayer.Money).c_str());
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3966,8 +3958,8 @@ void ClaudeBot::executeStock() {
     for (SLONG c = 0; c < 4; c++) {
         freeFloat -= Sim.Players.Players[c].OwnsAktien[self];
         if (c != self && Sim.Players.Players[c].OwnsAktien[self] > 0) {
-            AT_Log("ClaudeBot::executeStock(): %s holds %ld of our %ld shares.", Sim.Players.Players[c].AirlineX.c_str(), Sim.Players.Players[c].OwnsAktien[self],
-                   qPlayer.AnzAktien);
+            AT_Log("ClaudeBot::executeStock(): %s holds %ld of our %ld shares.", Sim.Players.Players[c].AirlineX.c_str(),
+                   Sim.Players.Players[c].OwnsAktien[self], qPlayer.AnzAktien);
         }
     }
 
@@ -4023,8 +4015,7 @@ void ClaudeBot::executeStock() {
         for (SLONG step = 0; step <= kEmitSteps; step++) {
             const SLONG shares = minShares + static_cast<SLONG>(static_cast<__int64>(maxShares - minShares) * step / kEmitSteps);
             const SLONG kept = shares - (mode == 0 ? shares : (mode == 1 ? shares * 8 / 10 : shares * 6 / 10));
-            const SLONG shortfall =
-                Sim.Date < kTakeoverDefenceFromDay ? 0 : std::max(0, sharesToHold(qPlayer.AnzAktien + shares) - own - kept);
+            const SLONG shortfall = Sim.Date < kTakeoverDefenceFromDay ? 0 : std::max(0, sharesToHold(qPlayer.AnzAktien + shares) - own - kept);
             if (shortfall > freeFloat) {
                 continue;
             }
@@ -4170,7 +4161,6 @@ __int64 ClaudeBot::emissionCash(SLONG neueAktien, SLONG mode) const {
     const auto entschaedigung = static_cast<__int64>(std::round((anzAktien - qPlayer.OwnsAktien[qPlayer.PlayerNum]) * (qPlayer.Kurse[0] - neuerKurs)));
     return emissionsWert - emissionsGebuehr + entschaedigung;
 }
-
 
 //--------------------------------------------------------------------------------------------
 // One greedy pass over a board of passenger jobs: repeatedly take the single most profitable
@@ -4595,8 +4585,9 @@ SLONG ClaudeBot::planJobPlanes() {
             const auto &qJob = qPlayer.Auftraege[jobIdx];
             if (GameMechanic::planFlightJob(qPlayer, planeIdx, jobIdx, qLeg.start / 24, qLeg.start % 24)) {
                 planned++;
-                AT_Log("ClaudeBot::planJobPlanes(): Job %s -> %s (%s) on %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(), Cities[qJob.NachCity].Name.c_str(),
-                       qItem.kind == 0 ? "ours" : "offer", qPlayer.Planes[planeIdx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+                AT_Log("ClaudeBot::planJobPlanes(): Job %s -> %s (%s) on %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
+                       Cities[qJob.NachCity].Name.c_str(), qItem.kind == 0 ? "ours" : "offer", qPlayer.Planes[planeIdx].Name.c_str(), qLeg.start / 24,
+                       qLeg.start % 24);
             } else {
                 AT_Warn("ClaudeBot::planJobPlanes(): planFlightJob refused %s -> %s on %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
                         Cities[qJob.NachCity].Name.c_str(), qPlayer.Planes[planeIdx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
@@ -5214,7 +5205,8 @@ SLONG ClaudeBot::scheduleRouteFlights() {
              * - every raise costs the legs already sold (see kTicketPriceKeepMinPercent). */
             const SLONG fullCabin = ticketPercentFor(qRoute);
             const __int64 currentPercent = static_cast<__int64>(current) * 100 / highCost;
-            if (fullCabin <= kTicketPriceNoImageLossPercent - 6 || (currentPercent <= kTicketPriceNoImageLossPercent && fullCabin <= kTicketPriceNoImageLossPercent - 2)) {
+            if (fullCabin <= kTicketPriceNoImageLossPercent - 6 ||
+                (currentPercent <= kTicketPriceNoImageLossPercent && fullCabin <= kTicketPriceNoImageLossPercent - 2)) {
                 keepMin = fullCabin;
                 keepMax = kTicketPriceNoImageLossPercent;
                 percent = kTicketPriceNoImageLossPercent - 3;
@@ -5361,8 +5353,7 @@ SLONG ClaudeBot::scheduleRouteFlights() {
         /* A plane that has been flying jobs can stand anywhere, and every leg below departs from
          * where the plane is. From a city none of our pairs touches, go home first: the game
          * flies the empty leg itself before the first planned flight (Planetyp.cpp:700-717). */
-        if (!mMission.isMission && city != static_cast<SLONG>(Sim.HomeAirportId) &&
-            std::none_of(mRoutes.begin(), mRoutes.end(), [&](const RouteState &qRoute) {
+        if (!mMission.isMission && city != static_cast<SLONG>(Sim.HomeAirportId) && std::none_of(mRoutes.begin(), mRoutes.end(), [&](const RouteState &qRoute) {
                 return static_cast<ULONG>(city) == qRoute.vonCity || static_cast<ULONG>(city) == qRoute.nachCity;
             })) {
             int cost = 0;
@@ -5871,8 +5862,8 @@ SLONG ClaudeBot::scheduleUhrigJobs() {
             if (GameMechanic::planFlightJob(qPlayer, slots[s].idx, qLeg.job, qLeg.start / 24, qLeg.start % 24)) {
                 planned++;
                 AT_Log("ClaudeBot::scheduleUhrigJobs(): Job %s -> %s (%ld pax, day %ld-%ld) on plane %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
-                       Cities[qJob.NachCity].Name.c_str(), static_cast<SLONG>(qJob.Personen), static_cast<SLONG>(qJob.Date),
-                       static_cast<SLONG>(qJob.BisDate), qPlayer.Planes[slots[s].idx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
+                       Cities[qJob.NachCity].Name.c_str(), static_cast<SLONG>(qJob.Personen), static_cast<SLONG>(qJob.Date), static_cast<SLONG>(qJob.BisDate),
+                       qPlayer.Planes[slots[s].idx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
             } else {
                 AT_Warn("ClaudeBot::scheduleUhrigJobs(): planFlightJob refused %s -> %s on plane %s at %ld/%02ld.", Cities[qJob.VonCity].Name.c_str(),
                         Cities[qJob.NachCity].Name.c_str(), qPlayer.Planes[slots[s].idx].Name.c_str(), qLeg.start / 24, qLeg.start % 24);
