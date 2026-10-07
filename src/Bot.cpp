@@ -66,6 +66,7 @@ const SLONG kKerosineBoughtToday = -ACTION_BUY_KEROSIN; /* key in mLastTimeInRoo
 const bool kStockpilePilots = true;                     /* from the late game on (checkLateGame()), hire every qualified pilot */
 const bool kStockpileAttendants = true;                 /* from the late game on (checkLateGame()), hire every qualified attendant */
 const bool kReduceDividend = false;
+const SLONG kStockMissionSaveMoneyDays = 16; /* stock price mission (DIFF_ADDON08): days in the money saving phase */
 const SLONG kMaxSabotageHints = 99;
 
 const __int64 kMoneyEmergencyFund = 0; /* we can go into debt */
@@ -209,6 +210,18 @@ void Bot::RobotInit(SLONG randomSeed) {
         printRobotFlags();
 
         mFirstRun = false;
+    }
+
+    /* stock price mission: the share price follows TrustedDividende, which only rises on days with
+     * a positive balance. Do not invest until the first peak of the share price cycle (day 16).
+     * Not in DIFF_ATFS07: it is won on a 29-day average, and saving there made it slower. */
+    if (Sim.Difficulty == DIFF_ADDON08) {
+        if (Sim.Date < kStockMissionSaveMoneyDays) {
+            mRunToFinalObjective = FinalPhase::SaveMoney;
+        } else if (mRunToFinalObjective == FinalPhase::SaveMoney) {
+            AT_Log("Bot::RobotInit(): Stock price mission: Leaving money saving phase.");
+            mRunToFinalObjective = FinalPhase::No;
+        }
     }
 
     mBotWalk.startNewDay();

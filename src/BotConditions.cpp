@@ -550,7 +550,9 @@ Bot::Prio Bot::condIncreaseDividend(__int64 &moneyAvailable) {
     if (!hoursPassed(ACTION_SET_DIVIDEND, 24)) {
         return Prio::None;
     }
-    if (mRunToFinalObjective > FinalPhase::No) {
+    /* stock price mission saves money to raise the share price, which needs a high dividend */
+    bool stockPriceMission = (Sim.Difficulty == DIFF_ADDON08);
+    if (mRunToFinalObjective > FinalPhase::No && !(stockPriceMission && mRunToFinalObjective == FinalPhase::SaveMoney)) {
         return Prio::None;
     }
 
