@@ -50,6 +50,7 @@ extern const SLONG kKerosineBoughtToday;
 extern const bool kStockpilePilots;
 extern const bool kStockpileAttendants;
 extern const bool kReduceDividend;
+extern const SLONG kStockMissionSaveMoneyDays;
 extern const SLONG kMaxSabotageHints;
 
 extern const __int64 kMoneyEmergencyFund;
