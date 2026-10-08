@@ -120,6 +120,10 @@ jobs:
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@2026.09.13.1
 
+    - name: Force link OpenSSL (macOS)
+      if: matrix.name == 'macos' || matrix.name == 'macos-x64'
+      run: brew link --overwrite openssl@3
+      
     - name: Install macOS dependencies
       if: matrix.name == 'macos' || matrix.name == 'macos-x64'
       run: |
