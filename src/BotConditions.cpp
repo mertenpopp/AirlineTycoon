@@ -665,6 +665,9 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
         if (dislike == qPlayer.PlayerNum || qTarget.IsOut != 0) {
             continue;
         }
+        if (!mOptions.kStockWarfarceTargetHuman && qTarget.Owner != 1) {
+            continue;
+        }
         if (qPlayer.OwnsAktien[dislike] + calcNumOfFreeShares(dislike) >= qTarget.AnzAktien / 2) {
             canReachMajority = true;
             break;
@@ -678,6 +681,9 @@ Bot::Prio Bot::condBuyNemesisShares(__int64 &moneyAvailable) {
     for (SLONG dislike = 0; dislike < 4; dislike++) {
         auto &qTarget = Sim.Players.Players[dislike];
         if (dislike == qPlayer.PlayerNum || qTarget.IsOut != 0) {
+            continue;
+        }
+        if (!mOptions.kStockWarfarceTargetHuman && qTarget.Owner != 1) {
             continue;
         }
         if (qPlayer.OwnsAktien[dislike] < (qTarget.AnzAktien / 2)) {
@@ -725,6 +731,9 @@ Bot::Prio Bot::condOvertakeAirline() {
     for (SLONG p = 0; p < 4; p++) {
         auto &qTarget = Sim.Players.Players[p];
         if (p == qPlayer.PlayerNum || qTarget.IsOut != 0) {
+            continue;
+        }
+        if (!mOptions.kStockWarfarceTargetHuman && qTarget.Owner != 1) {
             continue;
         }
         if (GameMechanic::OvertakeAirlineResult::Ok == GameMechanic::canOvertakeAirline(qPlayer, p)) {
