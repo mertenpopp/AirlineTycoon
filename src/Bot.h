@@ -175,6 +175,7 @@ class Bot {
         SLONG kOwnStockPosessionRatio{51};
         SLONG kRepairBudgetPercent{0}; /* extra repair cost per night (above WorstZustand + 20), in % of daily op saldo; < 0: no limit */
         bool kStockWarfarce{true};
+        bool kStockWarfarceTargetHuman{false};
     };
     const char *getPrioName(Prio prio);
     const char *getPrioName(SLONG prio);

@@ -206,6 +206,9 @@ void Bot::RobotInit(SLONG randomSeed) {
         if (qPlayer.BotLevel == BotDifficultyLaidBack || qPlayer.BotLevel == BotDifficultyFreightBaron) {
             mOptions.kStockWarfarce = false;
         }
+        if (qPlayer.BotLevel == BotDifficultySaboteur || qPlayer.BotLevel == BotDifficultyNemesis) {
+            mOptions.kStockWarfarceTargetHuman = true;
+        }
 
         printRobotFlags();
 
@@ -937,7 +940,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot) {
          << bot.mOptions.kMaxTicketPriceFactorLowImage.upperLimit;
     File << bot.mOptions.kFirstClassTicketSurcharge;
     File << bot.mOptions.kMaxKerosinQualiZiel << bot.mOptions.kOwnStockPosessionRatio;
-    File << bot.mOptions.kRepairBudgetPercent << bot.mOptions.kStockWarfarce;
+    File << bot.mOptions.kRepairBudgetPercent << bot.mOptions.kStockWarfarce << bot.mOptions.kStockWarfarceTargetHuman;
 
     File << bot.mTicketsYesterday << bot.mImageDecayPerDay << bot.mImageAfterAds << bot.mImageAdsDay << bot.mImagePreservationMode;
 
@@ -1208,8 +1211,9 @@ TEAKFILE &operator>>(TEAKFILE &File, Bot &bot) {
     if (savegameVersion < 103) {
         bot.mOptions.kRepairBudgetPercent = Bot::ConfigurableOptions{}.kRepairBudgetPercent;
         bot.mOptions.kStockWarfarce = Bot::ConfigurableOptions{}.kStockWarfarce;
+        bot.mOptions.kStockWarfarceTargetHuman = Bot::ConfigurableOptions{}.kStockWarfarceTargetHuman;
     } else {
-        File >> bot.mOptions.kRepairBudgetPercent >> bot.mOptions.kStockWarfarce;
+        File >> bot.mOptions.kRepairBudgetPercent >> bot.mOptions.kStockWarfarce >> bot.mOptions.kStockWarfarceTargetHuman;
     }
 
     if (savegameVersion < 103) {

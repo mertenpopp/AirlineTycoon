@@ -1119,6 +1119,9 @@ void Bot::actionBuyNemesisShares(__int64 moneyAvailable) {
         if (dislike == qPlayer.PlayerNum || qTarget.IsOut != 0) {
             continue;
         }
+        if (!mOptions.kStockWarfarceTargetHuman && qTarget.Owner != 1) {
+            continue;
+        }
         auto amount = calcAmountToBuy(dislike, 50, moneyAvailable);
         if (amount > 0) {
             AT_Log("Bot::actionBuyNemesisShares(): Buying enemy stock from %s: %lld", qTarget.AirlineX.c_str(), amount);
@@ -1141,6 +1144,9 @@ void Bot::actionOvertakeAirline() {
     for (SLONG p = 0; p < 4; p++) {
         auto &qTarget = Sim.Players.Players[p];
         if (p == qPlayer.PlayerNum || qTarget.IsOut != 0) {
+            continue;
+        }
+        if (!mOptions.kStockWarfarceTargetHuman && qTarget.Owner != 1) {
             continue;
         }
         if (GameMechanic::OvertakeAirlineResult::Ok != GameMechanic::canOvertakeAirline(qPlayer, p)) {
