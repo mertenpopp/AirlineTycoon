@@ -542,6 +542,17 @@ void ScanMusicTracks() {
         OggTracks.emplace_back(name.c_str());
     }
 
+    if (Sim.Options.OptionMusicType == 1 && MidiTracks.empty() && !OggTracks.empty()) {
+        AT_Log("No MIDI music tracks found in %s", dir.string().c_str());
+        AT_Log("Switching to OGG music tracks");
+        Sim.Options.OptionMusicType = 2;
+    }
+    if (Sim.Options.OptionMusicType == 2 && OggTracks.empty() && !MidiTracks.empty()) {
+        AT_Log("No OGG music tracks found in %s", dir.string().c_str());
+        AT_Log("Switching to MIDI music tracks");
+        Sim.Options.OptionMusicType = 1;
+    }
+
     AT_Log("Found %d MIDI and %d OGG music tracks", static_cast<SLONG>(MidiTracks.size()), static_cast<SLONG>(OggTracks.size()));
 }
 
