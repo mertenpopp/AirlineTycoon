@@ -323,11 +323,9 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             // NetGenericAsync (24004+ObjectId+Sim.Date*100, tmp);
 
             // Fliegt er heute oder morgen? Dann machen wir Abstriche!
-            if (HoursBefore > 48) {
-                HoursBefore = 48;
-            }
-            if (HoursBefore < 48) {
-                tmp = tmp * (HoursBefore + 48) / (48 + 48);
+            auto HoursBeforeTmp = std::min<UBYTE>(HoursBefore, 48);
+            if (HoursBeforeTmp < 48) {
+                tmp = tmp * (HoursBeforeTmp + 48) / (48 + 48);
             }
             // if (PlayerNum == 0) AT_Log ("tmp=%li (nach tag)", tmp);
 
@@ -499,11 +497,10 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             tmp = min(tmp, qPlane.MaxPassagiereFC + qPlane.MaxPassagiereFC / 2);
 
             // Fliegt er heute oder morgen oder übermorgen oder überübermorgen? Dann machen wir Abstriche!
-            if (HoursBefore > 72) {
-                HoursBefore = 72;
-            }
-            if (HoursBefore < 72) {
-                tmp = tmp * (HoursBefore + 48) / (72 + 48);
+            // Changed to 48: It would be really difficult to schedule a flight 72 hours ahead, so we should not penalize the player for that.
+            auto HoursBeforeTmp = std::min<UBYTE>(HoursBefore, 48);
+            if (HoursBeforeTmp < 48) {
+                tmp = tmp * (HoursBeforeTmp + 48) / (48 + 48);
             }
 
             // Abschläge bei Wucherpreisen:
