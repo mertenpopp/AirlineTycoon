@@ -544,18 +544,18 @@ bool GameMechanic::setSecurity(PLAYER &qPlayer, SLONG securityType, bool targetS
             std::array<int, 3> list = {8, 10, 11};
             for (auto i : list) {
                 if (i <= securityType) {
-                    qPlayer.SecurityFlags |= (1 << securityType);
+                    qPlayer.SecurityFlags |= (1 << i);
                 }
             }
         } else {
             qPlayer.SecurityFlags |= (1 << securityType);
         }
     } else {
-        if (securityType == 8) {
+        if (securityType >= 8) {
             std::array<int, 3> list = {8, 10, 11};
             for (auto i : list) {
                 if (i >= securityType) {
-                    qPlayer.SecurityFlags &= ~(1 << securityType);
+                    qPlayer.SecurityFlags &= ~(1 << i);
                 }
             }
         } else {

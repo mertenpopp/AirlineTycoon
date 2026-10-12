@@ -274,6 +274,7 @@ All new computer players have one thing in common:
     * Includes the prices that the new computer players charge
     * First-class presets are 3x economy prices. Reason: Since one FC passenger takes the place of two economy passengers, at only 2x the price you would gain nothing
 * Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
+* Aligned how last-minute flight plan changes affect first-class route passengers
 
 ## Credits and Contributors
 
