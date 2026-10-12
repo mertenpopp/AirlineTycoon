@@ -70,11 +70,11 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 When starting a new game, you can pick a play style for each computer-controlled airline. I tried to make each one feel different to play against:
 
 * **Classic**: The original computer player you know from the base game. It is cheating (see the table below), but it is not a particularly clever manager. Pick it for the nostalgia.
-* **Laid-Back**: The nicest of the new competitors. It plays by the rules and builds a proper airline, but it strolls through the airport instead of running, is not picky about which jobs it takes, charges modest ticket prices and does not bother with buying kerosene in bulk. A good first opponent if you want to learn the game or just have a relaxed round.
-* **Freight Baron**: A bit tougher competitor with a passion for cargo. It heads for the freight office first and fills its fleet with freight jobs. A fair opponent with a noticeably different rhythm than the others.
+* **Laid-Back**: The nicest of the new competitors. It plays by the rules and builds a proper airline, but it strolls through the airport instead of running, is not picky about which jobs it takes, charges modest ticket prices and does not sabotage or take over competitors. A good first opponent if you want to learn the game or just have a relaxed round.
+* **Freight Baron**: A bit tougher competitor with a passion for cargo. It heads for the freight office first and fills its fleet with freight jobs. A fair opponent with a noticeably different rhythm than the others. Also does not sabotage nor take over competitors.
 * **Route Tycoon**: A pure profit machine, fair but relentless. It never uses sabotage. Instead it starts building a huge route network almost immediately, trades kerosene cleverly and keeps an eye on the stock market, where it will happily buy up a struggling rival. Keep hold of your own shares if you want to see the end of the game.
 * **Challenger**: The best strategist. Picks only lucrative jobs to then bootstrap a route network, pushes ticket prices as far as the passengers tolerate and stocks up on cheap kerosene. Compared to the *Route Tycoon*, it expands its route network slower and will always fully operate the most profitable routes. It never plays dirty, so expect a tough but honest race for the top spot.
-* **Saboteur**: Runs its airline just as well as the *Challenger*, but is also a regular customer of the saboteur. Expect trouble with your aeroplanes and your office whenever you pull ahead, so a visit to the security office is money well spent.
+* **Saboteur**: Runs its airline just as well as the *Challenger*, but is also a regular customer of the saboteur. Expect trouble with your aeroplanes and your office whenever you pull ahead, so a visit to the security office might be money well spent. It will also employ stock warfare in an attempt to take you over.
 * **Nemesis**: Everything the *Saboteur* does, and it is personal. The Nemesis singles out the human player with extra dirty tricks that no other level uses. Pick it if you want an opponent who is out to ruin your day, not just to win.
 
 All new computer players have one thing in common:
@@ -266,6 +266,14 @@ All new computer players have one thing in common:
     * Summer: Safety upgrade protect against "Missing life vests"
     * Fall: Engine upgrade protect against "Engine damage, due to foliage"
     * Winter: Tire upgrade protect against "Landing gear frozen solid"
+* High/low route fares for first class now also affect image
+* Changed presets for route fares:
+    * Old dumping price did nothing: Earned the same image bonus as the next preset but at only half the income
+    * Presets are now somewhat price-optimal: They sit right below the next threshold where the customers would become less satisfied with you
+    * You can now easily charge much more than before (which is possible if you have enough image)
+    * Includes the prices that the new computer players charge
+    * First-class presets are 3x economy prices. Reason: Since one FC passenger takes the place of two economy passengers, at only 2x the price you would gain nothing
+* Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
 
 ## Credits and Contributors
 
