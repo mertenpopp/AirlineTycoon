@@ -2442,3 +2442,21 @@ Why ClaudeBot gains more than MertenBot is not measured; a guess is how often ea
   The baseline stays 2.872e9.
 - Press statement (Presseerklaerung) sets passengers to 1 + n % 3 in both cabins, so a plane with
   no first class seats can log one first class passenger (442 of 618587 flights in V0). Harmless.
+
+### 2026-10-12: home-gate departures booked on the game clock (multiplayer desync)
+
+Symptom (2 Windows clients + host): flight job revenue, job fines and interest differed between
+peers. Cause: a departure from a home-airport gate was booked by CPlane::DoOneStep when the taxi and
+takeoff animation ended. That animation steps once every 11 *frames*, so its end fell on a different
+game time per peer - in fast-forward (CallItADay) each frame covers up to 1600 sim steps, so evening
+flights booked hours late, a 23:00 job could book after NewDay() on one peer only (UpdateAuftraege
+fines it there, revenue still booked later), and the booking order across players (shared route
+Bedarf) differed.
+Fix: SIM::DoTimeStep books such flights at xx:55 (when taxiing starts) and sets Ort=-5 at the full
+hour, players and planes in index order; the animation only waits off screen. BookFlight now logs
+a "BOOK" NetTrace event.
+- Paired measurement, seeds 1-300, ClaudeBot level 6: 2.8711e9 vs 2.8722e9, -0.04%, t -0.37 (157/143).
+  Every game differs slightly, the score does not.
+- run_multiplayer.sh 2 6 44 10 0 1 0 12345: all 70 fingerprints agree; BOOK traces identical on
+  both peers (4 home-gate departures, all at hh:55:01, incl. 23:55).
+Not done: the same session on the old binary for comparison (it had no BOOK trace).
