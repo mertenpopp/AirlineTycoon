@@ -271,6 +271,7 @@ class ClaudeBot {
     bool isJobPlane(const CPlane &qPlane) const;
     bool haveJobPlanes() const;
     void startNewDay();
+    void logRouteFlights() const;
 
     /* --- action implementations --- */
     void executePersonal();
