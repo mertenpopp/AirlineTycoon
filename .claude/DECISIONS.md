@@ -2264,19 +2264,110 @@ All paired, 300 seeded games, level 6, day 59, against 79cba872 (2.7650e9, `data
   wantItemDrop() is always false there. Verified in a 2-day walking run
   (run_multiplayer.sh 2 2 57 0): glue dropped on both days, stink bomb on day 1, no errors.
 
-## 2026-10-12: Route fare presets for the human player (fairness)
+## 2026-10-12: Route fare rules and presets for the human player (fairness)
 
-Both bots park their economy fare just below a threshold of CalcPassengers/BookFlight
-(B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2; image steps at 1.5B, 3B, 4.5B, 6B;
-demand weight steps at 3B, 5B, 6B; passenger cut above 3B; first class cut to ~1/3 above 9B).
-The route window offered 0.5B / 1B / 2B / 4B, and renting a route defaulted to 2B. None of
-these sits just below a threshold, and nothing sits where the bots earn their money (4.5B-6B).
-At the user's request (option a) they are now CalculateRoutePricePreset() in Misc.cpp:
-140% / 285% / 425% / 570% of B (5% below each threshold, so they survive the daily kerosene
-move), first class 2x economy but capped at 855% of B. The rental default is the 285% preset.
-Relabelled Rout 1102-1105 in patch/std_ger.patched.res.txt (Budget / Standard / Premium /
-Luxury). Smoke test passes. The bots' own pricing is unchanged; only the fare a freshly
-rented route starts with differs (2B -> 2.85B) until the bot re-prices it. Not measured.
+Both bots park their fares just below the thresholds of CFlugplanEintrag::CalcPassengers and
+::BookFlight. The human had no presets there. Changes in this session (commits e0fce893, 7b05db7b and
+the BookFlight first-class image change in the working tree), all in game code outside ClaudeBot:
+
+**Fare rules as of now** (B = CalculateFlightCost(von, nach, 800, 800, -1) * 3 / 180 * 2; follows
+Sim.Kerosin daily; CalcPassengers re-runs at booking time; all comparisons strict):
+
+| Economy fare p | Image Add (BookFlight) | Passengers (CalcPassengers) |
+|---|---|---|
+| < 1.5B | +10 | - |
+| > 3B | -10 | x (3B - 10) / p, continuous, applied before the cabin cap |
+| > 4.5B | -10 more | (same factor) |
+| > 6B | -10 more | (same factor) |
+
+| First class fare p | Image Add (BookFlight) | Passengers (CalcPassengers) |
+|---|---|---|
+| < 4.5B | +10 | - |
+| > 9B | -10 | x (9B - 10) / p, continuous (was (3B - 10) / p, a cliff to ~1/3: FIXED) |
+| > 13.5B | -10 more | (same factor) |
+| > 18B | -10 more | (same factor) |
+
+- BookFlight now adds the seat-weighted average of both terms:
+  `(AddRegular * MaxPassagiere + AddFirstClass * 2 * MaxPassagiereFC) / max(1, MaxPassagiere + 2 * MaxPassagiereFC)`.
+  First class counts double because a first-class seat takes the floor space of two economy seats.
+  Weighting by seats, not passengers, is deliberate (user): an empty seat may be a customer put off
+  by the price. Integer division truncates toward zero, then `Image += Add / 10` truncates again.
+  Before, the first-class fare had no image effect at all.
+- GameMechanic::setRouteTicketPriceBoth (now the only setter; setRouteTicketPrice was removed and the
+  "copy competitor price" click sets both directions) enforces TicketpreisFC >= Ticketpreis, then clamps
+  economy to ~16B and first class to ~48B. This keeps a cheap first class from offsetting an
+  expensive economy fare in the image average. Residual: economy and first class both at ~4.4B with a
+  large first-class cabin still nets >= 0, even with the cabin empty (LuxusSumme < 6); not worth it in
+  practice. Weighting the +10 bonus by passengers carried would close it. The old cheating CPU player
+  writes RentRouten prices directly and can still end up with first class < economy.
+- Demand-weight steps (economy 3B/5B/6B, first class 9B/15B/18B) cancel out, see the open bug below.
+
+**Presets** (route window, CalculateRoutePricePreset/-FC in Misc.cpp): 5% below each economy image
+threshold, so they survive the daily kerosene move: 140% / 285% / 425% / 570% of B, labelled
+Budget / Standard price / Premium price / Luxury price (Rout 1102-1105, patch/std_ger.patched.res.txt,
+all 8 languages). Renting a route defaults to the 285% preset (was 200%). The old presets
+(50/100/200/400%) sat at no threshold, and none sat where the bots earn their money (4.5B-6B).
+First class = 3 x the economy preset (420/855/1275/1710% of B, IMPLEMENTED 2026-10-12 after the
+experiment below; was min(2 x economy, 855% of B)).
+**First-class presets (superseded, see the experiment below and the line above).** Proposal 425/855/855/855% of B was based on code analysis only and
+on a wrong premise ("first class is demand-limited"). There is no empirical first-class data: both bots
+convert all first-class seats to economy (decreaseFirstClassRatio in BotActions.cpp and ClaudeBot.cpp).
+What the code says (first-class pipeline in CalcPassengers): demand share (same Bedarf as economy),
+capped at 1.5 x FC seats, x booking-time factor h ((HoursBefore + 48) / 120, max 1), x price cut
+f = (9B - 10) / p above 9B, x luxury L = (LuxusSumme - 6) / 8 (0 below 6, max 1.5 at 18), x image
+I = (400 + ImageTotal) / 1100 (max 1.27), then capped at FC seats. So the cabin stays full up to
+p = 9B x 1.5 h L I, and revenue rises above 9B whenever 1.5 h L I > 1 (up to ~25.7B with full luxury
+and image), just as economy pays above 3B. But a stock plane has LuxusSumme 0 and sells no first
+class at all, while its default cabin (6/8 economy, 1/8 first class, which counts double) gives the
+first-class fare 25% of the seat-weighted image term. For such a plane the first-class fare is pure
+image: lowest allowed (>= economy) below 4.5B is best. No fixed preset is optimal for both kinds of
+plane.
+
+**Who is affected:** both bots fly no first-class seats, so the image change is a no-op for both
+(MaxPassagiereFC = 0, Add = AddRegular exactly). The old CPU player (first class 12B, -10) gets its
+economy penalty diluted. Humans with the default cabin are affected most. **Not measured**: run the
+paired ClaudeBot measurement and run_measurement_bot.sh before the release (both should be ~0).
+
+### First class fare experiment (2026-10-12), ClaudeBot as test vehicle
+
+Knobs in ClaudeBot.cpp (defaults = normal bot): kExperimentKeepFirstClass (keep the default 1/8
+first class cabin), kExperimentLuxury (0 food only = LuxusSumme 2; 1 + seats/trays/deco = 8;
+2 all eight fittings + security 10/11 = up to 18), first class fare via kTicketPriceThresholdPercentFC
+(% of 9B). kLogRouteFlights (off by default) logs one "ClaudeBotFlight:" line per route flight of
+the previous day from RobotInit (yesterday's flights are still in the plan there; recycled right
+after by FlugplaeneFortfuehren). Runner/analysis scripts were in the session scratchpad.
+300 seeded games each, paired:
+
+| Variant | FC seats | Luxury | FC fare /9B | FC load | FC rev/flight | pred/act | Score (op saldo) |
+|---|---|---|---|---|---|---|---|
+| V0 normal | 0 | 2 | - | - | - | - | 2.826e9 |
+| V1 | 35 | 2 | 0.89 | 0% | 0 | - | 0.623e9 (-78%, t -68) |
+| V6 | 0 | 16 | - | - | - | - | 0.237e9 (-92% vs V0) |
+| V2 | 33 | 16 | 0.90 | 85% | 193k | 1.04 | -11.0% vs V6 (t -4.2) |
+| V3 | 33 | 16 | 1.33 | 78% | 275k | 1.07 | +12.8% vs V6 (t +4.3) |
+| V4 | 33 | 16 | 1.77 | 68% | 322k | 1.09 | +20.3% vs V6 (t +6.2); +35% vs V2 (t +11) |
+| V5 | 33 | 16 | 2.58 | 47% | 325k | 1.15 | -3.2% vs V4 (t -1.6) |
+| V7a | 34 | 8 | 0.90 | 25% | 70k | 1.18 | 0.478e9 |
+| V7b | 34 | 8 | 1.34 | 17% | 73k | 1.23 | +0.1% vs V7a (t +0.2) |
+
+Findings:
+- The CalcPassengers first class formula holds: cabin full up to p = 9B x 1.5 h L I, flat revenue
+  above (h <= 0.8 because the economy code clamps HoursBefore to 48 in place; L = (Lux-6)/8; I <= 1.27).
+  It over-predicts by 4-23% (more at low luxury / high fare; likely integer truncation or share cap).
+  At Lux 16 and image ~85: break-even 1.5 x 0.8 x 1.25 x 1.27 = 1.9 -> ~17B, measured optimum ~1.77 x 9B.
+- Stock planes (Lux < 6) sell no first class at all; the fare only feeds the image average.
+- Mid luxury (Lux 8): first class demand-limited, revenue flat above 9B (no gain, image cost).
+- For ClaudeBot itself first class is ruinous: keeping the default cabin on stock planes -78%,
+  upgrades -92% (cash-flow-bound fleet growth). Confirms both bots' choice to strip first class.
+  The -78% is more than the 27% seat loss explains; ClaudeBot's route revenue model counts
+  seatsFC * ticketPriceFC as if sold, which may misallocate planes. Not investigated.
+- Presets (implemented): first class = 3 x economy preset (420/855/1275/1710% of B), i.e. just below
+  the first class image thresholds 4.5B/9B/13.5B/18B, which are exactly 3x the economy ones. Then both
+  cabins carry the same Add, so the image term no longer depends on the seat split, Budget keeps +10,
+  Standard sells first class at the highest no-penalty fare, and Luxury (which already accepts -20)
+  sits at the measured optimum for upgraded planes.
+- Game bug found: GameMechanic::setSecurity for types >= 8 sets `1 << securityType` in its loop
+  instead of `1 << i`, so level 11 does not imply 8 and 10. Not fixed.
 
 ### Open game-rule bug (user wants it fixed after the upcoming release): route demand weight ignores competitors' prices
 
@@ -2295,7 +2386,4 @@ route is never read. Consequences:
 Likely intended fix: use `Sim.Players.Players[c].RentRouten.RentRouten[Routen(ObjectId)].Ticketpreis`
 (resp. TicketpreisFC) for player c, and scale weights up (e.g. 1000000 / price) to avoid truncation.
 This changes game balance for all players and both bots (MertenBot and ClaudeBot price assumptions,
-measured scores), so re-measure both bots after the fix. Related, FIXED 2026-10-12: the first-class passenger cut
-(Schedule.cpp L513-514) triggered above 9B but scaled by (3B - 10) / price, a cliff to ~1/3; it now
-scales by (9B - 10) / price, continuous like economy. First-class revenue is now flat above 9B
-instead of dropping by 2/3; MertenBot (8.55B) and the presets sit below 9B and are unaffected.
+measured scores), so re-measure both bots after the fix.

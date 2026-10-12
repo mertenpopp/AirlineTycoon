@@ -616,6 +616,20 @@ static const SLONG kEssenTarget = 2;
  * moves Add across a multiple of ten. */
 static const bool kCabinUpgrades = false;
 
+/* Experiment instrumentation: one "ClaudeBotFlight:" log line per route flight of the previous
+ * day (see ClaudeBot::logRouteFlights()). Changes no decision. */
+static const bool kLogRouteFlights = false;
+
+/* Experiment knobs for the first class fare test (.claude/DECISIONS.md, 2026-10-12). The defaults
+ * reproduce the normal bot exactly.
+ * kExperimentKeepFirstClass: leave the default cabin (1/8 of ptPassagiere as first class seats)
+ * instead of converting it all to economy.
+ * kExperimentLuxury: 0 = normal (food only), 1 = also seats, trays and decoration at level 2
+ * (LuxusSumme 8), 2 = all eight fittings at level 2 plus security types 10 and 11 (LuxusSumme 18).
+ * The first class fare itself is kTicketPriceThresholdPercentFC (percent of 9 * routePriceBase()). */
+static const bool kExperimentKeepFirstClass = false;
+static const SLONG kExperimentLuxury = 0;
+
 /* Aeroplanes' worth of crew executePersonal() keeps on the payroll beyond what the fleet needs. */
 static const SLONG kCrewSparePlanes = 3;
 /* ...until the fleet has this many aeroplanes: from then on every applicant is hired.
@@ -851,6 +865,10 @@ void ClaudeBot::RobotInit(SLONG randomSeed) {
         mFirstRun = false;
     }
 
+    if (kLogRouteFlights) {
+        logRouteFlights();
+    }
+
     startNewDay();
 
     for (auto &i : qPlayer.RobotActions) {
@@ -862,6 +880,63 @@ void ClaudeBot::RobotInit(SLONG randomSeed) {
         RobotPlan();
     }
     AT_Log("ClaudeBot.cpp: Leaving RobotInit()");
+}
+
+/* Experiment instrumentation: logs every route flight that departed yesterday, with the inputs
+ * CFlugplanEintrag::CalcPassengers used for it. Runs in RobotInit(), which PLAYER::NewDay() calls
+ * after Sim.Date was advanced but before CPlane::FlugplaeneFortfuehren() recycles yesterday's route
+ * flights into next week (and resets their FlightBooked).
+ *
+ * The passenger counts were frozen an hour before departure (CalcPassengers stops recomputing
+ * then), so prices and B are those of yesterday: B uses KerosinPast[8], today's price is [9].
+ * Image values are read now, i.e. after BookFlight applied yesterday's changes. */
+void ClaudeBot::logRouteFlights() const {
+    static bool headerLogged = false;
+    if (!headerLogged) {
+        AT_Log("ClaudeBotFlight: day;plane;von;nach;start;land;hoursBefore;seats;pax;seatsFC;paxFC;price;priceFC;base;luxus;laerm;"
+               "routeImage;airlineImage;bedarf;rang;avgFlown;competitors");
+        headerLogged = true;
+    }
+
+    const SLONG yesterday = Sim.Date - 1;
+    const SLONG kerosinYesterday = Sim.KerosinPast[Sim.KerosinPast.AnzEntries() - 2];
+    const SLONG luxusSecurity = static_cast<SLONG>((qPlayer.SecurityFlags & (1 << 10)) != 0) + static_cast<SLONG>((qPlayer.SecurityFlags & (1 << 11)) != 0);
+
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const auto &qPlane = qPlayer.Planes[c];
+        const SLONG luxus = qPlane.Sitze + qPlane.Essen + qPlane.Tabletts + qPlane.Deco + qPlane.Triebwerk + qPlane.Reifen + qPlane.Elektronik +
+                            qPlane.Sicherheit + luxusSecurity;
+
+        for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+            const auto &qFlight = qPlane.Flugplan.Flug[e];
+            if (qFlight.ObjectType != 1 || qFlight.FlightBooked == 0 || qFlight.Startdate != yesterday) {
+                continue;
+            }
+            const CRoute &qRoute = Routen[qFlight.ObjectId];
+            const SLONG routeIndex = Routen(qFlight.ObjectId);
+            const auto &qRentRoute = qPlayer.RentRouten.RentRouten[routeIndex];
+
+            /* CalculateFlightCost(von, nach, 800, 800, -1) with yesterday's kerosene price. */
+            SLONG cost = CalculateFlightKerosin(qFlight.VonCity, qFlight.NachCity, 800, 800) * kerosinYesterday;
+            cost = std::max(cost, SLONG(1000));
+            const SLONG base = cost * 3 / 180 * 2;
+
+            SLONG competitors = 0;
+            for (SLONG p = 0; p < 4; p++) {
+                if (p != qPlayer.PlayerNum && Sim.Players.Players[p].IsOut == 0 && Sim.Players.Players[p].RentRouten.RentRouten[routeIndex].Rang != 0) {
+                    competitors++;
+                }
+            }
+
+            AT_Log("ClaudeBotFlight: %d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d", yesterday, c, qFlight.VonCity, qFlight.NachCity,
+                   qFlight.Startzeit, qFlight.Landezeit, qFlight.HoursBefore, qPlane.MaxPassagiere, qFlight.Passagiere, qPlane.MaxPassagiereFC,
+                   qFlight.PassagiereFC, qFlight.Ticketpreis, qFlight.TicketpreisFC, base, luxus, qPlane.ptLaerm, qRentRoute.Image, qPlayer.Image,
+                   qRoute.Bedarf, qRentRoute.Rang, qRentRoute.AvgFlown, competitors);
+        }
+    }
 }
 
 bool ClaudeBot::haveOffice() const {
@@ -1466,6 +1541,11 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *     600,000 for five, and paying it while the cash was still buying planes left two of
      *     eight airlines bankrupt on three or four. */
     if (mMission.wantNoSabotage && countPlanes() >= mMission.usedFleet && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY)) {
+        out.push_back(ACTION_VISITSECURITY);
+    }
+    /*     Experiment: security types 10 and 11 count towards first class LuxusSumme. */
+    if (kExperimentLuxury >= 2 && (qPlayer.SecurityFlags & ((1 << 10) | (1 << 11))) != ((1 << 10) | (1 << 11)) && !mVisitedSecurityToday &&
+        canUseAction(ACTION_VISITSECURITY)) {
         out.push_back(ACTION_VISITSECURITY);
     }
     /* ...and one pair of pliers is left at the saboteur's every morning. A legacy bot that
@@ -3873,6 +3953,27 @@ void ClaudeBot::executeUpgrades() {
             }
         }
 
+        if (kExperimentLuxury >= 1) {
+            auto raise = [&](UBYTE &target, UBYTE current) {
+                if (target == 2) {
+                    return;
+                }
+                target = 2;
+                if (!affordable()) {
+                    target = current;
+                }
+            };
+            raise(qPlane.SitzeTarget, qPlane.Sitze);
+            raise(qPlane.TablettsTarget, qPlane.Tabletts);
+            raise(qPlane.DecoTarget, qPlane.Deco);
+            if (kExperimentLuxury >= 2) {
+                raise(qPlane.ReifenTarget, qPlane.Reifen);
+                raise(qPlane.TriebwerkTarget, qPlane.Triebwerk);
+                raise(qPlane.SicherheitTarget, qPlane.Sicherheit);
+                raise(qPlane.ElektronikTarget, qPlane.Elektronik);
+            }
+        }
+
         if (kCabinUpgrades && qPlane.SitzeTarget != 2) {
             qPlane.SitzeTarget = 2;
             if (!affordable()) {
@@ -3918,7 +4019,7 @@ void ClaudeBot::executeUpgrades() {
          * cabin and CPlane::DoOneStep copies it onto MaxPassagiereFC at the next day
          * boundary. So drive the loop off the target - MaxPassagiereFC does not move while
          * we are standing here, and decreaseFirstClassRatio always reports success. */
-        while (qPlane.MaxPassagiereTargetFC > 0) {
+        while (!kExperimentKeepFirstClass && qPlane.MaxPassagiereTargetFC > 0) {
             SLONG before = qPlane.MaxPassagiereTargetFC;
             GameMechanic::decreaseFirstClassRatio(qPlayer, c);
             if (qPlane.MaxPassagiereTargetFC >= before) {
@@ -6306,12 +6407,21 @@ void ClaudeBot::executeSabotage() {
  * (type 2 job 6) needs a route, so those two are only bought when they can matter. */
 void ClaudeBot::executeProtection() {
     mVisitedSecurityToday = true;
-    std::vector<SLONG> wanted = {0, 2, 3, 5, 6, 7, 8};
-    if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
-        wanted.push_back(1);
+    std::vector<SLONG> wanted;
+    if (mMission.wantNoSabotage) {
+        wanted = {0, 2, 3, 5, 6, 7, 8};
+        if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
+            wanted.push_back(1);
+        }
+        if (!mRoutes.empty()) {
+            wanted.push_back(4);
+        }
     }
-    if (!mRoutes.empty()) {
-        wanted.push_back(4);
+    /* Types 10 and 11 add one LuxusSumme point each (CalcPassengers). Set separately: setSecurity(11)
+     * does not imply 10. */
+    if (kExperimentLuxury >= 2) {
+        wanted.push_back(10);
+        wanted.push_back(11);
     }
     for (SLONG type : wanted) {
         GameMechanic::setSecurity(qPlayer, type, true);
