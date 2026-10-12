@@ -1919,8 +1919,9 @@ void PLAYER::RouteWegnehmen(SLONG Routenindex, SLONG NeuerBesitzer) {
         qPlayer.RentRouten.RentRouten[Routenindex].TageMitVerlust = 0;
 
         qPlayer.RentRouten.RentRouten[Routenindex].Ticketpreis =
-            CalculateFlightCost(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, 800, 800, -1) * 3 / 180 * 2 * 2 / 10 * 10;
-        qPlayer.RentRouten.RentRouten[Routenindex].TicketpreisFC = qPlayer.RentRouten.RentRouten[Routenindex].Ticketpreis * 2;
+            CalculateRoutePricePreset(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, ROUTE_PRICE_PRESET_DEFAULT);
+        qPlayer.RentRouten.RentRouten[Routenindex].TicketpreisFC =
+            CalculateRoutePricePresetFC(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, ROUTE_PRICE_PRESET_DEFAULT);
     }
 
     RentRouten.RentRouten[Routenindex].Rang = 0;
@@ -2147,8 +2148,8 @@ void PLAYER::RentRoute(SLONG City1, SLONG City2, SLONG Miete) {
 
                 RentRouten.RentRouten[c].TageMitVerlust = 0;
 
-                RentRouten.RentRouten[c].Ticketpreis = CalculateFlightCost(City1, City2, 800, 800, -1) * 3 / 180 * 2 * 2 / 10 * 10;
-                RentRouten.RentRouten[c].TicketpreisFC = RentRouten.RentRouten[c].Ticketpreis * 2;
+                RentRouten.RentRouten[c].Ticketpreis = CalculateRoutePricePreset(City1, City2, ROUTE_PRICE_PRESET_DEFAULT);
+                RentRouten.RentRouten[c].TicketpreisFC = CalculateRoutePricePresetFC(City1, City2, ROUTE_PRICE_PRESET_DEFAULT);
             }
         }
     }

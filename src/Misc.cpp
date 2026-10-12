@@ -702,6 +702,34 @@ SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, 
 }
 
 //--------------------------------------------------------------------------------------------
+// Ticket price presets of the route window, in percent of the route's base cost
+// B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2. Each one sits just below a
+// threshold where CFlugplanEintrag::CalcPassengers or CFlugplanEintrag::BookFlight start
+// to punish the price:
+//   0: below 1.5B (a flight still earns route and airline image)
+//   1: below 3B   (passengers are not cut back yet, no image loss)
+//   2: below 4.5B (one image step lost per flight)
+//   3: below 6B   (two image steps lost per flight, no extra demand penalty yet)
+// The 5% margin covers the daily move of the kerosene price, which B follows.
+//--------------------------------------------------------------------------------------------
+static const SLONG RoutePricePresetPercent[ROUTE_PRICE_PRESET_COUNT] = {140, 285, 425, 570};
+
+// First class: passengers drop to a third above 9B, so stay 5% below that.
+static const SLONG RoutePriceMaxPercentFC = 855;
+
+static SLONG CalculateRoutePriceBase(SLONG VonCity, SLONG NachCity) { return CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2; }
+
+SLONG CalculateRoutePricePreset(SLONG VonCity, SLONG NachCity, SLONG Preset) {
+    Preset = std::clamp(Preset, SLONG(0), ROUTE_PRICE_PRESET_COUNT - 1);
+    return CalculateRoutePriceBase(VonCity, NachCity) * RoutePricePresetPercent[Preset] / 100 / 10 * 10;
+}
+
+SLONG CalculateRoutePricePresetFC(SLONG VonCity, SLONG NachCity, SLONG Preset) {
+    SLONG maxFC = CalculateRoutePriceBase(VonCity, NachCity) * RoutePriceMaxPercentFC / 100 / 10 * 10;
+    return std::min(CalculateRoutePricePreset(VonCity, NachCity, Preset) * 2, maxFC);
+}
+
+//--------------------------------------------------------------------------------------------
 // Lädt die Einheiten-Tabelle:
 //--------------------------------------------------------------------------------------------
 void InitEinheiten(const CString &Filename) {

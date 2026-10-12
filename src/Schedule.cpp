@@ -511,7 +511,7 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
 
             Cost *= 3;
             if (TicketpreisFC > Cost * 3 && Cost > 10 && TicketpreisFC > 0) {
-                tmp = tmp * (Cost - 10) / TicketpreisFC;
+                tmp = tmp * (Cost * 3 - 10) / TicketpreisFC;
             }
 
             // Schlechte Zeiten? Das gibt Abstriche!

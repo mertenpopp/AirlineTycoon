@@ -97,6 +97,11 @@ SLONG CalculateFlightKerosin(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLO
 SLONG CalculateFlightCost(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit, SLONG Player);
 SLONG CalculateFlightCostRechnerisch(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit, SLONG PlayerNum);
 SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, SLONG Geschwindigkeit);
+// Ticket price presets of the route window (0 = cheapest ... ROUTE_PRICE_PRESET_COUNT-1 = most expensive)
+const SLONG ROUTE_PRICE_PRESET_COUNT = 4;
+const SLONG ROUTE_PRICE_PRESET_DEFAULT = 1;
+SLONG CalculateRoutePricePreset(SLONG VonCity, SLONG NachCity, SLONG Preset);
+SLONG CalculateRoutePricePresetFC(SLONG VonCity, SLONG NachCity, SLONG Preset);
 void InitEinheiten(const CString &Filename);
 CString Insert1000erDots(SLONG Value);
 CString Insert1000erDots64(__int64 Value);

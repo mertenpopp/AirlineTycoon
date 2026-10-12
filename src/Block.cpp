@@ -1508,13 +1508,10 @@ bool BLOCK::RechteSeiteInhalt(XY TitleAreaB, XY ClientAreaB) {
             Bitmap.PrintAt(StandardTexte.GetS(TOKEN_ROUTE, 1104), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(2, 92), ClientAreaB + XY(172, 170));
             Bitmap.PrintAt(StandardTexte.GetS(TOKEN_ROUTE, 1105), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(2, 105), ClientAreaB + XY(172, 170));
 
-            SLONG Cost = CalculateFlightCost(qRoute.VonCity, qRoute.NachCity, 800, 800, -1) * 3 / 180 * 2;
-
-            Bitmap.PrintAt(Einheiten[EINH_DM].bString(Cost / 2 / 10 * 10), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(80, 66), ClientAreaB + XY(172, 170));
-            Bitmap.PrintAt(Einheiten[EINH_DM].bString(Cost / 10 * 10), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(80, 79), ClientAreaB + XY(172, 170));
-            Bitmap.PrintAt(Einheiten[EINH_DM].bString(Cost * 2 / 10 * 10), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(80, 92), ClientAreaB + XY(172, 170));
-            Bitmap.PrintAt(Einheiten[EINH_DM].bString(Cost * 4 / 10 * 10), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(80, 105),
-                           ClientAreaB + XY(172, 170));
+            for (SLONG preset = 0; preset < ROUTE_PRICE_PRESET_COUNT; preset++) {
+                Bitmap.PrintAt(Einheiten[EINH_DM].bString(CalculateRoutePricePreset(qRoute.VonCity, qRoute.NachCity, preset)), FontSmallBlack,
+                               TEC_FONT_LEFT, ClientAreaB + XY(80, 66 + preset * 13), ClientAreaB + XY(172, 170));
+            }
 
             if (Sim.Players.Players[PlayerNum].HasBerater(BERATERTYP_INFO) != 0) {
                 for (SLONG c = 0; c < 3; c++) {

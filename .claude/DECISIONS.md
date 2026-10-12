@@ -2263,3 +2263,39 @@ All paired, 300 seeded games, level 6, day 59, against 79cba872 (2.7650e9, `data
 - Score: unchanged by construction - the headless harness has CallItADay set all day, so
   wantItemDrop() is always false there. Verified in a 2-day walking run
   (run_multiplayer.sh 2 2 57 0): glue dropped on both days, stink bomb on day 1, no errors.
+
+## 2026-10-12: Route fare presets for the human player (fairness)
+
+Both bots park their economy fare just below a threshold of CalcPassengers/BookFlight
+(B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2; image steps at 1.5B, 3B, 4.5B, 6B;
+demand weight steps at 3B, 5B, 6B; passenger cut above 3B; first class cut to ~1/3 above 9B).
+The route window offered 0.5B / 1B / 2B / 4B, and renting a route defaulted to 2B. None of
+these sits just below a threshold, and nothing sits where the bots earn their money (4.5B-6B).
+At the user's request (option a) they are now CalculateRoutePricePreset() in Misc.cpp:
+140% / 285% / 425% / 570% of B (5% below each threshold, so they survive the daily kerosene
+move), first class 2x economy but capped at 855% of B. The rental default is the 285% preset.
+Relabelled Rout 1102-1105 in patch/std_ger.patched.res.txt (Budget / Standard / Premium /
+Luxury). Smoke test passes. The bots' own pricing is unchanged; only the fare a freshly
+rented route starts with differs (2B -> 2.85B) until the bot re-prices it. Not measured.
+
+### Open game-rule bug (user wants it fixed after the upcoming release): route demand weight ignores competitors' prices
+
+In CFlugplanEintrag::CalcPassengers (Schedule.cpp, economy loop ~L250-271 and first class ~L433-454)
+the loop over all four players computes `Gewichte[c] = 10000 / Ticketpreis` (resp. `TicketpreisFC`)
+and the step penalties (economy > 3B/5B/6B, first class > 9B/15B/18B) from the price of *this*
+flight entry, i.e. the price of PlayerNum, for every player c. Each competitor's own fare on the
+route is never read. Consequences:
+- Price does not affect a player's share of route demand (Bedarf) at all; the penalties scale all
+  weights equally and cancel. Only rank, AvgFlown and the CPU bonus differentiate players.
+- Undercutting a competitor on a shared route gains nothing, despite the "Bonusregelungen ... Preis"
+  comment saying otherwise.
+- Integer truncation side effect: 10000 / price is ~1-10 for typical fares, so at high prices the
+  weight hits 1 and `* 150/100`, `* 170/100`, `* 120/100` truncate back to 1 -> the rank bonus vanishes
+  for everybody. Pricing high equalizes shares; pricing low preserves rank advantages.
+Likely intended fix: use `Sim.Players.Players[c].RentRouten.RentRouten[Routen(ObjectId)].Ticketpreis`
+(resp. TicketpreisFC) for player c, and scale weights up (e.g. 1000000 / price) to avoid truncation.
+This changes game balance for all players and both bots (MertenBot and ClaudeBot price assumptions,
+measured scores), so re-measure both bots after the fix. Related, FIXED 2026-10-12: the first-class passenger cut
+(Schedule.cpp L513-514) triggered above 9B but scaled by (3B - 10) / price, a cliff to ~1/3; it now
+scales by (9B - 10) / price, continuous like economy. First-class revenue is now flat above 9B
+instead of dropping by 2/3; MertenBot (8.55B) and the presets sit below 9B and are unaffected.
