@@ -2399,3 +2399,20 @@ rule commits made after V0 ran (88c8e62b: TicketpreisFC refreshed on recycled ro
 first class presets 3x economy). Not isolated further; plausibly via the competitors' image,
 since this bot has no first class seats. Compare future changes against this baseline, not
 against older numbers.
+
+### 2026-10-12: why both bots gained from 88c8e62b
+
+Isolated by reverting each part of 88c8e62b alone (300 paired games each):
+- First class presets 3x economy: no effect on ClaudeBot (300/300 games identical).
+- `TicketpreisFC` refresh on recycled route flights (CPlane::FlugplaeneFortfuehren): the entire
+  gain. ClaudeBot +1.62% (t +6.5), MertenBot +0.57% (t +2.9, 238/300 better).
+Mechanism: PLAYER::UpdateTicketpreise treats a planned leg as *raised* if either fare exceeds the
+one stored on the leg (`Ticketpreis > qFPE.Ticketpreis || TicketpreisFC > qFPE.TicketpreisFC`)
+and then calls FlightChanged(), resetting HoursBefore (up to half the economy passengers lost on
+a leg inside 48 h). Recycled legs got the current economy fare but kept last week's first class
+fare, so a re-price that *lowered* economy still counted as a raise whenever the current first
+class fare was above the stale one. Example (ClaudeBot, seed 1, day 11): economy 3210 -> 2972,
+yet day-12 legs show HoursBefore 12 / 30 and 111 / 145 passengers instead of ~210. Games are
+identical until the first such re-price hits a recycled leg (day 13 in 253/300 games).
+Why ClaudeBot gains more than MertenBot is not measured; a guess is how often each re-prices
+(both keep a band and re-price only outside it, but ClaudeBot also has a no-image-loss band). "Lowering a fare is free" is only true since this fix.
