@@ -2271,7 +2271,8 @@ Both bots park their fares just below the thresholds of CFlugplanEintrag::CalcPa
 the BookFlight first-class image change in the working tree), all in game code outside ClaudeBot:
 
 **Fare rules as of now** (B = CalculateFlightCost(von, nach, 800, 800, -1) * 3 / 180 * 2; follows
-Sim.Kerosin daily; CalcPassengers re-runs at booking time; all comparisons strict):
+Sim.Kerosin daily; BookFlight calls CalcPassengers, but passenger counts freeze from one hour
+before departure, so the fares and B of that moment count; all comparisons strict):
 
 | Economy fare p | Image Add (BookFlight) | Passengers (CalcPassengers) |
 |---|---|---|
@@ -2416,3 +2417,18 @@ yet day-12 legs show HoursBefore 12 / 30 and 111 / 145 passengers instead of ~21
 identical until the first such re-price hits a recycled leg (day 13 in 253/300 games).
 Why ClaudeBot gains more than MertenBot is not measured; a guess is how often each re-prices
 (both keep a band and re-price only outside it, but ClaudeBot also has a no-image-loss band). "Lowering a fare is free" is only true since this fix.
+
+### 2026-10-12: open points from this session
+
+- ClaudeBot lead: a newly rented route flies at the rental default fare (now 2.85B) until the
+  bot's next re-price (seed 1: days 0-1 at 1710 = 2.8B, raised to 4.41B on day 2). Pricing the route
+  right after renting it may gain in the early days, where most of the score is made. Untested.
+- ClaudeBot vs MertenBot, solo, seeds 1-300, current rules: ClaudeBot 2.872e9, MertenBot 3.059e9
+  (+6.5% mean, t +2.7, but MertenBot is better in only 149/300 games; medians 2.684e9 vs 2.750e9,
+  +2.4%). MertenBot's lead is in its upper tail. Pairing is weak across different bots (FL's
+  day-1 row identical in only 23/300 pairs).
+- Route window (Block.cpp) shows only the economy preset prices; first class (3x) is set silently.
+- First class booking-time factor h never exceeds 0.8: the economy code clamps HoursBefore to 48
+  in place before the first class code (which allows 72) reads it. Likely unintended.
+- Press statement (Presseerklaerung) sets passengers to 1 + n % 3 in both cabins, so a plane with
+  no first class seats can log one first class passenger (442 of 618587 flights in V0). Harmless.
