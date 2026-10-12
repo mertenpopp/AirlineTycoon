@@ -576,9 +576,13 @@ static const SLONG kTicketPriceFollowSlackPercent = 2;
 /* The same, for first class, whose threshold is 9 * routePriceBase() rather than 3
  * (CalcPassengers, Schedule.cpp:509-514).
  *
- * Economy pays to sit above its threshold because every economy seat sells anyway. First
- * class does not: the flight log books 5 of the ~21 first class seats a Boeing 720 has, so
- * the cabin is demand-limited and overpricing it just empties it further. */
+ * Moot as long as executeUpgrades() strips first class: with no first class seats this fare
+ * neither sells nor counts in BookFlight's seat-weighted image term, and
+ * GameMechanic::setRouteTicketPriceBoth lifts it to the economy fare anyway.
+ *
+ * Measured 2026-10-12 (.claude/DECISIONS.md): first class sells only with LuxusSumme >= 6
+ * and then fills up to 9B x 1.5 x h x L x I, so with full luxury the best fare is ~1.8 x 9B.
+ * Keeping the cabin still cost this bot 78% (stock planes) to 92% (upgraded) of its score. */
 static const SLONG kTicketPriceThresholdPercentFC = 60;
 
 /* Passenger food quality, 0 to 2. Costs FoodCosts[level] per passenger on every flight and
@@ -616,19 +620,10 @@ static const SLONG kEssenTarget = 2;
  * moves Add across a multiple of ten. */
 static const bool kCabinUpgrades = false;
 
-/* Experiment instrumentation: one "ClaudeBotFlight:" log line per route flight of the previous
- * day (see ClaudeBot::logRouteFlights()). Changes no decision. */
+/* Instrumentation: one "ClaudeBotFlight:" log line per route flight of the previous day (see
+ * ClaudeBot::logRouteFlights()). Changes no decision. The first class experiment that used it,
+ * with its knobs, is commit a9b00672. */
 static const bool kLogRouteFlights = false;
-
-/* Experiment knobs for the first class fare test (.claude/DECISIONS.md, 2026-10-12). The defaults
- * reproduce the normal bot exactly.
- * kExperimentKeepFirstClass: leave the default cabin (1/8 of ptPassagiere as first class seats)
- * instead of converting it all to economy.
- * kExperimentLuxury: 0 = normal (food only), 1 = also seats, trays and decoration at level 2
- * (LuxusSumme 8), 2 = all eight fittings at level 2 plus security types 10 and 11 (LuxusSumme 18).
- * The first class fare itself is kTicketPriceThresholdPercentFC (percent of 9 * routePriceBase()). */
-static const bool kExperimentKeepFirstClass = false;
-static const SLONG kExperimentLuxury = 0;
 
 /* Aeroplanes' worth of crew executePersonal() keeps on the payroll beyond what the fleet needs. */
 static const SLONG kCrewSparePlanes = 3;
@@ -1541,11 +1536,6 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
      *     600,000 for five, and paying it while the cash was still buying planes left two of
      *     eight airlines bankrupt on three or four. */
     if (mMission.wantNoSabotage && countPlanes() >= mMission.usedFleet && !mVisitedSecurityToday && canUseAction(ACTION_VISITSECURITY)) {
-        out.push_back(ACTION_VISITSECURITY);
-    }
-    /*     Experiment: security types 10 and 11 count towards first class LuxusSumme. */
-    if (kExperimentLuxury >= 2 && (qPlayer.SecurityFlags & ((1 << 10) | (1 << 11))) != ((1 << 10) | (1 << 11)) && !mVisitedSecurityToday &&
-        canUseAction(ACTION_VISITSECURITY)) {
         out.push_back(ACTION_VISITSECURITY);
     }
     /* ...and one pair of pliers is left at the saboteur's every morning. A legacy bot that
@@ -3953,27 +3943,6 @@ void ClaudeBot::executeUpgrades() {
             }
         }
 
-        if (kExperimentLuxury >= 1) {
-            auto raise = [&](UBYTE &target, UBYTE current) {
-                if (target == 2) {
-                    return;
-                }
-                target = 2;
-                if (!affordable()) {
-                    target = current;
-                }
-            };
-            raise(qPlane.SitzeTarget, qPlane.Sitze);
-            raise(qPlane.TablettsTarget, qPlane.Tabletts);
-            raise(qPlane.DecoTarget, qPlane.Deco);
-            if (kExperimentLuxury >= 2) {
-                raise(qPlane.ReifenTarget, qPlane.Reifen);
-                raise(qPlane.TriebwerkTarget, qPlane.Triebwerk);
-                raise(qPlane.SicherheitTarget, qPlane.Sicherheit);
-                raise(qPlane.ElektronikTarget, qPlane.Elektronik);
-            }
-        }
-
         if (kCabinUpgrades && qPlane.SitzeTarget != 2) {
             qPlane.SitzeTarget = 2;
             if (!affordable()) {
@@ -4019,7 +3988,7 @@ void ClaudeBot::executeUpgrades() {
          * cabin and CPlane::DoOneStep copies it onto MaxPassagiereFC at the next day
          * boundary. So drive the loop off the target - MaxPassagiereFC does not move while
          * we are standing here, and decreaseFirstClassRatio always reports success. */
-        while (!kExperimentKeepFirstClass && qPlane.MaxPassagiereTargetFC > 0) {
+        while (qPlane.MaxPassagiereTargetFC > 0) {
             SLONG before = qPlane.MaxPassagiereTargetFC;
             GameMechanic::decreaseFirstClassRatio(qPlayer, c);
             if (qPlane.MaxPassagiereTargetFC >= before) {
@@ -6407,21 +6376,12 @@ void ClaudeBot::executeSabotage() {
  * (type 2 job 6) needs a route, so those two are only bought when they can matter. */
 void ClaudeBot::executeProtection() {
     mVisitedSecurityToday = true;
-    std::vector<SLONG> wanted;
-    if (mMission.wantNoSabotage) {
-        wanted = {0, 2, 3, 5, 6, 7, 8};
-        if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
-            wanted.push_back(1);
-        }
-        if (!mRoutes.empty()) {
-            wanted.push_back(4);
-        }
+    std::vector<SLONG> wanted = {0, 2, 3, 5, 6, 7, 8};
+    if (qPlayer.HasItem(ITEM_LAPTOP) != 0) {
+        wanted.push_back(1);
     }
-    /* Types 10 and 11 add one LuxusSumme point each (CalcPassengers). Set separately: setSecurity(11)
-     * does not imply 10. */
-    if (kExperimentLuxury >= 2) {
-        wanted.push_back(10);
-        wanted.push_back(11);
+    if (!mRoutes.empty()) {
+        wanted.push_back(4);
     }
     for (SLONG type : wanted) {
         GameMechanic::setSecurity(qPlayer, type, true);
