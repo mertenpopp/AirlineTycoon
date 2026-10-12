@@ -703,19 +703,18 @@ SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, 
 
 //--------------------------------------------------------------------------------------------
 // Ticket price presets of the route window, in percent of the route's base cost
-// B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2. Each one sits just below a
-// threshold where CFlugplanEintrag::CalcPassengers or CFlugplanEintrag::BookFlight start
-// to punish the price:
+// B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2. Each economy fare sits just below
+// an image threshold of CFlugplanEintrag::BookFlight:
 //   0: below 1.5B (a flight still earns route and airline image)
-//   1: below 3B   (passengers are not cut back yet, no image loss)
+//   1: below 3B   (no image loss, CalcPassengers does not cut passengers yet)
 //   2: below 4.5B (one image step lost per flight)
-//   3: below 6B   (two image steps lost per flight, no extra demand penalty yet)
+//   3: below 6B   (two image steps lost per flight)
 // The 5% margin covers the daily move of the kerosene price, which B follows.
+//
+// First class uses three times the economy fare: its image thresholds in BookFlight (4.5B, 9B, 13.5B, 18B)
+// are exactly three times the economy ones, and CalcPassengers starts cutting first class passengers at 9B
 //--------------------------------------------------------------------------------------------
 static const SLONG RoutePricePresetPercent[ROUTE_PRICE_PRESET_COUNT] = {140, 285, 425, 570};
-
-// First class: passengers drop to a third above 9B, so stay 5% below that.
-static const SLONG RoutePriceMaxPercentFC = 855;
 
 static SLONG CalculateRoutePriceBase(SLONG VonCity, SLONG NachCity) { return CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2; }
 
@@ -724,10 +723,7 @@ SLONG CalculateRoutePricePreset(SLONG VonCity, SLONG NachCity, SLONG Preset) {
     return CalculateRoutePriceBase(VonCity, NachCity) * RoutePricePresetPercent[Preset] / 100 / 10 * 10;
 }
 
-SLONG CalculateRoutePricePresetFC(SLONG VonCity, SLONG NachCity, SLONG Preset) {
-    SLONG maxFC = CalculateRoutePriceBase(VonCity, NachCity) * RoutePriceMaxPercentFC / 100 / 10 * 10;
-    return std::min(CalculateRoutePricePreset(VonCity, NachCity, Preset) * 2, maxFC);
-}
+SLONG CalculateRoutePricePresetFC(SLONG VonCity, SLONG NachCity, SLONG Preset) { return 3 * CalculateRoutePricePreset(VonCity, NachCity, Preset); }
 
 //--------------------------------------------------------------------------------------------
 // Lädt die Einheiten-Tabelle:

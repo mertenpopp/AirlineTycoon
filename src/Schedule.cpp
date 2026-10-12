@@ -968,27 +968,39 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
         // Add+=(3*Plane->AnzBegleiter/PlaneTypes[Plane->TypeId].AnzBegleiter);
 
         // Preispolitik bewerten:
-        SLONG TooExpensive = 0;
         if (ObjectType == 1) {
-            SLONG Costs1 = Ticketpreis;
-            SLONG Costs2 = CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2 * 3;
+            SLONG BaseCost = CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2 * 3;
 
-            if (Costs1 < Costs2 / 2) {
-                Add += 10;
+            SLONG AddRegular = 0;
+            if (Ticketpreis < BaseCost / 2) {
+                AddRegular += 10;
             }
-            if (Costs1 > Costs2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost) {
+                AddRegular -= 10;
             }
-            if (Costs1 > Costs2 + Costs2 / 2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost + BaseCost / 2) {
+                AddRegular -= 10;
             }
-            if (Costs1 > Costs2 + Costs2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost + BaseCost) {
+                AddRegular -= 10;
             }
 
-            if (TooExpensive > 100) {
-                TooExpensive = 100;
+            SLONG AddFirstClass = 0;
+            BaseCost *= 3;
+            if (TicketpreisFC < BaseCost / 2) {
+                AddFirstClass += 10;
             }
+            if (TicketpreisFC > BaseCost) {
+                AddFirstClass -= 10;
+            }
+            if (TicketpreisFC > BaseCost + BaseCost / 2) {
+                AddFirstClass -= 10;
+            }
+            if (TicketpreisFC > BaseCost + BaseCost) {
+                AddFirstClass -= 10;
+            }
+
+            Add += (AddRegular * Plane->MaxPassagiere + AddFirstClass * 2 * Plane->MaxPassagiereFC) / max(1, Plane->MaxPassagiere + 2 * Plane->MaxPassagiereFC);
         }
 
         // NetGenericAsync (10000+ObjectId+Sim.Date*100, Add);

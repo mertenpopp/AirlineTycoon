@@ -952,7 +952,8 @@ void CPlane::FlugplaeneFortfuehren(SLONG PlayerNum) {
                 Flugplan.Flug[c].Landedate += 7;
                 Flugplan.Flug[c].PArrived = 0;
                 Flugplan.Flug[c].HoursBefore = 48;
-                Flugplan.Flug[c].Ticketpreis = Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Flugplan.Flug[c].ObjectId)].Ticketpreis; // new
+                Flugplan.Flug[c].Ticketpreis = Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Flugplan.Flug[c].ObjectId)].Ticketpreis;     // new
+                Flugplan.Flug[c].TicketpreisFC = Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Flugplan.Flug[c].ObjectId)].TicketpreisFC; // newer
                 Flugplan.Flug[c].FlightBooked = FALSE;
 
                 // Zeiten ggf. anpassen (Feintuning)
