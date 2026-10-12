@@ -2387,3 +2387,15 @@ Likely intended fix: use `Sim.Players.Players[c].RentRouten.RentRouten[Routen(Ob
 (resp. TicketpreisFC) for player c, and scale weights up (e.g. 1000000 / price) to avoid truncation.
 This changes game balance for all players and both bots (MertenBot and ClaudeBot price assumptions,
 measured scores), so re-measure both bots after the fix.
+
+### 2026-10-12: cleanup and new baseline
+
+Experiment knobs removed again (they live in commit a9b00672); the per-flight logger stays
+(kLogRouteFlights, off). kTicketPriceThresholdPercentFC comment corrected (the "demand-limited"
+claim was wrong; the value is moot while first class is stripped).
+**New baseline (seeds 1-300, current rules): 2.872e9.** Against V0 (same bot, 2.826e9) that is
++1.62%, t +6.46, better in 258/300 games; the bot is identical, so the gain comes from the game
+rule commits made after V0 ran (88c8e62b: TicketpreisFC refreshed on recycled route flights,
+first class presets 3x economy). Not isolated further; plausibly via the competitors' image,
+since this bot has no first class seats. Compare future changes against this baseline, not
+against older numbers.
