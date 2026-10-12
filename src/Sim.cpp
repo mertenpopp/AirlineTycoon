@@ -1361,6 +1361,42 @@ void SIM::DoTimeStep() {
 
     Minute = GetMinute();
 
+    /* Departures from a home airport gate: the plane starts taxiing at xx:55 (CPlane::DoOneStep). The
+       taxi and takeoff animation runs per frame, so its end falls on a different game time on every
+       peer. Book the flight at xx:55 and put the plane into the air at the full hour instead, for all
+       players in the same order, so that every peer books the same flights at the same time. */
+    if ((Minute >= 55 && OldMinute < 55) || Minute < OldMinute) {
+        const bool bBook = (Minute >= 55);
+        const SLONG Now = Date * 24 + GetHour();
+
+        for (c = 0; c < Players.AnzPlayers; c++) {
+            for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
+                if (Players.Players[c].Planes.IsInAlbum(d) == 0) {
+                    continue;
+                }
+                CPlane &qPlane = Players.Players[c].Planes[d];
+
+                if ((qPlane.Ort != -3 && qPlane.Ort != -2) || qPlane.Startzeit == 255 || qPlane.Flugplan.NextFlight == -1) {
+                    continue;
+                }
+                CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[qPlane.Flugplan.NextFlight];
+                if (qFPE.ObjectType == 0) {
+                    continue;
+                }
+
+                const SLONG Departure = qFPE.Startdate * 24 + qFPE.Startzeit;
+                if (bBook ? (Departure == Now) : (Departure + 1 == Now)) {
+                    if (qFPE.FlightBooked == 0) {
+                        qFPE.BookFlight(&qPlane, c);
+                    }
+                    if (!bBook) {
+                        qPlane.Ort = -5;
+                    }
+                }
+            }
+        }
+    }
+
     if (Minute != OldMinute) // Redraw der Statuszeile erzwingen:
     {
         PersonRandCreate.SRand(Minute * 333 + GetHour() * 7);

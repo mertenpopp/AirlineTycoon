@@ -6,6 +6,7 @@
 #include "AtNet.h"
 #include "BotHelper.h"
 #include "global.h"
+#include "NetTrace.h"
 #include "Proto.h"
 
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Schedule", __VA_ARGS__)
@@ -636,6 +637,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     }
 
     CalcPassengers(PlayerNum, *Plane);
+    NetTraceEvent("BOOK p=%ld plane=%s type=%ld obj=%ld start=%ld/%ld pax=%ld/%ld", static_cast<long>(PlayerNum), Plane->Name.c_str(),
+                  static_cast<long>(ObjectType), static_cast<long>(ObjectId), static_cast<long>(Startdate), static_cast<long>(Startzeit),
+                  static_cast<long>(Passagiere), static_cast<long>(PassagiereFC));
 
     if (Plane->MaxPassagiere > 0) {
         if (Plane->Auslastung == 0) {
