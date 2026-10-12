@@ -1475,6 +1475,42 @@
 // Rout
 //
 >Rout
+>>0001102
+  B::Econômico
+  E::Budget
+  F::Petit prix
+  I::Economico
+  N::Budgetprijs
+  O::Económico
+  S::Económico
+  D::Sparpreis
+>>0001103
+  B::Preço padrão
+  E::Standard price
+  F::Tarif normal
+  I::Prezzo standard
+  N::Standaardprijs
+  O::Preço normal
+  S::Precio normal
+  D::Normalpreis
+>>0001104
+  B::Preço premium
+  E::Premium price
+  F::Tarif premium
+  I::Prezzo premium
+  N::Premiumprijs
+  O::Preço premium
+  S::Precio premium
+  D::Premiumpreis
+>>0001105
+  B::Preço de luxo
+  E::Luxury price
+  F::Tarif luxe
+  I::Prezzo lusso
+  N::Luxe prijs
+  O::Preço de luxo
+  S::Precio de lujo
+  D::Luxuspreis
 >>0001200
   B::Cancelar rota
   E::Drop route

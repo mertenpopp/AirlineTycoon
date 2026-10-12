@@ -2286,28 +2286,17 @@ void CPlaner::HandleLButtonDown() {
             if (ClientPosB.IfIsWithin(2, 40 - 13 - 2, 169, 118)) {
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 CRentRoute &qRRoute = qPlayer.RentRouten.RentRouten[Routen(pBlock->SelectedIdB)];
-                SLONG Cost =
-                    CalculateFlightCostRechnerisch(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, 800, 800, -1) * 3 / 180 * 2;
-
                 SLONG ticketPreis = qRRoute.Ticketpreis;
                 SLONG ticketPreisFC = qRRoute.TicketpreisFC;
                 switch ((ClientPosB.y - 40) / 13) {
                 case 2:
-                    ticketPreis = Cost / 2 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
                 case 3:
-                    ticketPreis = Cost / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
                 case 4:
-                    ticketPreis = Cost * 2 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
-                case 5:
-                    ticketPreis = Cost * 4 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
+                case 5: {
+                    SLONG preset = (ClientPosB.y - 40) / 13 - 2;
+                    ticketPreis = CalculateRoutePricePreset(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, preset);
+                    ticketPreisFC = CalculateRoutePricePresetFC(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, preset);
+                } break;
                 default:
                     break;
                 }
