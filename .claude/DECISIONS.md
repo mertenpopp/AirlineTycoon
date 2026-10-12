@@ -2353,9 +2353,12 @@ after by FlugplaeneFortfuehren). Runner/analysis scripts were in the session scr
 
 Findings:
 - The CalcPassengers first class formula holds: cabin full up to p = 9B x 1.5 h L I, flat revenue
-  above (h <= 0.8 because the economy code clamps HoursBefore to 48 in place; L = (Lux-6)/8; I <= 1.27).
+  above (L = (Lux-6)/8; I <= 1.27). During the experiment h <= 0.8, because the economy code clamped
+  HoursBefore to 48 in place; since 12e10fbd first class uses the same 48 h scale as economy, h <= 1.0.
   It over-predicts by 4-23% (more at low luxury / high fare; likely integer truncation or share cap).
   At Lux 16 and image ~85: break-even 1.5 x 0.8 x 1.25 x 1.27 = 1.9 -> ~17B, measured optimum ~1.77 x 9B.
+  With h = 1.0 (since 12e10fbd) the same plane breaks even at 2.4 -> ~21B; the Luxury preset (17.1B)
+  stays below that and below the 18B image step.
 - Stock planes (Lux < 6) sell no first class at all; the fare only feeds the image average.
 - Mid luxury (Lux 8): first class demand-limited, revenue flat above 9B (no gain, image cost).
 - For ClaudeBot itself first class is ruinous: keeping the default cabin on stock planes -78%,
@@ -2368,7 +2371,8 @@ Findings:
   Standard sells first class at the highest no-penalty fare, and Luxury (which already accepts -20)
   sits at the measured optimum for upgraded planes.
 - Game bug found: GameMechanic::setSecurity for types >= 8 sets `1 << securityType` in its loop
-  instead of `1 << i`, so level 11 does not imply 8 and 10. Not fixed.
+  instead of `1 << i`, so level 11 does not imply 8 and 10. FIXED in 12e10fbd (also switching off
+  10/11 now clears the higher levels).
 
 ### Open game-rule bug (user wants it fixed after the upcoming release): route demand weight ignores competitors' prices
 
@@ -2428,7 +2432,13 @@ Why ClaudeBot gains more than MertenBot is not measured; a guess is how often ea
   +2.4%). MertenBot's lead is in its upper tail. Pairing is weak across different bots (FL's
   day-1 row identical in only 23/300 pairs).
 - Route window (Block.cpp) shows only the economy preset prices; first class (3x) is set silently.
-- First class booking-time factor h never exceeds 0.8: the economy code clamps HoursBefore to 48
-  in place before the first class code (which allows 72) reads it. Likely unintended.
+- First class booking-time factor h never exceeded 0.8: the economy code clamped HoursBefore to 48
+  in place before the first class code (which allowed 72) read it. FIXED in 12e10fbd: HoursBefore is
+  no longer overwritten, and first class now uses the same 48 h scale as economy ((h + 48) / 96,
+  1.0 from 48 h ahead), so first class demand is up 25% at every lead time. Economy is unchanged.
+  Paired check (seeds 1-300, ClaudeBot level 6): 300/300 games identical to the 2.872e9 baseline,
+  for HA, FL and PT alike - no player in these games sells first class (bots strip the cabin, the
+  Classic CPUs never reach LuxusSumme 6), so the change only matters for humans with upgraded planes.
+  The baseline stays 2.872e9.
 - Press statement (Presseerklaerung) sets passengers to 1 + n % 3 in both cabins, so a plane with
   no first class seats can log one first class passenger (442 of 618587 flights in V0). Harmless.
