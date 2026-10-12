@@ -384,8 +384,6 @@ When renting a route from city A to city B, one does automatically rent the rout
 
 `SLONG GameMechanic::findRouteInReverse(PLAYER &qPlayer, SLONG routeA)`: Find the routeId of the reverse direction for a given route.
 
-`bool GameMechanic::setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`: Sets the ticket price for one direction of the route. There is a regular ticket price and one for first class (FC).
-
 `bool GameMechanic::setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC)`:  Sets the ticket price for both directions of the route. There is a regular ticket price and one for first class (FC).
 
 These functions can be called while in the player's office or while having a functioning laptop.
