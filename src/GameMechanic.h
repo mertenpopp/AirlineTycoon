@@ -156,7 +156,6 @@ class GameMechanic {
     static bool killRoute(PLAYER &qPlayer, SLONG routeA);
     static bool rentRoute(PLAYER &qPlayer, SLONG routeA);
     static SLONG findRouteInReverse(PLAYER &qPlayer, SLONG routeA);
-    static bool setRouteTicketPrice(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC);
     static bool setRouteTicketPriceBoth(PLAYER &qPlayer, SLONG routeA, SLONG ticketpreis, SLONG ticketpreisFC);
 
     /* Execution routines */

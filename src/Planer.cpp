@@ -2351,7 +2351,7 @@ void CPlaner::HandleLButtonDown() {
                     SLONG ticketPreisFC =
                         Sim.Players.Players[Index + static_cast<SLONG>(PlayerNum <= Index)].RentRouten.RentRouten[Routen(pBlock->SelectedIdB)].TicketpreisFC;
 
-                    GameMechanic::setRouteTicketPrice(qPlayer, pBlock->SelectedIdB, ticketPreis, ticketPreisFC);
+                    GameMechanic::setRouteTicketPriceBoth(qPlayer, pBlock->SelectedIdB, ticketPreis, ticketPreisFC);
 
                     pBlock->RefreshData(PlayerNum);
                     pBlock->Refresh(PlayerNum, IsLaptop);
