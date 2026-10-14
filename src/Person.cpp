@@ -2891,8 +2891,10 @@ void PERSON::PersonReachedTarget() {
         case PERSON_2EXIT:
             State = PERSON_LEAVING;
             break;
+        case PERSON_LEAVING:
+            break;
         default:
-            hprintf("Person.cpp: Default case should not be reached.");
+            hprintf("Person.cpp: Default case should not be reached. Reason: %d, State: %d\n", Reason, (int)(State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)));
             DebugBreak();
         }
         break;
@@ -2990,8 +2992,10 @@ void PERSON::PersonReachedTarget() {
         case PERSON_2EXIT:
             State = PERSON_LEAVING;
             break;
+        case PERSON_LEAVING:
+            break;
         default:
-            hprintf("Person.cpp: Default case should not be reached.");
+            hprintf("Person.cpp: Default case should not be reached. Reason: %d, State: %d\n", Reason, (int)(State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)));
             DebugBreak();
         }
         break;
@@ -3187,8 +3191,10 @@ void PERSON::PersonReachedTarget() {
             State = PERSON_LEAVING;
             break;
 
+        case PERSON_LEAVING:
+            break;
         default:
-            hprintf("Person.cpp: Default case should not be reached.");
+            hprintf("Person.cpp: Default case should not be reached. Reason: %d, State: %d\n", Reason, (int)(State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)));
             DebugBreak();
         }
     } break;
@@ -3209,8 +3215,10 @@ void PERSON::PersonReachedTarget() {
             }
         }
         break;
+    case PERSON_LEAVING:
+        break;
     default:
-        hprintf("Person.cpp: Default case should not be reached.");
+        hprintf("Person.cpp: Default case should not be reached. Reason: %d, State: %d\n", Reason, (int)(State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)));
         DebugBreak();
     }
 }
