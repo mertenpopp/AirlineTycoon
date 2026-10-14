@@ -952,7 +952,7 @@ void CStatistik::RepaintTextWindow() {
                         break;
 
                     case TYP_VALUE:
-                        output = bprintf("%I64i", val);
+                        output = bprintf("%" PR_I64i, val);
 
                         if (item.visible) {
                             summe += val;
