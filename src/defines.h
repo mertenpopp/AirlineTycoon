@@ -143,7 +143,7 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 /* What peers compare before they play together. The preview builds of a release carry the same
    VersionString as the release, but not its network protocol, so the suffix is raised whenever
    the protocol changes within a version. */
-constexpr char NetVersionString[] = FILE_VERSION_STRING " / net 2";
+constexpr char NetVersionString[] = FILE_VERSION_STRING " / net 3";
 
 // Generelles
 #define CUSTOMERS_PER_PERSON 5   // Eine Person (Bildschirm) repräsentiert 10 Kunden

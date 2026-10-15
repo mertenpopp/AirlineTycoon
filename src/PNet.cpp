@@ -94,7 +94,11 @@ void PLAYER::NetSynchronizeMoney() {
         if (needToSyncPlayer(qPlayer, false)) {
             SLONG d = 0;
 
-            Message << c;
+            /* Which of the player's flights of the day this is after, as in ATNET_SYNC_IMAGE.
+               Every flight books revenue and costs, so money taken after a flight a peer has still
+               to book would be booked twice there, and money taken before a flight it has already
+               booked would lose that flight. */
+            Message << c << qPlayer.NetTankStamp();
 
             Message << qPlayer.Money << qPlayer.Credit << qPlayer.Bonus << qPlayer.AnzAktien << qPlayer.MaxAktien << qPlayer.TrustedDividende
                     << qPlayer.Dividende;

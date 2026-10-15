@@ -2460,3 +2460,18 @@ a "BOOK" NetTrace event.
 - run_multiplayer.sh 2 6 44 10 0 1 0 12345: all 70 fingerprints agree; BOOK traces identical on
   both peers (4 home-gate departures, all at hh:55:01, incl. 23:55).
 Not done: the same session on the old binary for comparison (it had no BOOK trace).
+
+### 2026-10-15: money sync carries the flight stamp (multiplayer desync, Nemesis interest)
+
+Symptom (Windows, 2 humans + ClaudeBot + Nemesis): only the Nemesis's interest income in the
+statistics differed between peers. Cause: ATNET_SYNC_MONEY overwrote Money absolutely, unlike the
+image/route/kerosene syncs, which check NetTankStamp(). The host also sends it on every bot share
+trade, dividend or credit, at whatever time it has reached; a client lagging (seen: 2.5 game
+minutes) across a bot's flight booking then counted that flight twice (or lost it if ahead). If
+that was the day's last sync the gap lasted over midnight, so NewDay booked interest on different
+money; the briefing sync healed Money, leaving interest as the only lasting trace.
+Fix: the sync sends NetTankStamp() per player; Money is taken only when the stamps match (else a
+"SKIP what=money" trace event), the other fields as before. NetVersionString -> "net 3".
+- run_multiplayer.sh 2 8 56 10 0 1 0 12345 before and after: all 90 fingerprints agree, per-day
+  HabenZinsen identical for all airlines on both peers; no SKIP in either run (no straddle on Linux),
+  so the fix is not yet confirmed against the Windows symptom.
