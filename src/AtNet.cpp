@@ -977,7 +977,23 @@ void PumpNetwork() {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                     SLONG d = 0;
 
-                    Message >> qPlayer.Money >> qPlayer.Credit >> qPlayer.Bonus >> qPlayer.AnzAktien >> qPlayer.MaxAktien >> qPlayer.TrustedDividende >>
+                    /* The owner may be ahead of us or behind. Money is taken only if both have
+                       booked the same flights of the player today; otherwise the gap lasted until
+                       the next sync, over night if this was the day's last one, and that night's
+                       interest was booked on different money on every peer. The owner sends its
+                       money again within the hour and at the briefing. The rest does not change
+                       with a flight. */
+                    SLONG Stamp = 0;
+                    __int64 Money = 0;
+                    Message >> Stamp >> Money;
+                    if (Stamp == qPlayer.NetTankStamp()) {
+                        qPlayer.Money = Money;
+                    } else {
+                        NetTraceEvent("SKIP what=money player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
+                                      static_cast<long>(qPlayer.NetTankStamp()));
+                    }
+
+                    Message >> qPlayer.Credit >> qPlayer.Bonus >> qPlayer.AnzAktien >> qPlayer.MaxAktien >> qPlayer.TrustedDividende >>
                         qPlayer.Dividende;
 
                     for (d = 0; d < 4; d++) {
