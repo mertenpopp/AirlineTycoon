@@ -936,13 +936,13 @@ void PumpNetwork() {
                     SLONG Image = 0;
                     BOOL ImageGotWorse = 0;
                     Message >> Stamp >> Image >> ImageGotWorse;
-                    const bool bApply = (Stamp == qPlayer.NetTankStamp());
+                    const bool bApply = (Stamp == qPlayer.NetFlightStamp());
                     if (bApply) {
                         qPlayer.Image = Image;
                         qPlayer.ImageGotWorse = ImageGotWorse;
                     } else {
                         NetTraceEvent("SKIP what=image player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
-                                      static_cast<long>(qPlayer.NetTankStamp()));
+                                      static_cast<long>(qPlayer.NetFlightStamp()));
                     }
 
                     for (d = 0; d < 4; d++) {
@@ -986,11 +986,11 @@ void PumpNetwork() {
                     SLONG Stamp = 0;
                     __int64 Money = 0;
                     Message >> Stamp >> Money;
-                    if (Stamp == qPlayer.NetTankStamp()) {
+                    if (Stamp == qPlayer.NetFlightStamp()) {
                         qPlayer.Money = Money;
                     } else {
                         NetTraceEvent("SKIP what=money player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
-                                      static_cast<long>(qPlayer.NetTankStamp()));
+                                      static_cast<long>(qPlayer.NetFlightStamp()));
                     }
 
                     Message >> qPlayer.Credit >> qPlayer.Bonus >> qPlayer.AnzAktien >> qPlayer.MaxAktien >> qPlayer.TrustedDividende >>
@@ -1055,10 +1055,10 @@ void PumpNetwork() {
                         StageStart = Message.MemPointer;
                         SLONG Stamp = 0;
                         Message >> Stamp;
-                        const bool bApplyUsage = (Stamp == qPlayer.NetTankStamp());
+                        const bool bApplyUsage = (Stamp == qPlayer.NetFlightStamp());
                         if (!bApplyUsage) {
                             NetTraceEvent("SKIP what=routeusage player=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum), static_cast<long>(Stamp),
-                                          static_cast<long>(qPlayer.NetTankStamp()));
+                                          static_cast<long>(qPlayer.NetFlightStamp()));
                         }
 
                         /* Start from the current values: the message does not carry every field. */
