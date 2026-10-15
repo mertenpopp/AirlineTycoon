@@ -726,9 +726,10 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     // Gesamtmenge an benötigten Kerosin
     Kerosin = CalculateFlightKerosin(VonCity, NachCity, Plane->ptVerbrauch, Plane->ptGeschwindigkeit);
 
-    // Network: A tank state the owner took before this flight, then one taken after it
+    // Network: A tank state the owner took before this flight, then count the flight for every
+    // state the owner takes after it
     qPlayer.NetApplyPendingKerosin();
-    qPlayer.NetTankFlightBooked();
+    qPlayer.NetFlightBooked();
 
     // Kerosin aus dem Vorrat:
     if (Sim.Players.Players[PlayerNum].TankOpen != 0) {

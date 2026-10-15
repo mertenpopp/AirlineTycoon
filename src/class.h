@@ -2024,10 +2024,16 @@ class PLAYER {
     SLONG TankInhalt{};          // Soviel ist im Tank drin
     DOUBLE TankPreis{};          // Korekt berechneter Preis; auch bei mix
 
-    /* Network: The tank state the owner sends is only right at the point of the flights where it
-       was taken, since every flight takes kerosine from the tank on every peer. So the flights
-       from the tank are counted per day, and a state from the owner is applied once we have
-       booked as many flights (see ATNET_SYNCKEROSIN). */
+    /* Network: Every peer books every player's flights itself, and each booking changes money,
+       image, route usage and the tank. A state the owner sends is therefore only right at the
+       point of the flights where it was taken. The flights booked are counted per day (see
+       NetFlightStamp()), and the state is sent with that count and taken only by a peer that has
+       booked as many. */
+    SLONG NetFlightsDate{-1};
+    SLONG NetFlightsToday{};
+
+    /* A tank state from an owner that is ahead of us waits here until we have booked as many
+       flights (see ATNET_SYNCKEROSIN). */
     struct NetTankState {
         SLONG Stamp{-1}; // -1 = nothing pending
         SLONG Tank{};
@@ -2037,8 +2043,6 @@ class PLAYER {
         SLONG KerosinKind{};
         DOUBLE TankPreis{};
     };
-    SLONG NetTankFlightsDate{-1};
-    SLONG NetTankFlights{};
     NetTankState NetTankPending;
     SLONG GameSpeed{};                           // 0..3
     SLONG ArabTrust{};                           // Sabotage möglich?
@@ -2331,8 +2335,8 @@ class PLAYER {
     void NetUpdateRentRoute(SLONG Route1Id, SLONG Route2Id);
     void NetUpdateWorkers(void);
     void NetUpdateKerosin(void) const;
-    SLONG NetTankStamp() const;
-    void NetTankFlightBooked();
+    SLONG NetFlightStamp() const;
+    void NetFlightBooked();
     void NetReceiveKerosin(const NetTankState &State);
     void NetApplyPendingKerosin();
     static void NetSynchronizePlanes(void);
