@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <deque>
@@ -30,9 +29,7 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 #define PRINT_OVERALL 1
 
 const int kAvailTimeExtra = 2;
-const int kDurationExtra = 1;
 const int kScheduleForNextDays = 4;
-const int64_t timeBudgetMS = 100;
 const int kFreightMaxFlights = 4;
 
 inline bool canFlyThisJob(const CPlane &qPlane, int passengers, int distance, int duration) {
@@ -46,32 +43,6 @@ inline bool canFlyThisJob(const CPlane &qPlane, int passengers, int distance, in
         return false;
     }
     return true;
-}
-
-inline void calcCostAndDuration(int startCity, int destCity, const CPlane &qPlane, bool emptyFlight, int &cost, int &duration, int &distance) {
-    assert(startCity >= 0 && startCity < Cities.AnzEntries());
-    assert(destCity >= 0 && destCity < Cities.AnzEntries());
-    /* needs to match CITIES::CalcFlugdauer() */
-    distance = Cities.CalcDistance(startCity, destCity);
-    duration = (distance / qPlane.ptGeschwindigkeit + 999) / 1000 + 1 + 2 - 2;
-    if (duration < 2) {
-        duration = 2;
-    }
-
-    /* needs to match CalculateFlightKerosin() */
-    SLONG kerosene = distance / 1000            // weil Distanz in m übergeben wird
-                     * qPlane.ptVerbrauch / 160 // Liter pro Barrel
-                     / qPlane.ptGeschwindigkeit;
-
-    /* needs to match CalculateFlightCostNoTank() */
-    cost = kerosene * Sim.Kerosin;
-    if (cost < 1000) {
-        cost = 1000;
-    }
-
-    if (emptyFlight) {
-        cost -= (qPlane.ptPassagiere * distance / 1000 / 40);
-    }
 }
 
 BotPlaner::FlightJob::FlightJob(int i, int j, CAuftrag a, JobOwner o) : auftrag(a), id(i), sourceId(j), owner(o) {
@@ -100,7 +71,7 @@ void BotPlaner::FlightJob::printInfo() const {
 int BotPlaner::FlightJob::calculateDistance() const { return Cities.CalcDistance(getStartCity(), getDestCity()); }
 
 std::pair<int, float> BotPlaner::FlightJob::calculateScore(const Factors &f, int hours, int cost, int numRequired) {
-    int score = getPremium() - cost;
+    int score = getPremium() - (cost * numRequired);
 
     if (wasTaken()) {
         score += getPenalty();
@@ -118,13 +89,47 @@ std::pair<int, float> BotPlaner::FlightJob::calculateScore(const Factors &f, int
         score += f.uhrigBonus * auftrag.bUhrigFlight;
     }
 
-    float _scoreRatio = 1.0F * score / (hours * numRequired);
+    /* The filter ratio charges only one flight: kSchedulingMinScoreRatio was tuned on it (-0.45% in the free game
+     * with the exact ratio). The node score above stays exact. */
+    float _scoreRatio = 1.0F * (score + cost * (numRequired - 1)) / (hours * numRequired);
     scoreRatio = std::max(scoreRatio, _scoreRatio);
 
     return {score, _scoreRatio};
 }
 
 BotPlaner::BotPlaner(PLAYER &player, const CPlanes &planes) : qPlayer{player}, qPlanes{planes}, mScheduleLastDay{Sim.Date + kScheduleForNextDays} {}
+
+unsigned BotPlaner::makeSeed(const PLAYER &qPlayer) {
+    if (gFixedSeed == 0) {
+        return std::random_device{}();
+    }
+
+    /* "/seed N": derived from the game time rather than from a running count, so that two builds
+       compared on the same seed keep drawing the same numbers for every planning run that happens
+       at the same moment - a pure counter would shift all later seeds as soon as one build plans
+       once more than the other. The counter only separates runs at the very same moment. */
+    static SLONG lastDate = -1;
+    static SLONG lastTime = -1;
+    static SLONG lastPlayer = -1;
+    static uint64_t sameMoment = 0;
+    if (Sim.Date != lastDate || Sim.Time != lastTime || qPlayer.PlayerNum != lastPlayer) {
+        lastDate = Sim.Date;
+        lastTime = Sim.Time;
+        lastPlayer = qPlayer.PlayerNum;
+        sameMoment = 0;
+    } else {
+        sameMoment++;
+    }
+
+    uint64_t h = static_cast<uint64_t>(gFixedSeed);
+    for (uint64_t v : {static_cast<uint64_t>(Sim.Date), static_cast<uint64_t>(Sim.Time), static_cast<uint64_t>(qPlayer.PlayerNum), sameMoment}) {
+        h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+    }
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccdULL;
+    h ^= h >> 33;
+    return static_cast<unsigned>(h);
+}
 
 void BotPlaner::addJobSource(JobOwner jobOwner, const std::vector<int> &intJobSource) {
     if (jobOwner == JobOwner::International) {
@@ -457,7 +462,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
             int cost = 0;
             int duration = 0;
             int distance = 0;
-            calcCostAndDuration(job.getStartCity(), job.getDestCity(), *plane, false, cost, duration, distance);
+            Helper::calcCostAndDuration(job.getStartCity(), job.getDestCity(), *plane, false, cost, duration, distance);
 
             /* calculate job score for this plane type */
             int score = 0;
@@ -479,7 +484,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
                     qNodeInfo.jobIdx = jobIdx;
                     qNodeInfo.earliest = job.getDate();
                     qNodeInfo.latest = job.getBisDate();
-                    qNodeInfo.score = score;
+                    qNodeInfo.score = score / numRequired;
                     qNodeInfo.scoreRatio = scoreRatio;
                     qNodeInfo.duration = duration + kDurationExtra;
                 }
@@ -506,7 +511,7 @@ std::vector<Graph> BotPlaner::prepareGraph() {
                     int cost = 0;
                     int duration = 0;
                     int distance = 0;
-                    calcCostAndDuration(startCity, destCity, *plane, true, cost, duration, distance);
+                    Helper::calcCostAndDuration(startCity, destCity, *plane, true, cost, duration, distance);
                     g.adjMatrix[i][j].cost = cost;
                     g.adjMatrix[i][j].duration = duration + kDurationExtra;
                 } else {
@@ -696,8 +701,6 @@ bool BotPlaner::applySolutionForPlane(PLAYER &qPlayer, int planeId, const BotPla
 }
 
 BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &planeIdsInput, const std::deque<int> &planeIdsExtraInput, int extraBufferTime) {
-    auto t_begin = std::chrono::steady_clock::now();
-
     if (mFactors.distanceFactor != 0) {
         AT_Log("BotPlaner::generateSolution(): Using mDistanceFactor = %d", mFactors.distanceFactor);
     }
@@ -716,13 +719,13 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     if (mFactors.freeFreightBonus != 0) {
         AT_Log("BotPlaner::generateSolution(): Using mFreeFreightBonus = %d", mFactors.freeFreightBonus);
     }
-    if (std::abs(mMinScoreRatio - 1.0F) < 0.01F) {
+    if (std::abs(mMinScoreRatio - 1.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinScoreRatio = %f", mMinScoreRatio);
     }
-    if (std::abs(mMinScoreRatioLastMinute - 1.0F) < 0.01F) {
+    if (std::abs(mMinScoreRatioLastMinute - 1.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinScoreRatioLastMinute = %f", mMinScoreRatioLastMinute);
     }
-    if (std::abs(mMinSpeedRatio - 0.0F) < 0.01F) {
+    if (std::abs(mMinSpeedRatio - 0.0F) > 0.01F) {
         AT_Log("BotPlaner::generateSolution(): Using mMinSpeedRatio = %f", mMinSpeedRatio);
     }
 
@@ -816,11 +819,9 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
 #endif
 
     /* start algo */
-    auto t_current = std::chrono::steady_clock::now();
-    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_current - t_begin).count();
     bool needToApplySolution{false};
     int overallGain{0};
-    std::tie(needToApplySolution, overallGain) = algo(timeBudgetMS - diff);
+    std::tie(needToApplySolution, overallGain) = algo();
 
     /* check statistics */
     int nPreviouslyOwnedScheduled = 0;
@@ -837,18 +838,10 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     }
 
 #ifdef PRINT_OVERALL
-    AT_Log("Scheduled %d out of %d existing jobs.", nPreviouslyOwnedScheduled, nPreviouslyOwned);
-    AT_Log("Scheduled %d out of %d new jobs.", nNewJobsScheduled, nNewJobs);
-#endif
-
-#ifdef PRINT_OVERALL
-    auto t_end = std::chrono::steady_clock::now();
-    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_begin).count();
-    AT_Log("Elapsed time in total: %lld ms", delta);
+    AT_Log("Scheduled %d/%d existing and %d/%d new jobs", nPreviouslyOwnedScheduled, nPreviouslyOwned, nNewJobsScheduled, nNewJobs);
 #endif
 
     if (!needToApplySolution) {
-        AT_Log("Do not need to apply, returning empty solution.");
         return SolutionList{0};
     }
 
@@ -869,6 +862,7 @@ BotPlaner::SolutionList BotPlaner::generateSolution(const std::vector<int> &plan
     for (auto i : planeIdsExtra) {
         solutions.list.emplace_back();
         solutions.list.back().planeId = i;
+        solutions.list.back().dummySolution = true;
     }
 
     /* generate list of jobs with info required to officially 'take' them */
@@ -889,50 +883,45 @@ bool BotPlaner::takeAllJobs(PLAYER &qPlayer, SolutionList &solutions) {
     bool ok = true;
     for (auto &job : solutions.toTake) {
         int outAuftragsId = -1;
+        bool isFreight = false;
+        bool newlyTaken = true;
         switch (job.owner) {
         case JobOwner::TravelAgency:
             GameMechanic::takeFlightJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::LastMinute:
             GameMechanic::takeLastMinuteJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::Freight:
             GameMechanic::takeFreightJob(qPlayer, job.objectId, outAuftragsId);
             job.owner = JobOwner::BacklogFreight;
-            assert(qPlayer.Frachten.IsInAlbum(outAuftragsId));
-            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+            isFreight = true;
             break;
         case JobOwner::International:
             assert(job.sourceId != -1);
             GameMechanic::takeInternationalFlightJob(qPlayer, job.sourceId, job.objectId, outAuftragsId);
             job.owner = JobOwner::Backlog;
-            assert(qPlayer.Auftraege.IsInAlbum(outAuftragsId));
-            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
             break;
         case JobOwner::InternationalFreight:
             assert(job.sourceId != -1);
             GameMechanic::takeInternationalFreightJob(qPlayer, job.sourceId, job.objectId, outAuftragsId);
             job.owner = JobOwner::BacklogFreight;
-            assert(qPlayer.Frachten.IsInAlbum(outAuftragsId));
-            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+            isFreight = true;
             break;
         case JobOwner::Planned:
             [[fallthrough]];
         case JobOwner::Backlog:
             outAuftragsId = job.objectId;
-            assert(qPlayer.Auftraege.IsInAlbum(job.objectId));
+            newlyTaken = false;
             break;
         case JobOwner::PlannedFreight:
             [[fallthrough]];
         case JobOwner::BacklogFreight:
             outAuftragsId = job.objectId;
-            assert(qPlayer.Frachten.IsInAlbum(job.objectId));
+            isFreight = true;
+            newlyTaken = false;
             break;
         default:
             AT_Error("BotPlaner::takeJobs(): Default case should not be reached.");
@@ -941,6 +930,10 @@ bool BotPlaner::takeAllJobs(PLAYER &qPlayer, SolutionList &solutions) {
         if (outAuftragsId == -1) {
             AT_Error("BotPlaner::takeJobs(): GameMechanic returned error when trying to take job!");
             ok = false;
+        } else if (newlyTaken && isFreight) {
+            AT_Info("Take freight job %s", Helper::getFreightName(qPlayer.Frachten[outAuftragsId]).c_str());
+        } else if (newlyTaken) {
+            AT_Info("Take job %s", Helper::getJobName(qPlayer.Auftraege[outAuftragsId]).c_str());
         }
         jobsTaken[job.jobIdx] = outAuftragsId;
     }
@@ -964,7 +957,8 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
         /* remove from entire flight plan (also before scheduleFromTime) */
         removeInvalidFlightsForPlane(qPlayer, planeId);
 
-        if (solution.empty()) {
+        /* clear even if empty: relocate/swap may have moved all of this plane's jobs to other planes */
+        if (solution.dummySolution) {
             continue;
         }
 
@@ -981,6 +975,7 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
 #endif
 
     /* apply solution */
+    bool ok = true;
     for (const auto &solution : solutions.list) {
         int planeId = solution.planeId;
 
@@ -988,7 +983,8 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
         auto oldInfo = Helper::calculateScheduleInfo(qPlayer, planeId);
 #endif
 
-        applySolutionForPlane(qPlayer, planeId, solution);
+        bool ret = applySolutionForPlane(qPlayer, planeId, solution);
+        ok = ok && ret;
 
 #ifdef PRINT_DETAIL
         auto newInfo = Helper::calculateScheduleInfo(qPlayer, planeId);
@@ -1019,5 +1015,5 @@ bool BotPlaner::applySolution(PLAYER &qPlayer, const SolutionList &solutions) {
     overallInfo.printDetails();
 #endif
 
-    return true;
+    return ok;
 }

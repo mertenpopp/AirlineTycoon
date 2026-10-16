@@ -69,7 +69,7 @@ void CLANS::ReInit(const CString &TabFilename) {
                 if (ShadowPass == 0) {
                     return;
                 }
-                DebugBreak();
+                AtDebugBreak();
             }
 
             FileP = ReadLine(FileData, FileP, Line.getData(), 5000);
@@ -226,7 +226,7 @@ void CLANS::ReInit(const CString &TabFilename) {
                         } else if (id >= 0x01ff00ff00) {
                             add = 4;
                         } else {
-                            DebugBreak();
+                            AtDebugBreak();
                         }
 
                         (*pIds).ReSize(PhaseListsNumbers[c]);
@@ -792,7 +792,7 @@ PERSON::PERSON(UBYTE ClanId, XY Position, UBYTE Reason, UBYTE FlightAirline, SLO
     {
     case 0:
         if (Clans[static_cast<SLONG>(ClanId)].Type < CLAN_PLAYER1 || Clans[static_cast<SLONG>(ClanId)].Type > CLAN_PLAYER4) {
-            DebugBreak();
+            AtDebugBreak();
         }
         break;
 
@@ -842,7 +842,7 @@ PERSON::PERSON(UBYTE ClanId, XY Position, UBYTE Reason, UBYTE FlightAirline, SLO
         break;
 
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
 
     // Bei 'Player' wird das Status-byte nicht normal verwendet. Hier ist es die Nummer des Spielers
@@ -1571,16 +1571,18 @@ void PERSON::DoOneCustomerStep() {
                 }
                 if (Position.x >= Target.x) {
                     Dir = 2;
-                    if (Mood == MoodPersonSick) {
-                        if (qClan.Type == CLAN_MALE) {
-                            Target = Airport.GetRandomTypedRune(RUNE_2SHOP, ROOM_WC_M, false, &PersonalRandWalk);
-                            StatePar = ROOM_WC_M;
-                        } else if (qClan.Type == CLAN_FEMALE) {
-                            Target = Airport.GetRandomTypedRune(RUNE_2SHOP, ROOM_WC_F, false, &PersonalRandWalk);
-                            StatePar = ROOM_WC_F;
-                        } else {
-                            DebugBreak();
-                        }
+                    /* Tanned passengers (CLAN_BROWNMALE / CLAN_BROWNFEMALE) arrive on planes too and can be sick. Use the
+                     * same toilets as their untanned counterparts. Any other clan type that is sick simply leaves
+                     * normally instead of trapping in AtDebugBreak(). */
+                    SLONG wc = -1;
+                    if (qClan.Type == CLAN_MALE || qClan.Type == CLAN_BROWNMALE) {
+                        wc = ROOM_WC_M;
+                    } else if (qClan.Type == CLAN_FEMALE || qClan.Type == CLAN_BROWNFEMALE) {
+                        wc = ROOM_WC_F;
+                    }
+                    if (Mood == MoodPersonSick && wc != -1) {
+                        Target = Airport.GetRandomTypedRune(RUNE_2SHOP, static_cast<UBYTE>(wc), false, &PersonalRandWalk);
+                        StatePar = static_cast<UBYTE>(wc);
                         State = PERSON_2SHOP;
                     } else {
                         State = PERSON_2EXIT;
@@ -1611,7 +1613,7 @@ void PERSON::DoOneCustomerStep() {
                                 }
 
                                 if (c == Airport.Runes.AnzEntries()) {
-                                    DebugBreak();
+                                    AtDebugBreak();
                                 }
                             }
                         }
@@ -2227,10 +2229,18 @@ void PERSON::DoOnePlayerStep() {
                     }
                 }
             } else if (c == ROOM_ELECTRO) {
-                if (qPlayer.Owner != 1 && qPlayer.DirectToRoom == c &&
-                    (qPlayer.Owner == 2 || (((*qPlayer.LocationWin).MenuIsOpen() == 0) && ((*qPlayer.LocationWin).IsDialogOpen() == 0)))) {
+                if ((qPlayer.Owner != 1 || qPlayer.IsSuperBot()) && qPlayer.DirectToRoom == c &&
+                    ((qPlayer.Owner != 0) || (((*qPlayer.LocationWin).MenuIsOpen() == 0) && ((*qPlayer.LocationWin).IsDialogOpen() == 0)))) {
                     if (c == qPlayer.DirectToRoom) {
-                        if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
+                        /* Only the peer that owns the player decides, glove or shock. Every other peer
+                           would decide from its own copy of the inventory, and the owner's
+                           ATNET_SYNC_ITEMS (glove -> Red Bull) often arrives before that peer's copy of
+                           the figure reaches the machine - which then showed a shock, and reset
+                           IsDrunk, for a player who had used the glove. The others learn the outcome
+                           from ATNET_SYNC_ITEMS or ATNET_ELECTROSHOCK. */
+                        if ((Sim.bNetwork != 0) && !qPlayer.NetIsAuthoritative()) {
+                            qPlayer.DirectToRoom = 0;
+                        } else if (qPlayer.HasItem(ITEM_GLOVE) != 0) {
                             qPlayer.DirectToRoom = 0;
 
                             if ((Sim.Options.OptionEffekte != 0) && State == Sim.localPlayer) {
@@ -2238,28 +2248,12 @@ void PERSON::DoOnePlayerStep() {
                                 gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
                             }
 
-                            if (State == Sim.localPlayer) {
-                                GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
-                            }
+                            GameMechanic::pickUpItem(qPlayer, ITEM_REDBULL);
                         } else {
-                            BUILD *pBuild = Airport.GetBuildNear(ScreenPos, XY(180, 160), Bricks(static_cast<SLONG>(0x10000000) + BRICK_ELECTRO));
-                            if (pBuild != nullptr) {
-                                Airport.Triggers[static_cast<SLONG>(pBuild->Par)].Winkel = Sim.TickerTime;
-                            }
-
-                            Sim.DontDisplayPlayer = qPlayer.PlayerNum;
-                            LookDir = 2;
-                            Phase = 0;
-
-                            qPlayer.DirectToRoom = 0;
-                            qPlayer.IsDrunk = 0;
+                            qPlayer.ElectroShock();
+                            SIM::SendSimpleMessage(ATNET_ELECTROSHOCK, 0, qPlayer.PlayerNum);
 
                             bDoBroadcastPosition = true;
-
-                            if ((Sim.Options.OptionEffekte != 0) && State == Sim.localPlayer) {
-                                gUniversalFx.ReInit("fused.raw");
-                                gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
-                            }
                         }
                     }
                 }
@@ -2291,26 +2285,28 @@ void PERSON::DoOnePlayerStep() {
                             Sim.RoomBusy[StatePar]--;
                         }
 
+                        auto &qTarget = Sim.Players.Players[StatePar / 10 - 1];
                         if ((qPlayer.LocationWin != nullptr) && ((*qPlayer.LocationWin).IsDialogOpen() == 0) && ((*qPlayer.LocationWin).MenuIsOpen() == 0)) {
                             qPlayer.ThrownOutOfRoom = UWORD(StatePar % 10 + State * 10 + 10);
 
                             bgWarp = FALSE;
-                            if (Sim.Players.Players[StatePar / 10 - 1].IsOut != 0) {
+                            if (qTarget.IsOut != 0) {
                                 (*qPlayer.LocationWin).MenuStart(MENU_REQUEST, MENU_REQUEST_WRONGROOM2);
                             } else {
                                 (*qPlayer.LocationWin).MenuStart(MENU_REQUEST, MENU_REQUEST_WRONGROOM);
-
-                                if ((qPlayer.HasItem(ITEM_ZANGE) != 0) && Sim.Players.Players[StatePar / 10 - 1].OfficeState == 0 &&
-                                    (StatePar == ROOM_BURO_A || StatePar == ROOM_BURO_B || StatePar == ROOM_BURO_C || StatePar == ROOM_BURO_D)) {
-                                    qPlayer.DropItem(ITEM_ZANGE);
-                                    PLAYER::NetSynchronizeItems();
-                                    Sim.Players.Players[StatePar / 10 - 1].OfficeState = 3;
-
-                                    SIM::SendSimpleMessage(ATNET_SYNC_OFFICEFLAG, 0, StatePar / 10 - 1, 3);
-                                }
                             }
 
                             (*qPlayer.LocationWin).MenuSetZoomStuff(XY(ScreenPos.x, ScreenPos.y - 20), 0, TRUE);
+                        }
+
+                        const bool inAnyOffice = (StatePar == ROOM_BURO_A || StatePar == ROOM_BURO_B || StatePar == ROOM_BURO_C || StatePar == ROOM_BURO_D);
+                        if (qTarget.IsOut == 0 && qTarget.OfficeState == 0 && qPlayer.HasItem(ITEM_ZANGE) != 0 && inAnyOffice) {
+                            if (Sim.bNetwork == 0 || qPlayer.NetIsAuthoritative()) {
+                                qPlayer.DropItem(ITEM_ZANGE);
+                                qTarget.OfficeState = 3;
+                                SIM::SendSimpleMessage(ATNET_SYNC_OFFICEFLAG, 0, StatePar / 10 - 1, 3);
+                                AT_Log_Generic("Person.cpp: %s sabotages office of %s using item pliers", (LPCTSTR)qPlayer.AirlineX, (LPCTSTR)qTarget.AirlineX);
+                            }
                         }
 
                         Dir = 4;
@@ -2842,6 +2838,12 @@ void PERSON::LookAt(SLONG Dir) {
 // Eine Person hat einen Checkpunkt (Sekundärziel) erreicht und braucht neue Anweisungen:
 //--------------------------------------------------------------------------------------------
 void PERSON::PersonReachedTarget() {
+    // Person is removed after this step. It can still be standing on its target here, e.g. a waiting passenger
+    // of an airline that was just overtaken during the morning briefing (executeAirlineOvertake):
+    if ((State & (~PERSON_WAITFLAG) & (~PERSON_BROWSEFLAG)) == PERSON_LEAVING) {
+        return;
+    }
+
     // Das hängt davon ab, warum sie am Flughafen ist:
     switch (Reason) {
     // Die Person geht nur einkaufen:
@@ -2893,7 +2895,7 @@ void PERSON::PersonReachedTarget() {
             break;
         default:
             hprintf("Person.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
         break;
 
@@ -2992,7 +2994,7 @@ void PERSON::PersonReachedTarget() {
             break;
         default:
             hprintf("Person.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
         break;
 
@@ -3189,7 +3191,7 @@ void PERSON::PersonReachedTarget() {
 
         default:
             hprintf("Person.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     } break;
 
@@ -3211,7 +3213,7 @@ void PERSON::PersonReachedTarget() {
         break;
     default:
         hprintf("Person.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 }
 
@@ -3432,7 +3434,7 @@ void PERSONS::DoOneStep() {
                         break;
                     default:
                         hprintf("Person.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
                 } else {
                     break;
@@ -3448,16 +3450,16 @@ void PERSONS::DoOneStep() {
         for (c = 0; c < Sim.Players.AnzPlayers; c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 if (Clans[static_cast<SLONG>((*this)[Indexes[c]].ClanId)].Type == CLAN_MALE) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
                 if (Clans[static_cast<SLONG>((*this)[Indexes[c]].ClanId)].Type == CLAN_FEMALE) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
                 if (Clans[static_cast<SLONG>((*this)[Indexes[c]].ClanId)].Type == CLAN_BROWNMALE) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
                 if (Clans[static_cast<SLONG>((*this)[Indexes[c]].ClanId)].Type == CLAN_BROWNFEMALE) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
                 if (Sim.Players.Players[c].GetRoom() == ROOM_AIRPORT) {
                     (*this)[Indexes[c]].DoOnePlayerStep();
@@ -3673,7 +3675,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const PERSON &Person) {
             File << Person.LookDir << Person.Mood << Person.MoodCountdown;
         }
     } else {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     File << Person.PersonalRand << Person.PersonalRandWalk << Person.FirstClass;
@@ -3704,7 +3706,7 @@ TEAKFILE &operator>>(TEAKFILE &File, PERSON &Person) {
             File >> Person.LookDir >> Person.Mood >> Person.MoodCountdown;
         }
     } else {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     if (SaveVersion == 1 && SaveVersionSub >= 100) {
@@ -3756,7 +3758,7 @@ void CPersonQueue::AddPerson(UBYTE ClanId, XY Position, UBYTE Reason, UBYTE Flig
     // log: hprintf ("CPersonQueue::AddPerson (%li, %li|%li...", ClanId, Position.x, Position.y);
 
     if (Clans[static_cast<SLONG>(ClanId)].TodayInGame == 0) {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     Sim.AnyPersonsInAirport = TRUE;
@@ -3803,11 +3805,11 @@ void CPersonQueue::AddPerson(UBYTE ClanId, XY Position, UBYTE Reason, UBYTE Flig
                 }
             }
 
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 
-    DebugBreak();
+    AtDebugBreak();
 }
 
 //--------------------------------------------------------------------------------------------
@@ -3917,7 +3919,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const CQueuedPerson &p) {
             File << p.Mood << p.Position;
         }
     } else {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     File << p.FirstClass;
@@ -3944,7 +3946,7 @@ TEAKFILE &operator>>(TEAKFILE &File, CQueuedPerson &p) {
             File >> p.Mood >> p.Position;
         }
     } else {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     File >> p.FirstClass;

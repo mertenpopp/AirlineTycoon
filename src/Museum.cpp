@@ -225,7 +225,7 @@ void CMuseum::OnPaint() {
         if (NewTip != CurrentTip) {
             if (Sim.UsedPlanes[0x1000000 + NewTip].Name.GetLength() > 0) {
                 if (Sim.Players.Players[PlayerNum].HasBerater(BERATERTYP_FLUGZEUG) != 0) {
-                    if (Sim.UsedPlanes[0x1000000 + NewTip].Baujahr < 1960) {
+                    if (Sim.UsedPlanes[0x1000000 + NewTip].Baujahr - kYearsSinceRelease < 1960) {
                         Sim.Players.Players[PlayerNum].Messages.AddMessage(BERATERTYP_FLUGZEUG, StandardTexte.GetS(TOKEN_ADVICE, 4001), MESSAGE_COMMENT);
                     } else if (Sim.UsedPlanes[0x1000000 + NewTip].Zustand < 20) {
                         Sim.Players.Players[PlayerNum].Messages.AddMessage(BERATERTYP_FLUGZEUG, StandardTexte.GetS(TOKEN_ADVICE, 4000), MESSAGE_COMMENT);

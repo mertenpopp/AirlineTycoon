@@ -24,8 +24,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "ProductVersion", FILE_VERSION_STRING
-            VALUE "ProductName", "Airline Tycoon Deluxe - Community Patch"
+            VALUE "CompanyName",      "Airline Tycoon Community Devs"
+            VALUE "FileDescription",  "Airline Tycoon Deluxe Community Patch Executable"
+            VALUE "FileVersion",      FILE_VERSION_STRING
+            VALUE "InternalName",     "AirlineTycoon"
+            VALUE "LegalCopyright",   "Copyright © 2026"
+            VALUE "OriginalFilename", "AirlineTycoon.exe"
+            VALUE "ProductName",      "Airline Tycoon Deluxe - Community Patch"
+            VALUE "ProductVersion",   FILE_VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"

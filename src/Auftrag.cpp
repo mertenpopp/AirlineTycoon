@@ -234,7 +234,7 @@ void CAuftrag::RandomCities(SLONG AreaType, SLONG HomeCity, TEAKRAND *pRandom) {
                 break;
             default:
                 hprintf("Auftrag.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
             break;
 
@@ -257,12 +257,12 @@ void CAuftrag::RandomCities(SLONG AreaType, SLONG HomeCity, TEAKRAND *pRandom) {
                 break;
             default:
                 hprintf("Auftrag.cpp: Default case should not be reached.");
-                DebugBreak();
+                AtDebugBreak();
             }
             break;
         default:
             hprintf("Auftrag.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         TimeOut++;
@@ -571,8 +571,8 @@ too_large:
     bUhrigFlight = TRUE;
 
     // Kopie dieser Formel auch bei Last-Minute
-    Praemie = ((CalculateFlightCost(VonCity, NachCity, 8000, 700, -1)) + 99) / 100 * 115;
-    Strafe = Praemie / 2 * 100 / 100 * 2;
+    Praemie = ((CalculateFlightCost(VonCity, NachCity, 8000, 700, -1)) + 99) / 100 * 120;
+    Strafe = Praemie / 2 * 100 / 100;
 
     if (pRandom->Rand(5) == 4) {
         BisDate += ((pRandom->Rand(5)));
@@ -685,7 +685,7 @@ too_large:
             break;
         default:
             hprintf("Auftrag.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     } while (VonCity == NachCity || (AreaType == 4 && Cities.CalcDistance(VonCity, NachCity) > 10000000));
 

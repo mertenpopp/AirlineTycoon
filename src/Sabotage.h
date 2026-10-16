@@ -14,13 +14,18 @@ class CSabotage : public CStdRaum {
 
     // Operations
   public:
+    /* The sounds come before the animations that play them: members are destroyed in reverse
+       order, and ~CAnimation stops its sound. Declared the other way round, DampfAnim and
+       DynamitAnim stopped ZischFx and LunteFx after those were already gone - and since the
+       compiler drops the nulling of a member in its own destructor, that called into a released
+       sound and crashed on leaving the room, now and then. */
+    SBFX ZischFx;
+    SBFX LunteFx;
+    SBFX BackFx;
     CAnimation DampfAnim;
     CAnimation DynamitAnim;
     CAnimation KamelAnim;
     CAnimation LampeAnim;
-    SBFX ZischFx;
-    SBFX LunteFx;
-    SBFX BackFx;
     SLONG CurrentTip{}; // Dieser Tip wird gerade angezeigt
 
     SLONG PlayEyeAnim;

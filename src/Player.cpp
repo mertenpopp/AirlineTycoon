@@ -5,10 +5,14 @@
 #include "Bot.h"
 #include "BotHelper.h"
 #include "BotPlaner.h"
+#include "ClaudeBot.h"
 #include "GameMechanic.h"
 #include "global.h"
 #include "helper.h"
 #include "Proto.h"
+
+#include <array>
+#include <map>
 
 #define forall(c, object) for ((c) = 0; (c) < SLONG((object).AnzEntries()); (c)++)
 
@@ -63,7 +67,7 @@ __int64 abs64(__int64 v) {
 //============================================================================================
 // Konstruktor:
 //============================================================================================
-PLAYER::PLAYER() : mBot(new Bot(*this)) {
+PLAYER::PLAYER() : mBot(new Bot(*this)), mClaudeBot(new ClaudeBot(*this)) {
     SLONG c = 0;
 
     NewDir = 8;
@@ -109,6 +113,8 @@ PLAYER::~PLAYER() {
 
     delete mBot;
     mBot = nullptr;
+    delete mClaudeBot;
+    mClaudeBot = nullptr;
 }
 
 void PLAYER::ReInitBot() {
@@ -116,6 +122,11 @@ void PLAYER::ReInitBot() {
         delete mBot;
     }
     mBot = new Bot(*this);
+
+    if (mClaudeBot) {
+        delete mClaudeBot;
+    }
+    mClaudeBot = new ClaudeBot(*this);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -129,7 +140,7 @@ void PLAYER::Add5UhrigFlights() {
     for (SLONG c = 0; c < 5; c++) {
         CAuftrag a;
 
-        a.RefillForUhrig((c + 0) / 2, &Auftraege.Random);
+        a.RefillForUhrig(4, &Auftraege.Random);
 
         Auftraege += a;
     }
@@ -144,7 +155,7 @@ ULONG PLAYER::BuyPlane(ULONG PlaneTypeId, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), PlaneTypeId + 0x10000000, 100, kCurrentYear + (Sim.Date / 365)));
 
     Planes[Id].GlobeAngle = 0;
     Planes[Id].MaxBegleiter = SLONG(PlaneTypes[PlaneTypeId + 0x10000000].AnzBegleiter * Planes.GetAvgBegleiter());
@@ -156,6 +167,10 @@ ULONG PLAYER::BuyPlane(ULONG PlaneTypeId, TEAKRAND *pRnd) {
         Planes[Id].MaxBegleiter = Planes[Id].ptAnzBegleiter * 2;
     }
     // if (Planes[Id].MaxBegleiter>PlaneTypes[Planes[Id].TypeId].AnzBegleiter*2) Planes[Id].MaxBegleiter=PlaneTypes[Planes[Id].TypeId].AnzBegleiter*2;
+
+    if (IsSuperBot()) {
+        Planes[Id].MaxBegleiter = Planes[Id].ptAnzBegleiter;
+    }
 
     ChangeMoney(-PlaneTypes[PlaneTypeId + 0x10000000].Preis,
                 2010, // Kauf des Flugzeuges
@@ -175,12 +190,14 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     if (Planes.GetNumFree() == 0) {
         Planes.ReSize(Planes.AnzEntries() + 10);
     }
-    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, 2002 + (Sim.Date / 365)));
+    Id = (Planes += CPlane(PlaneNames.GetUnused(pRnd), -1, 100, kCurrentYear + (Sim.Date / 365)));
 
     CPlane &p = Planes[Id];
 
     p.MaxPassagiere = plane.CalcPassagiere() * 6 / 8;
+    p.MaxPassagiereTarget = p.MaxPassagiere;
     p.MaxPassagiereFC = plane.CalcPassagiere() * 1 / 8;
+    p.MaxPassagiereTargetFC = p.MaxPassagiereFC;
     p.MaxBegleiter = plane.CalcBegleiter();
 
     p.ptHersteller = "";
@@ -206,6 +223,10 @@ ULONG PLAYER::BuyPlane(CXPlane &plane, TEAKRAND *pRnd) {
     }
     if (p.MaxBegleiter > p.ptAnzBegleiter * 2) {
         p.MaxBegleiter = p.ptAnzBegleiter * 2;
+    }
+
+    if (IsSuperBot()) {
+        Planes[Id].MaxBegleiter = Planes[Id].ptAnzBegleiter;
     }
 
     p.XPlane = plane;
@@ -393,7 +414,7 @@ void PLAYER::ChangeMoney(__int64 Money, SLONG Reason, const CString &Par1, const
     case 2090:
         /* nicht benutzt */
         /* D::Kerosin */
-        DebugBreak();
+        AtDebugBreak();
         break;
     case 2091:
         /* D::Kerosintanks, %sl x %s */
@@ -648,10 +669,13 @@ void PLAYER::EnterRoom(SLONG RoomNum, bool bDontBroadcast) {
 //--------------------------------------------------------------------------------------------
 // Adds a new part to a rocket
 //--------------------------------------------------------------------------------------------
-void PLAYER::AddRocketPart(SLONG rocketPart, SLONG price) {
-    RocketFlags |= rocketPart;
+void PLAYER::AddRocketPart(SLONG rocketPart) {
+    SLONG price = RocketPrices[rocketPart];
     this->ChangeMoney(-price, 3400, "");
     SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, 3400);
+
+    PlayFanfare();
+    RocketFlags |= (1 << rocketPart);
 
     // Synchronize to other players
     NetSynchronizeFlags();
@@ -660,10 +684,13 @@ void PLAYER::AddRocketPart(SLONG rocketPart, SLONG price) {
 //--------------------------------------------------------------------------------------------
 // Adds a new part to a space station
 //--------------------------------------------------------------------------------------------
-void PLAYER::AddSpaceStationPart(SLONG flag, SLONG rocketPart, SLONG price) {
-    RocketFlags |= flag;
-    this->ChangeMoney(-price, rocketPart, "");
-    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, rocketPart);
+void PLAYER::AddSpaceStationPart(SLONG rocketPart, SLONG textId) {
+    SLONG price = StationPrices[rocketPart];
+    this->ChangeMoney(-price, textId, "");
+    SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -price, textId);
+
+    PlayFanfare();
+    RocketFlags |= (1 << rocketPart);
 
     // Synchronize to other players
     NetSynchronizeFlags();
@@ -693,7 +720,9 @@ void PLAYER::LeaveAllRooms() {
     SLONG c = 0;
 
     for (c = 9; c >= 0; c--) {
-        if ((Locations[c] != 0U) && Locations[c] != ROOM_AIRPORT) {
+        /* Without the flags: right after a room was left, the airport entry reads
+           ROOM_AIRPORT | ROOM_ENTERING and would be left as well. */
+        if ((Locations[c] != 0U) && (Locations[c] & ~(ROOM_ENTERING | ROOM_LEAVING)) != ROOM_AIRPORT) {
             Locations[c] = UWORD(Locations[c] | ROOM_LEAVING);
         }
     }
@@ -925,22 +954,27 @@ void PLAYER::BookSalary() {
     SLONG c = 0;
     SLONG Money = 0;
 
-    if (Owner != 2) {
-        for (c = 0; c < Workers.Workers.AnzEntries(); c++) {
-            if (Workers.Workers[c].Employer == PlayerNum) {
-                // Gehaltssumme berechnen:
-                Money += (Workers.Workers[c].Gehalt / 30);
+    /* Every peer books this for every player, the same way as the rents above: who works for whom
+       and for how much is the same everywhere. Leaving the other peers' humans out made their
+       money differ every morning until the hourly resync caught up. */
+    for (c = 0; c < Workers.Workers.AnzEntries(); c++) {
+        if (Workers.Workers[c].Employer == PlayerNum) {
+            // Gehaltssumme berechnen:
+            Money += (Workers.Workers[c].Gehalt / 30);
 
-                // Flugzeugbilanz korrigieren:
-                if (Workers.Workers[c].PlaneId != -1) {
-                    Planes[Workers.Workers[c].PlaneId].Salden[0] -= (Workers.Workers[c].Gehalt / 30);
-                }
+            /* Flugzeugbilanz korrigieren. The crew of a player whose planes are gone - sold, or
+               all of them at once when the player went bankrupt - can still point at them for a
+               moment: on the other peers until the staff and the planes have both arrived, and
+               here between the two. Asking the album for a plane that is not in it any more
+               throws, which ended the game. */
+            if (Workers.Workers[c].PlaneId != -1 && Planes.IsInAlbum(Workers.Workers[c].PlaneId) != 0) {
+                Planes[Workers.Workers[c].PlaneId].Salden[0] -= (Workers.Workers[c].Gehalt / 30);
             }
         }
+    }
 
-        if (Money != 0) {
-            ChangeMoney(-Money, 2070, "");
-        }
+    if (Money != 0) {
+        ChangeMoney(-Money, 2070, "");
     }
 }
 
@@ -1005,38 +1039,35 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
     case DIFF_ADDON05: {
         NumServicePoints = 0;
 
+        SLONG numServicePointPlanes = 0;
+        SLONG numServicePointPersonal = 0;
+
         for (SLONG c = Planes.AnzEntries() - 1; c >= 0; c--) {
             if (Planes.IsInAlbum(c) != 0) {
                 CPlane &qPlane = Planes[c];
 
-                NumServicePoints += qPlane.Sitze;
-                NumServicePoints += qPlane.Tabletts;
-                NumServicePoints += qPlane.Deco;
-                NumServicePoints += qPlane.Triebwerk;
-                NumServicePoints += qPlane.Reifen;
-                NumServicePoints += qPlane.Elektronik;
-                NumServicePoints += qPlane.Sicherheit;
+                numServicePointPlanes += qPlane.Sitze;
+                numServicePointPlanes += qPlane.Tabletts;
+                numServicePointPlanes += qPlane.Deco;
+                numServicePointPlanes += qPlane.Triebwerk;
+                numServicePointPlanes += qPlane.Reifen;
+                numServicePointPlanes += qPlane.Elektronik;
+                numServicePointPlanes += qPlane.Sicherheit;
             }
         }
 
         if (Owner == 1 && RobotUse(ROBOT_USE_FAKE_PERSONAL)) {
             // Computerspieler simuliert Personal:
-            for (SLONG c = Planes.AnzEntries() - 1; c >= 0; c--) {
+            // Gleicher Code wie für die falsche Zahl in der Statistik
+            SLONG Anzahl = 0;
+            for (SLONG c = 0; c < Planes.AnzEntries(); c++) {
                 if (Planes.IsInAlbum(c) != 0) {
-                    CPlane &qPlane = Planes[c];
-
-                    // Piloten und Begleiter:
-                    SLONG Anzahl = qPlane.ptAnzPiloten + qPlane.ptAnzBegleiter;
-                    // SLONG Anzahl = PlaneTypes[qPlane.TypeId].AnzPiloten+PlaneTypes[qPlane.TypeId].AnzBegleiter;
-
-                    // Nach und nach weitere Begleiter:
-                    Anzahl += min(Sim.Date - 3 - (PlayerNum + 2) % 4, qPlane.ptAnzBegleiter);
-                    // Anzahl+=min(Sim.Date-3-(PlayerNum+2)%4, PlaneTypes[qPlane.TypeId].AnzBegleiter);
-
-                    // Durchschnittlich 80%
-                    NumServicePoints += Anzahl * ((80 - 50) / 15);
+                    Anzahl += Planes[c].ptAnzPiloten;
+                    Anzahl += Planes[c].ptAnzBegleiter;
                 }
             }
+            // Durchschnittlich 80%
+            numServicePointPersonal += Anzahl * ((80 - 60) / 15);
         } else {
             // Menschlicher Spieler hat Personal:
             for (SLONG c = 0; c < Workers.Workers.AnzEntries(); c++) {
@@ -1044,11 +1075,14 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
 
                 if (qWorker.Employer == PlayerNum && qWorker.PlaneId != -1) {
                     if (qWorker.Talent > 50) {
-                        NumServicePoints += (qWorker.Talent - 60) / 15;
+                        numServicePointPersonal += (qWorker.Talent - 60) / 15;
                     }
                 }
             }
         }
+        NumServicePoints = numServicePointPlanes + numServicePointPersonal;
+        AT_Log("Airline %s: %d Service Points (%d from planes, %d from personal)", (LPCTSTR)AirlineX, NumServicePoints, numServicePointPlanes,
+               numServicePointPersonal);
 
         return (NumServicePoints);
     } break;
@@ -1204,7 +1238,7 @@ SLONG PLAYER::GetMissionRating(bool bAnderer) {
 
     default:
         AT_Log("Player.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     return (0);
@@ -1480,7 +1514,7 @@ void PLAYER::NewDay() {
         break;
     default:
         AT_Log("Player.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
 
     // LastFlown-Feld bei den Routen aktualisieren:
@@ -1654,112 +1688,120 @@ void PLAYER::NewDay() {
 
         Summe = 0;
         for (c = Planes.AnzEntries() - 1; c >= 0; c--) {
-            if (Planes.IsInAlbum(c) != 0) {
-                SLONG Improvement = 0;
-
-                Planes[c].FlugplaeneFortfuehren(PlayerNum);
-
-                // Reparaturkosten auch in die Salden (aber nur wenn etwas repariert werden soll)
-                if (Planes[c].Zustand < Planes[c].TargetZustand + 2) {
-                    UBYTE OldZustand = Planes[c].Zustand;
-
-                    if (Planes[c].Zustand < Planes[c].WorstZustand) {
-                        Planes[c].WorstZustand = Planes[c].Zustand;
-                    }
-                    UBYTE OldWorst = Planes[c].WorstZustand;
-
-                    switch (MechMode) {
-                    // Putzfrau:
-                    case 0:
-                        if (((c + Planes[c].Zustand + Sim.Date) & 1) == 0) {
-                            Planes[c].Zustand -= 2;
-                        }
-                        if (Planes[c].Zustand > 200) {
-                            Planes[c].Zustand = 0;
-                        }
-                        break;
-
-                        // Lehrling:
-                    case 1:
-                        if (((c + Planes[c].Zustand + Sim.Date) & 7) == 0) {
-                            Planes[c].Zustand -= 2;
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 5, 100));
-                        }
-                        if (Planes[c].Zustand > 200) {
-                            Planes[c].Zustand = 0;
-                        }
-                        break;
-
-                        // Mechaniker:
-                    case 2:
-                        if (Planes[c].Zustand < 60) {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(5) + 2, 100));
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(8) + 2, 100));
-                        }
-                        break;
-
-                        // Diplom-Dingsbums:
-                    case 3:
-                        if (Planes[c].Zustand < 60) {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 18, 100));
-                        } else {
-                            Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 15, 100));
-                        }
-                        break;
-                    default:
-                        AT_Log("Player.cpp: Default case should not be reached.");
-                        DebugBreak();
-                    }
-
-                    if (Planes[c].Zustand > Planes[c].TargetZustand) {
-                        Planes[c].Zustand = Planes[c].TargetZustand;
-                    }
-                    if (Planes[c].Zustand > Planes[c].WorstZustand + 20) {
-                        Improvement = Planes[c].Zustand - (Planes[c].WorstZustand + 20);
-
-                        if (Planes[c].Zustand < 20) {
-                            Planes[c].WorstZustand = 0;
-                        } else {
-                            Planes[c].WorstZustand = Planes[c].Zustand - 20;
-                        }
-
-                        // Planes[c].Zustand=UBYTE(Planes[c].WorstZustand+20);
-                    }
-
-                    // Wartungskosten berechnen:
-                    SLONG salary = gRepairPrice[MechMode] / 30;
-                    SLONG costImprovement = 0;
-                    SLONG costRepairs = 0;
-
-                    if (Planes[c].Zustand > OldZustand) {
-                        Planes[c].WorstZustand = max(Planes[c].WorstZustand, Planes[c].Zustand - 20);
-
-                        costImprovement = Improvement * Planes[c].ptPreis / 110;
-
-                        costRepairs = SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - Planes[c].Baujahr) / 100 *
-                                            (200 - Planes[c].Zustand) / 100);
-                    }
-
-                    SLONG delta = salary + costImprovement + costRepairs;
-                    AT_Log("Player.cpp: %s: Repair of plane %s (%u => %u; worst %u => %u) costs: %ld+%ld+%ld=%ld", (LPCTSTR)AirlineX, (LPCTSTR)Planes[c].Name,
-                           OldZustand, Planes[c].Zustand, OldWorst, Planes[c].WorstZustand, salary, costImprovement, costRepairs, delta);
-                    if (delta < 0) {
-                        delta = 0;
-                        AT_Error("Player.cpp: Repair cost for Player %li negative!", PlayerNum);
-                    }
-
-                    Summe += delta;
-                    Planes[c].Salden[0] -= delta;
-                    Planes[c].Wartungskosten += delta;
-                }
-
-                for (d = 6; d >= 1; d--) {
-                    Planes[c].Salden[d] = Planes[c].Salden[d - 1];
-                }
-                Planes[c].Salden[0] = 0;
+            if (Planes.IsInAlbum(c) == 0) {
+                continue;
             }
+
+            SLONG Improvement = 0;
+
+            /* maintenance cost now reset every day. This is on purpose. */
+            Planes[c].Wartungskosten = 0;
+
+            Planes[c].FlugplaeneFortfuehren(PlayerNum);
+
+            // Reparaturkosten auch in die Salden (aber nur wenn etwas repariert werden soll)
+            if (Planes[c].Zustand < Planes[c].TargetZustand + 2) {
+                UBYTE OldZustand = Planes[c].Zustand;
+
+                if (Planes[c].Zustand < Planes[c].WorstZustand) {
+                    Planes[c].WorstZustand = Planes[c].Zustand;
+                }
+                UBYTE OldWorst = Planes[c].WorstZustand;
+
+                switch (MechMode) {
+                // Putzfrau:
+                case 0:
+                    if (((c + Planes[c].Zustand + Sim.Date) & 1) == 0) {
+                        Planes[c].Zustand -= 2;
+                    }
+                    if (Planes[c].Zustand > 200) {
+                        Planes[c].Zustand = 0;
+                    }
+                    break;
+
+                    // Lehrling:
+                case 1:
+                    if (((c + Planes[c].Zustand + Sim.Date) & 7) == 0) {
+                        Planes[c].Zustand -= 2;
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 5, 100));
+                    }
+                    if (Planes[c].Zustand > 200) {
+                        Planes[c].Zustand = 0;
+                    }
+                    break;
+
+                    // Mechaniker:
+                case 2:
+                    if (Planes[c].Zustand < 60) {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(5) + 2, 100));
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + PlaneRand.Rand(8) + 2, 100));
+                    }
+                    break;
+
+                    // Diplom-Dingsbums:
+                case 3:
+                    if (Planes[c].Zustand < 60) {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 18, 100));
+                    } else {
+                        Planes[c].Zustand = UBYTE(min(Planes[c].Zustand + 15, 100));
+                    }
+                    break;
+                default:
+                    AT_Log("Player.cpp: Default case should not be reached.");
+                    AtDebugBreak();
+                }
+
+                if (Planes[c].Zustand > Planes[c].TargetZustand) {
+                    Planes[c].Zustand = Planes[c].TargetZustand;
+                }
+                if (Planes[c].Zustand > Planes[c].WorstZustand + 20) {
+                    Improvement = Planes[c].Zustand - (Planes[c].WorstZustand + 20);
+
+                    if (Planes[c].Zustand < 20) {
+                        Planes[c].WorstZustand = 0;
+                    } else {
+                        Planes[c].WorstZustand = Planes[c].Zustand - 20;
+                    }
+
+                    // Planes[c].Zustand=UBYTE(Planes[c].WorstZustand+20);
+                }
+
+                // Wartungskosten berechnen:
+                SLONG salary = gRepairPrice[MechMode] / 30;
+                SLONG costImprovement = 0;
+                SLONG costRepairs = 0;
+
+                if (Planes[c].Zustand > OldZustand) {
+                    Planes[c].WorstZustand = max(Planes[c].WorstZustand, Planes[c].Zustand - 20);
+
+                    costImprovement = Improvement * Planes[c].ptPreis / 110;
+
+                    /* In old code all buyable planes were built no later than 2002. Game also assumed this year to calculate the plane age and repair cost. */
+                    /* We have added kYearsSinceRelease to all build years and have to subtract it here to get the same value as before. */
+                    SLONG baujahr = Planes[c].Baujahr - kYearsSinceRelease;
+                    costRepairs =
+                        SLONG((Planes[c].Zustand - OldZustand) * 10 * Planes[c].ptWartungsfaktor * (2100 - baujahr) / 100 * (200 - Planes[c].Zustand) / 100);
+                }
+
+                SLONG delta = salary + costImprovement + costRepairs;
+                AT_Log("Player.cpp: %s: Repair of plane %s (%u => %u; worst %u => %u) costs: %ld+%ld+%ld=%ld", (LPCTSTR)AirlineX, (LPCTSTR)Planes[c].Name,
+                       OldZustand, Planes[c].Zustand, OldWorst, Planes[c].WorstZustand, salary, costImprovement, costRepairs, delta);
+                if (delta < 0) {
+                    delta = 0;
+                    AT_Error("Player.cpp: Repair cost for Player %li negative!", PlayerNum);
+                }
+
+                Summe += delta;
+                Planes[c].Salden[0] -= delta;
+                Planes[c].Wartungskosten += delta;
+            }
+
+            for (d = 6; d >= 1; d--) {
+                Planes[c].Salden[d] = Planes[c].Salden[d - 1];
+            }
+            Planes[c].Salden[0] = 0;
         }
         ChangeMoney(-Summe, 3110, "");
     }
@@ -1877,8 +1919,9 @@ void PLAYER::RouteWegnehmen(SLONG Routenindex, SLONG NeuerBesitzer) {
         qPlayer.RentRouten.RentRouten[Routenindex].TageMitVerlust = 0;
 
         qPlayer.RentRouten.RentRouten[Routenindex].Ticketpreis =
-            CalculateFlightCost(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, 800, 800, -1) * 3 / 180 * 2 * 2 / 10 * 10;
-        qPlayer.RentRouten.RentRouten[Routenindex].TicketpreisFC = qPlayer.RentRouten.RentRouten[Routenindex].Ticketpreis * 2;
+            CalculateRoutePricePreset(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, ROUTE_PRICE_PRESET_DEFAULT);
+        qPlayer.RentRouten.RentRouten[Routenindex].TicketpreisFC =
+            CalculateRoutePricePresetFC(Routen[Routenindex].VonCity, Routen[Routenindex].NachCity, ROUTE_PRICE_PRESET_DEFAULT);
     }
 
     RentRouten.RentRouten[Routenindex].Rang = 0;
@@ -2105,8 +2148,8 @@ void PLAYER::RentRoute(SLONG City1, SLONG City2, SLONG Miete) {
 
                 RentRouten.RentRouten[c].TageMitVerlust = 0;
 
-                RentRouten.RentRouten[c].Ticketpreis = CalculateFlightCost(City1, City2, 800, 800, -1) * 3 / 180 * 2 * 2 / 10 * 10;
-                RentRouten.RentRouten[c].TicketpreisFC = RentRouten.RentRouten[c].Ticketpreis * 2;
+                RentRouten.RentRouten[c].Ticketpreis = CalculateRoutePricePreset(City1, City2, ROUTE_PRICE_PRESET_DEFAULT);
+                RentRouten.RentRouten[c].TicketpreisFC = CalculateRoutePricePresetFC(City1, City2, ROUTE_PRICE_PRESET_DEFAULT);
             }
         }
     }
@@ -2325,9 +2368,16 @@ void PLAYER::UpdateAuftragsUsage() {
 //--------------------------------------------------------------------------------------------
 // Welche Frachtaufträge wurden wie oft verplant?:
 //--------------------------------------------------------------------------------------------
-void PLAYER::UpdateFrachtauftragsUsage() {
+void PLAYER::UpdateFrachtauftragsUsage(SLONG Date, SLONG Hour) {
     SLONG c = 0;
     SLONG d = 0;
+
+    /* A flight that has already taken off no longer counts. "Already" is the caller's time; a peer
+       applying another peer's flight plan passes the time the plan was made at (ATNET_FP_UPDATE). */
+    if (Date < 0) {
+        Date = Sim.Date;
+        Hour = Sim.GetHour();
+    }
 
     // TonsOpen bei allen Frachtaufträge resetten:
     for (c = Frachten.AnzEntries() - 1; c >= 0; c--) {
@@ -2379,10 +2429,10 @@ void PLAYER::UpdateFrachtauftragsUsage() {
                 // Flug 2 geht an Tag 5 18:00 los
 
                 BOOL ignoreFlight = 0;
-                if (qFPE.Startdate < Sim.Date) {
+                if (qFPE.Startdate < Date) {
                     ignoreFlight = 1;
                 } // (qFPE.Startzeit==Sim.GetHour() && (Sim.GetHour()<30 || Planes[c].Ort!=-5)))
-                if (qFPE.Startdate == Sim.Date && qFPE.Startzeit < Sim.GetHour()) {
+                if (qFPE.Startdate == Date && qFPE.Startzeit < Hour) {
                     ignoreFlight = 1;
                 }
 
@@ -3007,6 +3057,174 @@ void PLAYER::UpdateWaypointWalkingDirection() {
 //--------------------------------------------------------------------------------------------
 // Erledigt Dinge für den Roboter:
 //--------------------------------------------------------------------------------------------
+namespace {
+//--------------------------------------------------------------------------------------------
+// Replicates the plane settings a bot changes.
+//
+// Bots run on the host only (clients return early in RobotPlan and RobotExecuteAction), and
+// they set a plane's equipment targets - seats, catering, trays, decor, engines, tyres,
+// electronics, safety, first class ratio, target condition - by writing them straight into
+// the plane, bypassing any function that could tell the other peers. The refit itself is done
+// by CPlane::DoOneStep on every peer and is deterministic given the targets, so the clients
+// never refitted, never booked the cost, and from then on carried a different load on every
+// flight. The human plane screen already broadcasts its changes; this covers every bot, with
+// no bot having to remember to do it: snapshot the targets before the bot acts and broadcast
+// each plane whose targets differ afterwards. The snapshot is taken before the next
+// DoOneStep, so the message carries the old configuration and the new targets, and each
+// client refits and books the cost itself.
+//--------------------------------------------------------------------------------------------
+class RobotPlanePropsWatch {
+  public:
+    explicit RobotPlanePropsWatch(PLAYER &qPlayer) : Player(qPlayer), bActive((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
+        if (bActive) {
+            MechModeBefore = Player.MechMode;
+            Before = Snapshot();
+        }
+    }
+    ~RobotPlanePropsWatch() {
+        if (!bActive) {
+            return;
+        }
+        const auto After = Snapshot();
+        bool bAnySent = false;
+        for (const auto &Plane : After) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                Player.NetUpdatePlaneProps(Plane.first);
+                bAnySent = true;
+            }
+        }
+        /* Every plane message carries MechMode as well; only send it on its own if nothing
+           else went out. */
+        if (!bAnySent && Player.MechMode != MechModeBefore) {
+            Player.NetUpdatePlaneProps(-1);
+        }
+    }
+    RobotPlanePropsWatch(const RobotPlanePropsWatch &) = delete;
+    RobotPlanePropsWatch &operator=(const RobotPlanePropsWatch &) = delete;
+
+  private:
+    using Targets = std::array<SLONG, 11>;
+
+    std::map<SLONG, Targets> Snapshot() const {
+        std::map<SLONG, Targets> Result;
+        for (SLONG c = 0; c < Player.Planes.AnzEntries(); c++) {
+            if (Player.Planes.IsInAlbum(c) == 0) {
+                continue;
+            }
+            const CPlane &qPlane = Player.Planes[c];
+            Result[c] = Targets{SLONG(qPlane.SitzeTarget),     SLONG(qPlane.EssenTarget),    SLONG(qPlane.TablettsTarget),   SLONG(qPlane.DecoTarget),
+                                SLONG(qPlane.TriebwerkTarget), SLONG(qPlane.ReifenTarget),   SLONG(qPlane.ElektronikTarget), SLONG(qPlane.SicherheitTarget),
+                                qPlane.MaxPassagiereTarget,    qPlane.MaxPassagiereTargetFC, SLONG(qPlane.TargetZustand)};
+        }
+        return Result;
+    }
+
+    PLAYER &Player;
+    const bool bActive;
+    SLONG MechModeBefore{};
+    std::map<SLONG, Targets> Before;
+};
+
+//--------------------------------------------------------------------------------------------
+// Replicates the flight plan changes a bot makes without telling anyone.
+//
+// Most bot code plans flights through GameMechanic, which broadcasts the new plan - but the
+// classic bot then calls DelayFlightsIfNecessary(), which pushes flights back hour by hour
+// until a gate is free, and that part never left the host. The clients kept the undelayed
+// flight, landed it at the home airport without a gate, and docked the bot image the host
+// never docked (and the passengers, the fees ...). As with the plane settings: compare each
+// plane's plan before and after the bot acted, and broadcast every plan that changed. Gates
+// are left out, every peer plans those itself when it receives the plan.
+//--------------------------------------------------------------------------------------------
+class RobotFlightplanWatch {
+  public:
+    explicit RobotFlightplanWatch(PLAYER &qPlayer) : Player(qPlayer), bActive((Sim.bNetwork != 0) && (Sim.bIsHost != 0)) {
+        if (bActive) {
+            Before = Snapshot();
+        }
+    }
+    ~RobotFlightplanWatch() {
+        if (!bActive) {
+            return;
+        }
+        const auto After = Snapshot();
+        bool bAnyChanged = false;
+        for (const auto &Plane : After) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                bAnyChanged = true;
+            }
+        }
+        if (!bAnyChanged) {
+            return;
+        }
+
+        /* The other peers work the gates out again from the plans they receive (ATNET_FP_UPDATE).
+           A bot's planning does not always do that here, and the host then flew a plan whose gates
+           the clients had assigned differently. */
+        Player.PlanGates();
+
+        for (const auto &Plane : After) {
+            const auto Old = Before.find(Plane.first);
+            if (Old == Before.end() || Old->second != Plane.second) {
+                Player.NetUpdateFlightplan(Plane.first);
+            }
+        }
+    }
+    RobotFlightplanWatch(const RobotFlightplanWatch &) = delete;
+    RobotFlightplanWatch &operator=(const RobotFlightplanWatch &) = delete;
+
+  private:
+    std::map<SLONG, unsigned long long> Snapshot() const {
+        std::map<SLONG, unsigned long long> Result;
+        for (SLONG c = 0; c < Player.Planes.AnzEntries(); c++) {
+            if (Player.Planes.IsInAlbum(c) == 0) {
+                continue;
+            }
+            unsigned long long Hash = 14695981039346656037ULL;
+            auto Add = [&Hash](long long Value) {
+                Hash ^= static_cast<unsigned long long>(Value);
+                Hash *= 1099511628211ULL;
+            };
+            const CFlugplan &qPlan = Player.Planes[c].Flugplan;
+            for (SLONG e = 0; e < qPlan.Flug.AnzEntries(); e++) {
+                const CFlugplanEintrag &qFlight = qPlan.Flug[e];
+                Add(qFlight.ObjectType);
+                Add(qFlight.ObjectId);
+                Add(qFlight.VonCity);
+                Add(qFlight.NachCity);
+                Add(qFlight.Startdate);
+                Add(qFlight.Startzeit);
+                Add(qFlight.Landedate);
+                Add(qFlight.Landezeit);
+                Add(qFlight.Ticketpreis);
+                Add(qFlight.TicketpreisFC);
+            }
+            Result[c] = Hash;
+        }
+        return Result;
+    }
+
+    PLAYER &Player;
+    const bool bActive;
+    std::map<SLONG, unsigned long long> Before;
+};
+
+//--------------------------------------------------------------------------------------------
+// The classic bot sizes a share purchase by today's share price. GameMechanic::buyStock() prices
+// it in chunks of 2000 shares at a rising price, so a large order costs more than that estimate
+// and was refused as a whole. Shrinks the order to what can be afforded instead; an order that
+// fits is left as it is.
+//--------------------------------------------------------------------------------------------
+SLONG AffordableStockAmount(PLAYER &qPlayer, SLONG Airline, SLONG Amount) {
+    while (Amount > 0 && !GameMechanic::buyStock(qPlayer, Airline, Amount, false).first) {
+        Amount = Amount * 9 / 10 / 100 * 100;
+    }
+    return Amount;
+}
+} // namespace
+
 void PLAYER::RobotPump() {
     SLONG c = 0;
     PERSON *pPerson = nullptr;
@@ -3108,7 +3326,11 @@ void PLAYER::RobotPump() {
                         pPerson->MoodCountdown = max(MOODCOUNT_START - 16, pPerson->MoodCountdown);
 
                         if (IsSuperBot()) {
-                            mBot->setNoticedSickness();
+                            if (IsMertenBot()) {
+                                mBot->setNoticedSickness();
+                            } else if (IsClaudeBot()) {
+                                mClaudeBot->setNoticedSickness();
+                            }
                         }
                     }
                 }
@@ -3142,12 +3364,24 @@ void PLAYER::RobotPump() {
         return; // War Irtum, kein Computerspieler
     }
 
-    if (mBot->getOnThePhone()) {
-        PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
-        if (qPerson.LookDir == 8) {
-            qPerson.Phase = 6;
-            mBot->decOnThePhone();
+    if (IsClaudeBot()) {
+        if (mClaudeBot->getOnThePhone()) {
+            PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+            if (qPerson.LookDir == 8) {
+                qPerson.Phase = 6;
+                mClaudeBot->decOnThePhone();
+            }
         }
+        mClaudeBot->tickCallback();
+    } else {
+        if (mBot->getOnThePhone()) {
+            PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+            if (qPerson.LookDir == 8) {
+                qPerson.Phase = 6;
+                mBot->decOnThePhone();
+            }
+        }
+        mBot->tickCallback();
     }
 
     if ((Sim.bNetwork != 0) && (Sim.bIsHost == 0)) {
@@ -3189,7 +3423,7 @@ void PLAYER::RobotPump() {
             RobotActions[c] = RobotActions[c + 1];
         }
         if (IsSuperBot()) {
-            AT_Log("RobotPump(): Action 0: %s", Translate_ACTION(RobotActions[0].ActionId));
+            // AT_Log("RobotPump(): Action 0: %s", Translate_ACTION(RobotActions[0].ActionId));
         }
 
         RobotActions[RobotActions.AnzEntries() - 1].ActionId = ACTION_NONE;
@@ -3247,7 +3481,11 @@ void PLAYER::RobotInit() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotInit();
+        if (IsMertenBot()) {
+            mBot->RobotInit(WaitWorkTill);
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotInit(WaitWorkTill);
+        }
     } else {
         RobotActions[1].ActionId = ACTION_STARTDAY;
         RobotActions[2].ActionId = ACTION_PERSONAL;
@@ -3296,8 +3534,15 @@ void PLAYER::RobotPlan() {
         return; // War Irtum, kein Computerspieler
     }
 
+    RobotPlanePropsWatch PlaneWatch(*this);
+    RobotFlightplanWatch FlightplanWatch(*this);
+
     if (IsSuperBot()) {
-        mBot->RobotPlan();
+        if (IsMertenBot()) {
+            mBot->RobotPlan();
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotPlan();
+        }
         PLAYER::NetSyncRobot(WaitWorkTill, WaitWorkTill2);
         return;
     }
@@ -3840,6 +4085,9 @@ void PLAYER::RobotExecuteAction() {
     TEAKRAND rnd;
 
     if ((Owner != 1) || (IsOut != 0)) {
+        if (Sim.CallItADay == 1) {
+            SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
+        }
         return; // War Irtum, kein Computerspieler
     }
 
@@ -3897,6 +4145,11 @@ void PLAYER::RobotExecuteAction() {
                 SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);
             }
         }
+    } else if (gFixedSeed != 0) {
+        /* "/seed N": the wall clock's second below would make the computer players' choices differ
+           from one replay of the same game to the next. */
+        LocalRandom.SRand(static_cast<ULONG>(gFixedSeed) * 2654435761U ^ static_cast<ULONG>(Sim.Date) * 40503U ^ static_cast<ULONG>(Sim.Time) * 2246822519U ^
+                          static_cast<ULONG>(PlayerNum) * 3266489917U);
     } else {
         LocalRandom.SRand(time(nullptr));
     }
@@ -3905,6 +4158,16 @@ void PLAYER::RobotExecuteAction() {
         WaitWorkTill = -1;
         return;
     }
+
+    /* The action is carried out now, so its fast-forward countdown is used up. At walking pace
+       nothing counts SpeedCount down: an action executed on arrival or by WaitWorkTill left it
+       behind (1 for an action without a room, like ACTION_CALL_INTER_HANDY). When the players
+       then called it a day, PERSONS::DoOneStep() counted the stale value down and executed the
+       queue a second time - by then empty, so the bot executed ACTION_NONE. */
+    SpeedCount = 0;
+
+    RobotPlanePropsWatch PlaneWatch(*this);
+    RobotFlightplanWatch FlightplanWatch(*this);
 
     // NetGenericSync (100, LocalRandom.GetSeed());
     // NetGenericSync (101, PlayerNum);
@@ -3974,7 +4237,23 @@ void PLAYER::RobotExecuteAction() {
     }
 
     if (IsSuperBot()) {
-        mBot->RobotExecuteAction();
+        WorkCountdown = 20 * 5;
+
+        if (IsMertenBot()) {
+            mBot->RobotExecuteAction();
+        } else if (IsClaudeBot()) {
+            mClaudeBot->RobotExecuteAction();
+        }
+
+        if (RobotUse(ROBOT_USE_WORKQUICK_2) && WorkCountdown > 2) {
+            WorkCountdown /= 2;
+        }
+
+        if (RobotUse(ROBOT_USE_WORKVERYQUICK) && WorkCountdown > 4) {
+            WorkCountdown /= 4;
+        } else if (RobotUse(ROBOT_USE_WORKQUICK) && WorkCountdown > 2) {
+            WorkCountdown /= 2;
+        }
 
         Sim.Players.CheckFlighplans();
 
@@ -4286,9 +4565,12 @@ void PLAYER::RobotExecuteAction() {
 
                                     SLONG ObjectId = -1;
                                     GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+                                    if (ObjectId < 0) {
+                                        continue;
+                                    }
 
                                     SLONG bailout = 10;
-                                    while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                    while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                         if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                             break;
                                         }
@@ -4351,9 +4633,12 @@ void PLAYER::RobotExecuteAction() {
 
                                         SLONG ObjectId = -1;
                                         GameMechanic::takeInternationalFreightJob(*this, n, e, ObjectId);
+                                        if (ObjectId < 0) {
+                                            continue;
+                                        }
 
                                         SLONG bailout = 10;
-                                        while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                        while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                             if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                                 break;
                                             }
@@ -4372,6 +4657,11 @@ void PLAYER::RobotExecuteAction() {
         }
         if ((StrikeHours != 0) && LocalRandom.Rand(6) == 0 && RobotUse(ROBOT_USE_MISC_CHEATS)) {
             Sim.Players.Players[PlayerNum].StrikeHours = 0;
+
+            /* Bots only act on the host, but the strike delays their departures on every peer. */
+            if (NetIsAuthoritative()) {
+                SIM::SendSimpleMessage(ATNET_STRIKE, 0, PlayerNum, 1, 0, Sim.Date * 24 + Sim.GetHour());
+            }
         }
 
         if (RobotUse(ROBOT_USE_LUXERY) && Planes.GetNumUsed() > 0 && Money > 200000 && (bHasPlanesUpgradedToday == 0)) {
@@ -4447,7 +4737,7 @@ void PLAYER::RobotExecuteAction() {
                                 break;
                             default:
                                 AT_Log("Player.cpp: Default case should not be reached.");
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             bpass = 4;
@@ -4491,7 +4781,7 @@ void PLAYER::RobotExecuteAction() {
                     break;
                 default:
                     AT_Log("Player.cpp: Default case should not be reached.");
-                    DebugBreak();
+                    AtDebugBreak();
                 }
             }
         }
@@ -4640,7 +4930,7 @@ void PLAYER::RobotExecuteAction() {
                         break;
                     default:
                         AT_Log("Player.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
 
                     if ((ArabMode != 0) || (ArabMode2 != 0) || (ArabMode3 != 0)) {
@@ -4730,7 +5020,7 @@ void PLAYER::RobotExecuteAction() {
             SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
             if (Sells > 0) {
-                GameMechanic::sellStock(*this, PlayerNum, Sells);
+                GameMechanic::sellStock(*this, PlayerNum, Sells, true);
             }
         }
         if ((Credit > 1000000 && RobotUse(ROBOT_USE_SELLSHARES)) || Credit > 3000000) {
@@ -4741,7 +5031,7 @@ void PLAYER::RobotExecuteAction() {
                             SLONG Sells = min(OwnsAktien[c], 20000);
 
                             if (c != PlayerNum || Sim.Date > 20 || OwnsAktien[c] - Sells > AnzAktien / 2) {
-                                GameMechanic::sellStock(*this, c, Sells);
+                                GameMechanic::sellStock(*this, c, Sells, true);
                             }
                         }
                     }
@@ -4765,8 +5055,9 @@ void PLAYER::RobotExecuteAction() {
                     Anz = min(Anz, SLONG((Money - 3000000) / Sim.Players.Players[dislike].Kurse[0] / 100 * 100));
                 }
 
+                Anz = AffordableStockAmount(*this, dislike, Anz);
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, dislike, Anz);
+                    GameMechanic::buyStock(*this, dislike, Anz, true);
                 }
             }
         }
@@ -4785,8 +5076,9 @@ void PLAYER::RobotExecuteAction() {
                     Anz = min(Anz, SLONG((Money - 3000000) / Kurse[0] / 100 * 100));
                 }
 
+                Anz = AffordableStockAmount(*this, PlayerNum, Anz);
                 if (Anz != 0) {
-                    GameMechanic::buyStock(*this, PlayerNum, Anz);
+                    GameMechanic::buyStock(*this, PlayerNum, Anz, true);
                 }
             }
         }
@@ -4845,25 +5137,15 @@ void PLAYER::RobotExecuteAction() {
 
     case ACTION_VISITNASA:
         for (c = 0; c < 10; c++) {
-            if ((RocketFlags & (1 << c)) == 0) {
+            if (!CheckRocketPart(c)) {
                 if (Sim.Difficulty == DIFF_FINAL) {
                     if (RocketPrices[c] < Money) {
-                        ChangeMoney(-RocketPrices[c], 3400, "");
-                        SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -RocketPrices[c], 3400);
-
-                        PlayFanfare();
-                        RocketFlags |= (1 << c);
-
+                        AddRocketPart(c);
                         SavesForRocket = FALSE;
                     }
                 } else if (Sim.Difficulty == DIFF_ADDON10) {
                     if (StationPrices[c] < Money) {
-                        ChangeMoney(-StationPrices[c], 3400, "");
-                        SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, PlayerNum, -StationPrices[c], 3400);
-
-                        PlayFanfare();
-                        RocketFlags |= (1 << c);
-
+                        AddSpaceStationPart(c, 3400);
                         SavesForRocket = FALSE;
                     }
                 }
@@ -4883,7 +5165,7 @@ void PLAYER::RobotExecuteAction() {
         if ((BuyBigPlane != 0) && !RobotUse(ROBOT_USE_GROSSESKONTO)) {
             Sim.UpdateUsedPlanes();
             for (c = 0; c < 3; c++) {
-                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr > 1960 &&
+                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr - kYearsSinceRelease > 1960 &&
                     Sim.UsedPlanes[0x1000000 + c].Zustand > 40 && Sim.UsedPlanes[0x1000000 + c].CalculatePrice() < Money + 1000000 &&
                     Sim.UsedPlanes[0x1000000 + c].ptReichweite >= BuyBigPlane)
                 // if (Sim.UsedPlanes[0x1000000+c].Name.GetLength()>0 && Sim.UsedPlanes[0x1000000+c].Baujahr>1960 && Sim.UsedPlanes[0x1000000+c].Zustand>40
@@ -4924,14 +5206,14 @@ void PLAYER::RobotExecuteAction() {
                 for (SLONG c = 0; c < 4; c++) {
                     freeAmount -= Sim.Players.Players[c].OwnsAktien[PlayerNum];
                 }
-                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2));
+                GameMechanic::buyStock(*this, PlayerNum, std::min(freeAmount, NeueAktien / 2), true);
             }
 
             if (RobotUse(ROBOT_USE_MAX20PERCENT) && OwnsAktien[PlayerNum] * 100 / AnzAktien > BTARGET_MEINANTEIL && Kurse[0] >= BTARGET_KURS) {
                 SLONG Sells = OwnsAktien[PlayerNum] - AnzAktien * BTARGET_MEINANTEIL / 100;
 
                 if (Sells > 0) {
-                    GameMechanic::sellStock(*this, PlayerNum, Sells);
+                    GameMechanic::sellStock(*this, PlayerNum, Sells, true);
                 }
             }
         }
@@ -5284,9 +5566,12 @@ void PLAYER::RobotExecuteAction() {
 
                             SLONG ObjectId = -1;
                             GameMechanic::takeFreightJob(*this, e, ObjectId);
+                            if (ObjectId < 0) {
+                                continue;
+                            }
 
                             SLONG bailout = 10;
-                            while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                            while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                 if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                     break;
                                 }
@@ -5349,9 +5634,12 @@ void PLAYER::RobotExecuteAction() {
 
                                 SLONG ObjectId = -1;
                                 GameMechanic::takeFreightJob(*this, e, ObjectId);
+                                if (ObjectId < 0) {
+                                    continue;
+                                }
 
                                 SLONG bailout = 10;
-                                while (Frachten[ObjectId].TonsOpen > 0 && (bailout-- > 0)) {
+                                while ((Frachten[ObjectId].TonsOpen > 0) && (bailout-- > 0)) {
                                     if (!GameMechanic::planFreightJob(*this, c, ObjectId, Sim.Date + VonZeit / 24, VonZeit % 24)) {
                                         break;
                                     }
@@ -5374,7 +5662,7 @@ void PLAYER::RobotExecuteAction() {
         if ((Planes.GetNumUsed() < 3 || !RobotUse(ROBOT_USE_GROSSESKONTO)) && (Planes.GetNumUsed() < 5 || !RobotUse(ROBOT_USE_MAX5PLANES)) &&
             (Planes.GetNumUsed() < 4 || !RobotUse(ROBOT_USE_MAX4PLANES)) && (Planes.GetNumUsed() < 10 || !RobotUse(ROBOT_USE_MAX10PLANES))) {
             for (c = 0; c < 3; c++) {
-                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr > 1950 &&
+                if (Sim.UsedPlanes[0x1000000 + c].Name.GetLength() > 0 && Sim.UsedPlanes[0x1000000 + c].Baujahr - kYearsSinceRelease > 1950 &&
                     Sim.UsedPlanes[0x1000000 + c].Zustand > 65 && Sim.UsedPlanes[0x1000000 + c].CalculatePrice() < Money - 1000000) {
 
                     GameMechanic::buyUsedPlane(*this, 0x1000000 + c);
@@ -5641,7 +5929,7 @@ void PLAYER::RobotExecuteAction() {
         break;
 
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
 
     // NetGenericSync (110, PlayerNum);
@@ -5932,28 +6220,28 @@ void PLAYER::RandomBeraterMessageJobs() {
         switch (toTake.owner) {
         case BotPlaner::JobOwner::TravelAgency:
             premium = ReisebueroAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(ReisebueroAuftraege[toTake.objectId]);
+            jobName = Helper::getJobName(ReisebueroAuftraege[toTake.objectId], true);
             textId = 10000;
             break;
         case BotPlaner::JobOwner::LastMinute:
             premium = LastMinuteAuftraege[toTake.objectId].Praemie;
-            jobName = Helper::getJobName(LastMinuteAuftraege[toTake.objectId]);
+            jobName = Helper::getJobName(LastMinuteAuftraege[toTake.objectId], true);
             textId = 10001;
             break;
         case BotPlaner::JobOwner::Freight:
             premium = gFrachten[toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(gFrachten[toTake.objectId]);
+            jobName = Helper::getFreightName(gFrachten[toTake.objectId], true);
             textId = 10002;
             break;
         case BotPlaner::JobOwner::International:
             premium = AuslandsAuftraege[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getJobName(AuslandsAuftraege[toTake.sourceId][toTake.objectId]);
+            jobName = Helper::getJobName(AuslandsAuftraege[toTake.sourceId][toTake.objectId], true);
             cityName = Cities[toTake.sourceId].Name;
             textId = 10003;
             break;
         case BotPlaner::JobOwner::InternationalFreight:
             premium = AuslandsFrachten[toTake.sourceId][toTake.objectId].Praemie;
-            jobName = Helper::getFreightName(AuslandsFrachten[toTake.sourceId][toTake.objectId]);
+            jobName = Helper::getFreightName(AuslandsFrachten[toTake.sourceId][toTake.objectId], true);
             cityName = Cities[toTake.sourceId].Name;
             textId = 10004;
             break;
@@ -6036,6 +6324,9 @@ void PLAYER::BuyItem(UBYTE Item) {
         }
 
         ReformIcons();
+        if (Sim.bNetwork != 0) {
+            PLAYER::NetSynchronizeItems();
+        }
     }
 }
 
@@ -6045,8 +6336,42 @@ void PLAYER::BuyItem(UBYTE Item) {
 void PLAYER::DisplayAsTelefoning() const {
     PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
 
-    qPerson.Phase = qPerson.LookDir + 4;
+    // A standing person already has LookDir 8 and its direction in Phase. LookDir + 4 would then
+    // be past the standing phases and the player is drawn without the phone:
+    SLONG Dir = 2;
+    if (qPerson.LookDir == 8) {
+        Dir = qPerson.Phase % 4;
+    } else if (qPerson.LookDir < 4) {
+        Dir = qPerson.LookDir;
+    }
+
+    qPerson.Phase = UBYTE(Dir + 4);
     qPerson.LookDir = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// The player touched the vending machine without the glove. Runs on the peer that owns the
+// player (Person.cpp) and, through ATNET_ELECTROSHOCK, on every other peer:
+//--------------------------------------------------------------------------------------------
+void PLAYER::ElectroShock() {
+    PERSON &qPerson = Sim.Persons[static_cast<SLONG>(Sim.Persons.GetPlayerIndex(PlayerNum))];
+
+    BUILD *pBuild = Airport.GetBuildNear(qPerson.ScreenPos, XY(180, 160), Bricks(static_cast<SLONG>(0x10000000) + BRICK_ELECTRO));
+    if (pBuild != nullptr) {
+        Airport.Triggers[static_cast<SLONG>(pBuild->Par)].Winkel = Sim.TickerTime;
+    }
+
+    Sim.DontDisplayPlayer = PlayerNum;
+    qPerson.LookDir = 2;
+    qPerson.Phase = 0;
+
+    DirectToRoom = 0;
+    IsDrunk = 0;
+
+    if ((Sim.Options.OptionEffekte != 0) && PlayerNum == Sim.localPlayer) {
+        gUniversalFx.ReInit("fused.raw");
+        gUniversalFx.Play(0, Sim.Options.OptionEffekte * 100 / 7 * AmbientManager.GlobalVolume / 100);
+    }
 }
 
 //--------------------------------------------------------------------------------------------
@@ -6057,6 +6382,10 @@ bool PLAYER::DropItem(UBYTE Item) {
         if (Items[d] == Item) {
             Items[d] = 0xff;
             ReformIcons();
+
+            if (Sim.bNetwork != 0) {
+                NetSynchronizeItems();
+            }
             return (true);
         }
     }
@@ -6867,7 +7196,7 @@ void PLAYER::BroadcastPosition(bool bForce) {
             PLAYER &qPlayer = (*this);
             PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(PlayerNum)];
 
-            // if (qPerson.Position.x==qPerson.Target.x && qPerson.Position.y==qPerson.Target.y+5000) DebugBreak();
+            // if (qPerson.Position.x==qPerson.Target.x && qPerson.Position.y==qPerson.Target.y+5000) AtDebugBreak();
 
             // Read the message data:
             Message << qPlayer.PrimaryTarget.x << qPlayer.PrimaryTarget.y;
@@ -6891,14 +7220,21 @@ void PLAYER::BroadcastPosition(bool bForce) {
     }
 }
 
-bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > 0); }
+bool PLAYER::IsSuperBot() const { return (Owner == 1) && (BotLevel > BotDifficultyClassic); }
+bool PLAYER::IsMertenBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyLaidBack) && (BotLevel <= BotDifficultyNemesis); }
+bool PLAYER::IsClaudeBot() const { return (Owner == 1) && (BotLevel >= BotDifficultyTycoon) && (BotLevel <= BotDifficultyTBD); }
 void PLAYER::ApplyMood(PERSON &qPerson) {
     if (!IsSuperBot()) {
         return;
     }
 
     if (qPerson.MoodCountdown == 0U) {
-        SLONG mood = mBot->getNextMood();
+        SLONG mood = -1;
+        if (IsMertenBot()) {
+            mood = mBot->getNextMood();
+        } else if (IsClaudeBot()) {
+            mood = mClaudeBot->getNextMood();
+        }
         if (mood != -1) {
             qPerson.Mood = static_cast<UBYTE>(mood);
             qPerson.MoodCountdown = MOODCOUNT_START + rand() % 15;
@@ -6957,7 +7293,7 @@ void PLAYERS::CheckFlighplans() {
 
                         default:
                             AT_Log("Player.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                     }
                 }
@@ -7401,6 +7737,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player) {
 
     // For improved bot
     File << *Player.mBot;
+    File << *Player.mClaudeBot;
 
     return (File);
 }
@@ -7566,7 +7903,7 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 
     File >> Player.HasFlownRoutes >> Player.NumPassengers >> Player.NumAuftraege;
     File >> Player.Gewinn >> Player.NumMissionRoutes;
-    File >> Player.RocketFlags >> Player.LastRocketFlags;
+    File >> Player.RocketFlags >> Player.LastRocketFlags; /* flags were reordered, this will cause smaller issues with older saves. We tolerate this for now */
     File >> Player.Statistiken;
 
     Player.Statistiken.ReSize(STAT_ANZ);
@@ -7620,6 +7957,9 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 
     // For improved bot
     File >> *Player.mBot;
+    if (SaveVersion == 1 && SaveVersionSub >= 204) {
+        File >> *Player.mClaudeBot;
+    }
     // Player.Owner = (Player.PlayerNum == 3) ? 0 : 1;
 
     return (File);
@@ -7692,14 +8032,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-XXXXXXXXX";
         break;
     case ROBOT_USE_FRACHT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use freight depot at all */
         pFeatureDesc = "------"
                        "X"
                        "-XXXXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_WERBUNG:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use ad agency at all */
         if (IsSuperBot()) {
             return true;
         }
@@ -7716,7 +8056,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_NASA:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use NASA at all (only two missions have this room) */
         pFeatureDesc = "-----X"
                        "."
                        "---------X"
@@ -7730,7 +8070,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use routes at all */
         pFeatureDesc = "---X-X"
                        "X"
                        "----XX-X-X"
@@ -7744,7 +8084,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_FORCEROUTES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Triggers switch to routes at game start */
         pFeatureDesc = "------"
                        "."
                        "-----X----"
@@ -7792,14 +8132,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTEMISSION:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Gives large bonus to route missions and caps max. utilization at 20% */
         pFeatureDesc = "---X--"
                        "."
                        "----------"
                        "----------";
         break;
     case ROBOT_USE_MUCHWERBUNG:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Enables final target run to maximize image */
         pFeatureDesc = "----X-"
                        "."
                        "----------"
@@ -7827,7 +8167,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_ROUTEBOX:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use route box at all */
         if (IsSuperBot()) {
             return true;
         }
@@ -7837,18 +8177,44 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXX-X-XXXX";
         break;
     case ROBOT_USE_ABROAD:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use and buy international branches at all */
         pFeatureDesc = "--XXXX"
                        "X"
                        "XXXXXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_MUCH_SABOTAGE:
-        /* SuperBot: Ignores this flag */
+        /* SuperBot: Necessary to use sabotage at all */
+        if (IsSuperBot()) {
+            if ((BotLevel != BotDifficultySaboteur) && (BotLevel != BotDifficultyNemesis)) {
+                return false;
+            }
+        }
         pFeatureDesc = "---XXX"
                        "!"
                        "XXXXXXXXXX"
                        "XXXXXXXXXX";
+        break;
+    case ROBOT_USE_EXTRA_SABOTAGE:
+        /* SuperBot: Special sabotage targeting human player */
+        if (IsSuperBot()) {
+            return (BotLevel == BotDifficultyNemesis);
+        }
+        return (PlayerNum == 0);
+    case ROBOT_USE_EXTREME_SABOTAGE:
+        /* SuperBot: Enables special sabotage for certain missions */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07) {
+                return true; /* sabotage also in stock price missions */
+            }
+            if (Sim.Difficulty == DIFF_ADDON04) {
+                return true; /* sabotage also in miles&more mission */
+            }
+        }
+        pFeatureDesc = "------"
+                       "."
+                       "----------"
+                       "---X-X----";
         break;
     case ROBOT_USE_PAYBACK_CREDIT:
         /* SuperBot: Ignores this flag */
@@ -7858,9 +8224,11 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_MUCH_FRACHT:
-        /* SuperBot: Respects this flag */
-        if (IsSuperBot() && Sim.Difficulty == DIFF_ADDON03) {
-            return true; /* higher priority also in free freight mission */
+        /* SuperBot: Large score bonus for freight jobs (takes almost exclusively freight jobs) */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON03) {
+                return true; /* higher priority also in free freight mission */
+            }
         }
         pFeatureDesc = "------"
                        "."
@@ -7868,21 +8236,29 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_FREE_FRACHT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Large score bonus for freight jobs with tons==0 (takes almost exclusively these jobs) */
         pFeatureDesc = "------"
                        "."
                        "--X-------"
                        "----------";
         break;
     case ROBOT_USE_RUN_FRACHT:
-        /* SuperBot: Ignores this flag */
+        /* SuperBot: Priorizes freight jobs in RobotPlan() and gives a small score bonus */
+        if (IsSuperBot()) {
+            if (Sim.Difficulty == DIFF_ADDON02) {
+                return true; /* higher priority also in freight mission */
+            }
+            if (BotLevel == BotDifficultyFreightBaron) {
+                return true;
+            }
+        }
         pFeatureDesc = "------"
                        "."
                        "--X-------"
                        "----------";
         break;
     case ROBOT_USE_LUXERY:
-        /* SuperBot: Respects this flag, but only to buy more early and for all planes */
+        /* SuperBot: Buys all standard luxury upgrades for ALL planes during final target run */
         pFeatureDesc = "------"
                        "."
                        "----X-----"
@@ -7915,7 +8291,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "----------";
         break;
     case ROBOT_USE_HIGHSHAREPRICE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Immediately set dividend to maximum */
         if (PlayerNum == 3 || IsSuperBot()) {
             return true;
         }
@@ -7925,14 +8301,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_WORKQUICK:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Halves WorkCountdown */
         pFeatureDesc = "------"
                        "."
                        "---XXXXXXX"
                        "XXXXXXXXXX";
         break;
     case ROBOT_USE_GROSSESKONTO:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Immediately starts saving money */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -7946,21 +8322,21 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "X---X--X--";
         break;
     case ROBOT_USE_WORKVERYQUICK:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Divides WorkCountdown by 4 */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "-----XXXXX";
         break;
     case ROBOT_USE_ALLRUN:
-        /* SuperBot: Respects this flag (but always runs for high prio actions) */
+        /* SuperBot: Enables running also for low priority actions */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "---------X";
         break;
     case ROBOT_USE_DONTBUYANYSHARES:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to buy shares at all */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -7995,7 +8371,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-X--------";
         break;
     case ROBOT_USE_NOCHITCHAT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Ignores this flag */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8009,29 +8385,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "-X--X--XXX";
         break;
     case ROBOT_USE_SHORTFLIGHTS:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Only picks flights to meet BTARGET_PASSAVG passenger per hour target */
         pFeatureDesc = "------"
                        "."
                        "----------"
                        "--X-------";
         break;
-    case ROBOT_USE_EXTREME_SABOTAGE:
-        /* SuperBot: Respects this flag */
-        if (IsSuperBot()) {
-            if (Sim.Difficulty == DIFF_ADDON08 || Sim.Difficulty == DIFF_ATFS07) {
-                return true; /* sabotage also in stock price missions */
-            }
-            if (Sim.Difficulty == DIFF_ADDON04) {
-                return true; /* sabotage also in miles&more mission */
-            }
-        }
-        pFeatureDesc = "------"
-                       "."
-                       "----------"
-                       "---X-X----";
-        break;
     case ROBOT_USE_SECURTY_OFFICE:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use security office at all */
         if (IsSuperBot()) {
             if (Sim.Difficulty == DIFF_ATFS04 || Sim.Difficulty == DIFF_ATFS06) {
                 return true; /* need to have 15 days without sabotage */
@@ -8044,7 +8405,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "---X-X-X-X";
         break;
     case ROBOT_USE_MAKLER:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to buy new planes */
         if (IsSuperBot()) {
             return true;
         }
@@ -8054,9 +8415,9 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXX-X-XXXX";
         break;
     case ROBOT_USE_PETROLAIR:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use petrol air at all (buying kerosene + tanks) */
         if (IsSuperBot()) {
-            return (BotLevel > 1);
+            return (BotLevel != BotDifficultyLaidBack);
         }
         pFeatureDesc = "XXXXXX"
                        "!"
@@ -8064,7 +8425,7 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXX-XX--";
         break;
     case ROBOT_USE_MAX20PERCENT:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Bot will never own more than 20% of its own stock */
         if (IsSuperBot()) {
             return (Sim.Difficulty == DIFF_ATFS07);
         }
@@ -8074,9 +8435,9 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "XXXXX-XXXX";
         break;
     case ROBOT_USE_TANKS:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Enables buying tanks */
         if (IsSuperBot()) {
-            return (BotLevel > 1);
+            return (BotLevel != BotDifficultyLaidBack);
         }
         pFeatureDesc = "------"
                        "."
@@ -8084,14 +8445,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
                        "--------XX";
         break;
     case ROBOT_USE_DESIGNER:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Necessary to use designer at all */
         pFeatureDesc = "------"
                        "?"
                        "----------"
                        "---XX-XX--";
         break;
     case ROBOT_USE_DESIGNER_BUY:
-        /* SuperBot: Respects this flag */
+        /* SuperBot: Buy designer planes over regular planes */
         pFeatureDesc = "------"
                        "."
                        "----------"
@@ -8157,11 +8518,14 @@ bool PLAYER::RobotUse(SLONG FeatureId) const {
         }
         return true;
 
-    /* specialization of computer players. SuperBot ignores all but the first one. */
     case ROBOT_USE_WORKQUICK_2:
-        return (PlayerNum == 2 || (BotLevel > 1));
-    case ROBOT_USE_EXTRA_SABOTAGE:
-        return (PlayerNum == 0);
+        /* SuperBot: Halves WorkCountdown */
+        if (IsSuperBot()) {
+            return (BotLevel != BotDifficultyLaidBack);
+        }
+        return (PlayerNum == 2);
+
+    /* specialization of computer players. SuperBot ignores all of these */
     case ROBOT_USE_SABO_AFFORD_FINE:
         return (PlayerNum == 1);
     case ROBOT_USE_MILD_SABOTAGE:

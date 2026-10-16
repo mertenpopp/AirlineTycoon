@@ -1,6 +1,7 @@
 #include "BotHelper.h"
 
 #include "Bot.h"
+#include "ClaudeBot.h"
 #include "Proto.h"
 #include "TeakLibW.h"
 #include "class.h"
@@ -38,6 +39,8 @@ extern SLONG timeReisClose;
 extern SLONG timeMaklClose;
 extern SLONG timeWerbOpen;
 
+const int kDurationExtra = 1;
+
 // #define PRINT_OVERALL 1
 
 TEAKFILE &operator<<(TEAKFILE &File, const PlaneTime &planeTime) {
@@ -54,6 +57,64 @@ TEAKFILE &operator>>(TEAKFILE &File, PlaneTime &planeTime) {
     planeTime = {date, time};
 
     return (File);
+}
+
+std::string SabotageMode::getName() const {
+    switch (mCategory) {
+    case SabotageCategory::Plane:
+        switch (static_cast<Plane>(mJobNumber)) {
+        case Plane::SaltedFood:
+            return "Salted Food";
+        case Plane::MovieTheatreBreak:
+            return "Movie Theatre Break";
+        case Plane::FlatTire:
+            return "Flat Tire";
+        case Plane::EngineBreakdown:
+            return "Engine Breakdown";
+        case Plane::PlaneCrash:
+            return "Plane Crash";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Personal:
+        switch (static_cast<Personal>(mJobNumber)) {
+        case Personal::CoffeeBacteria:
+            return "Coffee Bacteria";
+        case Personal::NotebookVirus:
+            return "Notebook Virus";
+        case Personal::OfficeBomb:
+            return "Office Bomb";
+        case Personal::ProvokeStrike:
+            return "Provoke Strike";
+        default:
+            break;
+        }
+        break;
+    case SabotageCategory::Special:
+        switch (static_cast<Special>(mJobNumber)) {
+        case Special::AircraftBrochures:
+            return "Aircraft Brochures";
+        case Special::CutTelephones:
+            return "Cut Telephones";
+        case Special::FalsePressRelease:
+            return "False Press Release";
+        case Special::BankHack:
+            return "Bank Hack";
+        case Special::GroundAircraft:
+            return "Ground Aircraft";
+        case Special::RouteTheft:
+            return "Route Theft";
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    AT_Error("SabotageMode::getName(): Invalid sabotage mode with category %d and job number %d", static_cast<int>(mCategory), mJobNumber);
+    AtDebugBreak();
+    return "INVALID";
 }
 
 inline void setColorForFlightJob(const PLAYER &qPlayer, const CFlugplanEintrag &qFPE) {
@@ -77,6 +138,24 @@ inline void setColorForFlightJob(const PLAYER &qPlayer, const CFlugplanEintrag &
 inline void resetColor() { std::cout << "\033[m"; }
 
 namespace Helper {
+
+static std::array<CString, 5> jobTypeStr{"normal", "later", "highriskreward", "scam", "no fine"};
+static std::array<CString, 6> jobSizeStr{"VIP", "S", "M", "L", "XL", "XXL"};
+CString getJobTypeStr(int jobType) {
+    if (jobType < 0 || jobType >= jobTypeStr.size()) {
+        AT_Error("Helper::getJobTypeStr(): Invalid job type: %d", jobType);
+        return "INVALID";
+    }
+    return jobTypeStr[jobType];
+}
+CString getJobSizeStr(int jobSize) {
+    if (jobSize < 0 || jobSize >= jobSizeStr.size()) {
+        AT_Error("Helper::getJobSizeStr(): Invalid job size: %d", jobSize);
+        return "INVALID";
+    }
+    return jobSizeStr[jobSize];
+}
+
 void ScheduleInfo::printGain() const {
     printf("Schedule (%s %d - %s %d) with %d planes gains %s $.\n", getWeekday(scheduleStart).c_str(), scheduleStart.getHour(), getWeekday(scheduleEnd).c_str(),
            scheduleEnd.getHour(), numPlanes, Insert1000erDots(gain).c_str());
@@ -96,18 +175,16 @@ void ScheduleInfo::printDetails() const {
     printf("%.1f %% of plane schedule are regular flights, %.1f %% are automatic flights (%.1f %% useful kerosene).\n", getRatioFlights(),
            getRatioAutoFlights(), getKeroseneRatio());
 
-    std::array<CString, 5> typeStr{"normal", "later", "highriskreward", "scam", "no fine"};
-    std::array<CString, 6> sizeStr{"VIP", "S", "M", "L", "XL", "XXL"};
     printf("Job types: ");
     for (SLONG i = 0; i < jobTypes.size(); i++) {
-        printf("%.0f %% %s", 100.0 * jobTypes[i] / (jobs + freightJobs), typeStr[i].c_str());
+        printf("%.0f %% %s", 100.0 * jobTypes[i] / (jobs + freightJobs), getJobTypeStr(i).c_str());
         if (i < jobTypes.size() - 1) {
             printf(", ");
         }
     }
     printf("\nJob sizes: ");
     for (SLONG i = 0; i < jobSizeTypes.size(); i++) {
-        printf("%.0f %% %s", 100.0 * jobSizeTypes[i] / (jobs + freightJobs), sizeStr[i].c_str());
+        printf("%.0f %% %s", 100.0 * jobSizeTypes[i] / (jobs + freightJobs), getJobSizeStr(i).c_str());
         if (i < jobSizeTypes.size() - 1) {
             printf(", ");
         }
@@ -124,8 +201,9 @@ void printJob(const CAuftrag &qAuftrag) {
     CString strDist(Einheiten[EINH_KM].bString(Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity) / 1000));
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
     CString strStrafe(Insert1000erDots(qAuftrag.Strafe));
-    printf("%s -> %s (%u) (%s, %s, %s $ / %s $)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Personen,
-           strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str());
+    printf("%s -> %s (%u) (%s, %s, %s $ / %s $) (%s %s)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Personen,
+           strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str(), getJobTypeStr(qAuftrag.jobType).c_str(),
+           getJobSizeStr(qAuftrag.jobSizeType).c_str());
 }
 
 void printRoute(const CRoute &qRoute) {
@@ -139,18 +217,29 @@ void printFreight(const CFracht &qAuftrag) {
     CString strDist(Einheiten[EINH_KM].bString(Cities.CalcDistance(qAuftrag.VonCity, qAuftrag.NachCity) / 1000));
     CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
     CString strStrafe(Insert1000erDots(qAuftrag.Strafe));
-    printf("%s -> %s (%d tons total, %d left, %d open) (%s, %s, %s $ / %s $)\n", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(),
-           qAuftrag.Tons, qAuftrag.TonsLeft, qAuftrag.TonsOpen, strDist.c_str(), strDate.c_str(), strPraemie.c_str(), strStrafe.c_str());
+    printf("%s -> %s (%d tons total, %d left, %d open) (%s, %s, %s $ / %s $) (%s %s)\n", Cities[qAuftrag.VonCity].Name.c_str(),
+           Cities[qAuftrag.NachCity].Name.c_str(), qAuftrag.Tons, qAuftrag.TonsLeft, qAuftrag.TonsOpen, strDist.c_str(), strDate.c_str(), strPraemie.c_str(),
+           strStrafe.c_str(), getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str());
 }
 
 std::string getRouteName(const CRoute &qRoute) { return {bprintf("%s -> %s", Cities[qRoute.VonCity].Name.c_str(), Cities[qRoute.NachCity].Name.c_str())}; }
 
-std::string getJobName(const CAuftrag &qAuftrag) {
-    return {bprintf("%s -> %s", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str())};
+std::string getJobName(const CAuftrag &qAuftrag, bool forDisplay) {
+    CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
+    return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
+                    getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
 
-std::string getFreightName(const CFracht &qAuftrag) {
-    return {bprintf("%s -> %s", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str())};
+std::string getFreightName(const CFracht &qAuftrag, bool forDisplay) {
+    CString strPraemie(Insert1000erDots(qAuftrag.Praemie));
+    if (forDisplay) {
+        return {bprintf("%s -> %s (%s $)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str())};
+    }
+    return {bprintf("%s -> %s (%s $ %s %s)", Cities[qAuftrag.VonCity].Name.c_str(), Cities[qAuftrag.NachCity].Name.c_str(), strPraemie.c_str(),
+                    getJobTypeStr(qAuftrag.jobType).c_str(), getJobSizeStr(qAuftrag.jobSizeType).c_str())};
 }
 
 std::string getPlaneName(const CPlane &qPlane, int mode) {
@@ -500,10 +589,10 @@ ScheduleInfo calculateScheduleInfo(const PLAYER &qPlayer, SLONG planeId) {
 
         if (qFPE.ObjectType != 3) {
             info.hoursFlights += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit + 1 - qFPE.Startzeit);
-            info.keroseneFlights = CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
+            info.keroseneFlights += CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
         } else {
             info.hoursAutoFlights += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit + 1 - qFPE.Startzeit);
-            info.keroseneAutoFlights = CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
+            info.keroseneAutoFlights += CalculateFlightKerosin(qFPE.VonCity, qFPE.NachCity, qPlane.ptVerbrauch, qPlane.ptGeschwindigkeit);
         }
 
         info.miles += Cities.CalcDistance(qFPE.VonCity, qFPE.NachCity) / 1609;
@@ -610,9 +699,9 @@ void printAllSchedules(bool infoOnly) {
     }
 }
 
-bool checkRoomOpen(SLONG roomId) {
+bool checkRoomOpen(SLONG actionId) {
     SLONG time = Sim.Time;
-    switch (roomId) {
+    switch (actionId) {
     case ACTION_VISITDUTYFREE:
         return (time >= timeDutyOpen && ((Sim.Weekday != 5 && Sim.Weekday != 6) || time < timeDutyClose));
     case ACTION_BUY_KEROSIN:
@@ -755,24 +844,45 @@ SLONG getRoomFromAction(SLONG PlayerNum, SLONG actionId) {
         [[fallthrough]];
     case ACTION_STARTDAY_LAPTOP:
         return 0; /* no need to walk anywhere */
+    case ACTION_ENERGY_DRINK:
+        return ROOM_ELECTRO;
+    case ACTION_VISIT_OFFICE_A:
+        return ROOM_BURO_A;
+    case ACTION_VISIT_OFFICE_B:
+        return ROOM_BURO_B;
+    case ACTION_VISIT_OFFICE_C:
+        return ROOM_BURO_C;
+    case ACTION_VISIT_OFFICE_D:
+        return ROOM_BURO_D;
+    case ACTION_DROP_GLUE:
+        return 0;
+    case ACTION_DROP_BOMB:
+        return 0;
     default:
-        DebugBreak();
+        AtDebugBreak();
     }
     return -1;
 }
 
-SLONG getWalkDistance(int playerNum, SLONG roomId) {
-    auto primaryTarget = Airport.GetRandomTypedRune(RUNE_2SHOP, roomId);
-    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)];
-
-    SLONG speedCount = std::abs(qPerson.Position.x - primaryTarget.x);
-    speedCount += std::abs(qPerson.Position.y - primaryTarget.y);
-
-    if (std::abs(qPerson.Position.y - primaryTarget.y) > 4600) {
-        speedCount -= 4600;
+SLONG getDistance(XY origin, XY target) {
+    SLONG distX = std::abs(origin.x - target.x);
+    SLONG distY = std::abs(origin.y - target.y);
+    if (distY > 4600) {
+        distY -= 4600;
     }
-    speedCount = std::max(1, speedCount);
+    SLONG speedCount = std::max(1, distX + distY);
     return speedCount;
+}
+
+SLONG getWalkDistancePlayerToRoom(SLONG playerNum, SLONG roomId) {
+    const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)];
+    auto target = Airport.GetRandomTypedRune(RUNE_2SHOP, roomId);
+    return getDistance(qPerson.Position, target);
+}
+
+SLONG getWalkDistanceToRoom(XY origin, SLONG roomB) {
+    auto target = Airport.GetRandomTypedRune(RUNE_2SHOP, roomB);
+    return getDistance(origin, target);
 }
 
 const char *getItemName(SLONG item) {
@@ -831,7 +941,7 @@ const char *getItemName(SLONG item) {
         return "Stinking perfume";
     default:
         AT_Error("BotHelper.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
         return "INVALID";
     }
     return "INVALID";
@@ -870,7 +980,12 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
     std::vector<__int64> values;
     auto balanceAvg = qPlayer.BilanzWoche.Hole();
     auto balance = qPlayer.BilanzGesamt;
-    auto moneyAvailable = qPlayer.IsSuperBot() ? qPlayer.mBot->getMoneyAvailable() : 0;
+    __int64 moneyAvailable = 0;
+    if (qPlayer.IsMertenBot()) {
+        moneyAvailable = qPlayer.mBot->getMoneyAvailable();
+    } else if (qPlayer.IsClaudeBot()) {
+        moneyAvailable = qPlayer.mClaudeBot->getMoneyAvailable();
+    }
     values.insert(values.end(), {Sim.Date, qPlayer.Money, qPlayer.Credit, moneyAvailable});
     values.insert(values.end(), {balance.GetOpSaldo(), balanceAvg.GetOpSaldo(), balanceAvg.GetOpGewinn(), balanceAvg.GetOpVerlust()});
     values.insert(values.end(), {balance.Tickets, balance.Auftraege, balance.FrachtAuftraege});
@@ -915,6 +1030,120 @@ void printStatisticsLineForAllPlayers(const CString &prefix, bool printHeader) {
         auto &qPlayer = Sim.Players.Players[c];
         printStatisticsLine(qPlayer, prefix, printHeader);
     }
+}
+
+CXPlane getHardcodedDesignerPlaneLarge() {
+    CXPlane designerPlane;
+    designerPlane.Name = "Bot Beluga";
+    designerPlane.Parts.ReSize(7);
+    designerPlane.Parts.FillAlbum();
+    designerPlane.Parts[0].Pos2d.x = -35;
+    designerPlane.Parts[0].Pos2d.y = -95;
+    designerPlane.Parts[0].Pos3d.x = 308;
+    designerPlane.Parts[0].Pos3d.y = 69;
+    designerPlane.Parts[0].Shortname = "M7";
+    designerPlane.Parts[0].ParentShortname = "R6";
+    designerPlane.Parts[0].ParentRelationId = 298;
+    designerPlane.Parts[1].Pos2d.x = -90;
+    designerPlane.Parts[1].Pos2d.y = -103;
+    designerPlane.Parts[1].Pos3d.x = 216;
+    designerPlane.Parts[1].Pos3d.y = 55;
+    designerPlane.Parts[1].Shortname = "L6";
+    designerPlane.Parts[1].ParentShortname = "B2";
+    designerPlane.Parts[1].ParentRelationId = 92;
+    designerPlane.Parts[2].Pos2d.x = 107;
+    designerPlane.Parts[2].Pos2d.y = -152;
+    designerPlane.Parts[2].Pos3d.x = 62;
+    designerPlane.Parts[2].Pos3d.y = 9;
+    designerPlane.Parts[2].Shortname = "H3";
+    designerPlane.Parts[2].ParentShortname = "B2";
+    designerPlane.Parts[2].ParentRelationId = 39;
+    designerPlane.Parts[3].Pos2d.x = -107;
+    designerPlane.Parts[3].Pos2d.y = -120;
+    designerPlane.Parts[3].Pos3d.x = 174;
+    designerPlane.Parts[3].Pos3d.y = 99;
+    designerPlane.Parts[3].Shortname = "B2";
+    designerPlane.Parts[3].ParentShortname.clear();
+    designerPlane.Parts[3].ParentRelationId = 1;
+    designerPlane.Parts[4].Pos2d.x = -171;
+    designerPlane.Parts[4].Pos2d.y = -83;
+    designerPlane.Parts[4].Pos3d.x = 424;
+    designerPlane.Parts[4].Pos3d.y = 204;
+    designerPlane.Parts[4].Shortname = "C2";
+    designerPlane.Parts[4].ParentShortname = "B2";
+    designerPlane.Parts[4].ParentRelationId = 11;
+    designerPlane.Parts[5].Pos2d.x = -50;
+    designerPlane.Parts[5].Pos2d.y = -30;
+    designerPlane.Parts[5].Pos3d.x = 126;
+    designerPlane.Parts[5].Pos3d.y = 243;
+    designerPlane.Parts[5].Shortname = "M7";
+    designerPlane.Parts[5].ParentShortname = "R6";
+    designerPlane.Parts[5].ParentRelationId = 297;
+    designerPlane.Parts[6].Pos2d.x = -90;
+    designerPlane.Parts[6].Pos2d.y = -78;
+    designerPlane.Parts[6].Pos3d.x = 92;
+    designerPlane.Parts[6].Pos3d.y = 169;
+    designerPlane.Parts[6].Shortname = "R6";
+    designerPlane.Parts[6].ParentShortname = "B2";
+    designerPlane.Parts[6].ParentRelationId = 91;
+    return designerPlane;
+}
+
+CXPlane getHardcodedDesignerPlaneEco() {
+    CXPlane designerPlane;
+    designerPlane.Name = "Bot Ecomaster";
+    designerPlane.Parts.ReSize(7);
+    designerPlane.Parts.FillAlbum();
+    designerPlane.Parts[0].Pos2d.x = -67;
+    designerPlane.Parts[0].Pos2d.y = -61;
+    designerPlane.Parts[0].Pos3d.x = 376;
+    designerPlane.Parts[0].Pos3d.y = 123;
+    designerPlane.Parts[0].Shortname = "M2";
+    designerPlane.Parts[0].ParentShortname = "R5";
+    designerPlane.Parts[0].ParentRelationId = 258;
+    designerPlane.Parts[1].Pos2d.x = -44;
+    designerPlane.Parts[1].Pos2d.y = -82;
+    designerPlane.Parts[1].Pos3d.x = 284;
+    designerPlane.Parts[1].Pos3d.y = 84;
+    designerPlane.Parts[1].Shortname = "L5";
+    designerPlane.Parts[1].ParentShortname = "B1";
+    designerPlane.Parts[1].ParentRelationId = 68;
+    designerPlane.Parts[2].Pos2d.x = 45;
+    designerPlane.Parts[2].Pos2d.y = -118;
+    designerPlane.Parts[2].Pos3d.x = 135;
+    designerPlane.Parts[2].Pos3d.y = 47;
+    designerPlane.Parts[2].Shortname = "H3";
+    designerPlane.Parts[2].ParentShortname = "B1";
+    designerPlane.Parts[2].ParentRelationId = 32;
+    designerPlane.Parts[3].Pos2d.x = -44;
+    designerPlane.Parts[3].Pos2d.y = -75;
+    designerPlane.Parts[3].Pos3d.x = 247;
+    designerPlane.Parts[3].Pos3d.y = 137;
+    designerPlane.Parts[3].Shortname = "B1";
+    designerPlane.Parts[3].ParentShortname.clear();
+    designerPlane.Parts[3].ParentRelationId = 0;
+    designerPlane.Parts[4].Pos2d.x = -120;
+    designerPlane.Parts[4].Pos2d.y = -75;
+    designerPlane.Parts[4].Pos3d.x = 351;
+    designerPlane.Parts[4].Pos3d.y = 167;
+    designerPlane.Parts[4].Shortname = "C3";
+    designerPlane.Parts[4].ParentShortname = "B1";
+    designerPlane.Parts[4].ParentRelationId = 7;
+    designerPlane.Parts[5].Pos2d.x = -67;
+    designerPlane.Parts[5].Pos2d.y = -28;
+    designerPlane.Parts[5].Pos3d.x = 248;
+    designerPlane.Parts[5].Pos3d.y = 245;
+    designerPlane.Parts[5].Shortname = "M2";
+    designerPlane.Parts[5].ParentShortname = "R5";
+    designerPlane.Parts[5].ParentRelationId = 257;
+    designerPlane.Parts[6].Pos2d.x = -44;
+    designerPlane.Parts[6].Pos2d.y = -40;
+    designerPlane.Parts[6].Pos3d.x = 181;
+    designerPlane.Parts[6].Pos3d.y = 195;
+    designerPlane.Parts[6].Shortname = "R5";
+    designerPlane.Parts[6].ParentShortname = "B1";
+    designerPlane.Parts[6].ParentRelationId = 67;
+    return designerPlane;
 }
 
 } // namespace Helper

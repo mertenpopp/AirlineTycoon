@@ -19,6 +19,12 @@ class CMakler : public CStdRaum {
   public:
     SBBM DoorOpaqueBm;
     SBBMS DoorTransBms;
+    /* Before the animations that play them - see Sabotage.h: members are destroyed in reverse
+       order, and ~CAnimation stops its sound. */
+    SBFX KlappeFx;
+    SBFX SpringFx;
+    SBFX NeonFx;
+
     CAnimation BubbleAnim;
     CAnimation FishAnim;
     CAnimation Lights1Anim;
@@ -32,9 +38,6 @@ class CMakler : public CStdRaum {
     SLONG KommVarLicht;
     SLONG KommVarWasser;
 
-    SBFX KlappeFx;
-    SBFX SpringFx;
-    SBFX NeonFx;
     SLONG SpringState;
 
     SBBM TipBm;         // Fenster für Flugzeug-Tips

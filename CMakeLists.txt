@@ -1,5 +1,14 @@
 ﻿cmake_minimum_required (VERSION 3.10)
 
+# Statically link the MSVC runtime (MSVCP140.dll, VCRUNTIME140.dll) into the executable.
+# Needs policy CMP0091 (CMake 3.15+) set before project(). The policy default also covers
+# the libs whose own cmake_minimum_required would otherwise reset it to OLD.
+if (POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 project (AirlineTycoon)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -45,7 +54,7 @@ if (WIN32)
     set(DEPENDENCIES_PATH ${DEPENDENCIES_PATH} "${CMAKE_BINARY_DIR}/dependencies")
     file(MAKE_DIRECTORY ${DEPENDENCIES_PATH})
     file(GLOB_RECURSE dll_files ${SDL2_PATH}/*.dll ${SDL2_MIXER_PATH}/*.dll ${SDL2_IMAGE_PATH}/*.dll ${SDL2_TTF_PATH}/*.dll ${PROJECT_SOURCE_DIR}/libs/*.dll ${PROJECT_SOURCE_DIR}/libs/*.exe)
-    list(FILTER dll_files INCLUDE REGEX "x64|sentry\\.dll|\\.exe$")
+    list(FILTER dll_files INCLUDE REGEX "x64|\\.exe$")
     foreach(file ${dll_files})
         file(COPY ${file} DESTINATION ${DEPENDENCIES_PATH})
     endforeach()

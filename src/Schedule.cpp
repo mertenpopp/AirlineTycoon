@@ -6,6 +6,7 @@
 #include "AtNet.h"
 #include "BotHelper.h"
 #include "global.h"
+#include "NetTrace.h"
 #include "Proto.h"
 
 #define AT_Error(...) Hdu.HercPrintfMsg(SDL_LOG_PRIORITY_ERROR, "Schedule", __VA_ARGS__)
@@ -323,11 +324,9 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             // NetGenericAsync (24004+ObjectId+Sim.Date*100, tmp);
 
             // Fliegt er heute oder morgen? Dann machen wir Abstriche!
-            if (HoursBefore > 48) {
-                HoursBefore = 48;
-            }
-            if (HoursBefore < 48) {
-                tmp = tmp * (HoursBefore + 48) / (48 + 48);
+            auto HoursBeforeTmp = std::min<UBYTE>(HoursBefore, 48);
+            if (HoursBeforeTmp < 48) {
+                tmp = tmp * (HoursBeforeTmp + 48) / (48 + 48);
             }
             // if (PlayerNum == 0) AT_Log ("tmp=%li (nach tag)", tmp);
 
@@ -499,11 +498,10 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
             tmp = min(tmp, qPlane.MaxPassagiereFC + qPlane.MaxPassagiereFC / 2);
 
             // Fliegt er heute oder morgen oder übermorgen oder überübermorgen? Dann machen wir Abstriche!
-            if (HoursBefore > 72) {
-                HoursBefore = 72;
-            }
-            if (HoursBefore < 72) {
-                tmp = tmp * (HoursBefore + 48) / (72 + 48);
+            // Changed to 48: It would be really difficult to schedule a flight 72 hours ahead, so we should not penalize the player for that.
+            auto HoursBeforeTmp = std::min<UBYTE>(HoursBefore, 48);
+            if (HoursBeforeTmp < 48) {
+                tmp = tmp * (HoursBeforeTmp + 48) / (48 + 48);
             }
 
             // Abschläge bei Wucherpreisen:
@@ -511,7 +509,7 @@ void CFlugplanEintrag::CalcPassengers(SLONG PlayerNum, CPlane &qPlane) {
 
             Cost *= 3;
             if (TicketpreisFC > Cost * 3 && Cost > 10 && TicketpreisFC > 0) {
-                tmp = tmp * (Cost - 10) / TicketpreisFC;
+                tmp = tmp * (Cost * 3 - 10) / TicketpreisFC;
             }
 
             // Schlechte Zeiten? Das gibt Abstriche!
@@ -639,6 +637,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     }
 
     CalcPassengers(PlayerNum, *Plane);
+    NetTraceEvent("BOOK p=%ld plane=%s type=%ld obj=%ld start=%ld/%ld pax=%ld/%ld", static_cast<long>(PlayerNum), Plane->Name.c_str(),
+                  static_cast<long>(ObjectType), static_cast<long>(ObjectId), static_cast<long>(Startdate), static_cast<long>(Startzeit),
+                  static_cast<long>(Passagiere), static_cast<long>(PassagiereFC));
 
     if (Plane->MaxPassagiere > 0) {
         if (Plane->Auslastung == 0) {
@@ -725,6 +726,11 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     // Gesamtmenge an benötigten Kerosin
     Kerosin = CalculateFlightKerosin(VonCity, NachCity, Plane->ptVerbrauch, Plane->ptGeschwindigkeit);
 
+    // Network: A tank state the owner took before this flight, then count the flight for every
+    // state the owner takes after it
+    qPlayer.NetApplyPendingKerosin();
+    qPlayer.NetFlightBooked();
+
     // Kerosin aus dem Vorrat:
     if (Sim.Players.Players[PlayerNum].TankOpen != 0) {
         KerosinAusTank = std::min(Sim.Players.Players[PlayerNum].TankInhalt, Kerosin);
@@ -749,7 +755,7 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     qPlayer.Bilanz.KerosinGespart += (AusgabenKerosinOhneTank - AusgabenKerosin);
 
     if (ObjectType == 1 || ObjectType == 2) {
-        AusgabenEssen += Passagiere * FoodCosts[Plane->Essen];
+        AusgabenEssen += (Passagiere + PassagiereFC) * FoodCosts[Plane->Essen];
     }
 
     Plane->Salden[0] -= AusgabenKerosin;
@@ -964,27 +970,39 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
         // Add+=(3*Plane->AnzBegleiter/PlaneTypes[Plane->TypeId].AnzBegleiter);
 
         // Preispolitik bewerten:
-        SLONG TooExpensive = 0;
         if (ObjectType == 1) {
-            SLONG Costs1 = Ticketpreis;
-            SLONG Costs2 = CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2 * 3;
+            SLONG BaseCost = CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2 * 3;
 
-            if (Costs1 < Costs2 / 2) {
-                Add += 10;
+            SLONG AddRegular = 0;
+            if (Ticketpreis < BaseCost / 2) {
+                AddRegular += 10;
             }
-            if (Costs1 > Costs2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost) {
+                AddRegular -= 10;
             }
-            if (Costs1 > Costs2 + Costs2 / 2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost + BaseCost / 2) {
+                AddRegular -= 10;
             }
-            if (Costs1 > Costs2 + Costs2) {
-                Add -= 10;
+            if (Ticketpreis > BaseCost + BaseCost) {
+                AddRegular -= 10;
             }
 
-            if (TooExpensive > 100) {
-                TooExpensive = 100;
+            SLONG AddFirstClass = 0;
+            BaseCost *= 3;
+            if (TicketpreisFC < BaseCost / 2) {
+                AddFirstClass += 10;
             }
+            if (TicketpreisFC > BaseCost) {
+                AddFirstClass -= 10;
+            }
+            if (TicketpreisFC > BaseCost + BaseCost / 2) {
+                AddFirstClass -= 10;
+            }
+            if (TicketpreisFC > BaseCost + BaseCost) {
+                AddFirstClass -= 10;
+            }
+
+            Add += (AddRegular * Plane->MaxPassagiere + AddFirstClass * 2 * Plane->MaxPassagiereFC) / max(1, Plane->MaxPassagiere + 2 * Plane->MaxPassagiereFC);
         }
 
         // NetGenericAsync (10000+ObjectId+Sim.Date*100, Add);
@@ -1006,11 +1024,12 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
         AT_Log("Schedule.cpp: %s: %s $ (+%s $)  (%ld miles, %u + %u passengers)", (LPCTSTR)qPlayer.AirlineX, (LPCTSTR)Insert1000erDots64(Saldo),
                (LPCTSTR)Insert1000erDots64(delta), miles, Passagiere, PassagiereFC);
     }
-    Helper::printFPE(*this);
 
     // Flugzeugabnutzung verbuchen:
     double faktorDistanz = (1 + 10.0 * Cities.CalcDistance(VonCity, NachCity) / 40040174);
-    double faktorBaujahr = (2015 - Plane->Baujahr);
+    double faktorBaujahr = (2015 + kYearsSinceRelease -
+                            Plane->Baujahr); /* original formular was (2015 - Plane->Baujahr). Also, all buyable planes were built no later than 2002. To ensure
+                                                code works the same when planes are built in kCurrentYear, we have to add kYearsSinceRelease.*/
     double faktorKerosin = 1.0;
     if (KerosinGesamtQuali > 1.0) {
         faktorKerosin += 10 * (KerosinGesamtQuali - 1.0) * (KerosinGesamtQuali - 1.0);
@@ -1025,6 +1044,9 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     if (Plane->Zustand > 200) {
         Plane->Zustand = 0;
     }
+
+    // Network: A tank state the owner took right after this flight
+    qPlayer.NetApplyPendingKerosin();
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1048,10 +1070,11 @@ SLONG CFlugplanEintrag::GetEinnahmen(SLONG PlayerNum, const CPlane &qPlane) cons
         break;
 
         // Leerflug:
-    case 3:
-        return (qPlane.ptPassagiere * Cities.CalcDistance(VonCity, NachCity) / 1000 / 40);
+    case 3: {
+        SLONG distance = Cities.CalcDistance(VonCity, NachCity) / 1000;
+        return (qPlane.ptPassagiere * distance / 40);
         break;
-
+    }
         // Frachtauftrag:
     case 4:
         return (Sim.Players.Players[PlayerNum].Frachten[ObjectId].Praemie);

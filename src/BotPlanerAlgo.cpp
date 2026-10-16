@@ -7,10 +7,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <climits>
 #include <cmath>
-#include <cstdint>
 #include <vector>
 
 #ifdef PRINT_DETAIL
@@ -28,9 +26,13 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 int kNumToAdd = 0;
 int kNumBestToAdd = 2;
 int kNumToRemove = 1;
-int kTempStart = 1000;
-int kTempStep = 100;
+int kSARounds = 11;             /* rounds of remove + insert; the last one is greedy (temperature 0) */
+double kSATempStart = 1000.0;   /* simulated annealing: temperature in $ of the first round */
+double kSATempEnd = 100.0;      /* temperature in $ of the second-to-last round (geometric cooling) */
 int kJobSelectRandomization = 1;
+int kAllowDropForInsert = 1; /* a new passenger job may replace a scheduled passenger job if that gains more */
+int kRelocatePercent = 10;    /* per round and plane: chance in % to move one of its passenger jobs to another plane */
+int kSwapPercent = 10;        /* per round and plane: chance in % to swap one of its passenger jobs with another plane's */
 bool bDropTakenJobs = false;
 
 inline int pathLength(const Graph &g, int start) {
@@ -43,12 +45,15 @@ inline int pathLength(const Graph &g, int start) {
     return num;
 }
 
-inline bool SA_accept(int diff, double temperature, int rand) {
-    if (diff > 0) {
+/* diff: gain of the new solution minus gain of the current one, in $. rand01: uniform in [0, 1). */
+inline bool SA_accept(int diff, double temperature, double rand01) {
+    if (diff >= 0) {
         return true;
     }
-    auto probability = static_cast<int>(std::round(100 * exp(diff / temperature)));
-    return rand <= probability;
+    if (temperature <= 0.0) {
+        return false;
+    }
+    return rand01 < std::exp(diff / temperature);
 }
 
 void BotPlaner::printForPlane(const char *txt, int planeIdx, bool printOnErrorOnly) {
@@ -312,6 +317,7 @@ int BotPlaner::applySolutionToGraph() {
 
             if (qFPE.ObjectType == 2 || qFPE.ObjectType == 4) {
                 int nextNode = -1;
+                int jobIdx = -1;
                 if (qFPE.ObjectType == 2) {
                     auto it = mExistingJobsById.find(qFPE.ObjectId);
                     if (it == mExistingJobsById.end()) {
@@ -321,7 +327,7 @@ int BotPlaner::applySolutionToGraph() {
                         numJobsSkipped++;
                         continue;
                     }
-                    int jobIdx = it->second;
+                    jobIdx = it->second;
                     nextNode = g.getNode(jobIdx);
                 } else {
                     auto it = mExistingFreightJobsById.find(qFPE.ObjectId);
@@ -332,25 +338,25 @@ int BotPlaner::applySolutionToGraph() {
                         numJobsSkipped++;
                         continue;
                     }
-                    int jobIdx = it->second;
-                    int count = 0;
+                    jobIdx = it->second;
                     nextNode = g.getNode(jobIdx);
-                    while (nextNode < g.nNodes && g.nodeState[nextNode].cameFrom != -1 && g.nodeInfo[nextNode].jobIdx == jobIdx) {
+                    while (nextNode != -1 && nextNode < g.nNodes && g.nodeState[nextNode].cameFrom != -1 && g.nodeInfo[nextNode].jobIdx == jobIdx) {
                         nextNode++;
-                        count++;
-                    }
-                    if ((nextNode >= g.nNodes) || g.nodeInfo[nextNode].jobIdx != jobIdx) {
-                        AT_Error("BotPlaner::applySolutionToGraph(): Not enough node instances for freight job (have %d):", count);
-                        mJobList[jobIdx].printInfo();
-                        skippedNode = true;
-                        numJobsSkipped++;
-                        continue;
                     }
                 }
 
-                /* check duration of any previous automatic flight */
+                if (nextNode == -1 || nextNode >= g.nNodes || g.nodeInfo[nextNode].jobIdx != jobIdx) {
+                    AT_Error("BotPlaner::applySolutionToGraph(): Not enough node instances for job.");
+                    mJobList[jobIdx].printInfo();
+                    skippedNode = true;
+                    numJobsSkipped++;
+                    continue;
+                }
+
+                /* check duration of any previous automatic flight - unless a job was skipped before it: the
+                   plan's automatic flight then starts where the skipped job ended, not where the graph is. */
                 auto actualDuration = g.adjMatrix[currentNode][nextNode].duration;
-                if (!(autoFlightDuration == actualDuration || (skippedNode && autoFlightDuration > actualDuration))) {
+                if (!skippedNode && autoFlightDuration != actualDuration) {
                     AT_Error("BotPlaner::applySolutionToGraph(): Duration of automatic flight does not match before FPE:");
                     Helper::printFPE(qFPE);
                     AT_Log("Is %d in plan, but %d in graph", autoFlightDuration, actualDuration);
@@ -361,8 +367,8 @@ int BotPlaner::applySolutionToGraph() {
 
                 autoFlightDuration = 0;
                 skippedNode = false;
-            } else if (qFPE.ObjectType == 3) {
-                assert(autoFlightDuration == 0 || skippedNode);
+            } else if (qFPE.ObjectType == 3 || qFPE.ObjectType == 1) {
+                /* a route leg can stand in for an automatic flight (Bot::replaceAutomaticFlights()). */
                 autoFlightDuration += 24 * (qFPE.Landedate - qFPE.Startdate) + (qFPE.Landezeit - qFPE.Startzeit);
                 autoFlightDuration += kDurationExtra;
             }
@@ -773,15 +779,21 @@ bool BotPlaner::runAddBestNeighbor(int planeIdx, int choice) {
     return false;
 }
 
-bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
-    int bestPlaneScore = 0;
+bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert, int excludePlaneIdx) {
+    int bestPlaneScore = INT_MIN;
     int bestPlaneIdx = -1;
     int bestWhereToInsert = 0;
     int bestNode = 0;
+    int bestNodeToDrop = -1;
+    std::vector<int> pathBackup;
+    const bool mayDrop = (kAllowDropForInsert != 0) && !mJobList[jobIdxToInsert].isFreight();
 
     int randOffset = getRandInt(0, mPlaneStates.size() - 1);
     for (int i = 0; i < mPlaneStates.size(); i++) {
         int planeIdx = (randOffset + i) % mPlaneStates.size();
+        if (planeIdx == excludePlaneIdx) {
+            continue;
+        }
         auto &planeState = mPlaneStates[planeIdx];
         auto &g = mGraphs[planeState.planeTypeId];
 
@@ -795,7 +807,7 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
         while (nodeToInsert < g.nNodes && g.nodeState[nodeToInsert].cameFrom != -1 && g.nodeInfo[nodeToInsert].jobIdx == jobIdxToInsert) {
             nodeToInsert++;
         }
-        if (g.nodeInfo[nodeToInsert].jobIdx != jobIdxToInsert) {
+        if ((nodeToInsert >= g.nNodes) || (g.nodeInfo[nodeToInsert].jobIdx != jobIdxToInsert)) {
             AT_Error("BotPlaner::runAddNodeToBestPlaneInner(): Not enough node instances for freight job:");
             mJobList[jobIdxToInsert].printInfo();
             continue;
@@ -856,6 +868,57 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
                 bestPlaneIdx = planeIdx;
                 bestWhereToInsert = currentNode;
                 bestNode = nodeToInsert;
+                bestNodeToDrop = -1;
+            }
+        }
+
+        /* Second pass: replace a scheduled passenger job by the new one. A job we already took keeps its fine in its
+         * node score, so it is only dropped if the new job is worth more than its premium plus the fine. Only for
+         * passenger jobs: a freight job that ends up incomplete is removed again, the dropped job would stay lost. */
+        if (!mayDrop) {
+            continue;
+        }
+        savePath(planeIdx, pathBackup);
+        for (int nodeToDrop : pathBackup) {
+            if (mJobList[g.nodeInfo[nodeToDrop].jobIdx].isFreight()) {
+                continue;
+            }
+            int prevNode = g.nodeState[nodeToDrop].cameFrom;
+            int nextNode = g.nodeState[nodeToDrop].nextNode;
+            if (g.adjMatrix[prevNode][nodeToInsert].duration < 0 || (nextNode != -1 && g.adjMatrix[nodeToInsert][nextNode].duration < 0)) {
+                continue; /* no edge */
+            }
+
+            /* cheap estimate first: gain of the swap from node scores and edge costs */
+            int score = g.nodeInfo[nodeToInsert].score - g.nodeInfo[nodeToDrop].score;
+            score += g.adjMatrix[prevNode][nodeToDrop].cost - g.adjMatrix[prevNode][nodeToInsert].cost;
+            if (nextNode != -1) {
+                score += g.adjMatrix[nodeToDrop][nextNode].cost - g.adjMatrix[nodeToInsert][nextNode].cost;
+            }
+            if (score <= 0 || score <= bestPlaneScore) {
+                continue;
+            }
+
+            /* does it fit in time? */
+            removeNode(g, planeIdx, nodeToDrop);
+            bool fits = false;
+            if (makeRoom(g, prevNode, g.nodeState[prevNode].nextNode) > 0) {
+                auto currentTime = g.nodeState[prevNode].startTime;
+                currentTime += g.nodeInfo[prevNode].duration;
+                if (currentTime < planeState.availTime) {
+                    currentTime = planeState.availTime;
+                }
+                fits = (currentTime.getDate() <= mScheduleLastDay) && canInsert(g, prevNode, nodeToInsert);
+            }
+            killPath(planeIdx);
+            restorePath(planeIdx, pathBackup);
+
+            if (fits) {
+                bestPlaneScore = score;
+                bestPlaneIdx = planeIdx;
+                bestWhereToInsert = prevNode;
+                bestNode = nodeToInsert;
+                bestNodeToDrop = nodeToDrop;
             }
         }
     }
@@ -863,6 +926,10 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     if (bestPlaneIdx != -1) {
         auto &planeState = mPlaneStates[bestPlaneIdx];
         auto &g = mGraphs[planeState.planeTypeId];
+
+        if (bestNodeToDrop != -1) {
+            removeNode(g, bestPlaneIdx, bestNodeToDrop);
+        }
 
         int gap = makeRoom(g, bestWhereToInsert, g.nodeState[bestWhereToInsert].nextNode);
         (void)gap;
@@ -876,10 +943,10 @@ bool BotPlaner::runAddNodeToBestPlaneInner(int jobIdxToInsert) {
     return false;
 }
 
-bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert) {
+bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert, int excludePlaneIdx) {
     const auto &job = mJobList[jobIdxToInsert];
     while (!job.isFullyScheduled()) {
-        if (!runAddNodeToBestPlaneInner(jobIdxToInsert)) {
+        if (!runAddNodeToBestPlaneInner(jobIdxToInsert, excludePlaneIdx)) {
             break;
         }
     }
@@ -891,10 +958,67 @@ bool BotPlaner::runAddNodeToBestPlane(int jobIdxToInsert) {
     return job.isScheduled();
 }
 
-std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
-    timeBudget = 1000 * std::max(static_cast<int64_t>(1), timeBudget);
-    auto t_begin = std::chrono::steady_clock::now();
+int BotPlaner::pickRandomPassengerNode(int planeIdx) {
+    const auto &g = mGraphs[mPlaneStates[planeIdx].planeTypeId];
+    std::vector<int> candidates;
+    for (int n = g.nodeState[planeIdx].nextNode; n != -1; n = g.nodeState[n].nextNode) {
+        if (!mJobList[g.nodeInfo[n].jobIdx].isFreight()) {
+            candidates.push_back(n);
+        }
+    }
+    if (candidates.empty()) {
+        return -1;
+    }
+    return candidates[getRandInt(0, static_cast<int>(candidates.size()) - 1)];
+}
 
+/* Move one random passenger job of this plane to the best position on another plane (back to the best position
+ * anywhere if no other plane can take it). The move may make the plan worse: simulated annealing decides. */
+bool BotPlaner::runRelocate(int planeIdx) {
+    int node = pickRandomPassengerNode(planeIdx);
+    if (node == -1) {
+        return false;
+    }
+    auto &g = mGraphs[mPlaneStates[planeIdx].planeTypeId];
+    int jobIdx = g.nodeInfo[node].jobIdx;
+    removeNode(g, planeIdx, node);
+    if (!runAddNodeToBestPlane(jobIdx, planeIdx)) {
+        runAddNodeToBestPlane(jobIdx);
+    }
+    return true;
+}
+
+/* Swap one random passenger job of this plane with one of a random other plane (each goes to its best position
+ * on the other plane, or back to the best position anywhere). */
+bool BotPlaner::runSwap(int planeIdxA) {
+    if (mPlaneStates.size() < 2) {
+        return false;
+    }
+    int planeIdxB = getRandInt(0, static_cast<int>(mPlaneStates.size()) - 2);
+    if (planeIdxB >= planeIdxA) {
+        planeIdxB++;
+    }
+    int nodeA = pickRandomPassengerNode(planeIdxA);
+    int nodeB = pickRandomPassengerNode(planeIdxB);
+    if (nodeA == -1 || nodeB == -1) {
+        return false;
+    }
+    auto &gA = mGraphs[mPlaneStates[planeIdxA].planeTypeId];
+    auto &gB = mGraphs[mPlaneStates[planeIdxB].planeTypeId];
+    int jobIdxA = gA.nodeInfo[nodeA].jobIdx;
+    int jobIdxB = gB.nodeInfo[nodeB].jobIdx;
+    removeNode(gA, planeIdxA, nodeA);
+    removeNode(gB, planeIdxB, nodeB);
+    if (!runAddNodeToBestPlane(jobIdxA, planeIdxA)) {
+        runAddNodeToBestPlane(jobIdxA);
+    }
+    if (!runAddNodeToBestPlane(jobIdxB, planeIdxB)) {
+        runAddNodeToBestPlane(jobIdxB);
+    }
+    return true;
+}
+
+std::pair<bool, int> BotPlaner::algo() {
     for (auto &g : mGraphs) {
         for (int n = 0; n < g.nPlanes; n++) {
             g.nodeState[n].startTime = mPlaneStates[n].availTime;
@@ -932,14 +1056,35 @@ std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
     }
 
     /* main algo */
-    int temperature = kTempStart;
-    while (temperature > 0) {
+    const double cooling = (kSARounds > 2) ? std::pow(kSATempEnd / kSATempStart, 1.0 / (kSARounds - 2)) : 1.0;
+    double temperature = kSATempStart;
+    for (int round = 0; round < kSARounds; round++) {
+        if (round == kSARounds - 1) {
+            temperature = 0.0; /* final greedy round */
+        }
+
         for (int i = 0; i < mJobList.size(); i++) {
             assert(mJobList[i].scheduledOK() || !mJobList[i].isScheduled());
         }
 
         for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
             runRemoveWorst(planeIdx, kNumToRemove);
+        }
+
+        /* moves between planes (random, may make the plan worse) */
+        if (kRelocatePercent > 0) {
+            for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
+                if (getRandInt(1, 100) <= kRelocatePercent) {
+                    runRelocate(planeIdx);
+                }
+            }
+        }
+        if (kSwapPercent > 0) {
+            for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
+                if (getRandInt(1, 100) <= kSwapPercent) {
+                    runSwap(planeIdx);
+                }
+            }
         }
 
         for (int i = 0; i < kNumToAdd; i++) {
@@ -977,7 +1122,7 @@ std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
 
         int iterGain = allPlaneGain();
         int diff = iterGain - currentBestGain;
-        if (!SA_accept(diff, temperature, getRandInt(1, 100))) {
+        if (!SA_accept(diff, temperature, getRandReal())) {
             /* roll back */
             for (int planeIdx = 0; planeIdx < mPlaneStates.size(); planeIdx++) {
                 killPath(planeIdx);
@@ -1004,21 +1149,10 @@ std::pair<bool, int> BotPlaner::algo(int64_t timeBudget) {
             }
         }
 
-        /* adjust temperature based on amount of time left */
-        if (temperature == 1) {
-            break;
-        }
-        auto t_end = std::chrono::steady_clock::now();
-        auto delta = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_begin).count();
-        int newTemperature = (kTempStep == 0) ? kTempStart - (kTempStart * delta / timeBudget) : temperature - kTempStep;
-        temperature = std::min(temperature - 1, newTemperature);
-        if (temperature < 1) {
-            temperature = 1; /* ensure final greedy run */
-        }
-
 #ifdef PRINT_OVERALL
-        AT_Log("%f ms left, temp now %d. Current gain = %d (overall = %d)", (timeBudget - delta) / 1000.0, temperature, currentBestGain, overallBestGain);
+        AT_Log("Round %d, temperature %.0f: current gain = %d (overall = %d)", round, temperature, currentBestGain, overallBestGain);
 #endif
+        temperature *= cooling;
     }
 
     /* restore best path */

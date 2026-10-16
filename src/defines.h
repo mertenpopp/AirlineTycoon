@@ -140,6 +140,10 @@ inline bool operator!=(const CPoint &lhs, const CPoint &rhs) { return !(lhs == r
 #define MALE 1
 
 constexpr char VersionString[] = FILE_VERSION_STRING;
+/* What peers compare before they play together. The preview builds of a release carry the same
+   VersionString as the release, but not its network protocol, so the suffix is raised whenever
+   the protocol changes within a version. */
+constexpr char NetVersionString[] = FILE_VERSION_STRING " / net 3";
 
 // Generelles
 #define CUSTOMERS_PER_PERSON 5   // Eine Person (Bildschirm) repräsentiert 10 Kunden
@@ -591,6 +595,13 @@ constexpr char VersionString[] = FILE_VERSION_STRING;
 #define ACTION_VISITADS 612
 #define ACTION_OVERTAKE_AIRLINE 613
 #define ACTION_VISITSABOTEUR 614
+#define ACTION_ENERGY_DRINK 615
+#define ACTION_VISIT_OFFICE_A 616
+#define ACTION_VISIT_OFFICE_B 617
+#define ACTION_VISIT_OFFICE_C 618
+#define ACTION_VISIT_OFFICE_D 619
+#define ACTION_DROP_GLUE 620
+#define ACTION_DROP_BOMB 621
 
 START_NAME_MAP(ACTION)
 DEFINE_NAME_ENTRY(ACTION_NONE, )
@@ -640,6 +651,13 @@ DEFINE_NAME_ENTRY(ACTION_STARTDAY_LAPTOP, )
 DEFINE_NAME_ENTRY(ACTION_VISITADS, )
 DEFINE_NAME_ENTRY(ACTION_OVERTAKE_AIRLINE, )
 DEFINE_NAME_ENTRY(ACTION_VISITSABOTEUR, )
+DEFINE_NAME_ENTRY(ACTION_ENERGY_DRINK, )
+DEFINE_NAME_ENTRY(ACTION_VISIT_OFFICE_A, )
+DEFINE_NAME_ENTRY(ACTION_VISIT_OFFICE_B, )
+DEFINE_NAME_ENTRY(ACTION_VISIT_OFFICE_C, )
+DEFINE_NAME_ENTRY(ACTION_VISIT_OFFICE_D, )
+DEFINE_NAME_ENTRY(ACTION_DROP_GLUE, )
+DEFINE_NAME_ENTRY(ACTION_DROP_BOMB, )
 END_NAME_MAP
 
 // Die Arten von Beratern:
@@ -835,18 +853,10 @@ END_NAME_MAP
 #define AMBIENT_JET_FIELD 2   // Man ist draußen auf dem Airfield
 
 // Die Flags für die Raktenbauteile:
-#define ROCKET_BASE 1     // Die Standbasis
-#define ROCKET_TOWER 2    // Das Haltegerüst
-#define ROCKET_ARM 4      // Der Arm am Haltegerüst
-#define ROCKET_PART_ONE 7 // Der erste Teil
-
+#define ROCKET_BASE 1         // Die Standbasis
+#define ROCKET_PART_ONE 7     // Der erste Teil
 #define ROCKET_AIRFRAME 8     // Der Rahmen
 #define ROCKET_WINGS 16       // Flügel
-#define ROCKET_CAPSULE 32     // Die Passagierkapsel
-#define ROCKET_PROP 64        // Seitliche Antriebe
-#define ROCKET_MAINPROP 128   // Hauptantrieb
-#define ROCKET_HECK 256       // Das Heck
-#define ROCKET_COCKPIT 512    // Die Steuerkanzel
 #define ROCKET_PART_TWO_A 127 // Der zweite Teil halb (für die Zeitungsmeldung)
 #define ROCKET_ALL 1023       // Die gesammte Rakete
 
@@ -1132,6 +1142,18 @@ DEFINE_NAME_ENTRY(ROBOT_ALWAYS_BUY_GATES, )
 DEFINE_NAME_ENTRY(ROBOT_UHRIG_FLIGHTS_AUTO, )
 DEFINE_NAME_ENTRY(ROBOT_TRY_TO_RESPECT_RULES, )
 END_NAME_MAP
+
+constexpr int BotDifficultyClassic = 0;
+constexpr int BotDifficultyLaidBack = 1; // first MertenBot
+constexpr int BotDifficultyChallenger = 2;
+constexpr int BotDifficultySaboteur = 3;
+constexpr int BotDifficultyFreightBaron = 4;
+constexpr int BotDifficultyNemesis = 5; // last MertenBot
+constexpr int BotDifficultyTycoon = 6;  // first ClaudeBot
+constexpr int BotDifficultyHurricane = 7;
+constexpr int BotDifficultyTBD = 8; // last ClaudeBot
+constexpr int BotDifficultyMaxFreegame = 6;
+constexpr int BotDifficultyMax = 6;
 
 // Die Netzwerk-Medien
 #define NET_MEDIUM_UNKNOWN 0

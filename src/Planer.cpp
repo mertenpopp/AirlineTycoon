@@ -776,6 +776,15 @@ void CPlaner::DoPollingStuff() {
                         }
                     }
 
+                    /* Grabbed by the landing end, the start can fall before today. Clamp the day before
+                       the hour, or the start lands earlier today than the next two hours (week view) or
+                       stays on yesterday (day view): the flight then counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
+                       around it, and it is stuck. */
+                    if (Date < Sim.Date) {
+                        Date = Sim.Date;
+                        Time = 0;
+                    }
+
                     if (Sim.Date == Date) {
                         Limit(SLONG(Sim.GetHour() + 2), Time, SLONG(24));
                     } else {
@@ -883,6 +892,15 @@ void CPlaner::DoPollingStuff() {
                             Time += 24;
                             Date--;
                         }
+                    }
+
+                    /* Grabbed by the landing end, the start can fall before today. Clamp the day before
+                       the hour, or the start lands earlier today than the next two hours (week view) or
+                       stays on yesterday (day view): the flight then counts as departed, CheckFlugplaene() no longer fixes its landing or the flights
+                       around it, and it is stuck. */
+                    if (Date < Sim.Date) {
+                        Date = Sim.Date;
+                        Time = 0;
                     }
 
                     if (Sim.Date == Date) {
@@ -1187,7 +1205,7 @@ void CPlaner::DoPollingStuff() {
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,
@@ -1315,7 +1333,7 @@ void CPlaner::DoPollingStuff() {
                             // Kosten+=PlaneTypes[qPlayer.Planes[ActivePlane].TypeId].Passagiere*FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                             Kosten += qPlayer.Planes[ActivePlane].ptPassagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         } else {
-                            Kosten += qPlan.Flug[d].Passagiere * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
+                            Kosten += (qPlan.Flug[d].Passagiere + qPlan.Flug[d].PassagiereFC) * FoodCosts[qPlayer.Planes[ActivePlane].Essen];
                         }
 
                         pBlock->SetTip(TIP_NONE, TIP_ROUTE, qPlan.Flug[d].ObjectId,
@@ -1722,8 +1740,9 @@ void CPlaner::HandleLButtonDown() {
                 qPlayer.Planes[pBlock->SelectedId].ExtendFlugplaene(PlayerNum);
                 qPlayer.UpdateAuftragsUsage();
                 qPlayer.UpdateFrachtauftragsUsage();
-                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Planes[pBlock->SelectedId].CheckFlugplaene(PlayerNum, FALSE);
+                /* After the check, which still changes the plan: the other peers take it as it is. */
+                qPlayer.NetUpdateFlightplan(pBlock->SelectedId);
                 qPlayer.Blocks[CurrentBlock].RefreshData(PlayerNum);
                 qPlayer.Blocks[CurrentBlock].Refresh(PlayerNum, IsLaptop);
             } else if ((MouseClickArea == ROOM_GLOBE || MouseClickArea == ROOM_LAPTOP) && MouseClickId == 151) // Flugplan löschen
@@ -1837,7 +1856,7 @@ void CPlaner::HandleLButtonDown() {
                         qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                         if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                            DebugBreak();
+                            AtDebugBreak();
                         }
 
                         if (qPlan.Flug[c].ObjectType == 1) {
@@ -2021,7 +2040,7 @@ void CPlaner::HandleLButtonDown() {
                             qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                             if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             if (qPlan.Flug[c].ObjectType == 1) {
@@ -2267,28 +2286,17 @@ void CPlaner::HandleLButtonDown() {
             if (ClientPosB.IfIsWithin(2, 40 - 13 - 2, 169, 118)) {
                 PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
                 CRentRoute &qRRoute = qPlayer.RentRouten.RentRouten[Routen(pBlock->SelectedIdB)];
-                SLONG Cost =
-                    CalculateFlightCostRechnerisch(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, 800, 800, -1) * 3 / 180 * 2;
-
                 SLONG ticketPreis = qRRoute.Ticketpreis;
                 SLONG ticketPreisFC = qRRoute.TicketpreisFC;
                 switch ((ClientPosB.y - 40) / 13) {
                 case 2:
-                    ticketPreis = Cost / 2 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
                 case 3:
-                    ticketPreis = Cost / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
                 case 4:
-                    ticketPreis = Cost * 2 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
-                case 5:
-                    ticketPreis = Cost * 4 / 10 * 10;
-                    ticketPreisFC = ticketPreis * 2;
-                    break;
+                case 5: {
+                    SLONG preset = (ClientPosB.y - 40) / 13 - 2;
+                    ticketPreis = CalculateRoutePricePreset(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, preset);
+                    ticketPreisFC = CalculateRoutePricePresetFC(Routen[pBlock->SelectedIdB].VonCity, Routen[pBlock->SelectedIdB].NachCity, preset);
+                } break;
                 default:
                     break;
                 }
@@ -2343,7 +2351,7 @@ void CPlaner::HandleLButtonDown() {
                     SLONG ticketPreisFC =
                         Sim.Players.Players[Index + static_cast<SLONG>(PlayerNum <= Index)].RentRouten.RentRouten[Routen(pBlock->SelectedIdB)].TicketpreisFC;
 
-                    GameMechanic::setRouteTicketPrice(qPlayer, pBlock->SelectedIdB, ticketPreis, ticketPreisFC);
+                    GameMechanic::setRouteTicketPriceBoth(qPlayer, pBlock->SelectedIdB, ticketPreis, ticketPreisFC);
 
                     pBlock->RefreshData(PlayerNum);
                     pBlock->Refresh(PlayerNum, IsLaptop);
@@ -2366,25 +2374,15 @@ void CPlaner::HandleLButtonDown() {
 
 #ifdef _DEBUG
                 if (RouteB == -1) {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
 #endif
 
-                for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                    if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                        for (SLONG d = qPlayer.Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                            if (qPlayer.Planes[c].Flugplan.Flug[d].ObjectType == 1) {
-                                if (Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId) == Routen(pBlock->SelectedIdB) ||
-                                    SLONG(Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId)) == RouteB) {
-                                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
-                                                                bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2315), (LPCTSTR)qPlayer.Planes[c].Name));
-                                    return;
-                                }
-                            }
-                        }
-                    }
+                SLONG planeID = GameMechanic::getAnyPlaneOnRoute(qPlayer, Routen(pBlock->SelectedIdB));
+                if (planeID != -1) {
+                    qPlayer.Messages.AddMessage(BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2315), (LPCTSTR)qPlayer.Planes[planeID].Name));
+                    return;
                 }
-
                 MenuStart(MENU_REQUEST, MENU_REQUEST_KILLROUTE, Routen(pBlock->SelectedIdB), RouteB);
             }
         }
@@ -2589,7 +2587,7 @@ void CPlaner::HandleLButtonUp() {
                             qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                             if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                DebugBreak();
+                                AtDebugBreak();
                             }
 
                             if (qPlan.Flug[c].ObjectType == 1) {
@@ -2952,7 +2950,7 @@ void CPlaner::HandleLButtonDouble() {
                                     qPlan.Flug[c].ObjectId = CurrentPostItId;
 
                                     if (qPlan.Flug[c].ObjectType == 2 && qPlan.Flug[c].ObjectId < 0x100000) {
-                                        DebugBreak();
+                                        AtDebugBreak();
                                     }
 
                                     if (qPlan.Flug[c].ObjectType == 1) {

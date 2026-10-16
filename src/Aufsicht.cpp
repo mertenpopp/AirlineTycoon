@@ -2,12 +2,17 @@
 // Aufsicht.cpp : Das Büro der Flugaufsicht
 //============================================================================================
 #include "AtNet.h"
+#include "AutoLobby.h"
+#include "NetTrace.h"
 #include "Aufsicht.h"
 #include "ColorFx.h"
 #include "GameMechanic.h"
 #include "glauf.h"
 #include "global.h"
 #include "Proto.h"
+
+#include <cstdio>
+#include <cstdlib>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -55,6 +60,18 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
     }
     if (bOkayToAct == 0) {
         SetNetworkBitmap(3, 2); // Waitung for Players
+    }
+
+    /* The boss judges every player's bankruptcy in each peer's own briefing, from that peer's
+       copy of the player. For anyone but the local human (and, on the host, the bots) that copy
+       used to be refreshed only when the owner LEFT the briefing - after the others had already
+       judged - so peers could disagree about who is bankrupt (issue #21). Send the authoritative
+       money and image now, before READYFORBRIEFING: messages from one sender arrive in order,
+       and no boss can start before every human's READYFORBRIEFING is in (bOkayToAct), so every
+       peer judges from the owners' current figures and reaches the same verdict. */
+    if ((Sim.bNetwork != 0) && bIsMorning) {
+        PLAYER::NetSynchronizeMoney();
+        PLAYER::NetSynchronizeImage();
     }
 
     Sim.Players.Players[Sim.localPlayer].bReadyForBriefing = 1;
@@ -427,7 +444,12 @@ CAufsicht::~CAufsicht() {
 
                 qPlayer.NumFlights = 0;
                 qPlayer.WorkCountdown = 1;
-                qPlayer.WaitWorkTill = 0;
+                /* Nothing is scheduled yet. A 0 meant "act now" to PLAYER::RobotPump() in a
+                   network game, which carried out the computer player's first action of the day
+                   on the spot, wherever it stood - a bot emptied the job market at 09:00 from
+                   the middle of the airport while the humans were still in the briefing. Now it
+                   walks to the room of its action first, as it does in a single player game. */
+                qPlayer.WaitWorkTill = -1;
 
                 if (qPlayer.Owner == 1) {
                     qPlayer.WalkToRoom(UBYTE(ROOM_BURO_A + c * 10));
@@ -544,6 +566,9 @@ void CAufsicht::OnPaint() {
 
         if (bOkayToAct != 0) {
             SetNetworkBitmap(0);
+            /* The moment the boss may start judging: every peer must hold identical figures
+               for every player here, humans included. */
+            NetTraceFingerprint("briefing");
         }
     }
 
@@ -696,8 +721,48 @@ void CAufsicht::OnPaint() {
 
     CStdRaum::PumpToolTips();
 
-    if (Sim.Date == gAutoQuitOnDay) {
-        exit(0);
+    bool giveUp = false;
+    if (gQuickTestRun > 0) {
+        bool anyBotSlot = false;
+        bool anyBotAlive = false;
+        for (const auto &qPlayer : Sim.Players.Players) {
+            if (qPlayer.Owner != 1) {
+                continue;
+            }
+            anyBotSlot = true;
+            if (qPlayer.IsOut == 0) {
+                anyBotAlive = true;
+                break;
+            }
+        }
+        giveUp = anyBotSlot && !anyBotAlive;
+    }
+    if (giveUp || (gAutoQuitOnDay >= 0 && Sim.Date >= gAutoQuitOnDay)) {
+        if (AutoLobbyActive()) {
+            /* Only once the briefing barrier has passed, so that the morning money sync of the
+               last day - and the "briefing" fingerprint that checks it - have happened on
+               every peer. Then linger two more seconds: RakNet sends from its own thread, and
+               quitting on the very next frame lost this peer's own SYNC_MONEY and
+               READYFORBRIEFING, leaving the other peer waiting for a connection timeout. */
+            /* The main loop carries out the quit: the auto-skip makes the player leave this
+               room right after the barrier, so it may never be painted again. */
+            if (bOkayToAct != 0) {
+                AutoLobbyScheduleQuit(2000);
+            }
+        } else {
+            /* std::_Exit rather than exit, as in AutoLobbyPollQuit(): exit() runs the static
+               destructors from inside this paint, and ~SBPRIMARYBM then destroys the renderer
+               while the GL driver is being torn down - a segfault and a core dump at the end of
+               every other harness game. The statistics are all written by now. */
+            if (giveUp) {
+                printf("Triggering cutoff: All CPU players are dead.\n");
+            } else {
+                printf("Triggering cutoff: Timelimit reached.\n");
+            }
+            printPostGameInfo();
+            fflush(nullptr);
+            std::_Exit(0);
+        }
     }
     if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
         OnRButtonDown(0, CPoint());
@@ -836,6 +901,13 @@ void CAufsicht::OnRButtonDown(UINT nFlags, CPoint point) {
 //--------------------------------------------------------------------------------------------
 void CAufsicht::TryLeaveAufsicht() {
     if ((Sim.bNetwork != 0) && bIsMorning) {
+        /* Already asked to leave; everything below has been done. Repeating it is not only
+           redundant: the Invalidate() further down repaints synchronously, and when the leave
+           request came from OnPaint itself (CheatAutoSkip's synthetic right-click) that
+           re-entered OnPaint -> OnRButtonDown -> here, until the stack overflowed. */
+        if (bExitASAP) {
+            return;
+        }
         bExitASAP = true;
         Sim.bWatchForReady = TRUE;
         SIM::SendSimpleMessage(ATNET_READYFORMORNING, 0, Sim.localPlayer);

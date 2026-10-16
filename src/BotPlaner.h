@@ -13,15 +13,18 @@
 #include <vector>
 
 extern const int kAvailTimeExtra;
-extern const int kDurationExtra;
 extern const int kScheduleForNextDays;
 
 extern int kNumToAdd;
 extern int kNumBestToAdd;
 extern int kNumToRemove;
-extern int kTempStart;
-extern int kTempStep;
+extern int kSARounds;
+extern double kSATempStart;
+extern double kSATempEnd;
 extern int kJobSelectRandomization;
+extern int kAllowDropForInsert;
+extern int kRelocatePercent;
+extern int kSwapPercent;
 extern bool bDropTakenJobs;
 
 class Graph {
@@ -116,6 +119,7 @@ class BotPlaner {
         int totalPremium{0};
         int planeId{-1};
         PlaneTime scheduleFromTime{};
+        bool dummySolution{false};
         inline bool empty() const { return jobs.empty(); }
     };
     struct SolutionList {
@@ -301,9 +305,12 @@ class BotPlaner {
     int runRemoveWorst(int planeIdx, int numToRemove);
     int runPruneFreightJobs();
     bool runAddBestNeighbor(int planeIdx, int choice);
-    bool runAddNodeToBestPlaneInner(int jobIdxToInsert);
-    bool runAddNodeToBestPlane(int jobIdxToInsert);
-    std::pair<bool, int> algo(int64_t timeBudget);
+    bool runAddNodeToBestPlaneInner(int jobIdxToInsert, int excludePlaneIdx = -1);
+    bool runAddNodeToBestPlane(int jobIdxToInsert, int excludePlaneIdx = -1);
+    int pickRandomPassengerNode(int planeIdx);
+    bool runRelocate(int planeIdx);
+    bool runSwap(int planeIdxA);
+    std::pair<bool, int> algo();
 
     /* apply solution */
     static bool removeInvalidFlightsForPlane(PLAYER &qPlayer, int planeId);
@@ -312,6 +319,10 @@ class BotPlaner {
     /* randomness */
     inline int getRandInt(int min, int max) {
         std::uniform_int_distribution<int> dist(min, max);
+        return dist(mMT);
+    }
+    inline double getRandReal() {
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
         return dist(mMT);
     }
 
@@ -340,8 +351,8 @@ class BotPlaner {
     std::vector<Graph> mGraphs{};
 
     /* randomness source */
-    std::random_device mRD;
-    std::mt19937 mMT{mRD()};
+    static unsigned makeSeed(const PLAYER &qPlayer);
+    std::mt19937 mMT{makeSeed(qPlayer)};
 };
 
 #endif // BOT_PLANER_H_

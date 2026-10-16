@@ -2,6 +2,7 @@
 #define BOT_H_
 
 #include "BotPlaner.h"
+#include "BotWalk.h"
 #include "class.h"
 #include "defines.h"
 
@@ -14,41 +15,56 @@ class CRoute;
 class PLAYER;
 
 extern const bool kAlwaysReplan;
+extern const SLONG kCallInternationalEveryXMinutes;
+extern const SLONG kCallInternationalHandyEveryXMinutes;
+extern const SLONG kCheckTravelAgencyEveryXMinutes;
+extern const SLONG kCheckLastMinuteEveryXMinutes;
+extern const SLONG kCheckFreightDepotEveryXMinutes;
+extern const SLONG kFrequencyRouteStrategy;
+
 extern const SLONG kSmallestAdCampaign;
 extern const SLONG kMinimumImage;
+extern const SLONG kImageRefillTarget;
+extern const SLONG kImagePaybackDays;
+extern const SLONG kRouteMaxImage;
 extern const SLONG kRouteAvgDays;
 extern const SLONG kMinimumOwnRouteUtilization;
+extern const SLONG kUnknownCompetitorUtilization;
+extern const DOUBLE kDesignerRouteExpectedLoad;
+extern const DOUBLE kDesignerRouteMinWeeklyReturn;
 extern const SLONG kMaximumPlaneUtilization;
-extern const DOUBLE kDefaultTicketPriceFactor;
 extern const SLONG kTargetEmployeeHappiness;
 extern const SLONG kMinimumEmployeeSkill;
-extern const SLONG kPlaneMinimumZustand;
+extern const SLONG kTargetEmployeeSkill;
+extern const SLONG kPlaneGroundZustand;
+extern const SLONG kPlaneGroundHysteresis;
 extern const SLONG kPlaneTargetZustand;
+extern const SLONG kPlaneLuxuryTarget;
+extern const SLONG kPlaneLuxuryTargetLateGame;
+extern const SLONG kPlaneFoodTarget;
 extern const SLONG kUsedPlaneMinimumScore;
 extern const SLONG kNumRoutesStartBuyingTanks;
 extern const SLONG kStockEmissionMode;
+extern const DOUBLE kMinRatioEmptied;
+extern const SLONG kKerosineBoughtToday;
+extern const bool kStockpilePilots;
+extern const bool kStockpileAttendants;
 extern const bool kReduceDividend;
+extern const SLONG kStockMissionSaveMoneyDays;
 extern const SLONG kMaxSabotageHints;
 
-extern const SLONG kMoneyEmergencyFund;
-extern const SLONG kMoneyReserveRepairs;
-extern const SLONG kMoneyReservePlaneUpgrades;
-extern const SLONG kMoneyReserveBuyTanks;
-extern const SLONG kMoneyReserveIncreaseDividend;
-extern const SLONG kMoneyReservePaybackCredit;
-extern const SLONG kMoneyReserveBuyOwnShares;
-extern const SLONG kMoneyReserveBuyNemesisShares;
-extern const SLONG kMoneyReserveBossOffice;
-extern const SLONG kMoneyReserveExpandAirport;
-extern const SLONG kMoneyReserveSabotage;
-
-extern SLONG kPlaneScoreForceBest;
+extern const __int64 kMoneyEmergencyFund;
+extern const __int64 kMoneyReservePaybackCredit;
+extern const __int64 kMoneyReserveBuyOwnShares;
+extern const __int64 kMoneyReserveBuyNemesisShares;
+extern const __int64 kMoneyReserveSabotage;
+extern const __int64 kPlaneCashReserve;
 
 class Bot {
   public:
     explicit Bot(PLAYER &player);
 
-    void RobotInit();
+    void RobotInit(SLONG randomSeed);
     void RobotPlan();
     void RobotExecuteAction();
 
@@ -61,6 +77,9 @@ class Bot {
     /* anim state */
     bool getOnThePhone() const { return mOnThePhone > 0; }
     void decOnThePhone() { mOnThePhone--; }
+    void setOnThePhone(SLONG steps) { mOnThePhone = steps; }
+
+    void tickCallback() { mBotWalk.tickItemDrop(getOnThePhone()); }
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);
     friend TEAKFILE &operator>>(TEAKFILE &File, Bot &bot);
@@ -104,12 +123,16 @@ class Bot {
         SaveMoney, /* stop investing towards other targets */
         TargetRun  /* invest towards target, liquidize all other assets */
     };
+    /* RouteInfo::planeTypeId of a route planned for mDesignerPlane (-1 means: route will be removed) */
+    static constexpr SLONG kDesignerPlaneTypeId = -2;
     struct RouteInfo {
         RouteInfo() = default;
-        RouteInfo(SLONG id, SLONG id2, SLONG typeId) : routeId(id), routeReverseId(id2), planeTypeId(typeId) {}
+        RouteInfo(SLONG id, SLONG id2, SLONG typeId, SLONG numPlanes)
+            : routeId(id), routeReverseId(id2), planeTypeId(typeId), numberOfPlanesTarget(numPlanes) {}
         SLONG routeId{-1};
         SLONG routeReverseId{-1};
         SLONG planeTypeId{-1};
+        SLONG numberOfPlanesTarget{1};
         SLONG routeUtilization{};
         SLONG routeOwnUtilization{};
         SLONG image{};
@@ -119,17 +142,41 @@ class Bot {
         std::vector<SLONG> planeIds{};
         bool canUpgrade{false};
     };
+    struct RouteScore {
+        __int64 score{};
+        SLONG routeId{-1};
+        SLONG planeTypeId{-1};
+        std::vector<SLONG> planeId{};
+        SLONG numPlanesToBuy{-1};
+
+        bool operator<(const RouteScore &other) const noexcept {
+            if (planeId.size() == other.planeId.size()) {
+                return score > other.score;
+            }
+            return (planeId.size() > other.planeId.size());
+        }
+    };
+    struct RoutePriceLevels {
+        /* relative to what the game considers a "high" flight cost */
+        DOUBLE lowerLimit{};
+        DOUBLE target{};
+        DOUBLE upperLimit{};
+    };
     struct ConfigurableOptions {
-        float kSchedulingMinScoreRatio{140 * 1000.0F};
+        float kSchedulingMinScoreRatio{100 * 1000.0F};
         float kSchedulingMinScoreRatioLastMinute{10 * 1000.0F};
         SLONG kSwitchToRoutesNumPlanesMin{2};
-        SLONG kSwitchToRoutesNumPlanesMax{4};
+        SLONG kSwitchToRoutesNumPlanesMax{2};
         SLONG kMaximumRouteUtilization{90};
-        DOUBLE kMaxTicketPriceFactor{3.0};
+        RoutePriceLevels kMaxTicketPriceFactor{1.60, 1.90, 1.98}; /* threshold, because increasing ticket price resets HoursBefore */
+        RoutePriceLevels kMaxTicketPriceFactorLowImage{1.10, 1.40, 1.48};
+        DOUBLE kFirstClassTicketSurcharge{1.5};
         DOUBLE kMaxKerosinQualiZiel{1.2};
         SLONG kOwnStockPosessionRatio{51};
+        SLONG kRepairBudgetPercent{0}; /* extra repair cost per night (above WorstZustand + 20), in % of daily op saldo; < 0: no limit */
+        bool kStockWarfarce{true};
+        bool kStockWarfarceTargetHuman{false};
     };
-
     const char *getPrioName(Prio prio);
     const char *getPrioName(SLONG prio);
 
@@ -147,7 +194,7 @@ class Bot {
     Prio condBuyNewPlane(__int64 &moneyAvailable);
     Prio condBuyUsedPlane(__int64 &moneyAvailable);
     Prio condVisitMuseum();
-    Prio condVisitHR();
+    Prio condVisitHR(__int64 &moneyAvailable);
     Prio condBuyKerosine(__int64 &moneyAvailable);
     Prio condBuyKerosineTank(__int64 &moneyAvailable);
     Prio condSabotage(__int64 &moneyAvailable);
@@ -170,18 +217,25 @@ class Bot {
     Prio condVisitDutyFree(__int64 &moneyAvailable);
     Prio condVisitBoss(__int64 &moneyAvailable);
     Prio condExpandAirport(__int64 &moneyAvailable);
-    Prio condVisitRouteBoxPlanning();
-    Prio condVisitRouteBoxRenting();
+    Prio condVisitRouteBox();
     Prio condVisitSecurity(__int64 &moneyAvailable);
     Prio condSabotageSecurity();
     Prio condVisitDesigner(__int64 &moneyAvailable);
     Prio condBuyAdsForRoutes(__int64 &moneyAvailable);
     Prio condBuyAds(__int64 &moneyAvailable);
     Prio condVisitAds();
+    Prio condGetEnergyDrink();
+    Prio condVisitKiosk();
+    Prio condSabotageOfficeA();
+    Prio condSabotageOfficeB();
+    Prio condSabotageOfficeC();
+    Prio condSabotageOfficeD();
+    Prio condDropGlue();
+    Prio condDropBomb();
 
     /* in BotActions.cpp */
     void actionStartDay(__int64 moneyAvailable);
-    void actionStartDayLaptop(__int64 moneyAvailable);
+    void actionStartDayLaptop(__int64 moneyAvailable, bool areWeInOffice);
     void actionBuero();
     void actionCallInternational(bool areWeInOffice);
     void actionCheckLastMinute();
@@ -193,13 +247,11 @@ class Bot {
     void actionBuyUsedPlane(__int64 moneyAvailable);
     void actionMuseumCheckPlanes();
     void actionBuyDesignerPlane(__int64 moneyAvailable);
-    void actionVisitHR();
+    void actionVisitHR(__int64 moneyAvailable);
     void actionBuyKerosine(__int64 moneyAvailable);
     void actionBuyKerosineTank(__int64 moneyAvailable);
     void actionSabotage(__int64 moneyAvailable);
-    void actionVisitSaboteur();
-    static __int64 calcBuyShares(__int64 moneyAvailable, DOUBLE kurs);
-    static __int64 calcSellShares(__int64 moneyToGet, DOUBLE kurs);
+    __int64 calcAmountToSell(SLONG sellFromPlayerId, __int64 moneyToGet) const;
     static __int64 calcNumOfFreeShares(SLONG playerId);
     __int64 calcAmountToBuy(SLONG buyFromPlayerId, SLONG desiredRatio, __int64 moneyAvailable) const;
     void actionEmitShares();
@@ -208,80 +260,110 @@ class Bot {
     void actionOvertakeAirline();
     void actionSellShares(__int64 moneyAvailable);
     void actionVisitMech();
-    void actionVisitDutyFree(__int64 moneyAvailable);
+    bool actionVisitSaboteur();
+    bool actionVisitArab();
+    bool actionVisitDutyFree(__int64 moneyAvailable);
     void actionVisitBoss();
-    void actionVisitRouteBox();
-    void actionRentRoute();
+    bool actionVisitRouteBox();
     void actionBuyAdsForRoutes(__int64 moneyAvailable);
     void actionBuyAds(__int64 moneyAvailable);
     void actionVisitAds();
     void actionVisitSecurity(__int64 moneyAvailable);
+    bool actionVisitKiosk();
 
     /* in BotFunctions.cpp */
     void grabNewFlights();
     __int64 getNemesisScore(SLONG p) const;
     void determineNemesis();
-    void switchToFinalTarget();
-    std::vector<SLONG> findBestAvailablePlaneType(bool forRoutes, bool canRefresh);
+    void switchToFinalTarget(bool areWeInOffice);
+    std::vector<SLONG> findBestAvailablePlaneType();
     void grabFlights(BotPlaner &planer, bool areWeInOffice);
     void requestPlanFlights(bool areWeInOffice);
     void planFlights();
     SLONG replaceAutomaticFlights(SLONG planeId);
     std::pair<SLONG, SLONG> kerosineQualiOptimization(__int64 moneyAvailable, DOUBLE targetFillRatio) const;
-    bool determineSabotageMode(__int64 moneyAvailable, SLONG &jobType, SLONG &jobNumber, SLONG &jobHints);
-    /* routes */
+    SabotageMode determineSabotageMode(__int64 moneyAvailable, bool print);
+    SpecialSabotage determineSpecialSabotage() const;
+    SLONG calcRequiredImageForAirline();
+    SLONG calcAirlineImageTarget() const;
+    const CPlaneType &getPlaneType(SLONG planeTypeId) const;
+    void updateDesignerPlaneType();
+
+    /* in BotRoutes.cpp */
     SLONG getNumRentedRoutes() const;
-    void checkLostRoutes();
-    void updateRouteInfoOffice();
+    static SLONG getRoutePlaneTypeId(const CPlane &qPlane) { return (qPlane.TypeId == -1) ? kDesignerPlaneTypeId : qPlane.TypeId; }
+    void checkRentedRoutes();
+    void updateRoutesSortedList();
+    void updateRouteInfoOffice(bool areWeInOffice);
     void updateRouteInfoBoard();
+    void requestPlanRoutes(bool areWeInOffice);
     void routesRecalcNextStep();
     std::pair<Bot::RoutesNextStep, SLONG> routesFindNextStep() const;
-    void requestPlanRoutes(bool areWeInOffice);
+    bool designerRoutePays(const CRoute &qRoute) const;
+    bool isMissionRoute(const CRoute &qRoute) const;
+    SLONG routeUtilizationTarget(const CRoute &qRoute) const;
+    RouteScore calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unordered_map<SLONG, std::vector<SLONG>> &existingPlaneIds, bool canBuy);
     void findBestRoute();
+    bool addNewRoute(SLONG routeA, SLONG planeTypeForNewRoute);
+    std::vector<RouteInfo>::iterator removeRoute(std::vector<RouteInfo>::iterator it);
+    SLONG removeInvalidatedRoutes();
+    void releaseStarterRoutes();
     void planRoutes();
     void assignPlanesToRoutes(bool areWeInOffice);
 
     /* misc (in BotMisc.cpp) */
-    void printRobotFlags() const;
+    const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
+    const CRentRoute &getReverseRentRoute(const RouteInfo &routeInfo) const;
+    const CRoute &getRoute(const RouteInfo &routeInfo) const;
+    __int64 refreshWeeklyOpSaldo();
+    bool checkLateGame();
+    bool checkVeryLateGame();
+    SLONG getImage() const;
+    void forceReplanning();
+    bool doWeNeedMoreGates(bool print) const;
     SLONG numPlanes() const;
     std::vector<SLONG> getAllPlanes() const;
     bool isOfficeUsable() const;
     bool hoursPassed(SLONG room, SLONG hours) const;
+    bool minutesPassed(SLONG room, SLONG minutes) const;
     bool haveDiscount() const;
-    bool checkLaptop();
+    SLONG applyDiscount(SLONG money) const;
+    bool checkLaptop() const;
     enum class HowToPlan { None, Laptop, Office };
-    HowToPlan howToPlanFlights();
+    HowToPlan howToPlanFlights() const;
+    HowToPlan howToPlanFlightsLaptopFix();
     AreWeBroke areWeBroke() const;
-    HowToGetMoney howToGetMoney();
+    std::pair<HowToGetMoney, Prio> howToGetMoney();
+    __int64 howMuchMoneyToRaise(bool maxCredit) const;
     __int64 howMuchMoneyCanWeGet(bool extremeMeasures);
+    bool canGrabFlights();
     bool canWeCallInternational();
     SLONG calcCurrentGainFromJobs() const;
-    SLONG calcRouteImageNeeded(const RouteInfo &routeInfo) const;
     void removePlaneFromRoute(SLONG planeId);
     bool checkPlaneLists();
     void findPlanesNotAvailableForService(std::vector<SLONG> &listAvailable, std::deque<SLONG> &listUnassigned);
     void findPlanesAvailableForService(std::deque<SLONG> &listUnassigned, std::vector<SLONG> &listAvailable);
     bool checkPlaneAvailable(SLONG planeId, bool printIfAvailable, bool areWeInOffice);
-    const CRentRoute &getRentRoute(const RouteInfo &routeInfo) const;
-    const CRoute &getRoute(const RouteInfo &routeInfo) const;
-    __int64 getDailyOpSaldo() const;
-    __int64 getWeeklyOpSaldo() const;
-    bool isLateGame() const;
-    SLONG getImage() const;
-    void forceReplanning();
-    void setHardcodedDesignerPlaneLarge();
-    void setHardcodedDesignerPlaneEco();
+    static bool needsRepairs(const CPlane &qPlane);
+    static bool stillNeedsRepairs(const CPlane &qPlane);
+    std::pair<SLONG, SLONG> howMuchCrewToHire(__int64 moneyAvailable);
     void setMoodByActionId(SLONG actionId);
+    bool useItem(SLONG item);
+    bool dropItem(SLONG item);
+    bool pickUpItem(SLONG item);
+    bool tryPickUpItem(SLONG condition, SLONG item, bool wantToKeep);
+    void printRobotFlags() const;
 
     TEAKRAND LocalRandom{};
     PLAYER &qPlayer;
+    BotWalk mBotWalk;
 
     /* options */
     ConfigurableOptions mOptions{};
 
     /* action economy */
     std::unordered_map<SLONG, SLONG> mLastTimeInRoom{};
-    SLONG mNumActionsToday{0};
+    std::unordered_map<Prio, SLONG> mActionCounter;
 
     /* planes used for what? */
     std::vector<SLONG> mPlanesForJobs{};
@@ -296,6 +378,10 @@ class Bot {
     bool mLongTermStrategy{true};
     SLONG mBestPlaneTypeId{-1};
     SLONG mBestUsedPlaneIdx{-1};
+    SLONG mBestUsedPlanePilots{};
+    SLONG mBestUsedPlaneCrew{};
+    SLONG mBestUsedPlanePrice{};
+    CString mBestUsedPlaneName{};
     SLONG mBuyPlaneForRouteId{-1};
     SLONG mPlaneTypeForNewRoute{-1};
     std::vector<SLONG> mPlanesForNewRoute{};
@@ -303,9 +389,9 @@ class Bot {
     bool mFirstRun{true};
     bool mDayStarted{false};
     bool mDoRoutes{false};
+    bool mDoRoutesMaxCredit{false};
     FinalPhase mRunToFinalObjective{FinalPhase::No};
     __int64 mMoneyForFinalObjective{0};
-    bool mOutOfGates{false};
     bool mNeedToPlanJobs{false};
     bool mNeedToPlanRoutes{false};
     __int64 mMoneyReservedForRepairs{0};
@@ -315,14 +401,30 @@ class Bot {
     SLONG mNemesis{-1};
     __int64 mNemesisScore{0};
     bool mNeedToShutdownSecurity{false};
+    bool mCardWasTaken{false};
+    bool mPliersWereTaken{false};
+    bool mGlovesWereTaken{false};
+    bool mPaperClipsWereTaken{false};
+    bool mGlueWasTaken{false};
     bool mUsingSecurity{false};
     SLONG mNemesisSabotaged{-1};
     SLONG mArabHintsTracker{0};
+
+    /* cached game state */
     SLONG mCurrentImage{0};
+    __int64 mWeeklyOperatingSaldo{0};
+
+    /* airline image target */
+    __int64 mTicketsYesterday{0};
+    SLONG mImageDecayPerDay{0};
+    SLONG mImageAfterAds{0};
+    SLONG mImageAdsDay{-1};
+    SLONG mImagePreservationMode{-1};
 
     /* status boss office */
     SLONG mBossNumCitiesAvailable{-1};
     bool mBossGateAvailable{false};
+    bool mBossCanExpandAirport{false};
 
     /* detect tanks being too small */
     DOUBLE mTankRatioEmptiedYesterday{0};
@@ -334,13 +436,20 @@ class Bot {
     std::vector<SLONG> mRoutesSortedByOwnUtilization{};
     bool mRoutesUpdated{false};
     bool mRoutesUtilizationUpdated{false};
+    bool mRoutesToRemove{false};
     RoutesNextStep mRoutesNextStep{RoutesNextStep::None};
     SLONG mImproveRouteId{-1};
+
+    /* sabotage */
+    SLONG mRouteToSteal{-1};
+    SLONG mRouteToStealFrom{-1};
+    ULONG mSabotageSeed{0};
 
     /* crew */
     SLONG mNumEmployees{0};
     SLONG mExtraPilots{0};
     SLONG mExtraBegleiter{0};
+    SLONG mQualifiedCrewForHire{0};
 
     /* items */
     SLONG mItemPills{0};      /* 1: card taken, 2: card given */
@@ -360,6 +469,8 @@ class Bot {
     /* designer plane */
     CXPlane mDesignerPlane{};
     CString mDesignerPlaneFile{};
+    CPlaneType mDesignerPlaneType{}; /* stats of mDesignerPlane, see getPlaneType() */
+    bool mDesignerRoutesPay{false};  /* some route pays for mDesignerPlane, see designerRoutePays() */
 };
 
 TEAKFILE &operator<<(TEAKFILE &File, const Bot &bot);

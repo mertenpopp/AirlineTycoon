@@ -48,7 +48,7 @@ SLONG CalcDistanceLine2Dot(XY LineP1, XY LineP2, XY p) {
     // p.y>=LineP2.y))
     {
         return (SLONG((p - LineP2).abs()));
-    } else // DebugBreak();
+    } else // AtDebugBreak();
     {
         XY r(LineP1.y - LineP2.y, LineP2.x - LineP1.x);
 
@@ -166,8 +166,11 @@ void CRouteBox::OnPaint() {
             SetMouseLook(CURSOR_HOT, 4602, ROOM_ROUTEBOX, 32);
         }
 
+        PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
+        auto &qPlayerRR = qPlayer.RentRouten.RentRouten;
+
         // Die Büroklammern:
-        if ((Sim.ItemClips != 0) && (Sim.Players.Players[PlayerNum].HasItem(ITEM_PAPERCLIP) == 0)) {
+        if ((Sim.ItemClips != 0) && (qPlayer.HasItem(ITEM_PAPERCLIP) == 0)) {
             if (gMousePosition.IfIsWithin(0, 245, 36, 287) || gMousePosition.IfIsWithin(186, 276, 214, 322) || gMousePosition.IfIsWithin(225, 269, 245, 314) ||
                 gMousePosition.IfIsWithin(347, 280, 383, 320)) {
                 SetMouseLook(CURSOR_HOT, 0, ROOM_ROUTEBOX, 200);
@@ -181,8 +184,8 @@ void CRouteBox::OnPaint() {
             if (i >= 0 && i + RoutePage * ListSize < Table.AnzRows && i < (RoutePage + 1) * ListSize) {
                 HighlightColor = ColorOfFontBlack;
 
-                if ((IsBuyable[Routen(Table.LineIndex[i + RoutePage * ListSize])] != 0) ||
-                    (Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Table.LineIndex[i + RoutePage * ListSize])].Rang != 0U)) {
+                auto &lineIndex = Table.LineIndex[i + RoutePage * ListSize];
+                if ((Filter == 0) || (Filter == 1 && IsBuyable[Routen(lineIndex)] != 0) || (Filter == 2 && qPlayerRR[Routen(lineIndex)].Rang != 0U)) {
                     CheckCursorHighlight(gMousePosition, CRect(458, 11 + 15 + 3 + i * 13, 461 + 174, 14 + 15 + 12 + 3 + i * 13), HighlightColor);
                 }
 
@@ -263,7 +266,7 @@ void CRouteBox::OnPaint() {
 
             SLONG i = -1;
 
-            if (IsBuyable[minc] == TRUE && Filter == 1) {
+            if ((Filter == 0) || (Filter == 1 && IsBuyable[minc] != 0) || (Filter == 2 && qPlayerRR[minc].Rang != 0U)) {
                 if (mindist != -1 && mindist < 10) {
                     for (SLONG d = 0; d < Table.LineIndex.AnzEntries(); d++) {
                         if (Routen(Table.LineIndex[d]) == ULONG(minc)) {
@@ -275,15 +278,13 @@ void CRouteBox::OnPaint() {
                     }
                 }
 
-                if ((i != -1 && i != CurrentTipIndex) || (i == -1 && i != CurrentTip)) {
-                    if (i != -1) {
-                        CurrentTip = Table.LineIndex[i];
-                    }
-                    if (i != -1) {
-                        CurrentTipIndex = i;
-                    } else {
-                        CurrentTipIndex = -1;
-                    }
+                if (i != -1 && i != CurrentTipIndex) {
+                    CurrentTip = Table.LineIndex[i];
+                    CurrentTipIndex = i;
+                    RepaintTip();
+                    RepaintMap();
+                } else if (i == -1 && CurrentTip != -1) {
+                    CurrentTipIndex = -1;
                     RepaintTip();
                     RepaintMap();
                 }
@@ -664,7 +665,7 @@ void CRouteBox::UpdateDataTable() {
     } break;
     default:
         hprintf("RouteBox.cpp: Default case should not be reached.");
-        DebugBreak();
+        AtDebugBreak();
     }
     RoutePageMax = (Table.AnzRows - 1) / ListSize + 1;
     RepaintList();
@@ -724,18 +725,9 @@ void CRouteBox::OnLButtonDown(UINT nFlags, CPoint point) {
                         }
                     }
 
-                    for (SLONG c = qPlayer.Planes.AnzEntries() - 1; c >= 0; c--) {
-                        if (qPlayer.Planes.IsInAlbum(c) != 0) {
-                            for (SLONG d = qPlayer.Planes[c].Flugplan.Flug.AnzEntries() - 1; d >= 0; d--) {
-                                if (qPlayer.Planes[c].Flugplan.Flug[d].ObjectType == 1) {
-                                    if (Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId) == Routen(CurrentTip) ||
-                                        SLONG(Routen(qPlayer.Planes[c].Flugplan.Flug[d].ObjectId)) == RouteB) {
-                                        MenuStart(MENU_REQUEST, MENU_REQUEST_NORENTROUTE3);
-                                        return;
-                                    }
-                                }
-                            }
-                        }
+                    if (GameMechanic::getAnyPlaneOnRoute(qPlayer, Routen(CurrentTip)) != -1) {
+                        MenuStart(MENU_REQUEST, MENU_REQUEST_NORENTROUTE3);
+                        return;
                     }
 
                     MenuStart(MENU_REQUEST, MENU_REQUEST_KILLROUTE, Routen(CurrentTip), RouteB);

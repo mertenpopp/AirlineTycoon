@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 # Usage: cleanup_folder.cmake <dir> [match] - destructive
 set(target_directory "${CMAKE_ARGV3}")

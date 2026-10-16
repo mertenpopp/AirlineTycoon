@@ -246,7 +246,7 @@ void CDutyFree::OnPaint() {
             break;
         default:
             hprintf("DutyFree.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
     CStdRaum::PostPaint();

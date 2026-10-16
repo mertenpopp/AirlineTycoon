@@ -690,7 +690,7 @@ void CHLPool::AddBitmap(__int64 graphicID, SB_CBitmapCore *pBitmap, PALETTE *Pal
                                                qObj.HLines[AnzObjHLines].pPixel <= pHLBasepool2->pPool + pHLBasepool2->PoolSize) {
                                         ;
                                     } else {
-                                        DebugBreak();
+                                        AtDebugBreak();
                                     }
                                 }
 
@@ -730,7 +730,7 @@ void CHLPool::AddBitmap(__int64 graphicID, SB_CBitmapCore *pBitmap, PALETTE *Pal
                                     else if (pHLBasepool2 && qObj.HLines[d].pPixel>=pHLBasepool2->pPool &&
                                     qObj.HLines[d].pPixel<=pHLBasepool2->pPool+pHLBasepool2->PoolSize)
                                     ;
-                                    else DebugBreak();
+                                    else AtDebugBreak();
                                     }
                                     }*/
 
@@ -758,7 +758,7 @@ void CHLPool::AddBitmap(__int64 graphicID, SB_CBitmapCore *pBitmap, PALETTE *Pal
                                     else if (pHLBasepool2 && qObj.HLines[d].pPixel>=pHLBasepool2->pPool &&
                                     qObj.HLines[d].pPixel<=pHLBasepool2->pPool+pHLBasepool2->PoolSize)
                                     ;
-                                    else DebugBreak();
+                                    else AtDebugBreak();
                                     }
                                     }*/
                                 }
@@ -790,7 +790,7 @@ void CHLPool::AddBitmap(__int64 graphicID, SB_CBitmapCore *pBitmap, PALETTE *Pal
 
     // HLines zurechtstutzen, wir wollen nichts verschwenden:
     if (AnzObjHLines >= qObj.HLines.AnzEntries()) {
-        DebugBreak();
+        AtDebugBreak();
     }
 
     qObj.HLines.ReSize(AnzObjHLines);
@@ -838,7 +838,7 @@ void CHLPool::DoBaseObjects() {
                     qObj.HLines[d].pPixel = ((qObj.HLines[d].pPixel) - static_cast<ptrdiff_t>(0x20000000) + (ptrdiff_t)pHLBasepool2->pPool);
 
                 } else {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
             }
         }
@@ -872,7 +872,7 @@ void CHLPool::UnBaseObjects() {
                     qObj.HLines[d].pPixel = ((qObj.HLines[d].pPixel) - (ptrdiff_t)pHLBasepool2Pool + static_cast<ptrdiff_t>(0x20000000));
 
                 } else {
-                    DebugBreak();
+                    AtDebugBreak();
                 }
             }
         }

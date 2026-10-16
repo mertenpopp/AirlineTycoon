@@ -27,6 +27,10 @@ void WaterBlur(SBBM *pTargetBm, SLONG AnimOffset, XY TargetOffset, SBBM &Reflexi
 // Für die Zeichenreihenfolge
 static SLONG PartsRemapper[] = {0, 1, 2, 3, 9, 4, 6, 5, 8, 7};
 
+// Bitmap slot -> bit in RocketFlags (PLAYER::AddRocketPart sets bit n for the n-th part in the NASA dialog).
+// The slots follow the old flag values, which had side thrusters (6), main engine (7) and tail (8) in a different order.
+static SLONG PartsFlagBit[] = {0, 1, 2, 3, 4, 5, 7, 8, 6, 9};
+
 static XY RocketPartOffsets[] = {XY(0, 50), XY(3, 2), XY(4, 8), XY(18, 29), XY(39, 29), XY(19, 27), XY(23, 29), XY(31, 29), XY(19, 15), XY(19, 0)};
 
 static XY RocketOffsets[] = {XY(149 - 34, 126 - 44), XY(450 - 44, 126 - 43), XY(779 - 34 - 7, 129 - 42), XY(1089 - 34 - 7, 140 - 54)};
@@ -405,7 +409,7 @@ void CInsel::OnPaint() {
             if (Sim.Players.Players[c].IsOut == 0) {
                 for (d = 0; d < 10; d++) {
                     // for (e=0; e<10; e++) if (PartsRemapper[e]==d)
-                    if ((Sim.Players.Players[c].RocketFlags & (1 << PartsRemapper[d])) != 0) {
+                    if ((Sim.Players.Players[c].RocketFlags & (1 << PartsFlagBit[PartsRemapper[d]])) != 0) {
                         TempBm.BlitFromT(RocketPartReflexBms[c * 10 + PartsRemapper[d]],
                                          RocketRefOffsets[c] - XY(0, RocketPartReflexBms[c * 10 + PartsRemapper[d]].Size.y));
                     }
@@ -428,7 +432,7 @@ void CInsel::OnPaint() {
             if (Sim.Players.Players[c].IsOut == 0) {
                 for (d = 0; d < 10; d++) {
                     // for (e=0; e<10; e++) if (PartsRemapper[e]==d)
-                    if ((Sim.Players.Players[c].RocketFlags & (1 << PartsRemapper[d])) != 0) {
+                    if ((Sim.Players.Players[c].RocketFlags & (1 << PartsFlagBit[PartsRemapper[d]])) != 0) {
                         RoomBm.BlitFromT(RocketPartBms[c * 10 + PartsRemapper[d]], RocketOffsets[c] - XY(ViewPos.x, 0));
                     }
                 }

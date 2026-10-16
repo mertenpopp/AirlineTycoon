@@ -2,6 +2,7 @@
 // Misc.cpp : Diverse Sachen
 //============================================================================================
 
+#include "BotHelper.h"
 #include "ColorFx.h"
 #include "global.h"
 #include "helper.h"
@@ -701,6 +702,30 @@ SLONG CalculateFlightCostNoTank(SLONG VonCity, SLONG NachCity, SLONG Verbrauch, 
 }
 
 //--------------------------------------------------------------------------------------------
+// Ticket price presets of the route window, in percent of the route's base cost
+// B = CalculateFlightCost(..., 800, 800, -1) * 3 / 180 * 2. Each economy fare sits just below
+// an image threshold of CFlugplanEintrag::BookFlight:
+//   0: below 1.5B (a flight still earns route and airline image)
+//   1: below 3B   (no image loss, CalcPassengers does not cut passengers yet)
+//   2: below 4.5B (one image step lost per flight)
+//   3: below 6B   (two image steps lost per flight)
+// The 5% margin covers the daily move of the kerosene price, which B follows.
+//
+// First class uses three times the economy fare: its image thresholds in BookFlight (4.5B, 9B, 13.5B, 18B)
+// are exactly three times the economy ones, and CalcPassengers starts cutting first class passengers at 9B
+//--------------------------------------------------------------------------------------------
+static const SLONG RoutePricePresetPercent[ROUTE_PRICE_PRESET_COUNT] = {140, 285, 425, 570};
+
+static SLONG CalculateRoutePriceBase(SLONG VonCity, SLONG NachCity) { return CalculateFlightCost(VonCity, NachCity, 800, 800, -1) * 3 / 180 * 2; }
+
+SLONG CalculateRoutePricePreset(SLONG VonCity, SLONG NachCity, SLONG Preset) {
+    Preset = std::clamp(Preset, SLONG(0), ROUTE_PRICE_PRESET_COUNT - 1);
+    return CalculateRoutePriceBase(VonCity, NachCity) * RoutePricePresetPercent[Preset] / 100 / 10 * 10;
+}
+
+SLONG CalculateRoutePricePresetFC(SLONG VonCity, SLONG NachCity, SLONG Preset) { return 3 * CalculateRoutePricePreset(VonCity, NachCity, Preset); }
+
+//--------------------------------------------------------------------------------------------
 // Lädt die Einheiten-Tabelle:
 //--------------------------------------------------------------------------------------------
 void InitEinheiten(const CString &Filename) {
@@ -1182,7 +1207,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
         default:
             hprintf("Misc.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 
@@ -1971,12 +1996,12 @@ void CheckEventSync(SLONG EventId) {
     hprintf("%li,", EventId);
 
     if (EventId != PastRandoms[iPastRandoms]) {
-        DebugBreak();
+        AtDebugBreak();
     }
     iPastRandoms++;
 
     if (PastRandoms[iPastRandoms] == 0xdead && PastRandoms[iPastRandoms + 1] == 0xdead && PastRandoms[iPastRandoms + 2] == 0xdead) {
-        DebugBreak(); /**/
+        AtDebugBreak(); /**/
     }
 }
 
@@ -2170,15 +2195,36 @@ BOOL OffsetRect(RECT *pRect, SLONG dx, SLONG dy) {
     pRect->bottom += dy;
     return TRUE;
 }
-
-void DebugBreak() { assert(0); }
 #endif
+
+void AtDebugBreak() {
+#ifndef NDEBUG
+#ifdef WIN32
+    if (IsDebuggerPresent()) {
+        ::DebugBreak();
+    }
+#else
+    assert(0);
+#endif
+#endif
+}
 
 DWORD AtGetTime() {
     static std::chrono::nanoseconds now = std::chrono::steady_clock::now().time_since_epoch();
     static DWORD epoch = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 
     return epoch + SDL_GetTicks64();
+}
+
+/* AtGetTime() for code that only uses the clock as a random seed. With "/seed N" it returns one
+   value derived from N instead, so the same N replays the same game. It is deliberately the same
+   value on every call: the callers used to seed several pools within the same millisecond, i.e.
+   with identical seeds, and keeping that preserves the kind of games the harness produces. */
+DWORD AtGetSeedTime() {
+    if (gFixedSeed != 0) {
+        return static_cast<DWORD>(gFixedSeed) * 2654435761U;
+    }
+    return AtGetTime();
 }
 
 DWORD AtGetTickCount() { return SDL_GetTicks(); }
@@ -2211,4 +2257,44 @@ CString getCurrentDayString() {
         output += StandardTexte.GetS(TOKEN_STAT, 9000);
     }
     return output;
+}
+
+void printPostGameInfo() {
+    Helper::printStatisticsLineForAllPlayers("BotStatistics2", true);
+
+    __int64 bestBot = 0;
+    __int64 bestEnemy = 0;
+    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        auto &qPlayer = Sim.Players.Players[c];
+        if (qPlayer.IsSuperBot()) {
+            bestBot = std::max(bestBot, qPlayer.Statistiken[STAT_MISSIONSZIEL].GetAtPastDay(0));
+        } else {
+            bestEnemy = std::max(bestEnemy, qPlayer.Statistiken[STAT_MISSIONSZIEL].GetAtPastDay(0));
+        }
+    }
+
+    printf("BotMission: Mission, Tage");
+    for (SLONG c = 0; c < 4; c++) {
+        printf(", Sieg%s", (LPCTSTR)Sim.Players.Players[c].Abk);
+    }
+    printf(", BesterGegner\n");
+
+    printf("BotMission: %d, %d", Sim.Difficulty, Sim.Date);
+    for (SLONG c = 0; c < 4; c++) {
+        auto &qPlayer = Sim.Players.Players[c];
+        printf(", %d", (qPlayer.HasWon() != 0 && qPlayer.IsOut == 0) ? 1 : 0);
+    }
+    if (bestBot != 0) {
+        auto bestRatio = static_cast<SLONG>(std::round(100.0F * bestEnemy / bestBot));
+        printf(", %d\n", bestRatio);
+    } else {
+        printf(", NaN\n");
+    }
+
+    if (gQuickTestRun > 0) {
+        std::cout << "---" << std::endl;
+        /* std::_Exit rather than exit: see the auto-quit in CAufsicht::OnPaint(). */
+        fflush(nullptr);
+        std::_Exit(0);
+    }
 }

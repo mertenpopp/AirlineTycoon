@@ -231,8 +231,13 @@ void Options::RefreshKlackerField() {
                 KlackerTafel.PrintAt(1, 3, StandardTexte.GetS(TOKEN_MISC, 4121));
                 KlackerTafel.PrintVolumeAt(15, 3, 8, Sim.Options.OptionMusik);
             }
-            KlackerTafel.PrintAt(1, 4 + musicShift, StandardTexte.GetS(TOKEN_MISC, 4150 + Sim.Options.OptionLoopMusik));
-            if (Sim.Options.OptionLoopMusik == 0) {
+            const SLONG track = GetSelectedMusicTrack();
+            if (track == 0) {
+                KlackerTafel.PrintAt(1, 4 + musicShift, StandardTexte.GetS(TOKEN_MISC, 4150));
+            } else {
+                KlackerTafel.PrintAt(1, 4 + musicShift, CString("# ") + GetMusicTrackName(track));
+            }
+            if (track == 0) {
                 KlackerTafel.PrintAt(1, 5 + musicShift, StandardTexte.GetS(TOKEN_MISC, 4140));
             }
         }
@@ -263,9 +268,10 @@ void Options::RefreshKlackerField() {
         KlackerTafel.PrintAt(0, 7, StandardTexte.GetS(TOKEN_MISC, 4044 + Sim.Options.OptionSpeechBubble));
         KlackerTafel.PrintAt(0, 8, StandardTexte.GetS(TOKEN_MISC, 4048 + Sim.Options.OptionBriefBriefing));
         KlackerTafel.PrintAt(0, 9, StandardTexte.GetS(TOKEN_MISC, 4050 + Sim.Options.OptionRandomStartday));
-        KlackerTafel.PrintAt(0, 10, bprintf("# %s", StandardTexte.GetS(TOKEN_PLANE, 1002)));
-        KlackerTafel.PrintVolumeAt(17, 10, 7, Sim.GameSpeed == 1 ? 0 : Sim.GameSpeed / 5);
-        KlackerTafel.PrintAt(0, 12, StandardTexte.GetS(TOKEN_MISC, 4099));
+        KlackerTafel.PrintAt(0, 10, StandardTexte.GetS(TOKEN_MISC, 4160 + gLanguage));
+        KlackerTafel.PrintAt(0, 11, bprintf("# %s", StandardTexte.GetS(TOKEN_PLANE, 1002)));
+        KlackerTafel.PrintVolumeAt(17, 11, 7, Sim.GameSpeed == 1 ? 0 : Sim.GameSpeed / 5);
+        KlackerTafel.PrintAt(0, 13, StandardTexte.GetS(TOKEN_MISC, 4099));
     } else if (PageNum == 5) // Laden
     {
         KlackerTafel.PrintAt(0, 0, StandardTexte.GetS(TOKEN_MISC, 4070));
@@ -451,16 +457,16 @@ void Options::OnPaint() {
             if (Line == 2 || (Line == 4 + musicShift && usesMusic) || Line == 15) {
                 SetMouseLook(CURSOR_HOT, 0, -100, 0);
             }
-            if (Line == 5 + musicShift && Sim.Options.OptionLoopMusik == 0 && usesMusic) {
+            if (Line == 5 + musicShift && GetSelectedMusicTrack() == 0 && usesMusic) {
                 SetMouseLook(CURSOR_HOT, 0, -100, 0);
             }
             break;
         }
         case 4: // Sonstiges:
-            if ((Line >= 2 && Line <= 9) || Line == 12) {
+            if ((Line >= 2 && Line <= 10) || Line == 13) {
                 SetMouseLook(CURSOR_HOT, 0, -100, 0);
             }
-            if (Line == 10) {
+            if (Line == 11) {
                 SetMouseLook(Column >= 17 && Column < 23 ? CURSOR_HOT : CURSOR_NORMAL, 1003, -100, 0);
             }
             break;
@@ -513,7 +519,7 @@ void Options::OnPaint() {
             break;
         default:
             hprintf("Options.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
 
         RoomBm.PrintAt(VersionString, FontSmallRed, TEC_FONT_RIGHT, XY(0, 429), XY(519, 480));
@@ -726,14 +732,14 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
             }
 
             if (Line == 4 + musicShift && usesMusic) {
-                Sim.Options.OptionLoopMusik = (Sim.Options.OptionLoopMusik + 1) % (9);
+                Sim.Options.OptionLoopMusik = (GetSelectedMusicTrack() + 1) % (GetNumMusicTracks() + 1);
                 if (Sim.Options.OptionLoopMusik != 0) {
                     NextMidi();
                 }
                 RefreshKlackerField();
             }
             if (Line == 5 + musicShift && usesMusic) {
-                if (Sim.Options.OptionLoopMusik == 0) {
+                if (GetSelectedMusicTrack() == 0) {
                     NextMidi();
                 }
             } // Skip
@@ -770,15 +776,31 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
             if (Line == 9) {
                 Sim.Options.OptionRandomStartday ^= 1;
             }
+            if (Line == 10) {
+                gLanguage++;
 
-            if (Line == 10 && Column >= 17 && Column < 24) {
+                // skip not applicable languages:
+                // (those languages are not fully available font-wise)
+                // NOTE(WizzardMaker): maybe add support for those in the future?
+                if (gLanguage == LANGUAGE_T || gLanguage == LANGUAGE_P) {
+                    gLanguage = LANGUAGE_N;
+                }
+
+                if (gLanguage >= 10) {
+                    gLanguage = 0;
+                }
+
+                RefreshKlackerField();
+            }
+
+            if (Line == 11 && Column >= 17 && Column < 24) {
                 auto speed = (Column - 17) * 5;
                 if (speed <= 0) {
                     speed = 1;
                 }
                 Sim.GameSpeed = speed;
             }
-            if (Line == 12) {
+            if (Line == 13) {
                 PageNum = 1;
             }
             RefreshKlackerField();
@@ -914,7 +936,7 @@ void Options::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
             break;
         default:
             hprintf("Options.cpp: Default case should not be reached.");
-            DebugBreak();
+            AtDebugBreak();
         }
     }
 }

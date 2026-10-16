@@ -187,7 +187,7 @@ void CAbend::OnPaint() {
                         break;
                     default:
                         hprintf("Abend.cpp: Default case should not be reached.");
-                        DebugBreak();
+                        AtDebugBreak();
                     }
                     StartupFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
                 } else {
@@ -204,7 +204,7 @@ void CAbend::OnPaint() {
                             break;
                         default:
                             hprintf("Abend.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                         StartupFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
                     } else if (LastHour >= 22 || LastHour < 3) {
@@ -220,7 +220,7 @@ void CAbend::OnPaint() {
                             break;
                         default:
                             hprintf("Abend.cpp: Default case should not be reached.");
-                            DebugBreak();
+                            AtDebugBreak();
                         }
                         StartupFX.Play(DSBPLAY_NOSTOP, Sim.Options.OptionEffekte * 100 / 7);
                     } else if (LastHour == 6) {
