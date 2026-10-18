@@ -2625,6 +2625,10 @@ void SIM::NewDay() {
 
     Workers.NewDay();
 
+    /* Last computed in Players[c].NewDay() above, before the night's changes to the staff,
+       which the morning briefing shows. */
+    Players.UpdateStaffStatistics();
+
     // Gute Spieler sind den anderen unsympatisch:
     for (c = 0; c < Players.AnzPlayers; c++) {
         for (d = 0; d < Players.AnzPlayers; d++) {

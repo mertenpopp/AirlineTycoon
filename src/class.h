@@ -2306,6 +2306,7 @@ class PLAYER {
     void UpdateAuftraege(void); // Bringt Aufträge aus neusten Stand; bucht Strafen
     void UpdatePersonalberater(SLONG Toleranz);
     void UpdateStatistics(void);
+    void UpdateStaffStatistics(void);
     void UpdateTicketpreise(SLONG RouteId, SLONG Ticketpreis, SLONG TicketpreisFC);
     BOOL WalkToRoom(UBYTE RoomId);
     void WalkToMouseClick(XY AirportClickPos);
@@ -2376,6 +2377,7 @@ class PLAYERS {
     void MessagePump(void);
     void RandomBeraterMessage(void);
     void UpdateStatistics(void);
+    void UpdateStaffStatistics(void);
     void CheckFlighplans(void);
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const PLAYERS &Players);

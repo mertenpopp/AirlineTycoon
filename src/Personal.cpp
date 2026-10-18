@@ -609,6 +609,9 @@ void CWorker::Gehaltsaenderung(BOOL Art, bool bFromNetwork) {
         SIM::SendSimpleMessage(ATNET_WORKER_SALARY, 0, Employer, static_cast<SLONG>(this - &Workers.Workers[0]), Art);
     }
 
+    /* Taken before the change too, for the same reason. */
+    PLAYER &qEmployer = Sim.Players.Players[Employer];
+
     if (Art != 0) {
         // Gehaltserhöhung:
         SLONG OldGehalt = Gehalt;
@@ -645,6 +648,8 @@ void CWorker::Gehaltsaenderung(BOOL Art, bool bFromNetwork) {
             Sim.Players.Players[ExEmployer].MapWorkers(FALSE);
         }
     }
+
+    qEmployer.UpdateStaffStatistics();
 }
 
 //--------------------------------------------------------------------------------------------
@@ -949,6 +954,8 @@ void CWorkers::AddHappiness(SLONG PlayerNum, SLONG Value) {
             }
         }
     }
+
+    Sim.Players.Players[PlayerNum].UpdateStaffStatistics();
 }
 
 //--------------------------------------------------------------------------------------------
