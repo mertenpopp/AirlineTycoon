@@ -25,12 +25,15 @@ template <class... Types> void AT_Log(Types... args) { AT_Log_I("Bot", args...);
 
 __int64 Bot::getMoneyAvailable() const {
     __int64 m = qPlayer.Money;
+    /* reservations for stuff that will be paid later */
     m -= mMoneyReservedForRepairs;
     m -= mMoneyReservedForUpgrades;
     m -= mMoneyReservedForAuctions;
     m -= mMoneyReservedForFines;
+    /* our emergency fund: Currently actually negative (allows bot to go into debt) */
     m -= kMoneyEmergencyFund;
-    return m;
+    /* purchases are refused if money would go below DEBT_LIMIT */
+    return std::min(m, qPlayer.Money - DEBT_LIMIT);
 }
 
 const CRentRoute &Bot::getRentRoute(const Bot::RouteInfo &routeInfo) const { return qPlayer.RentRouten.RentRouten[routeInfo.routeId]; }

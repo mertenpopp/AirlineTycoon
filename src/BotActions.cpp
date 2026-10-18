@@ -1423,7 +1423,7 @@ void Bot::actionVisitBoss() {
         }
         mBossGateAvailable = true;
         if (qZettel.Player == qPlayer.PlayerNum) {
-            mMoneyReservedForAuctions += qZettel.Preis;
+            mMoneyReservedForAuctions += 3 * qZettel.Preis; /* winner pays three months' rent */
         }
     }
     mBossNumCitiesAvailable = 0;
@@ -1433,7 +1433,7 @@ void Bot::actionVisitBoss() {
         }
         mBossNumCitiesAvailable++;
         if (qZettel.Player == qPlayer.PlayerNum) {
-            mMoneyReservedForAuctions += qZettel.Preis;
+            mMoneyReservedForAuctions += 3 * qZettel.Preis; /* winner pays three months' rent */
         }
     }
 
@@ -1448,12 +1448,12 @@ void Bot::actionVisitBoss() {
         if (qZettel.ZettelId < 0 || qZettel.Player == qPlayer.PlayerNum) {
             continue;
         }
-        if (qZettel.Preis > moneyAvailable) {
+        if (3 * (qZettel.Preis + qZettel.Preis / 10) > moneyAvailable) {
             continue;
         }
 
         if (GameMechanic::bidOnGate(qPlayer, c)) {
-            mMoneyReservedForAuctions += qZettel.Preis;
+            mMoneyReservedForAuctions += 3 * qZettel.Preis;
             moneyAvailable = getMoneyAvailable();
             AT_Log("Bot::actionVisitBoss(): Bidding on gate: %d $", qZettel.Preis);
         }
@@ -1474,12 +1474,12 @@ void Bot::actionVisitBoss() {
         if (qPlayer.RentCities.RentCities[Cities(qZettel.ZettelId)].Rang != 0) {
             continue;
         }
-        if (qZettel.Preis > moneyAvailable) {
+        if (3 * (qZettel.Preis + qZettel.Preis / 10) > moneyAvailable) {
             continue;
         }
 
         if (GameMechanic::bidOnCity(qPlayer, c)) {
-            mMoneyReservedForAuctions += qZettel.Preis;
+            mMoneyReservedForAuctions += 3 * qZettel.Preis;
             moneyAvailable = getMoneyAvailable();
             AT_Log("Bot::actionVisitBoss(): Bidding on city %s: %d $", Cities[qZettel.ZettelId].Name.c_str(), qZettel.Preis);
         }

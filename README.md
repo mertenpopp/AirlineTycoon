@@ -218,6 +218,8 @@ All new computer players have one thing in common:
 * Stocks are traded in chunks of 2000 with the price updated after each chunk (exploit fix)
 * Food costs now include first-class passengers
 * Dragging a flight in the flight planner could make it start before its plane arrived (#44).
+* Fixed bug where computer player buys or sells more stock than available
+* Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
 * Fixed many random crashes
 
 ### Default computer player
@@ -238,7 +240,6 @@ All new computer players have one thing in common:
 * Fixed bug that prevented computer players from using routes in most games
     * Computer players will switch to routes in most games eventually
     * Computer players however will use a small cheat that regularly improves their image
-* Fixed bug where computer player buys or sells more stock than available
 
 ### Misc
 * Spy reports enemy activity based on skill
@@ -273,7 +274,6 @@ All new computer players have one thing in common:
     * You can now easily charge much more than before (which is possible if you have enough image)
     * Includes the prices that the new computer players charge
     * First-class presets are 3x economy prices. Reason: Since one FC passenger takes the place of two economy passengers, at only 2x the price you would gain nothing
-* Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
 * Aligned how last-minute flight plan changes affect first-class route passengers
 
 ## Credits and Contributors

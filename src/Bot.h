@@ -58,7 +58,6 @@ extern const __int64 kMoneyReservePaybackCredit;
 extern const __int64 kMoneyReserveBuyOwnShares;
 extern const __int64 kMoneyReserveBuyNemesisShares;
 extern const __int64 kMoneyReserveSabotage;
-extern const __int64 kPlaneCashReserve;
 
 class Bot {
   public:
