@@ -69,12 +69,11 @@ const bool kReduceDividend = false;
 const SLONG kStockMissionSaveMoneyDays = 16; /* stock price mission (DIFF_ADDON08): days in the money saving phase */
 const SLONG kMaxSabotageHints = 99;
 
-const __int64 kMoneyEmergencyFund = 0; /* we can go into debt */
+const __int64 kMoneyEmergencyFund = -1000000; /* spend up to 1M into overdraft; reserved bills are paid later */
 const __int64 kMoneyReservePaybackCredit = 500 * 1e6;
 const __int64 kMoneyReserveBuyOwnShares = 2 * 1e6;
 const __int64 kMoneyReserveBuyNemesisShares = 80 * 1e6;
 const __int64 kMoneyReserveSabotage = 200 * 1000;
-const __int64 kPlaneCashReserve = 800000;
 
 const char *Bot::getPrioName(Bot::Prio prio) {
     switch (prio) {
@@ -526,7 +525,7 @@ void Bot::RobotExecuteAction() {
         break;
 
     case ACTION_BUYNEWPLANE:
-        actionBuyNewPlane(moneyAvailable - DEBT_LIMIT - kPlaneCashReserve);
+        actionBuyNewPlane(moneyAvailable);
         break;
 
     case ACTION_BUYUSEDPLANE:
@@ -594,7 +593,7 @@ void Bot::RobotExecuteAction() {
     } break;
 
     case ACTION_DROPMONEY: {
-        __int64 m = std::min(qPlayer.Credit, moneyAvailable);
+        __int64 m = std::min(qPlayer.Credit, moneyAvailable + kMoneyEmergencyFund); /* see condDropMoney() */
         AT_Log("Bot::RobotExecuteAction(): Paying back loan: %s $", Insert1000erDots64(m).c_str());
         GameMechanic::payBackCredit(qPlayer, m);
         moneyAvailable = getMoneyAvailable();

@@ -305,7 +305,7 @@ Bot::Prio Bot::condUpgradePlanes() {
 }
 
 Bot::Prio Bot::condBuyNewPlane(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable() - DEBT_LIMIT - kPlaneCashReserve;
+    moneyAvailable = getMoneyAvailable();
     if (!hoursPassed(ACTION_BUYNEWPLANE, kFrequencyRouteStrategy)) {
         return Prio::None;
     }
@@ -593,7 +593,7 @@ Bot::Prio Bot::condTakeOutLoan() {
 }
 
 Bot::Prio Bot::condDropMoney(__int64 &moneyAvailable) {
-    moneyAvailable = getMoneyAvailable();
+    moneyAvailable = getMoneyAvailable() + kMoneyEmergencyFund; /* pay back only with cash we own, not with the overdraft */
     if (!hoursPassed(ACTION_DROPMONEY, 24)) {
         return Prio::None;
     }
