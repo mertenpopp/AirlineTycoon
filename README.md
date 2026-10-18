@@ -220,6 +220,7 @@ All new computer players have one thing in common:
 * Dragging a flight in the flight planner could make it start before its plane arrived (#44).
 * Fixed bug where computer player buys or sells more stock than available
 * Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
+* Show correct price for auctions (gates and branch offices). Real price is three times monthly rent, previously, only one time the monthly rent was displayed
 * Fixed many random crashes
 
 ### Default computer player

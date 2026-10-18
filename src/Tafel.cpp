@@ -189,7 +189,8 @@ void CTafel::RepaintZettel(SLONG n) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_CENTERED, XY(3, 72 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 202));
             }
-            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 95 + 20), XY(ZettelBms[n].Size.x - 3, 202));
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis * AUCTION_RENT_MONTHS), FontSmallBlack, TEC_FONT_CENTERED, XY(3, 95 + 20),
+                                 XY(ZettelBms[n].Size.x - 3, 202));
         }
     } else if (entry->Type == CTafelZettel::Type::CITY) {
         if (entry->ZettelId <= -1) {
@@ -206,7 +207,8 @@ void CTafel::RepaintZettel(SLONG n) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_LEFT, XY(13, 55 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 132));
             }
-            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30), XY(ZettelBms[n].Size.x - 3, 132));
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis * AUCTION_RENT_MONTHS), FontSmallBlack, TEC_FONT_LEFT, XY(13, 70 + 30),
+                                 XY(ZettelBms[n].Size.x - 3, 132));
         }
     } else if (entry->Type == CTafelZettel::Type::GATE) {
         if (entry->ZettelId <= -1) {
@@ -223,7 +225,8 @@ void CTafel::RepaintZettel(SLONG n) {
                 ZettelBms[n].PrintAt(Sim.Players.Players[entry->Player].Airline, FontSmallBlack, TEC_FONT_LEFT, XY(13, 45 + 30),
                                      XY(ZettelBms[n].Size.x - 3, 202));
             }
-            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis), FontSmallBlack, TEC_FONT_LEFT, XY(13, 60 + 30), XY(ZettelBms[n].Size.x - 3, 202));
+            ZettelBms[n].PrintAt(Einheiten[EINH_DM].bString(entry->Preis * AUCTION_RENT_MONTHS), FontSmallBlack, TEC_FONT_LEFT, XY(13, 60 + 30),
+                                 XY(ZettelBms[n].Size.x - 3, 202));
         }
     }
 }
