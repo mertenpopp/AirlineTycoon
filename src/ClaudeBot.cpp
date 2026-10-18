@@ -3676,7 +3676,7 @@ void ClaudeBot::bidOnOffices(SLONG numPlanes) {
             continue;
         }
         /* The bid raises the price by a tenth, and three times the new price is due tonight. */
-        const __int64 due = 3 * static_cast<__int64>(pZettel->Preis + pZettel->Preis / 10);
+        const __int64 due = AUCTION_RENT_MONTHS * static_cast<__int64>(pZettel->Preis + pZettel->Preis / 10);
         if (qPlayer.Money - due < kOfficeCashReserve) {
             continue;
         }

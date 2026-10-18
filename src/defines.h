@@ -153,6 +153,7 @@ constexpr char NetVersionString[] = FILE_VERSION_STRING " / net 3";
 #define DEBT_WARNLIMIT2 -1000000 // Warnung: Kein weiterer Kredit
 #define DEBT_WARNLIMIT3 -3000000 // Warnung: Konkurs
 #define DEBT_GAMEOVER -5000000   // Konkurs
+#define AUCTION_RENT_MONTHS 3    // Wer eine Auktion gewinnt, zahlt einmalig so viele Monatsmieten
 #define MOODCOUNT_START 60
 #define BUILDHASHSIZE 320
 #define DAYS_WITHOUT_LAPTOP 7
