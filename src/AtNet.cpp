@@ -1897,8 +1897,8 @@ void PumpNetwork() {
                 if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
-                    qPlayer.Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay(m);
-                    qPlayer.Statistiken[STAT_MITARBEITER].SetAtPastDay(n);
+                    /* m and n (STAT_ZUFR_PERSONAL and STAT_MITARBEITER) are ignored: every
+                       peer computes them itself, see PLAYER::UpdateStaffStatistics(). */
 
                     SLONG c = 0;
                     while (true) {
@@ -2869,6 +2869,10 @@ void PumpNetwork() {
                             Workers.Workers[WorkerId].Gehalt = Gehalt;
                             Workers.Workers[WorkerId].Happyness = Happyness;
                         }
+                    }
+
+                    if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
+                        Sim.Players.Players[PlayerNum].UpdateStaffStatistics();
                     }
 
                     Anz--;

@@ -6500,6 +6500,8 @@ void PLAYER::MapWorkerOverflow(BOOL Advice) {
 
     if (Sim.bNetwork != 0) {
         NetUpdateWorkers();
+    } else {
+        UpdateStaffStatistics();
     }
 }
 
@@ -6717,6 +6719,8 @@ again: // Zweiter Pass, wenn Stewardessen aus Luxusstellen umgebucht werden, dam
 
     if (Sim.bNetwork != 0) {
         NetUpdateWorkers();
+    } else {
+        UpdateStaffStatistics();
     }
 }
 
@@ -6930,53 +6934,10 @@ void PLAYER::UpdateStatistics() {
     // STAT_UNFAELLE: in Sim::NewDay()
     // STAT_SABOTIERT: in Sim::NewDay()
 
-    // STAT_MITARBEITER:
     bool hostOrNoNetwork = (Sim.bIsHost != 0) || (Sim.bNetwork == 0);
-    if (Owner == 0 || (Owner == 1 && hostOrNoNetwork && !RobotUse(ROBOT_USE_FAKE_PERSONAL))) {
-        for (c = d = 0; c < Workers.Workers.AnzEntries(); c++) {
-            if (Workers.Workers[c].Employer == PlayerNum) {
-                d++;
-            }
-        }
-        Statistiken[STAT_MITARBEITER].SetAtPastDay(d);
-    } else if (Owner == 1 && hostOrNoNetwork) {
-        for (c = d = 0; c < Planes.AnzEntries(); c++) {
-            if (Planes.IsInAlbum(c) != 0) {
-                // d+=PlaneTypes[Planes[c].TypeId].AnzPiloten;
-                d += Planes[c].ptAnzPiloten;
-                // d+=PlaneTypes[Planes[c].TypeId].AnzBegleiter;
-                d += Planes[c].ptAnzBegleiter;
-            }
-        }
-        Statistiken[STAT_MITARBEITER].SetAtPastDay(d);
-    }
-    // Owner==2 über Network
 
-    // STAT_ZUFR_PERSONAL:
-    if (Owner == 0 || (Owner == 1 && hostOrNoNetwork && !RobotUse(ROBOT_USE_FAKE_PERSONAL))) {
-        SLONG Anz = 0;
-
-        for (c = d = 0; c < Workers.Workers.AnzEntries(); c++) {
-            if (Workers.Workers[c].Employer == PlayerNum) {
-                d += (Workers.Workers[c].Happyness + 100) / 2;
-                Anz++;
-            }
-        }
-
-        // if (Anz>0) Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay (0, d/Anz);
-        if (Anz > 0) {
-            Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay(d / 100);
-        } else {
-            Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay(0);
-        }
-    } else if (Owner == 1 && hostOrNoNetwork) {
-        c = SLONG(Statistiken[STAT_MITARBEITER].GetAtPastDay(0));
-
-        c = c * (min(500, Image) + 2500) / 3000;
-
-        Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay(c);
-    }
-    // Owner==2 über Network
+    // STAT_MITARBEITER, STAT_ZUFR_PERSONAL:
+    UpdateStaffStatistics();
 
     if (Owner == 0 && (Sim.bCheatedSession == 0)) {
         Sim.AddHighscore((LPCTSTR)NameX, Sim.UniqueGameId2, Statistiken[STAT_FIRMENWERT].GetAtPastDay(0));
@@ -7303,12 +7264,62 @@ void PLAYERS::CheckFlighplans() {
 }
 
 //--------------------------------------------------------------------------------------------
+// Bringt STAT_MITARBEITER und STAT_ZUFR_PERSONAL auf den neusten Stand:
+//--------------------------------------------------------------------------------------------
+void PLAYER::UpdateStaffStatistics() {
+    SLONG c = 0;
+    SLONG d = 0;
+
+    /* Every peer computes these for every player: all of them repeat each hire, firing,
+       salary change and happiness change, and know every fleet and image. They used to be
+       computed only by the owner and copied from ATNET_PERSONNEL, which left the other
+       peers with whatever the last message said. */
+    if (Owner == 1 && RobotUse(ROBOT_USE_FAKE_PERSONAL)) {
+        for (c = d = 0; c < Planes.AnzEntries(); c++) {
+            if (Planes.IsInAlbum(c) != 0) {
+                d += Planes[c].ptAnzPiloten;
+                d += Planes[c].ptAnzBegleiter;
+            }
+        }
+        Statistiken[STAT_MITARBEITER].SetAtPastDay(d);
+        Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay(d * (min(500, Image) + 2500) / 3000);
+        return;
+    }
+
+    SLONG Anz = 0;
+    for (c = d = 0; c < Workers.Workers.AnzEntries(); c++) {
+        if (Workers.Workers[c].Employer == PlayerNum) {
+            /* A raise adds to happiness without the limit of 100, which only comes back the
+               next night; the statistic must not go beyond 100%. */
+            d += (std::clamp(Workers.Workers[c].Happyness, SLONG(-100), SLONG(100)) + 100) / 2;
+            Anz++;
+        }
+    }
+    Statistiken[STAT_MITARBEITER].SetAtPastDay(Anz);
+
+    /* Stored as the number of fully satisfied workers; rounded, because truncating showed
+       e.g. three workers at 99% as 66%. */
+    Statistiken[STAT_ZUFR_PERSONAL].SetAtPastDay((d + 50) / 100);
+}
+
+//--------------------------------------------------------------------------------------------
 // Bringt die Statistiken auf den neusten Stand:
 //--------------------------------------------------------------------------------------------
 void PLAYERS::UpdateStatistics() {
     for (SLONG c = 0; c < AnzPlayers; c++) {
         if (Players[c].IsOut == 0) {
             Players[c].UpdateStatistics();
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------
+// Bringt STAT_MITARBEITER und STAT_ZUFR_PERSONAL aller Spieler auf den neusten Stand:
+//--------------------------------------------------------------------------------------------
+void PLAYERS::UpdateStaffStatistics() {
+    for (SLONG c = 0; c < AnzPlayers; c++) {
+        if (Players[c].IsOut == 0) {
+            Players[c].UpdateStaffStatistics();
         }
     }
 }
