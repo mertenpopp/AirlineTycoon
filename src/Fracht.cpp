@@ -915,63 +915,66 @@ TEAKFILE &operator>>(TEAKFILE &File, CFrachten &Frachten) {
 // Läßt nötigenfalls den Auftragsberater mit einem Spruch erscheien
 //============================================================================================
 void PLAYER::CheckAuftragsBerater(const CFracht &Fracht) {
-    if (HasBerater(BERATERTYP_AUFTRAG) != 0) {
-        SLONG d = 0;
-        SLONG Okay = 0;
+    if (HasBerater(BERATERTYP_AUFTRAG) == 0) {
+        return;
+    }
 
-        for (d = 0, Okay = FALSE; d < Planes.AnzEntries(); d++) {
-            if (Planes.IsInAlbum(d) != 0) {
-                Okay |= Fracht.FitsInPlane(Planes[d]);
-            }
+    BOOL Okay = FALSE;
+    for (SLONG d = 0; !Okay && d < Planes.AnzEntries(); d++) {
+        if (Planes.IsInAlbum(d) != 0 && Fracht.FitsInPlane(Planes[d])) {
+            Okay = TRUE;
         }
-        // Okay|=Fracht.FitsInPlane (PlaneTypes[(SLONG)Planes[d].TypeId]);
+    }
 
-        for (d = 0; d < Planes.AnzEntries(); d++) {
-            if (Planes.IsInAlbum(d) != 0) {
-                CPlane &qPlane = Planes[d];
+    for (SLONG d = 0; Okay && d < Planes.AnzEntries(); d++) {
+        if (Planes.IsInAlbum(d) == 0) {
+            continue;
+        }
+        CPlane &qPlane = Planes[d];
+        if (!Fracht.FitsInPlane(qPlane)) {
+            continue;
+        }
 
-                for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
-                    if (qPlane.Flugplan.Flug[e].ObjectType == 3) {
-                        CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[e];
+        for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+            if (qPlane.Flugplan.Flug[e].ObjectType != 3) {
+                continue;
+            }
+            CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[e];
 
-                        if (qFPE.Startdate > Sim.Date || (qFPE.Startdate == Sim.Date && qFPE.Startzeit > Sim.GetHour() + 1)) {
-                            if (Fracht.VonCity == qFPE.VonCity && Fracht.NachCity == qFPE.NachCity && Fracht.Date <= qFPE.Startdate &&
-                                Fracht.BisDate >= qFPE.Startdate) {
-                                // Fracht ersetzt Autoflug:
-                                Messages.AddMessage(BERATERTYP_AUFTRAG, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 7113), (LPCTSTR)qPlane.Name), MESSAGE_COMMENT,
-                                                    SMILEY_GREAT);
-                                return;
-                            }
-                        }
-                    }
+            if (qFPE.Startdate > Sim.Date || (qFPE.Startdate == Sim.Date && qFPE.Startzeit > Sim.GetHour() + 1)) {
+                if (Fracht.VonCity == qFPE.VonCity && Fracht.NachCity == qFPE.NachCity && Fracht.Date <= qFPE.Startdate && Fracht.BisDate >= qFPE.Startdate) {
+                    // Fracht ersetzt Autoflug:
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 7113), (LPCTSTR)qPlane.Name), MESSAGE_COMMENT,
+                                        SMILEY_GREAT);
+                    return;
                 }
             }
         }
+    }
 
-        if (Okay == 0) {
-            // Kein Flugzeug, was die Entfernung schafft:
-            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7110), MESSAGE_COMMENT, SMILEY_BAD);
+    if (Okay == FALSE) {
+        // Kein Flugzeug, was die Entfernung schafft:
+        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7110), MESSAGE_COMMENT, SMILEY_BAD);
+    } else {
+        SLONG Cost = ((CalculateFlightCost(Fracht.VonCity, Fracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
+
+        // Bei den Kosten auch die wahrscheinliche Zahl der Flüge berücksichtigen:
+        if (Fracht.Tons > 22) {
+            Cost *= Fracht.Tons / 22;
+        }
+
+        if (Fracht.Praemie == 0) {
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7105), MESSAGE_COMMENT, SMILEY_GOOD);
+        } else if (Fracht.Strafe == 0) {
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7100), MESSAGE_COMMENT, SMILEY_NEUTRAL);
+        } else if (Cost <= Fracht.Praemie * 5 / 10) {
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7101), MESSAGE_COMMENT, SMILEY_GREAT);
+        } else if (Cost <= Fracht.Praemie * 9 / 10) {
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7102), MESSAGE_COMMENT, SMILEY_GOOD);
+        } else if (Cost <= Fracht.Praemie * 14 / 10) {
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7103), MESSAGE_COMMENT, SMILEY_NEUTRAL);
         } else {
-            SLONG Cost = ((CalculateFlightCost(Fracht.VonCity, Fracht.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-            // Bei den Kosten auch die wahrscheinliche Zahl der Flüge berücksichtigen:
-            if (Fracht.Tons > 22) {
-                Cost *= Fracht.Tons / 22;
-            }
-
-            if (Fracht.Praemie == 0) {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7105), MESSAGE_COMMENT, SMILEY_GOOD);
-            } else if (Fracht.Strafe == 0) {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7100), MESSAGE_COMMENT, SMILEY_NEUTRAL);
-            } else if (Cost <= Fracht.Praemie * 5 / 10) {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7101), MESSAGE_COMMENT, SMILEY_GREAT);
-            } else if (Cost <= Fracht.Praemie * 9 / 10) {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7102), MESSAGE_COMMENT, SMILEY_GOOD);
-            } else if (Cost <= Fracht.Praemie * 14 / 10) {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7103), MESSAGE_COMMENT, SMILEY_NEUTRAL);
-            } else {
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7104), MESSAGE_COMMENT, SMILEY_BAD);
-            }
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7104), MESSAGE_COMMENT, SMILEY_BAD);
         }
     }
 }

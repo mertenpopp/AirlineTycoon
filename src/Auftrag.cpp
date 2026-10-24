@@ -69,78 +69,80 @@ void CalcPlayerMaximums(bool bForce) {
 // Läßt nötigenfalls den Auftragsberater mit einem Spruch erscheien
 //============================================================================================
 void PLAYER::CheckAuftragsBerater(const CAuftrag &Auftrag) {
-    if (HasBerater(BERATERTYP_AUFTRAG) != 0) {
-        SLONG d = 0;
-        SLONG Okay = 0;
+    if (HasBerater(BERATERTYP_AUFTRAG) == 0) {
+        return;
+    }
+    SLONG numPersonen = static_cast<SLONG>(Auftrag.Personen);
 
-        for (d = 0, Okay = FALSE; d < Planes.AnzEntries(); d++) {
-            if (Planes.IsInAlbum(d) != 0) {
-                Okay |= Auftrag.FitsInPlane(Planes[d]);
-                // Okay|=Auftrag.FitsInPlane (PlaneTypes[(SLONG)Planes[d].TypeId]);
-            }
+    for (SLONG d = 0; d < Planes.AnzEntries(); d++) {
+        if (Planes.IsInAlbum(d) == 0) {
+            continue;
+        }
+        CPlane &qPlane = Planes[d];
+        if (!Auftrag.FitsInPlane(qPlane) || (numPersonen > (qPlane.MaxPassagiere + qPlane.MaxPassagiereFC))) {
+            continue;
         }
 
-        for (d = 0; d < Planes.AnzEntries(); d++) {
-            if (Planes.IsInAlbum(d) != 0) {
-                CPlane &qPlane = Planes[d];
+        for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
+            if (qPlane.Flugplan.Flug[e].ObjectType != 3) {
+                continue;
+            }
+            CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[e];
 
-                for (SLONG e = 0; e < qPlane.Flugplan.Flug.AnzEntries(); e++) {
-                    if (qPlane.Flugplan.Flug[e].ObjectType == 3) {
-                        CFlugplanEintrag &qFPE = qPlane.Flugplan.Flug[e];
-
-                        if (qFPE.Startdate > Sim.Date || (qFPE.Startdate == Sim.Date && qFPE.Startzeit > Sim.GetHour() + 1)) {
-                            if (Auftrag.VonCity == qFPE.VonCity && Auftrag.NachCity == qFPE.NachCity && Auftrag.Date <= qFPE.Startdate &&
-                                Auftrag.BisDate >= qFPE.Startdate && SLONG(Auftrag.Personen) <= qPlane.MaxPassagiere + qPlane.MaxPassagiereFC) {
-                                // Auftrag ersetzt Autoflug:
-                                Messages.AddMessage(BERATERTYP_AUFTRAG, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 7013), (LPCTSTR)qPlane.Name), MESSAGE_COMMENT,
-                                                    SMILEY_GREAT);
-                                return;
-                            }
-                        }
-                    }
+            if (qFPE.Startdate > Sim.Date || (qFPE.Startdate == Sim.Date && qFPE.Startzeit > Sim.GetHour() + 1)) {
+                if (Auftrag.VonCity == qFPE.VonCity && Auftrag.NachCity == qFPE.NachCity && Auftrag.Date <= qFPE.Startdate &&
+                    Auftrag.BisDate >= qFPE.Startdate) {
+                    // Auftrag ersetzt Autoflug:
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 7013), (LPCTSTR)qPlane.Name), MESSAGE_COMMENT,
+                                        SMILEY_GREAT);
+                    return;
                 }
             }
         }
+    }
 
-        if (Okay == 0) {
-            // Kein Flugzeug, was die Entfernung schafft:
-            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7010), MESSAGE_COMMENT, SMILEY_BAD);
+    BOOL bHaveSeats = FALSE;
+    BOOL bHaveRange = FALSE;
+    BOOL bHaveBoth = FALSE;
+    for (SLONG d = 0; d < Planes.AnzEntries(); d++) {
+        if (Planes.IsInAlbum(d) == 0) {
+            continue;
+        }
+        if (Auftrag.FitsInPlane(Planes[d])) {
+            bHaveRange = TRUE;
+        }
+        if (numPersonen <= (Planes[d].MaxPassagiere + Planes[d].MaxPassagiereFC)) {
+            bHaveSeats = TRUE;
+        }
+        if (Auftrag.FitsInPlane(Planes[d]) && numPersonen <= (Planes[d].MaxPassagiere + Planes[d].MaxPassagiereFC)) {
+            bHaveBoth = TRUE;
+        }
+    }
+
+    if (bHaveRange == FALSE) {
+        // Kein Flugzeug, was die Entfernung schafft:
+        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7010), MESSAGE_COMMENT, SMILEY_BAD);
+    } else {
+        if (bHaveSeats == FALSE) {
+            // Kein Flugzeug, was so viele Personen schafft:
+            Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7011), MESSAGE_COMMENT, SMILEY_BAD);
         } else {
-            for (d = 0, Okay = FALSE; d < Planes.AnzEntries(); d++) {
-                if (Planes.IsInAlbum(d) != 0) {
-                    Okay |= static_cast<SLONG>(SLONG(Auftrag.Personen) <= Planes[d].MaxPassagiere + Planes[d].MaxPassagiereFC);
-                }
-            }
-
-            if (Okay == 0) {
-                // Kein Flugzeug, was so viele Personen schafft:
-                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7011), MESSAGE_COMMENT, SMILEY_BAD);
+            if (bHaveBoth == FALSE) {
+                // Kein Flugzeug, was Entfernung und Personen zugleich schafft:
+                Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7012), MESSAGE_COMMENT, SMILEY_BAD);
             } else {
-                for (d = 0, Okay = FALSE; d < Planes.AnzEntries(); d++) {
-                    if (Planes.IsInAlbum(d) != 0) {
-                        Okay |= static_cast<SLONG>((SLONG(Auftrag.Personen) <= Planes[d].MaxPassagiere + Planes[d].MaxPassagiereFC) &&
-                                                   (Auftrag.FitsInPlane(Planes[d]) != 0));
-                        // Auftrag.FitsInPlane (PlaneTypes[(SLONG)Planes[d].TypeId]) );
-                    }
-                }
+                SLONG Cost = ((CalculateFlightCost(Auftrag.VonCity, Auftrag.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
 
-                if (Okay == 0) {
-                    // Kein Flugzeug, was so viele Personen schafft:
-                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7012), MESSAGE_COMMENT, SMILEY_BAD);
+                if (Auftrag.Strafe == 0) {
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7000), MESSAGE_COMMENT, SMILEY_NEUTRAL);
+                } else if (Cost <= Auftrag.Praemie * 5 / 10) {
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7001), MESSAGE_COMMENT, SMILEY_GREAT);
+                } else if (Cost <= Auftrag.Praemie * 9 / 10) {
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7002), MESSAGE_COMMENT, SMILEY_GOOD);
+                } else if (Cost <= Auftrag.Praemie * 14 / 10) {
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7003), MESSAGE_COMMENT, SMILEY_NEUTRAL);
                 } else {
-                    SLONG Cost = ((CalculateFlightCost(Auftrag.VonCity, Auftrag.NachCity, 8000, 700, -1)) + 99) / 100 * 100;
-
-                    if (Auftrag.Strafe == 0) {
-                        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7000), MESSAGE_COMMENT, SMILEY_NEUTRAL);
-                    } else if (Cost <= Auftrag.Praemie * 5 / 10) {
-                        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7001), MESSAGE_COMMENT, SMILEY_GREAT);
-                    } else if (Cost <= Auftrag.Praemie * 9 / 10) {
-                        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7002), MESSAGE_COMMENT, SMILEY_GOOD);
-                    } else if (Cost <= Auftrag.Praemie * 14 / 10) {
-                        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7003), MESSAGE_COMMENT, SMILEY_NEUTRAL);
-                    } else {
-                        Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7004), MESSAGE_COMMENT, SMILEY_BAD);
-                    }
+                    Messages.AddMessage(BERATERTYP_AUFTRAG, StandardTexte.GetS(TOKEN_ADVICE, 7004), MESSAGE_COMMENT, SMILEY_BAD);
                 }
             }
         }
