@@ -236,6 +236,7 @@ void CFrachtRaum::OnPaint() {
     RoomBm.pBitmap->SetClipRect(CRect(0, 0, 640, 440));
     for (c = gFrachten.AnzEntries() - 1; c >= 0; c--) {
         if (gFrachten[c].Praemie >= 0) {
+            RepaintZettelIfStale(c);
             if (RoomBm.BlitFromT(ZettelBms[c], KistePos[c * 2], KistePos[c * 2 + 1]) == 0) {
                 RepaintZettel(c);
                 RoomBm.BlitFromT(ZettelBms[c], KistePos[c * 2], KistePos[c * 2 + 1]);
@@ -390,7 +391,23 @@ void CFrachtRaum::OnRButtonDown(UINT nFlags, CPoint point) {
 //--------------------------------------------------------------------------------------------
 // void CFrachtRaum::RepaintZettel (SLONG n)
 //--------------------------------------------------------------------------------------------
+// Jobs are refilled every few minutes, also while the player is in the room.
+// Redraw a note when its slot now holds a different route.
+void CFrachtRaum::RepaintZettelIfStale(SLONG n) {
+    if (n < 0 || n >= SLONG(std::size(ZettelVonCity))) {
+        return;
+    }
+    if (ZettelVonCity[n] != gFrachten[n].VonCity || ZettelNachCity[n] != gFrachten[n].NachCity) {
+        RepaintZettel(n);
+    }
+}
+
 void CFrachtRaum::RepaintZettel(SLONG n) {
+    if (n >= 0 && n < SLONG(std::size(ZettelVonCity))) {
+        ZettelVonCity[n] = gFrachten[n].VonCity;
+        ZettelNachCity[n] = gFrachten[n].NachCity;
+    }
+
     ZettelBms[n].ReSize(KistenBms[n].Size);
     ZettelBms[n].BlitFrom(KistenBms[n]);
 

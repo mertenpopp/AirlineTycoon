@@ -19,6 +19,8 @@ class CReisebuero : public CStdRaum {
   public:
     SLONG LastTip{};
     SBBM ZettelBms[10];
+    ULONG ZettelVonCity[10]{};  // Route each note was drawn for; jobs refill while the player is in the room
+    ULONG ZettelNachCity[10]{};
     SBBM TipBm;
     SBBMS MapPlaneBms[5];
     GfxLib *pMenuLib{};
@@ -38,6 +40,7 @@ class CReisebuero : public CStdRaum {
     // Operations
   public:
     void RepaintZettel(SLONG n);
+    void RepaintZettelIfStale(SLONG n);
 
     // Overrides
     // ClassWizard generated virtual function overrides
