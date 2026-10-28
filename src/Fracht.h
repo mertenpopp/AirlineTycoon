@@ -29,6 +29,8 @@ class CFrachtRaum : public CStdRaum {
 
     SLONG LastTip{};
     SBBM ZettelBms[6];
+    ULONG ZettelVonCity[6]{};  // Route each note was drawn for; jobs refill while the player is in the room
+    ULONG ZettelNachCity[6]{};
     SBBM TipBm;
     SBBMS MapPlaneBms[5];
     SBBMS SeileBms;
@@ -48,6 +50,7 @@ class CFrachtRaum : public CStdRaum {
     virtual ~CFrachtRaum();
 
     void RepaintZettel(SLONG n);
+    void RepaintZettelIfStale(SLONG n);
 
     // Generated message map functions
   protected:

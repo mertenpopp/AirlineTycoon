@@ -198,6 +198,7 @@ void CLastMinute::OnPaint() {
     RoomBm.pBitmap->SetClipRect(CRect(0, 0, 640, 440));
     for (c = 0; c < LastMinuteAuftraege.AnzEntries(); c++) {
         if (LastMinuteAuftraege[c].Praemie > 0) {
+            RepaintZettelIfStale(c);
             if (RoomBm.BlitFromT(ZettelBms[c], ZettelPos[c * 2], ZettelPos[c * 2 + 1]) == 0) {
                 RepaintZettel(c);
                 RoomBm.BlitFromT(ZettelBms[c], ZettelPos[c * 2], ZettelPos[c * 2 + 1]);
@@ -276,7 +277,23 @@ void CLastMinute::OnPaint() {
 //--------------------------------------------------------------------------------------------
 // void CLastMinute::OnPaint()
 //--------------------------------------------------------------------------------------------
+// Jobs are refilled every few minutes, also while the player is in the room.
+// Redraw a note when its slot now holds a different route.
+void CLastMinute::RepaintZettelIfStale(SLONG n) {
+    if (n < 0 || n >= SLONG(std::size(ZettelVonCity))) {
+        return;
+    }
+    if (ZettelVonCity[n] != LastMinuteAuftraege[n].VonCity || ZettelNachCity[n] != LastMinuteAuftraege[n].NachCity) {
+        RepaintZettel(n);
+    }
+}
+
 void CLastMinute::RepaintZettel(SLONG n) {
+    if (n >= 0 && n < SLONG(std::size(ZettelVonCity))) {
+        ZettelVonCity[n] = LastMinuteAuftraege[n].VonCity;
+        ZettelNachCity[n] = LastMinuteAuftraege[n].NachCity;
+    }
+
     ZettelBms[n].ReSize(gZettelBms[n % 3].Size);
     ZettelBms[n].BlitFrom(gZettelBms[n % 3]);
 
