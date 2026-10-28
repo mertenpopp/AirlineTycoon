@@ -221,6 +221,7 @@ All new computer players have one thing in common:
 * Fixed bug where computer player buys or sells more stock than available
 * Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
 * Show correct price for auctions (gates and branch offices). Real price is three times monthly rent, previously, only one time the monthly rent was displayed
+* The advisor does no longer recommend an incompatible flight to replace an automatic flight
 * Fixed many random crashes
 
 ### Default computer player
