@@ -44,14 +44,8 @@ SLONG bNetworkUnderway = 0;
 
 static bool bNewGamePopupIsOpen = false;
 
-/* Game settings that each machine reads from its own options, but that decide shared state:
-   the clients must play with the host's. Sent right before ATNET_BEGINGAME(LOADING), which
-   reaches them after this (messages from one sender arrive in order). */
 static SLONG ClampBotLevel(SLONG Level) { return (Level >= BotDifficultyClassic && Level <= BotDifficultyMax) ? Level : BotDifficultyClassic; }
 
-/* Each peer keeps the bot levels of its previous game, and the lobby only sends a level when
-   someone changes it. Every peer runs the bots' actions and their rules (fines, bonuses)
-   itself, so the levels must match: they travel with the game rules. */
 static void LogBotLevels(const char *Who) {
     for (SLONG c = 0; c < 4; c++) {
         const auto &qPlayer = Sim.Players.Players[c];
@@ -60,6 +54,12 @@ static void LogBotLevels(const char *Who) {
     }
 }
 
+/* Game settings that each machine reads from its own options, but that decide shared state:
+   the clients must play with the host's. Sent right before ATNET_BEGINGAME(LOADING), which
+   reaches them after this (messages from one sender arrive in order).
+   This includes the bot levels: each peer keeps those of its previous game, and the lobby
+   only sends a level when someone changes it. Every peer runs the bots' actions and their
+   rules (fines, bonuses) itself, so the levels must match. */
 static void SendGameRules() {
     TEAKFILE Message;
 
