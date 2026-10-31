@@ -382,7 +382,9 @@ GameFrame::~GameFrame() {
     }
 
     TextBricks.ReSize(0);
-    Sim.Players.Players.ReSize(0);
+    for (auto &qPlayer : Sim.Players.Players) {
+        qPlayer.pSmack.reset(); // frees SDL resources: must happen while SDL is still up
+    }
     PlaneTypes.ReSize(0);
     Clans.ReSize(0);
     Bricks.ReSize(0);
@@ -559,7 +561,7 @@ void GameFrame::Invalidate() {
     if (TopWin != nullptr) {
         TopWin->OnPaint();
     } else {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             w = Sim.Players.Players[c].LocationWin;
 
             if (w != nullptr) {
@@ -583,7 +585,7 @@ void GameFrame::RePostMessage(const CPoint &Pos) const {
     if (TopWin != nullptr) {
         TopWin->ProcessEvent(Mess, Pos);
     } else {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             w = Sim.Players.Players[c].LocationWin;
 
             if (w != nullptr) {
@@ -639,7 +641,7 @@ void GameFrame::OnPaint() {
 
     // Ggf. die Cursor bewegen:
     if (Time - LastTime > 30) {
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].Owner == 0) {
                 if (Sim.Players.Players[c].CursorPos == CPoint(-1, -1)) {
                     Sim.Players.Players[c].CursorPos = CPoint((Sim.Players.Players[c].WinP1 + Sim.Players.Players[c].WinP2) / SLONG(2));
@@ -972,7 +974,7 @@ BOOL GameFrame::OnSetCursor(void * /*pWnd*/, UINT nHitTest, UINT /*message*/) {
 void GameFrame::OnMouseMove(UINT /*nFlags*/, CPoint point) {
     gMousePosition = point;
 
-    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].Owner == 0) {
             Sim.Players.Players[c].CursorPos = point;
         }
@@ -1014,7 +1016,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
     SLONG nTargetRoom = 0;
 
     if (nChar == ATKEY_RETURN) {
-        if (Sim.localPlayer != -1 && Sim.Players.Players.AnzEntries() == 4 && (Sim.Players.Players[Sim.localPlayer].LocationWin != nullptr)) {
+        if (Sim.localPlayer != -1 && Sim.Players.AnzPlayers() == 4 && (Sim.Players.Players[Sim.localPlayer].LocationWin != nullptr)) {
             SLONG CurrentMenu = (Sim.Players.Players[Sim.localPlayer].LocationWin)->CurrentMenu;
 
             if (CurrentMenu == MENU_REQUEST || CurrentMenu == MENU_BROADCAST) {
@@ -1248,7 +1250,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 
     gKlackerPlanes.TimeSinceStart = 0;
 
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -1276,13 +1278,13 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
       }*/
 
     if (Sim.localPlayer != -1) {
-        if (Sim.Players.Players.AnzEntries() > Sim.localPlayer) {
+        if (Sim.Players.AnzPlayers() > Sim.localPlayer) {
             if (qPlayer.GetRoom() != ROOM_OPTIONS) {
                 if (qPlayer.LocationWin == nullptr ||
                     ((qPlayer.LocationWin)->CurrentMenu != MENU_RENAMEPLANE && (qPlayer.LocationWin)->CurrentMenu != MENU_BROADCAST)) {
                     switch (nTargetRoom) {
                     case 'J':
-                        if (Sim.localPlayer != -1 && Sim.Players.Players.AnzEntries() == 4 && (qPlayer.LocationWin != nullptr)) {
+                        if (Sim.localPlayer != -1 && Sim.Players.AnzPlayers() == 4 && (qPlayer.LocationWin != nullptr)) {
                             if ((qPlayer.LocationWin)->CurrentMenu == MENU_REQUEST) {
                                 ::MouseClickPar1 = 1;
                                 ::MouseClickArea = -101;
@@ -1571,7 +1573,7 @@ void GameFrame::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
     }
 
     if (nChar == ATKEY_ESCAPE || nChar == 'N') {
-        if (Sim.localPlayer != -1 && Sim.Players.Players.AnzEntries() == 4 && (qPlayer.LocationWin != nullptr)) {
+        if (Sim.localPlayer != -1 && Sim.Players.AnzPlayers() == 4 && (qPlayer.LocationWin != nullptr)) {
             if ((qPlayer.LocationWin)->CurrentMenu == MENU_REQUEST) {
                 ::MouseClickPar1 = 2;
                 ::MouseClickArea = -101;
@@ -2149,7 +2151,7 @@ void GameFrame::OnKeyUp(UINT /*unused*/, UINT /*unused*/, UINT /*unused*/) { ReP
 //--------------------------------------------------------------------------------------------
 void GameFrame::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
     // Alles blockieren, wenn im Optionsmenü:
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -2165,7 +2167,7 @@ void GameFrame::OnLButtonDown(UINT /*nFlags*/, CPoint point) {
 //--------------------------------------------------------------------------------------------
 void GameFrame::OnLButtonDblClk(UINT /*nFlags*/, CPoint point) {
     // Alles blockieren, wenn im Optionsmenü:
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -2175,7 +2177,7 @@ void GameFrame::OnLButtonDblClk(UINT /*nFlags*/, CPoint point) {
 }
 void GameFrame::OnLButtonUp(UINT /*nFlags*/, CPoint point) {
     // Alles blockieren, wenn im Optionsmenü:
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -2185,7 +2187,7 @@ void GameFrame::OnLButtonUp(UINT /*nFlags*/, CPoint point) {
 }
 void GameFrame::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
     // Alles blockieren, wenn im Optionsmenü:
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -2195,7 +2197,7 @@ void GameFrame::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
 }
 void GameFrame::OnRButtonUp(UINT /*nFlags*/, CPoint point) {
     // Alles blockieren, wenn im Optionsmenü:
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -2211,7 +2213,7 @@ void GameFrame::OnChar(UINT nChar, UINT /*unused*/, UINT /*unused*/) {
     gKlackerPlanes.TimeSinceStart = 0;
 
     if (Sim.localPlayer != -1) {
-        if (Sim.Players.Players.AnzEntries() > Sim.localPlayer) {
+        if (Sim.Players.AnzPlayers() > Sim.localPlayer) {
             if (Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS) {
                 if (Sim.Players.Players[Sim.localPlayer].LocationWin == nullptr ||
                     ((Sim.Players.Players[Sim.localPlayer].LocationWin)->CurrentMenu != MENU_RENAMEPLANE)) {
@@ -2329,7 +2331,7 @@ void DefaultOnLButtonDown() {
 
     gMouseLButtonDownTimer = AtGetTime();
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].Owner == 0 && gMousePosition.IfIsWithin(Sim.Players.Players[c].WinP1, Sim.Players.Players[c].WinP2)) {
             Sim.Players.Players[c].Buttons |= 1;
         }
@@ -2350,7 +2352,7 @@ void DefaultOnLButtonDown() {
 void DefaultOnLButtonUp() {
     gMouseLButton = FALSE;
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].Owner == 0) {
             Sim.Players.Players[c].Buttons &= ~1;
         }
@@ -2360,7 +2362,7 @@ void DefaultOnRButtonDown() {
     gMouseRButton = TRUE;
     PlayerDidntMove = 0;
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].Owner == 0 && gMousePosition.IfIsWithin(Sim.Players.Players[c].WinP1, Sim.Players.Players[c].WinP2)) {
             Sim.Players.Players[c].Buttons |= 2;
         }
@@ -2369,7 +2371,7 @@ void DefaultOnRButtonDown() {
 void DefaultOnRButtonUp() {
     gMouseRButton = FALSE;
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].Owner == 0) {
             Sim.Players.Players[c].Buttons &= ~2;
         }

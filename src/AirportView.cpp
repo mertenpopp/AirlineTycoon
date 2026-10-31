@@ -812,7 +812,7 @@ void AirportView::OnPaint() {
 
             // Flugzeuge von allen Spielern auf dem Runway zeigen:
             if (Sim.Options.OptionPlanes != 0) {
-                for (c = 0; c < static_cast<ULONG>(Sim.Players.AnzPlayers); c++) {
+                for (c = 0; c < static_cast<ULONG>(Sim.Players.AnzPlayers()); c++) {
                     if (Sim.Players.Players[static_cast<SLONG>(c)].IsOut == 0) {
                         // Für alle Flugzeuge die er besitzt
                         for (d = 0; d < Sim.Players.Players[static_cast<SLONG>(c)].Planes.AnzEntries(); d++) {
@@ -837,7 +837,7 @@ void AirportView::OnPaint() {
                 }
 
                 // Flugzeuge von allen Spielern hinter Glas zeigen:
-                for (c = 0; c < static_cast<ULONG>(Sim.Players.AnzPlayers); c++) {
+                for (c = 0; c < static_cast<ULONG>(Sim.Players.AnzPlayers()); c++) {
                     if (Sim.Players.Players[static_cast<SLONG>(c)].IsOut == 0) {
                         // Für alle Flugzeuge die er besitzt
                         for (d = 0; d < Sim.Players.Players[static_cast<SLONG>(c)].Planes.AnzEntries(); d++) {
@@ -2645,7 +2645,7 @@ SLONG AIRPORT::GetNumberOfFreeGates() {
     rc = Anz = GetNumberOfShops(RUNE_2WAIT);
 
     for (c = 0; c < Anz; c++) {
-        for (d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+        for (d = 0; d < Sim.Players.AnzPlayers(); d++) {
             if (Sim.Players.Players[d].IsOut == 0) {
                 for (e = 0; e < Sim.Players.Players[d].Gates.Gates.AnzEntries(); e++) {
                     if (Sim.Players.Players[d].Gates.Gates[e].Miete != -1 && Sim.Players.Players[d].Gates.Gates[e].Nummer == c) {
@@ -3899,7 +3899,7 @@ void AIRPORT::TryDoor(XY ArrayPos, BOOL Player, SLONG PlayerNum) {
                                     PLAYER &qPlayer = Sim.Players.Players[OfficeNum];
 
                                     qPlayer.OfficeState = 2;
-                                    qPlayer.pSmack = new CSmack16;
+                                    qPlayer.pSmack = std::make_unique<CSmack16>();
                                     qPlayer.pSmack->Open("expl.smk");
                                     PLAYER::NetSynchronizeFlags();
 
@@ -4335,7 +4335,7 @@ void AIRPORT::CreateGateMapper() {
     GateMapper.ReSize(AnzGates * 2);
     GateMapper.FillWith(-1);
 
-    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut == 0) {
             for (d = 0; d < Sim.Players.Players[c].Gates.Gates.AnzEntries(); d++) {
                 if (Sim.Players.Players[c].Gates.Gates[d].Miete != -1) {
@@ -4368,7 +4368,7 @@ void AIRPORT::RepaintTextBricks() {
         TextBricks[c].FillWith(0);
     }
 
-    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut == 0) {
             for (d = 0; d < Sim.Players.Players[c].Gates.Gates.AnzEntries(); d++) {
                 if (Sim.Players.Players[c].Gates.Gates[d].Miete != -1) {
@@ -4379,7 +4379,7 @@ void AIRPORT::RepaintTextBricks() {
     }
 
     // Für alle Spieler:
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         // Für alle Flugzeuge des Spielers:
         for (d = 0; d < Sim.Players.Players[c].Planes.AnzEntries(); d++) {
             if (Sim.Players.Players[c].Planes.IsInAlbum(d) != 0) {

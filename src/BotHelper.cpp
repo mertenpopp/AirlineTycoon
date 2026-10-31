@@ -1026,7 +1026,7 @@ void printStatisticsLine(const PLAYER &qPlayer, const CString &prefix, bool prin
 }
 
 void printStatisticsLineForAllPlayers(const CString &prefix, bool printHeader) {
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         auto &qPlayer = Sim.Players.Players[c];
         printStatisticsLine(qPlayer, prefix, printHeader);
     }

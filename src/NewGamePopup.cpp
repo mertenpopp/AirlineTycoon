@@ -50,7 +50,7 @@ static void LogBotLevels(const char *Who) {
     for (SLONG c = 0; c < 4; c++) {
         const auto &qPlayer = Sim.Players.Players[c];
         AT_Log_I("NET", "%s: player %ld owner %ld bot level %ld", Who, static_cast<long>(c), static_cast<long>(qPlayer.Owner),
-               static_cast<long>(qPlayer.BotLevel));
+                 static_cast<long>(qPlayer.BotLevel));
     }
 }
 
@@ -64,8 +64,8 @@ static void SendGameRules() {
     TEAKFILE Message;
 
     Message.Announce(64);
-    Message << ATNET_GAMERULES << static_cast<SLONG>(Sim.Options.OptionRentOfficeTriggerPercent)
-            << static_cast<SLONG>(Sim.Options.OptionRentOfficeMinAvailable) << static_cast<SLONG>(Sim.Options.OptionRentOfficeMaxAvailable);
+    Message << ATNET_GAMERULES << static_cast<SLONG>(Sim.Options.OptionRentOfficeTriggerPercent) << static_cast<SLONG>(Sim.Options.OptionRentOfficeMinAvailable)
+            << static_cast<SLONG>(Sim.Options.OptionRentOfficeMaxAvailable);
     for (SLONG c = 0; c < 4; c++) {
         Sim.Players.Players[c].BotLevel = ClampBotLevel(Sim.Players.Players[c].BotLevel);
         Message << Sim.Players.Players[c].BotLevel;
@@ -247,7 +247,7 @@ void NewGamePopup::Konstruktor(BOOL /*bHandy*/, SLONG /*PlayerNum*/) {
         Sim.Players.Players[Sim.Options.OptionLastPlayer].Owner = 0;
     }
 
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         Sim.Players.Players[c].Name = Sim.Options.OptionPlayerNames[c];
         Sim.Players.Players[c].Airline = Sim.Options.OptionAirlineNames[c];
         Sim.Players.Players[c].Abk = Sim.Options.OptionAirlineAbk[c];
@@ -283,7 +283,7 @@ void NewGamePopup::Konstruktor(BOOL /*bHandy*/, SLONG /*PlayerNum*/) {
 
     // Nur auf die Schnelle?
     if ((gQuickTestRun > 0) || gLoadGameNumber > -1) {
-        for (SLONG c = Sim.Players.Players.AnzEntries() - 1; c >= 0; c--) {
+        for (SLONG c = Sim.Players.AnzPlayers() - 1; c >= 0; c--) {
             Sim.Players.Players[c].IsOut = 0;
 
             if (Sim.Players.Players[c].Owner == 1) {
@@ -293,11 +293,11 @@ void NewGamePopup::Konstruktor(BOOL /*bHandy*/, SLONG /*PlayerNum*/) {
         }
 
         /* airline names */
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             RecapizalizeString(Sim.Players.Players[c].Name);
             RecapizalizeString(Sim.Players.Players[c].Airline);
         }
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             Sim.Players.Players[c].AirlineX = Sim.Players.Players[c].Airline;
             while (Sim.Players.Players[c].AirlineX.GetLength() > 0 && Sim.Players.Players[c].AirlineX[Sim.Players.Players[c].AirlineX.GetLength() - 1] == 32) {
                 Sim.Players.Players[c].AirlineX = Sim.Players.Players[c].AirlineX.Left(Sim.Players.Players[c].AirlineX.GetLength() - 1);
@@ -370,19 +370,19 @@ NewGamePopup::~NewGamePopup() {
         gGlowBms.ReSize(pGlowEffectLib, "TUTMARK1", 5);
     }
 
-    if ((bLeaveGameLoop == 0) && Sim.Players.Players.AnzEntries() > 0) {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    if ((bLeaveGameLoop == 0) && Sim.Players.AnzPlayers() > 0) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             Sim.Options.OptionPlayerNames[c] = Sim.Players.Players[c].Name;
             Sim.Options.OptionAirlineNames[c] = Sim.Players.Players[c].Airline;
             Sim.Options.OptionAirlineAbk[c] = Sim.Players.Players[c].Abk;
         }
 
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             RecapizalizeString(Sim.Players.Players[c].Name);
             RecapizalizeString(Sim.Players.Players[c].Airline);
         }
 
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             Sim.Players.Players[c].AirlineX = Sim.Players.Players[c].Airline;
             while (Sim.Players.Players[c].AirlineX.GetLength() > 0 && Sim.Players.Players[c].AirlineX[Sim.Players.Players[c].AirlineX.GetLength() - 1] == 32) {
                 Sim.Players.Players[c].AirlineX = Sim.Players.Players[c].AirlineX.Left(Sim.Players.Players[c].AirlineX.GetLength() - 1);
@@ -1227,7 +1227,7 @@ void NewGamePopup::OnPaint() {
                     // KlackerTafel.Warp (); FrameWnd->Invalidate(); MessagePump(); FrameWnd->Invalidate(); MessagePump();
 
                     if ((PageSub++) == 5) {
-                        for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             Sim.Players.Players[c].IsOut = 0;
                         }
 
@@ -2285,7 +2285,7 @@ void NewGamePopup::CheckNetEvents() {
                                     Sim.Players.Players[WantedIndex].NetworkID = SenderID;
                                     Sim.Players.Players[WantedIndex].Owner = 2;
                                 } else {
-                                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                                    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                         if (Sim.Players.Players[c].NetworkID == 0) {
                                             Sim.Players.Players[c].NetworkID = SenderID;
                                             Sim.Players.Players[c].Owner = 2;
@@ -2419,7 +2419,7 @@ void NewGamePopup::CheckNetEvents() {
                             ULONG SenderID = 0;
                             Message >> SenderID;
 
-                            for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                 if (Sim.Players.Players[c].NetworkID == SenderID) {
                                     Sim.Players.Players[c].NetworkID = 0;
 

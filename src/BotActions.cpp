@@ -971,7 +971,7 @@ void Bot::actionSabotage(__int64 moneyAvailable) {
                 AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid route selected");
                 return;
             }
-            if (mRouteToStealFrom < 0 || mRouteToStealFrom >= Sim.Players.Players.AnzEntries()) {
+            if (mRouteToStealFrom < 0 || mRouteToStealFrom >= Sim.Players.AnzPlayers()) {
                 AT_Error("Bot::actionSabotage(): Cannot steal route: Invalid player selected");
                 return;
             }
@@ -1210,7 +1210,7 @@ void Bot::actionSellShares(__int64 moneyAvailable) {
                 GameMechanic::sellStock(qPlayer, c, sells, true);
             }
         } else if (res == HowToGetMoney::SellShares) {
-            for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (qPlayer.OwnsAktien[c] == 0 || c == qPlayer.PlayerNum) {
                     continue;
                 }

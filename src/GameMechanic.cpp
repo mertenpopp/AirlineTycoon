@@ -46,7 +46,7 @@ void GameMechanic::bankruptPlayer(PLAYER &qPlayer) {
         qPlayer.AktienWert[c] = 0;
     }
     // Von dem Übernommenen hat keiner mehr Aktien:
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         Sim.Players.Players[c].OwnsAktien[qPlayer.PlayerNum] = 0;
         Sim.Players.Players[c].AktienWert[qPlayer.PlayerNum] = 0;
     }
@@ -465,11 +465,11 @@ bool GameMechanic::activateSaboteurJob(PLAYER &qPlayer, BOOL fremdSabotage) {
 }
 
 bool GameMechanic::paySaboteurFine(SLONG player, SLONG opfer) {
-    if (player < 0 || player >= Sim.Players.Players.AnzEntries()) {
+    if (player < 0 || player >= Sim.Players.AnzPlayers()) {
         AT_Error("GameMechanic::paySaboteurFine: Invalid player ID (%ld).", player);
         return false;
     }
-    if (opfer < 0 || opfer >= Sim.Players.Players.AnzEntries()) {
+    if (opfer < 0 || opfer >= Sim.Players.AnzPlayers()) {
         AT_Error("GameMechanic::paySaboteurFine: Invalid victim ID (%ld).", opfer);
         return false;
     }
@@ -1062,7 +1062,7 @@ bool GameMechanic::emitStock(PLAYER &qPlayer, SLONG neueAktien, SLONG mode) {
     qPlayer.ChangeMoney(entschaedigungGezahlt, 3161, "");
     SIM::SendSimpleMessage64(ATNET_CHANGEMONEY, 0, qPlayer.PlayerNum, entschaedigungGezahlt, 3161);
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (c != qPlayer.PlayerNum) {
             auto entschaedigung = static_cast<__int64>(std::round(Sim.Players.Players[c].OwnsAktien[qPlayer.PlayerNum] * kursDiff));
 
@@ -1389,7 +1389,7 @@ bool GameMechanic::buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG
         Limit(-1000, qPlayer.Image, 1000);
 
         if (adCampaignSize == 0) {
-            for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].Owner == 0U) && (Sim.Players.Players[c].IsOut == 0)) {
                     Sim.Players.Players[c].Letters.AddLetter(
                         TRUE, CString(bprintf(StandardTexte.GetS(TOKEN_LETTER, 9900), qPlayer.AirlineX.c_str())),
@@ -1408,7 +1408,7 @@ bool GameMechanic::buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG
         Limit(static_cast<UBYTE>(0), qRouteB.Image, static_cast<UBYTE>(100));
 
         if (adCampaignSize == 0) {
-            for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].Owner == 0U) && (Sim.Players.Players[c].IsOut == 0)) {
                     Sim.Players.Players[c].Letters.AddLetter(
                         TRUE,
@@ -1432,7 +1432,7 @@ bool GameMechanic::buyAdvertisement(PLAYER &qPlayer, SLONG adCampaignType, SLONG
         }
 
         if (adCampaignSize == 0) {
-            for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].Owner == 0U) && (Sim.Players.Players[c].IsOut == 0)) {
                     Sim.Players.Players[c].Letters.AddLetter(
                         TRUE, CString(bprintf(StandardTexte.GetS(TOKEN_LETTER, 9920), qPlayer.AirlineX.c_str())),
@@ -3139,7 +3139,7 @@ void GameMechanic::executeAirlineOvertake() {
             Overtaker.AktienWert[c] += Overtaken.AktienWert[c];
         }
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 if (c != Sim.OvertakenAirline && c != Sim.OvertakerAirline) {
                     Sim.Players.Players[c].OwnsAktien[Sim.OvertakerAirline] += Sim.Players.Players[c].OwnsAktien[Sim.OvertakenAirline];
@@ -3171,7 +3171,7 @@ void GameMechanic::executeAirlineOvertake() {
                 Overtaken.RentRouten.RentRouten[c].Rang = 0;
             } else if (Overtaker.RentRouten.RentRouten[c].Rang != 0 && Overtaken.RentRouten.RentRouten[c].Rang != 0 &&
                        Overtaker.RentRouten.RentRouten[c].Rang > Overtaken.RentRouten.RentRouten[c].Rang) {
-                for (SLONG d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+                for (SLONG d = 0; d < Sim.Players.AnzPlayers(); d++) {
                     if ((Sim.Players.Players[d].IsOut == 0) && d != Sim.OvertakerAirline && d != Sim.OvertakenAirline &&
                         Sim.Players.Players[d].RentRouten.RentRouten[c].Rang > Overtaken.RentRouten.RentRouten[c].Rang) {
                         Sim.Players.Players[d].RentRouten.RentRouten[c].Rang--;
@@ -3190,7 +3190,7 @@ void GameMechanic::executeAirlineOvertake() {
                 Overtaken.RentCities.RentCities[c].Rang = 0;
             } else if (Overtaker.RentCities.RentCities[c].Rang != 0 && Overtaken.RentCities.RentCities[c].Rang != 0 &&
                        Overtaker.RentCities.RentCities[c].Rang > Overtaken.RentCities.RentCities[c].Rang) {
-                for (SLONG d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+                for (SLONG d = 0; d < Sim.Players.AnzPlayers(); d++) {
                     if ((Sim.Players.Players[d].IsOut == 0) && d != Sim.OvertakerAirline && d != Sim.OvertakenAirline &&
                         Sim.Players.Players[d].RentCities.RentCities[c].Rang > Overtaken.RentCities.RentCities[c].Rang) {
                         Sim.Players.Players[d].RentCities.RentCities[c].Rang--;
@@ -3220,7 +3220,7 @@ void GameMechanic::executeAirlineOvertake() {
         // Routen freigeben:
         for (c = 0; c < Overtaken.RentRouten.RentRouten.AnzEntries(); c++) {
             if (Overtaken.RentRouten.RentRouten[c].Rang != 0) {
-                for (SLONG d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+                for (SLONG d = 0; d < Sim.Players.AnzPlayers(); d++) {
                     if ((Sim.Players.Players[d].IsOut == 0) && d != Sim.OvertakenAirline &&
                         Sim.Players.Players[d].RentRouten.RentRouten[c].Rang > Overtaken.RentRouten.RentRouten[c].Rang) {
                         Sim.Players.Players[d].RentRouten.RentRouten[c].Rang--;
@@ -3234,7 +3234,7 @@ void GameMechanic::executeAirlineOvertake() {
         // Cities freigeben
         for (c = 0; c < Overtaken.RentCities.RentCities.AnzEntries(); c++) {
             if (Overtaken.RentCities.RentCities[c].Rang != 0) {
-                for (SLONG d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+                for (SLONG d = 0; d < Sim.Players.AnzPlayers(); d++) {
                     if ((Sim.Players.Players[d].IsOut == 0) && d != Sim.OvertakenAirline &&
                         Sim.Players.Players[d].RentCities.RentCities[c].Rang > Overtaken.RentCities.RentCities[c].Rang) {
                         Sim.Players.Players[d].RentCities.RentCities[c].Rang--;
@@ -3286,7 +3286,7 @@ void GameMechanic::executeAirlineOvertake() {
 void GameMechanic::executeSabotageMode1() {
     PLAYER &qLocalPlayer = Sim.Players.Players[Sim.localPlayer];
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         auto &qPlayer = Sim.Players.Players[c];
         if (qPlayer.IsOut != 0) {
             continue;
@@ -3551,7 +3551,7 @@ void GameMechanic::executeSabotageMode1() {
 void GameMechanic::executeSabotageMode2(bool &outBAnyBombs) {
     outBAnyBombs = false;
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         PLAYER &qPlayer = Sim.Players.Players[c];
         if (qPlayer.IsOut != 0) {
             continue;
@@ -3621,7 +3621,7 @@ void GameMechanic::executeSabotageMode2(bool &outBAnyBombs) {
 }
 
 void GameMechanic::executeSabotageMode3() {
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         PLAYER &qPlayer = Sim.Players.Players[c];
         if (qPlayer.IsOut != 0) {
             continue;
@@ -3744,7 +3744,7 @@ void GameMechanic::executeSabotageMode3() {
 void GameMechanic::injectFakeSabotage() {
     TEAKRAND SaboRand(Sim.Date + static_cast<SLONG>(Sim.Players.Players[Sim.localPlayer].Money));
 
-    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (c == Sim.localPlayer) {
             continue;
         }

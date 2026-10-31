@@ -90,7 +90,7 @@ void DrawCityTip(SBBM &TipBm, ULONG CityId) {
     }
 
     // Hit-Liste der Leute in der Stadt
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Cities.GetIdFromIndex(CityId) != static_cast<ULONG>(Sim.HomeAirportId)) {
             if (Sim.Players.Players[c].RentCities.RentCities[Cities(CityId)].Rang != 0) {
                 TipBm.PrintAt(bprintf("%li.%s", Sim.Players.Players[c].RentCities.RentCities[Cities(CityId)].Rang, (LPCTSTR)Sim.Players.Players[c].Airline),
@@ -140,7 +140,7 @@ void DrawCityTipContents(SBBM &TipBm, ULONG CityId, XY Headline, XY Contents, XY
     }
 
     // Hit-Liste der Leute in der Stadt
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Cities.GetIdFromIndex(Cities(CityId)) != static_cast<ULONG>(Sim.HomeAirportId)) {
             if (Sim.Players.Players[c].RentCities.RentCities[Cities(CityId)].Rang != 0) {
                 TipBm.PrintAt(bprintf("%li.%s", Sim.Players.Players[c].RentCities.RentCities[Cities(CityId)].Rang, (LPCTSTR)Sim.Players.Players[c].Airline),
@@ -451,7 +451,7 @@ void DrawRouteTipContents(SBBM &TipBm, SLONG PlayerNum, ULONG RouteId, SLONG Gat
         TipBm.PrintAt(StandardTexte.GetS(TOKEN_ROUTE, 1016), *pFont, TEC_FONT_LEFT, Contents.x, Contents.y + 121, Contents.x + 170, Contents.y + 170);
 
         // Hit-Liste der Leute auf der Route:
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].RentRouten.RentRouten[Routen(RouteId)].Rang != 0) {
                 TipBm.PrintAt(Sim.Players.Players[c].Airline, *pFont, TEC_FONT_LEFT, Contents.x + 11,
                               Contents.y + 121 + 11 * (Sim.Players.Players[c].RentRouten.RentRouten[Routen(RouteId)].Rang), Contents.x + 170, Contents.y + 170);

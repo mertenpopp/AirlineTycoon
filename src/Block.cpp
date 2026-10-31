@@ -1509,8 +1509,8 @@ bool BLOCK::RechteSeiteInhalt(XY TitleAreaB, XY ClientAreaB) {
             Bitmap.PrintAt(StandardTexte.GetS(TOKEN_ROUTE, 1105), FontSmallBlack, TEC_FONT_LEFT, ClientAreaB + XY(2, 105), ClientAreaB + XY(172, 170));
 
             for (SLONG preset = 0; preset < ROUTE_PRICE_PRESET_COUNT; preset++) {
-                Bitmap.PrintAt(Einheiten[EINH_DM].bString(CalculateRoutePricePreset(qRoute.VonCity, qRoute.NachCity, preset)), FontSmallBlack,
-                               TEC_FONT_LEFT, ClientAreaB + XY(80, 66 + preset * 13), ClientAreaB + XY(172, 170));
+                Bitmap.PrintAt(Einheiten[EINH_DM].bString(CalculateRoutePricePreset(qRoute.VonCity, qRoute.NachCity, preset)), FontSmallBlack, TEC_FONT_LEFT,
+                               ClientAreaB + XY(80, 66 + preset * 13), ClientAreaB + XY(172, 170));
             }
 
             if (Sim.Players.Players[PlayerNum].HasBerater(BERATERTYP_INFO) != 0) {
@@ -1829,9 +1829,12 @@ void BLOCK::ZeigeFinanzBericht(XY ClientArea, const PLAYER &player, const CBilan
             return;
         }
 
-        std::vector<std::tuple<SLONG, __int64, __int64>> tmp2 = {{10100, ref.GetOpGewinn(), 0},  {-1, ref.GetOpGewinn(), ref.GetHaben()},
-                                                                 {10101, ref.GetOpVerlust(), 0}, {-1, ref.GetOpVerlust(), ref.GetSoll()},
-                                                                 {-2, 0LL, 0LL}, {10102, ref.GetOpSaldo(), 0}};
+        std::vector<std::tuple<SLONG, __int64, __int64>> tmp2 = {{10100, ref.GetOpGewinn(), 0},
+                                                                 {-1, ref.GetOpGewinn(), ref.GetHaben()},
+                                                                 {10101, ref.GetOpVerlust(), 0},
+                                                                 {-1, ref.GetOpVerlust(), ref.GetSoll()},
+                                                                 {-2, 0LL, 0LL},
+                                                                 {10102, ref.GetOpSaldo(), 0}};
         PrintLineHeading(ClientArea, idx++, 10150);
         idx = PrintList(ClientArea, tmp2, idx);
     } else if (page == 1) {
@@ -1979,7 +1982,7 @@ void BLOCK::ZeigeInformantenInfos(XY ClientArea, SLONG /*page*/) const {
     TEAKRAND rnd;
     rnd.SRand(Sim.Date);
     SLONG idx = 1;
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         auto &qPlayer = Sim.Players.Players[c];
         if (qPlayer.IsOut != 0 || c == PlayerNum) {
             continue;

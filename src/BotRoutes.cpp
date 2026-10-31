@@ -188,7 +188,7 @@ void Bot::updateRouteInfoBoard() {
         route.image = std::min(getRentRoute(route).Image, getReverseRentRoute(route).Image);
         route.routeOwnUtilization = (getRentRoute(route).RoutenAuslastungBot + getReverseRentRoute(route).RoutenAuslastungBot) / 2;
         route.routeUtilization = 0;
-        for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+        for (SLONG i = 0; i < Sim.Players.AnzPlayers(); i++) {
             const auto &qqPlayer = Sim.Players.Players[i];
             if (qqPlayer.IsOut != 0) {
                 continue;
@@ -222,7 +222,7 @@ void Bot::updateRouteInfoBoard() {
     /* find a route to steal even if we have none yet */
     if ((mRouteToSteal == -1) && (qPlayer.HasBerater(BERATERTYP_INFO) > 0)) {
         for (SLONG c = 0; c < Routen.AnzEntries(); c++) {
-            for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+            for (SLONG i = 0; i < Sim.Players.AnzPlayers(); i++) {
                 const auto &qqPlayer = Sim.Players.Players[i];
                 if ((i == qPlayer.PlayerNum) || (qqPlayer.IsOut != 0)) {
                     continue;
@@ -498,7 +498,7 @@ Bot::RouteScore Bot::calcRouteScore(SLONG routeId, SLONG planeTypeId, std::unord
     if (missionRoute) {
         /* we need this route whoever else flies it: competitors do not reduce our target */
     } else if (qPlayer.HasBerater(BERATERTYP_INFO) > 0) {
-        for (SLONG i = 0; i < Sim.Players.Players.AnzEntries(); i++) {
+        for (SLONG i = 0; i < Sim.Players.AnzPlayers(); i++) {
             const auto &qqPlayer = Sim.Players.Players[i];
             if (i == qPlayer.PlayerNum || qqPlayer.IsOut != 0) {
                 continue;

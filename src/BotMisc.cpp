@@ -186,7 +186,7 @@ std::pair<Bot::HowToGetMoney, Bot::Prio> Bot::howToGetMoney() {
 
     SLONG numShares = 0;
     SLONG numOwnShares = 0;
-    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (c == qPlayer.PlayerNum) {
             numOwnShares += qPlayer.OwnsAktien[c];
         } else {
@@ -258,7 +258,7 @@ __int64 Bot::howMuchMoneyToRaise(bool maxCredit) const {
 __int64 Bot::howMuchMoneyCanWeGet(bool extremeMeasures) {
     __int64 valueCompetitorShares = 0;
     SLONG numOwnShares = 0;
-    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (c == qPlayer.PlayerNum) {
             numOwnShares += qPlayer.OwnsAktien[c];
         } else {

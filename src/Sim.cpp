@@ -200,7 +200,7 @@ void SIM::AddNewPassengers() {
     CFlugplan *Plan = nullptr;
 
     // Für alle Spieler:
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         // Für alle Flugzeuge des Spielers:
         if (Players.Players[c].IsOut == 0) {
             for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
@@ -438,7 +438,6 @@ void SIM::ChooseStartup() {
         Smokers[c].Smoke.ReSize(0);
     }
 
-    Players.AnzPlayers = 4;
     Tutorial = 0;
 
     // Bei Netzwerkspielen wird die Starttime schon in NewGamePopup erstellt:
@@ -483,10 +482,8 @@ void SIM::ChooseStartup() {
     // Wochentag für die Öffnungszeiten:
     Weekday = StartWeekday;
 
-    Players.Players.ReSize(Players.AnzPlayers);
-    for (c = 0; c < Players.AnzPlayers; c++) {
-        Players.Players[c].PlayerNum = c;
-    }
+    // Nothing of the last game may survive in the players (only the lobby settings):
+    Players.ResetForNewGame();
 
     for (c = 0; c < 4; c++) {
         Players.Players[c].PlayerWalkRandom.SRand(0);
@@ -495,7 +492,7 @@ void SIM::ChooseStartup() {
         Players.Players[c].PlayerExtraRandom.SRand(0);
     }
 
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         PLAYER &qPlayer = Players.Players[c];
 
         if (bNetwork != 0) {
@@ -662,7 +659,7 @@ void SIM::ChooseStartup() {
 
     // Statistik-Screen:
     {
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             StatplayerMask[c] = true;
         }
 
@@ -680,7 +677,7 @@ void SIM::ChooseStartup() {
     }
 
     // Daten der Spieler initialisieren:
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         PLAYER &qPlayer = Players.Players[c];
 
         qPlayer.Messages.PlayerNum = c;
@@ -1150,7 +1147,7 @@ void SIM::ChooseStartup() {
             }
         }
     }
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         Players.Players[c].MapWorkers(FALSE);
         Players.Players[c].PlanGates();
 
@@ -1159,10 +1156,6 @@ void SIM::ChooseStartup() {
                 Players.Players[c].Planes[d].UpdatePersonalQuality(c);
             }
         }
-    }
-
-    for (c = 0; c < Players.AnzPlayers; c++) {
-        Players.Players[c].ReInitBot();
     }
 
     Players.RobotInit();
@@ -1369,7 +1362,7 @@ void SIM::DoTimeStep() {
         const bool bBook = (Minute >= 55);
         const SLONG Now = Date * 24 + GetHour();
 
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
                 if (Players.Players[c].Planes.IsInAlbum(d) == 0) {
                     continue;
@@ -1975,7 +1968,7 @@ void SIM::DoTimeStep() {
 
     if (Minute >= 0 && OldMinute > Minute) {
         // Aktienkurse anpassen:
-        for (c = 0; c < Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             if (Players.Players[c].TrustedDividende > Players.Players[c].Dividende) {
                 Players.Players[c].TrustedDividende = (Players.Players[c].TrustedDividende + Players.Players[c].Dividende) / 2;
             }
@@ -1991,7 +1984,7 @@ void SIM::DoTimeStep() {
         }
 
         // Flugzeuge von allen Spielern:
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             // Für alle Flugzeuge die er besitzt
             for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
                 if (Players.Players[c].Planes.IsInAlbum(d) != 0) {
@@ -2100,7 +2093,7 @@ void SIM::DoTimeStep() {
         count = -100;
 
         // Flugzeuge von allen Spielern:
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             PLAYER &qPlayer = Players.Players[c];
 
             // Für alle Flugzeuge die er besitzt
@@ -2160,7 +2153,7 @@ void SIM::DoTimeStep() {
         count = 100;
 
         // Flugzeuge von allen Spielern:
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             // Für alle Flugzeuge die er besitzt
             for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
                 if (Players.Players[c].Planes.IsInAlbum(d) != 0) {
@@ -2392,7 +2385,7 @@ void SIM::NewDay() {
     LaptopSoldTo = -1;
 
     /*hprintf ("__Tag_%li_(%li.%li.)____________________________________________________%s", Date+1, MonthDay, Month, CTime::GetCurrentTime().Format(
-      "%H:%M:%S")); for (c=0; c<Players.AnzPlayers; c++) if (!Players.Players[c].IsOut)
+      "%H:%M:%S")); for (c=0; c<Players.AnzPlayers(); c++) if (!Players.Players[c].IsOut)
       {
       hprintf ("%s: %s - Sympathien: %li, %li, %li, %li", (LPCTSTR)Players.Players[c].NameX, (LPCTSTR)Players.Players[c].AirlineX,
       (LPCTSTR)Players.Players[c].Sympathie[0], (LPCTSTR)Players.Players[c].Sympathie[1], (LPCTSTR)Players.Players[c].Sympathie[2],
@@ -2413,7 +2406,7 @@ void SIM::NewDay() {
 
     Airport.CalcSeats();
 
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         if ((Players.Players[c].IsOut == 0) && Players.Players[c].OfficeState == 3) {
             Jahreszeit = 55;
         }
@@ -2478,7 +2471,7 @@ void SIM::NewDay() {
     Limit(SLONG(300), Kerosin, SLONG(700));
     KerosinPast[9] = Kerosin;
 
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         if (Players.Players[c].IsOut == 0) {
             Players.Players[c].NewDay();
         }
@@ -2630,8 +2623,8 @@ void SIM::NewDay() {
     Players.UpdateStaffStatistics();
 
     // Gute Spieler sind den anderen unsympatisch:
-    for (c = 0; c < Players.AnzPlayers; c++) {
-        for (d = 0; d < Players.AnzPlayers; d++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
+        for (d = 0; d < Players.AnzPlayers(); d++) {
             if (c != d && Players.Players[c].Sympathie[d] < 25 && Players.Players[d].Bilanz.GetSumme() > 0) {
                 if (Players.Players[c].Sympathie[d] < -50 && Players.Players[d].Bilanz.GetSumme() > Players.Players[c].Bilanz.GetSumme()) {
                     if (Players.Players[d].Bilanz.GetSumme() > Players.Players[c].Bilanz.GetSumme() + 1000000) {
@@ -2657,7 +2650,7 @@ void SIM::NewDay() {
     }
 
     // Leerzeilen in Moneytips & "Call it a day" Flag
-    for (c = 0; c < Players.AnzPlayers; c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         Players.Players[c].History.AddEntry(0, "-------------------------------------");
         Players.Players[c].CallItADay = FALSE;
 
@@ -3100,7 +3093,7 @@ BOOL SIM::LoadGame(SLONG Number) {
             Players.Players[c].bReadyForMorning = bReadyForMornings[c];
         }
 
-        for (c = 0; c < Players.AnzPlayers; c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             if (Players.Players[c].LocationWin != nullptr) {
                 delete Players.Players[c].LocationWin;
                 Players.Players[c].LocationWin = nullptr;
@@ -3108,7 +3101,7 @@ BOOL SIM::LoadGame(SLONG Number) {
         }
     }
 
-    for (c = 0; c < Players.Players.AnzEntries(); c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         if (Players.Players[c].Owner == 0) {
             if (Players.Players[c].LocationWin != nullptr) {
                 delete Players.Players[c].LocationWin;
@@ -3221,7 +3214,7 @@ BOOL SIM::LoadGame(SLONG Number) {
     InputFile >> MouseWait;
     MouseWait = 0;
 
-    for (c = 0; c < Players.Players.AnzEntries(); c++) {
+    for (c = 0; c < Players.AnzPlayers(); c++) {
         // Update Quality of all local planes:
         if ((Players.Players[c].IsOut == 0) && Players.Players[c].Owner != 2) {
             for (d = 0; d < Players.Players[c].Planes.AnzEntries(); d++) {
@@ -3247,7 +3240,7 @@ BOOL SIM::LoadGame(SLONG Number) {
 
     UpdateSeason();
 
-    for (c = d = 0; c < Players.Players.AnzEntries(); c++) {
+    for (c = d = 0; c < Players.AnzPlayers(); c++) {
         if (Players.Players[c].IsOut == 0) {
             d += Players.Players[c].Gates.NumRented;
         }
@@ -3294,7 +3287,7 @@ BOOL SIM::LoadGame(SLONG Number) {
 
         // Die RoutenRouten der Players kopieren:
         CRentRouten tempRentRouten[4];
-        for (c = 0; c < Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             tempRentRouten[c] = Players.Players[c].RentRouten;
         }
 
@@ -3302,7 +3295,7 @@ BOOL SIM::LoadGame(SLONG Number) {
         Routen.ReInitExtend("routen.csv");
 
         // Die RentRouten der Players auf die Größe bringen und die neue Reihenfolge mappen
-        for (c = 0; c < Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Players.AnzPlayers(); c++) {
             Players.Players[c].RentRouten.RentRouten.ReSize(0);
             Players.Players[c].RentRouten.RentRouten.ReSize(Routen.AnzEntries());
 
@@ -3320,7 +3313,7 @@ BOOL SIM::LoadGame(SLONG Number) {
         // Die RentCities der Players auf die Größe bringen und die neue Reihenfolge mappen
         for (d = 0; d < Cities.AnzEntries(); d++) {
             if (Cities[d].bNewInAddOn == 2) {
-                for (c = 0; c < Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Players.AnzPlayers(); c++) {
                     Players.Players[c].RentCities.RentCities.ReSize(Players.Players[c].RentCities.RentCities.AnzEntries() + 1);
 
                     for (SLONG e = Players.Players[c].RentCities.RentCities.AnzEntries() - 1; e > d; e--) {

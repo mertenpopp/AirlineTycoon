@@ -119,7 +119,7 @@ void NetTraceFingerprint(const char *When) {
        and must agree on it - that is what the bankruptcy verdict is computed from. */
     const bool bHashHumanMoney = (strcmp(When, "briefing") == 0);
 
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries() && c < 4; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers() && c < 4; c++) {
         const PLAYER &qPlayer = Sim.Players.Players[c];
 
         /* One hash per part as well as the whole, so that the trace diff names the part that
@@ -526,7 +526,7 @@ void NetTraceFingerprint(const char *When) {
         Pool.Add(Routen[d].Bedarf);
         if (gNetTraceLevel >= 2) {
             bool bRented = false;
-            for (SLONG c = 0; c < Sim.Players.Players.AnzEntries() && c < 4; c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers() && c < 4; c++) {
                 if (Sim.Players.Players[c].RentRouten.RentRouten[d].Rang != 0U) {
                     bRented = true;
                 }

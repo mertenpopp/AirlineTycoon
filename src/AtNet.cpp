@@ -677,7 +677,7 @@ void PumpNetwork() {
                     PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                     qPlayer.OfficeState = 2;
-                    qPlayer.pSmack = new CSmack16;
+                    qPlayer.pSmack = std::make_unique<CSmack16>();
                     qPlayer.pSmack->Open("expl.smk");
                     PLAYER::NetSynchronizeFlags();
 
@@ -1895,7 +1895,7 @@ void PumpNetwork() {
                     Message >> PlayerNum >> m >> n;
                     PlayerNum = NetCheckPlayerNum(PlayerNum, MessageType);
 
-                    if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
+                    if (PlayerNum >= 0 && PlayerNum < Sim.Players.AnzPlayers()) {
                         PLAYER &qPlayer = Sim.Players.Players[PlayerNum];
 
                         /* m and n (STAT_ZUFR_PERSONAL and STAT_MITARBEITER) are ignored: every
@@ -2875,7 +2875,7 @@ void PumpNetwork() {
                             }
                         }
 
-                        if (PlayerNum >= 0 && PlayerNum < Sim.Players.Players.AnzEntries()) {
+                        if (PlayerNum >= 0 && PlayerNum < Sim.Players.AnzPlayers()) {
                             Sim.Players.Players[PlayerNum].UpdateStaffStatistics();
                         }
 

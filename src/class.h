@@ -14,6 +14,7 @@
 #include "TeakLibW.h"
 
 #include <array>
+#include <memory>
 #include <vector>
 
 class Bot;
@@ -2073,7 +2074,7 @@ class PLAYER {
     SLONG PlayerStinking;                 // Qualmt der Spieler?
     SLONG Stunned{};                      // Kann der Spieler sich bewegen?
     SLONG OfficeState{};                  // 0=normal, 1=vermint, 2=explodiert, 3=dunkel
-    CSmack16 *pSmack;                     // Video für die Explosion
+    std::unique_ptr<CSmack16> pSmack;     // Video für die Explosion
     BUFFER_V<CSmoke> Smoke;
     SLONG LaptopVirus{};     // 0=kein Virus, 1=Virus, 2=In Reparatur, 3=abholbereit
     SLONG WerbeBroschuere{}; //-1=keine Broschüre, sonst die vom Spieler
@@ -2238,7 +2239,10 @@ class PLAYER {
   public:
     PLAYER();
     ~PLAYER();
-    void ReInitBot();
+
+    PLAYER(const PLAYER &) = delete;
+    PLAYER &operator=(const PLAYER &) = delete;
+
     void Add5UhrigFlights(void);
     SLONG AnzPlanesOnRoute(ULONG RouteId);
     void BookBuroRent(void); // Zieht Miete vom Geld ab
@@ -2351,8 +2355,8 @@ class PLAYER {
     bool IsMertenBot() const;
     bool IsClaudeBot() const;
     void ApplyMood(PERSON &qPerson);
-    Bot *mBot{nullptr};
-    ClaudeBot *mClaudeBot{nullptr};
+    std::unique_ptr<Bot> mBot;
+    std::unique_ptr<ClaudeBot> mClaudeBot;
 
     friend TEAKFILE &operator<<(TEAKFILE &File, const PLAYER &Player);
     friend TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player);
@@ -2360,11 +2364,12 @@ class PLAYER {
 
 class PLAYERS {
   public:
-    SLONG AnzPlayers;
-    BUFFER_V<PLAYER> Players;
+    std::array<PLAYER, 4> Players;
+    SLONG AnzPlayers() const { return Players.size(); }
 
   public:
     PLAYERS();
+    void ResetForNewGame();
     SLONG GetAnzHumanPlayers(void) const;
     SLONG GetAnzRobotPlayers(void) const;
     SLONG GetIndexOfHumanPlayerNumberX(SLONG x);

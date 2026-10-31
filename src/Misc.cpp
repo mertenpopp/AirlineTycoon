@@ -319,7 +319,7 @@ BOOL IsRoomBusy(UWORD RoomId, SLONG ExceptPlayer) {
         return (FALSE);
     }
 
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut == 0) {
             if (c != ExceptPlayer) {
                 for (d = 0; d < 10; d++) {
@@ -985,7 +985,7 @@ void HEADLINES::InterpolateHeadline() {
             // Number of the Airline
             else if (atoi(Extrakt) > 0) {
                 Headline[c * 10].Headline = Headline[c * 10].Headline.Mid(0, von) +
-                                            Sim.Players.Players[(atoi(Extrakt) - 1) % Sim.Players.AnzPlayers].Airline.c_str() +
+                                            Sim.Players.Players[(atoi(Extrakt) - 1) % Sim.Players.AnzPlayers()].Airline.c_str() +
                                             Headline[c * 10].Headline.Mid(bis + 1, Headline[c * 10].Headline.GetLength() - bis - 1);
             }
         } while (von != -1);
@@ -1038,7 +1038,7 @@ void HEADLINES::ComparisonHeadlines() {
 
         switch (LocalRand.Rand(8)) {
         case 0: // Flugzeuge
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (best == -1 || Sim.Players.Players[c].Planes.GetNumUsed() > Sim.Players.Players[best].Planes.GetNumUsed()) {
                         best = c;
@@ -1055,7 +1055,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
 
         case 1: // Image
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (best == -1 || Sim.Players.Players[c].Image > Sim.Players.Players[best].Image) {
                         best = c;
@@ -1065,7 +1065,7 @@ void HEADLINES::ComparisonHeadlines() {
                 }
             }
 
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (c != best && (best2 == -1 || Sim.Players.Players[c].Image > Sim.Players.Players[best].Image)) {
                         best2 = c;
@@ -1082,7 +1082,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
 
         case 2: // Routen
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (best == -1 || Sim.Players.Players[c].RentRouten.GetNumUsed() > Sim.Players.Players[best].RentRouten.GetNumUsed()) {
                         best = c;
@@ -1101,7 +1101,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
 
         case 3: // Geld
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (best == -1 || Sim.Players.Players[c].Money > Sim.Players.Players[best].Money) {
                         best = c;
@@ -1170,7 +1170,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
 
         case 6: // Die meisten Passagiere:
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     if (best == -1 || Sim.Players.Players[c].NumPassengers > Sim.Players.Players[best].NumPassengers) {
                         best = c;
@@ -1185,7 +1185,7 @@ void HEADLINES::ComparisonHeadlines() {
             break;
 
         case 7: // Das schlechteste Flugzeug:
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     for (d = Sim.Players.Players[c].Planes.AnzEntries() - 1; d >= 0; d--) {
                         if (Sim.Players.Players[c].Planes.IsInAlbum(d) != 0) {
@@ -1228,14 +1228,14 @@ void HEADLINES::ComparisonHeadlines() {
             AddOverride(1, StandardTexte.GetS(TOKEN_MISC, 2073), 0, 5);
         }
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if ((Sim.Players.Players[c].LastRocketFlags & ROCKET_PART_ONE) == ROCKET_PART_ONE) {
                 break;
             }
         }
 
-        if (c >= Sim.Players.Players.AnzEntries()) {
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        if (c >= Sim.Players.AnzPlayers()) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].RocketFlags & ROCKET_PART_ONE) == ROCKET_PART_ONE) {
                     AddOverride(1, bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 2060)), (LPCTSTR)Sim.Players.Players[c].AirlineX),
                                 GetIdFromString("INTRVIEW"), 15 + static_cast<SLONG>(c == Sim.localPlayer) * 10);
@@ -1244,14 +1244,14 @@ void HEADLINES::ComparisonHeadlines() {
             }
         }
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if ((Sim.Players.Players[c].LastRocketFlags & ROCKET_PART_TWO_A) == ROCKET_PART_TWO_A) {
                 break;
             }
         }
 
-        if (c >= Sim.Players.Players.AnzEntries()) {
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        if (c >= Sim.Players.AnzPlayers()) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].RocketFlags & ROCKET_PART_TWO_A) == ROCKET_PART_TWO_A) {
                     AddOverride(1, bprintf((LPCTSTR)CString(StandardTexte.GetS(TOKEN_MISC, 2061)), (LPCTSTR)Sim.Players.Players[c].AirlineX), 0,
                                 20 + static_cast<SLONG>(c == Sim.localPlayer) * 10);
@@ -1260,7 +1260,7 @@ void HEADLINES::ComparisonHeadlines() {
             }
         }
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             Sim.Players.Players[c].LastRocketFlags = Sim.Players.Players[c].RocketFlags;
         }
     }
@@ -2264,7 +2264,7 @@ void printPostGameInfo() {
 
     __int64 bestBot = 0;
     __int64 bestEnemy = 0;
-    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         auto &qPlayer = Sim.Players.Players[c];
         if (qPlayer.IsSuperBot()) {
             bestBot = std::max(bestBot, qPlayer.Statistiken[STAT_MISSIONSZIEL].GetAtPastDay(0));
