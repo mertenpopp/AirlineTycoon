@@ -3263,7 +3263,7 @@ void PERSONS::DoOneStep() {
     }
 
     if (Sim.CallItADay != 0) {
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if ((Sim.Players.Players[c].SpeedCount != 0) && (Sim.Players.Players[c].IsOut == 0) && (Sim.Players.Players[c].Owner != 0U)) {
                 Sim.Players.Players[c].SpeedCount--;
 
@@ -3447,7 +3447,7 @@ void PERSONS::DoOneStep() {
         }
     } else // schnelle Version tür Tagesabbruch
     {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 if (Clans[static_cast<SLONG>((*this)[Indexes[c]].ClanId)].Type == CLAN_MALE) {
                     AtDebugBreak();

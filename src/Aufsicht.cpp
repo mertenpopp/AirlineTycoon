@@ -91,7 +91,7 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
             cityIds[i] = Cities(Sim.MissionCities[i]);
         }
 
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             PLAYER &qPlayer = Sim.Players.Players[c];
 
             if (qPlayer.IsOut != 0) {
@@ -138,7 +138,7 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
     Talkers.Talkers[TALKER_BOSS].IncreaseReference();
     DefaultDialogPartner = TALKER_BOSS;
 
-    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         IsOut[c] = Sim.Players.Players[c].IsOut;
         HaloKomm[c] = -1;
     }
@@ -214,7 +214,7 @@ CAufsicht::CAufsicht(BOOL bHandy, ULONG PlayerNum) : CStdRaum(bHandy, PlayerNum,
         FrauFuss.ReSize(pRoomLib, "FRAUFUSS");
 
         if ((Sim.bNetwork != 0) && Sim.Date == 0) {
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 Sim.Players.Players[c].bReadyForMorning = 0;
             }
         }
@@ -404,7 +404,7 @@ CAufsicht::~CAufsicht() {
     if (bIsMorning) {
         Sim.SabotageActs.ReSize(0);
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(c)];
 
@@ -434,7 +434,7 @@ CAufsicht::~CAufsicht() {
         GameMechanic::executeSabotageMode2(bAnyBombs);
         GameMechanic::executeSabotageMode3();
 
-        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 PLAYER &qPlayer = Sim.Players.Players[c];
 
@@ -458,7 +458,7 @@ CAufsicht::~CAufsicht() {
         }
 
         if (!bAnyBombs) {
-            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if (Sim.Players.Players[c].IsOut == 0) {
                     Sim.Players.Players[c].WalkToRoom(UBYTE(ROOM_BURO_A + c * 10));
                 }
@@ -664,7 +664,7 @@ void CAufsicht::OnPaint() {
                 SP_Halo[1].BlitAtT(RoomBm);
             }
 
-            for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+            for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((IsOut[c] == 0) && c != 1) {
                     SP_Player[c].Pump();
                     SP_Player[c].BlitAtT(RoomBm);
@@ -830,7 +830,7 @@ void CAufsicht::OnRButtonDown(UINT nFlags, CPoint point) {
     }
 
     if (Sim.GetHour() == 9 && Sim.GetMinute() == 0) {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 if (Sim.Players.Players[c].Image < -990 || Sim.Players.Players[c].Money < DEBT_GAMEOVER) {
                     CanCancel = FALSE;

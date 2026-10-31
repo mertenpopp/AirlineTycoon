@@ -37,7 +37,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
     CMessages &qMessages = qPlayer.Messages;
     CString Answer;
 
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return (TRUE);
     }
@@ -1110,7 +1110,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -1138,7 +1138,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumAuftraege > Sim.Players.Players[d].NumAuftraege) {
                             d = c;
@@ -1155,7 +1155,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             // if (Sim.Players.Players[c].NumAuftraege>=10)
                             if (Sim.Players.Players[c].HasWon() != 0) {
@@ -1175,7 +1175,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 // if (Sim.Players.Players[c].NumAuftraege>=10)
                                 if (Sim.Players.Players[c].HasWon() != 0) {
@@ -1256,7 +1256,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -1284,7 +1284,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumPassengers > Sim.Players.Players[d].NumPassengers) {
                             d = c;
@@ -1302,7 +1302,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             // if (Sim.Players.Players[c].NumPassengers>=TARGET_PASSENGERS)
                             if (Sim.Players.Players[c].HasWon() != 0) {
@@ -1322,7 +1322,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 // if (Sim.Players.Players[c].NumPassengers>=TARGET_PASSENGERS)
                                 if (Sim.Players.Players[c].HasWon() != 0) {
@@ -1349,7 +1349,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     CString TmpStr;
                     CString TmpStr2;
 
-                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (TmpStr.GetLength() > 0) {
                                 TmpStr += ", ";
@@ -1380,7 +1380,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].Gewinn > Sim.Players.Players[d].Gewinn) {
                             d = c;
@@ -1397,7 +1397,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1416,7 +1416,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1444,7 +1444,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     CString TmpStr;
                     CString TmpStr2;
 
-                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (TmpStr.GetLength() > 0) {
                                 TmpStr += ", ";
@@ -1474,7 +1474,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumMissionRoutes > Sim.Players.Players[d].NumMissionRoutes) {
                             d = c;
@@ -1495,7 +1495,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1514,7 +1514,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1542,7 +1542,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     CString TmpStr;
                     CString TmpStr2;
 
-                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (TmpStr.GetLength() > 0) {
                                 TmpStr += ", ";
@@ -1575,7 +1575,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].Image > Sim.Players.Players[d].Image) {
                             d = c;
@@ -1592,7 +1592,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1611,7 +1611,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1639,7 +1639,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     CString TmpStr;
                     CString TmpStr2;
 
-                    for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (TmpStr.GetLength() > 0) {
                                 TmpStr += ", ";
@@ -1669,7 +1669,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || GetAnzBits(Sim.Players.Players[c].RocketFlags) > GetAnzBits(Sim.Players.Players[d].RocketFlags)) {
                             d = c;
@@ -1690,7 +1690,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1704,7 +1704,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1728,7 +1728,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -1755,7 +1755,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() < Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -1772,7 +1772,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             // if (Sim.Players.Players[c].Credit==0)
                             if (Sim.Players.Players[c].HasWon() != 0) {
@@ -1792,7 +1792,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1814,7 +1814,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -1841,7 +1841,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumFracht > Sim.Players.Players[d].NumFracht) {
                             d = c;
@@ -1858,7 +1858,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1877,7 +1877,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1899,7 +1899,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -1926,7 +1926,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumFrachtFree > Sim.Players.Players[d].NumFrachtFree) {
                             d = c;
@@ -1943,7 +1943,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -1962,7 +1962,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -1984,7 +1984,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2011,7 +2011,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].NumMiles > Sim.Players.Players[d].NumMiles) {
                             d = c;
@@ -2028,7 +2028,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2047,7 +2047,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2069,7 +2069,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2096,7 +2096,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2113,7 +2113,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2132,7 +2132,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2156,7 +2156,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
                 Sim.Players.UpdateStatistics();
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2183,7 +2183,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2200,7 +2200,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2219,7 +2219,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2243,7 +2243,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
                 Sim.Players.UpdateStatistics();
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2270,7 +2270,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2287,7 +2287,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2306,7 +2306,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2330,7 +2330,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
                 Sim.Players.UpdateStatistics();
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2357,7 +2357,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2374,7 +2374,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2392,7 +2392,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2416,7 +2416,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
                 Sim.Players.UpdateStatistics();
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2443,7 +2443,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2460,7 +2460,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2479,7 +2479,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2503,7 +2503,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
 
                 Sim.Players.UpdateStatistics();
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2530,7 +2530,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2547,7 +2547,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2560,7 +2560,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2582,7 +2582,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2609,7 +2609,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2626,7 +2626,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2644,7 +2644,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2666,7 +2666,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2695,7 +2695,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
                             bAnywon = true;
@@ -2716,7 +2716,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2734,7 +2734,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2756,7 +2756,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2785,7 +2785,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
                             bAnywon = true;
@@ -2806,7 +2806,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2824,7 +2824,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2846,7 +2846,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2874,7 +2874,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG won = -1;
                 SLONG best = -1;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
                             won = c;
@@ -2902,7 +2902,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -2924,7 +2924,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -2951,7 +2951,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -2968,7 +2968,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -2986,7 +2986,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -3008,7 +3008,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -3036,7 +3036,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG won = -1;
                 SLONG best = -1;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
                             won = c;
@@ -3064,7 +3064,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -3086,7 +3086,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -3117,7 +3117,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (Sim.Players.Players[c].HasWon() != 0) {
                             bAnywon = true;
@@ -3138,7 +3138,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -3156,7 +3156,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -3178,7 +3178,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -3205,7 +3205,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -3222,7 +3222,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -3240,7 +3240,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -3262,7 +3262,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -3289,7 +3289,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -3306,7 +3306,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -3324,7 +3324,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {
@@ -3346,7 +3346,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 CString TmpStr;
                 CString TmpStr2;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (TmpStr.GetLength() > 0) {
                             TmpStr += ", ";
@@ -3373,7 +3373,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                 SLONG c = 0;
                 SLONG d = -1;
 
-                for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         if (d == -1 || Sim.Players.Players[c].GetMissionRating() > Sim.Players.Players[d].GetMissionRating()) {
                             d = c;
@@ -3390,7 +3390,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     SLONG c = 0;
                     SLONG Anz = 0;
 
-                    for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].IsOut == 0) {
                             if (Sim.Players.Players[c].HasWon() != 0) {
                                 Anz++;
@@ -3403,7 +3403,7 @@ BOOL CStdRaum::PreLButtonDown(CPoint point) {
                     } else {
                         CString tmp;
 
-                        for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             if (Sim.Players.Players[c].IsOut == 0) {
                                 if (Sim.Players.Players[c].HasWon() != 0) {
                                     if (tmp.GetLength() > 0) {

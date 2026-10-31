@@ -891,7 +891,7 @@ The following may always be called to check whether a room exists.
 
 You can access the following fields in the PLAYER class instance that refers to your player. A reference to this instance is passed as variable qPlayer.
 
-All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`. Use `Sim.Players.AnzPlayers` to check the number of players which currently is always 4.
+All instances of the PLAYER class can be found in the global array `Sim.Players.Players`. If the reference `qPlayer` is not available, use this expression `Sim.Persons[Sim.Persons.GetPlayerIndex(playerNum)]`. Use `Sim.Players.AnzPlayers()` to check the number of players which currently is always 4.
 
 All classifications are read-only except where explicitly shown as read/write.
 

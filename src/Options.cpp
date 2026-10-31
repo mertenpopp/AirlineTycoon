@@ -110,7 +110,7 @@ Options::~Options() {
     Sim.Options.WriteOptions();
 
     if (bLeaveGameLoop == 0) {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].IsOut == 0) {
                 Sim.Players.Players[c].CalcRoom();
             }

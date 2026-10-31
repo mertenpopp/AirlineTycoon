@@ -1046,7 +1046,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                 delete TopWin;
                 TopWin = nullptr;
 
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].LocationWin != nullptr) {
                         delete Sim.Players.Players[c].LocationWin;
                         Sim.Players.Players[c].LocationWin = nullptr;
@@ -1094,7 +1094,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                 Sim.Gamestate = GAMESTATE_INTRO | GAMESTATE_WORKING;
                 TopWin = new CIntro();
             } else if (Sim.Gamestate == GAMESTATE_OUTRO || Sim.Gamestate == GAMESTATE_OUTRO2) {
-                for (SLONG c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].LocationWin != nullptr) {
                         delete Sim.Players.Players[c].LocationWin;
                         Sim.Players.Players[c].LocationWin = nullptr;
@@ -1132,7 +1132,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                 }
 
                 if (gLoadGameNumber == -1) {
-                    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         Sim.Players.Players[c].EnterRoom(ROOM_AIRPORT, true);
                     }
 
@@ -1156,7 +1156,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         SIM::SendSimpleMessage(ATNET_SETSPEED, 0, Sim.localPlayer, Sim.Players.Players[Sim.localPlayer].GameSpeed);
                     } else {
                         if (Sim.Difficulty == DIFF_TUTORIAL) {
-                            for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                 Sim.Players.Players[c].Blocks.ClearAlbum();
                             }
                             Sim.IsTutorial = TRUE;
@@ -1166,7 +1166,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                     NumSimSteps = 0; // Noch nicht mit SimSteps beginnen
 
-                    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         Sim.Players.Players[c].WalkToRoom(ROOM_AUFSICHT);
                     }
                 }
@@ -1179,7 +1179,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                 if (Sim.bNetwork != 0) {
                     if (Sim.CallItADay == FALSE && (Sim.bIsHost != 0) && Sim.CallItADayAt == 0) {
                         Sim.CallItADay = TRUE;
-                        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                             Sim.CallItADay &= (Sim.Players.Players[c].CallItADay | static_cast<SLONG>(Sim.Players.Players[c].Owner == 1));
 
                             if (Sim.Players.Players[c].IsOut == 0 && Sim.Players.Players[c].Owner == 1 && Sim.Players.Players[c].WaitWorkTill != -1) {
@@ -1209,7 +1209,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                     }
                 }
 
-                for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     // Klickt gerade jemand ins Zeit-Fenster?
                     if ((Sim.CallItADay == 0) && (Sim.bNetwork == 0) && XY(Sim.Players.Players[c].CursorPos).IfIsWithin(102, 440, 255, 459)) {
                         if ((Sim.Players.Players[c].Buttons & 1) != 0) {
@@ -1329,7 +1329,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
 
                 // CurrentGameSpeed:
                 d = 3;
-                for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].Owner != 1 && Sim.Players.Players[c].CallItADay == FALSE) {
                         d = min(d, Sim.Players.Players[c].GameSpeed);
                     }
@@ -1583,8 +1583,8 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         }
 
                         if ((Sim.Time >= 9 * 60000 && Sim.Time <= 18 * 60000 && (Sim.CallItADay == 0)) ||
-                            (Sim.Players.Players.AnzEntries() > 0 && Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_ABEND && bCAbendOpen == 0)) {
-                            for (c = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+                            (Sim.Players.AnzPlayers() > 0 && Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_ABEND && bCAbendOpen == 0)) {
+                            for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                 PLAYER &qPlayer = Sim.Players.Players[c];
 
                                 if (qPlayer.Koffein > 0) {
@@ -1618,7 +1618,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                         }
                                                         FrameWnd->Invalidate();
                                                         MessagePump();
-                                                        if (Sim.Players.Players.AnzEntries() == 0) {
+                                                        if (Sim.Players.AnzPlayers() == 0) {
                                                             break;
                                                         }
                                                     }
@@ -1641,7 +1641,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                 Sim.UpdateRoomUsage();
                                             }
                                         }
-                                        if (Sim.Players.Players.AnzEntries() == 0) {
+                                        if (Sim.Players.AnzPlayers() == 0) {
                                             break;
                                         }
 
@@ -1661,7 +1661,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                                         }
                                                         FrameWnd->Invalidate();
                                                         MessagePump();
-                                                        if (Sim.Players.Players.AnzEntries() == 0) {
+                                                        if (Sim.Players.AnzPlayers() == 0) {
                                                             break; // Spiel beendet
                                                         }
                                                     }
@@ -2013,7 +2013,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                             // Personen bewegen:
                             if (Sim.Time >= 8 * 60000 && Sim.Time <= 18 * 60000 && Editor == EDITOR_NONE && (Sim.CallItADay == 0)) {
                                 if (Sim.Difficulty != DIFF_TUTORIAL || Sim.Tutorial >= 1100 || (Sim.IsTutorial == 0)) {
-                                    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                         if ((Sim.Time & 255) == 0 && (Sim.Players.Players[c].iWalkActive != 0)) {
                                             Sim.Players.Players[c].UpdateWaypoints();
                                         }
@@ -2050,7 +2050,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                 if (Editor == EDITOR_NONE) {
                                     if (SkipPlaneCalculation <= 0) {
                                         SkipPlaneCalculation = 10;
-                                        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                             if (Sim.Players.Players[c].IsOut == 0) {
                                                 Sim.Players.Players[c].Planes.DoOneStep(c);
                                             }
@@ -2120,7 +2120,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                         (Sim.Players.Players[Sim.localPlayer].LocationWin)->StopDialog();
                                     }
 
-                                    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                         // Raum verlassen:
                                         if (Sim.Players.Players[c].Owner != 1 && (Sim.Players.Players[c].Locations[0] != 0U) &&
                                             Sim.Players.Players[c].GetRoom() != ROOM_ABEND) {
@@ -2145,7 +2145,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                                         Sim.DayState = 1;
                                         MouseWait++;
 
-                                        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                                        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                                             if (Sim.Players.Players[c].IsOut == 0) {
                                                 Sim.Players.Players[c].EnterRoom(ROOM_AIRPORT);
                                                 Sim.Players.Players[c].EnterRoom(ROOM_AUFSICHT);
@@ -2280,7 +2280,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
             // Bildschirm neu zeichnen:
             if (RefreshNeccessary != 0) {
                 if (nOptionsOpen == 0 && nWaitingForPlayer == 0 && (Sim.bPause == 0) && (Sim.CallItADay == 0) && Editor == EDITOR_NONE) {
-                    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                         if (Sim.Players.Players[c].GetRoom() == ROOM_AIRPORT && (Sim.Players.Players[c].LocationWin != nullptr)) {
                             (dynamic_cast<AirportView *>(Sim.Players.Players[c].LocationWin))->MoveCamera();
                         }
@@ -2299,7 +2299,7 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
             NetWaitWatchdog();
         }
 
-        /*for (c=0; c<Sim.Players.AnzPlayers; c++)
+        /*for (c=0; c<Sim.Players.AnzPlayers(); c++)
           {
           static SLONG Emergency=0;
 
@@ -2365,8 +2365,8 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
         delete TmpWin;
     }
 
-    if (Sim.Players.Players.AnzEntries() > 0) {
-        for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    if (Sim.Players.AnzPlayers() > 0) {
+        for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (Sim.Players.Players[c].LocationWin != nullptr) {
                 auto *TmpWin = Sim.Players.Players[c].LocationWin;
                 Sim.Players.Players[c].LocationWin = nullptr;

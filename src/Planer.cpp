@@ -174,7 +174,7 @@ CPlaner::CPlaner(BOOL bHandy, ULONG PlayerNum, UWORD &EarthAlpha, BOOL IsLaptop)
 
     FensterVisible = FALSE;
 
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (((Sim.Players.Players[static_cast<SLONG>(PlayerNum)].DisplayPlanes[c] != 0U) && (IsLaptop != 0)) ||
             (c == static_cast<SLONG>(PlayerNum) && (IsLaptop == 0))) {
             Sim.Players.Players[c].Planes.UpdateGlobePos(EarthAlpha);
@@ -255,7 +255,7 @@ void CPlaner::PaintGlobeRoutes() {
     SLONG d = 0;
     SLONG e = 0;
 
-    for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut != 0) {
             continue;
         }
@@ -583,7 +583,7 @@ void CPlaner::PaintGlobeInScreen(XY TargetPos) {
 
     // Flugzeuge hinter Erde
     if (Sim.Players.Players[PlayerNum].LaptopVirus == 0 || Sim.Players.Players[PlayerNum].GetRoom() != ROOM_LAPTOP) {
-        for (d = 0; d < Sim.Players.AnzPlayers; d++) {
+        for (d = 0; d < Sim.Players.AnzPlayers(); d++) {
             if (Sim.Players.Players[d].IsOut == 0) {
                 if (((Sim.Players.Players[PlayerNum].DisplayPlanes[d] != 0U) && (IsLaptop != 0)) || (d == PlayerNum && (IsLaptop == 0))) {
                     PLAYER &qPlayer = Sim.Players.Players[d];
@@ -637,7 +637,7 @@ void CPlaner::PaintGlobeInScreen(XY TargetPos) {
 
     // Flugzeuge vor Erde
     if (Sim.Players.Players[PlayerNum].LaptopVirus == 0 || Sim.Players.Players[PlayerNum].GetRoom() != ROOM_LAPTOP) {
-        for (d = 0; d < Sim.Players.AnzPlayers; d++) {
+        for (d = 0; d < Sim.Players.AnzPlayers(); d++) {
             if (Sim.Players.Players[d].IsOut == 0) {
                 if (((Sim.Players.Players[PlayerNum].DisplayPlanes[d] != 0U) && (IsLaptop != 0)) || (d == PlayerNum && (IsLaptop == 0))) {
                     PLAYER &qPlayer = Sim.Players.Players[d];
@@ -971,7 +971,7 @@ void CPlaner::DoPollingStuff() {
             EarthAlpha -= 2000;
         }
 
-        for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+        for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
             if (((qPlayer.DisplayPlanes[c] != 0U) && (IsLaptop != 0)) || (c == PlayerNum && (IsLaptop == 0))) {
                 Sim.Players.Players[c].Planes.UpdateGlobePos(EarthAlpha);
             }
@@ -2841,7 +2841,7 @@ void CPlaner::TurnGlobe(SLONG Angle) {
     EarthAlpha += UWORD(Angle);
     EarthTargetAlpha = EarthAlpha;
 
-    for (SLONG c = 0; c < Sim.Players.AnzPlayers; c++) {
+    for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut == 0) {
             if (((Sim.Players.Players[PlayerNum].DisplayPlanes[c] != 0U) && (IsLaptop != 0)) || (c == PlayerNum && (IsLaptop == 0))) {
                 Sim.Players.Players[c].Planes.UpdateGlobePos(EarthAlpha);

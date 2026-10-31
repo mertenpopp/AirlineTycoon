@@ -413,7 +413,7 @@ CStdRaum::~CStdRaum() {
         pCalculatorLib = nullptr;
     }
 
-    if (PlayerNum >= 0 && PlayerNum <= 3 && Sim.Players.Players.AnzEntries() == 4) {
+    if (PlayerNum >= 0 && PlayerNum <= 3 && Sim.Players.AnzPlayers() == 4) {
         CMessages &qMessages = Sim.Players.Players[PlayerNum].Messages;
 
         // Spieler ggf. wegzaubern
@@ -427,7 +427,7 @@ CStdRaum::~CStdRaum() {
         qMessages.NoComments();
     }
 
-    if (PlayerNum >= 0 && Sim.Players.Players.AnzEntries() > 0 && (Sim.Players.Players[PlayerNum].DialogWin != nullptr) &&
+    if (PlayerNum >= 0 && Sim.Players.AnzPlayers() > 0 && (Sim.Players.Players[PlayerNum].DialogWin != nullptr) &&
         Sim.Players.Players[PlayerNum].DialogWin != this) {
         delete Sim.Players.Players[PlayerNum].DialogWin;
         Sim.Players.Players[PlayerNum].DialogWin = nullptr;
@@ -2548,7 +2548,7 @@ void CStdRaum::InitToolTips() {
 // Bringt CursorHighlighting und ToolTips auf den neusten Stand:
 //--------------------------------------------------------------------------------------------
 void CStdRaum::PumpToolTips() {
-    if (Sim.Players.Players.AnzEntries() == 0) {
+    if (Sim.Players.AnzPlayers() == 0) {
         return;
     }
 
@@ -3242,7 +3242,7 @@ void CStdRaum::CheckHighlight(const CPoint &point) {
 // void CStdRaum::OnLButtonDblClk(UINT, CPoint point)
 //--------------------------------------------------------------------------------------------
 void CStdRaum::OnLButtonDblClk(UINT /*unused*/, CPoint point) {
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -3264,7 +3264,7 @@ void CStdRaum::OnLButtonDblClk(UINT /*unused*/, CPoint point) {
 // OnLButtonDown(UINT nFlags, CPoint point)
 //--------------------------------------------------------------------------------------------
 void CStdRaum::OnLButtonDown(UINT /*unused*/, CPoint point) {
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -3410,7 +3410,7 @@ void CStdRaum::OnLButtonDown(UINT /*unused*/, CPoint point) {
 // OnLButtonUp(UINT nFlags, CPoint point)
 //--------------------------------------------------------------------------------------------
 void CStdRaum::OnLButtonUp(UINT /*unused*/, CPoint /*point*/) {
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -3421,7 +3421,7 @@ void CStdRaum::OnLButtonUp(UINT /*unused*/, CPoint /*point*/) {
 // OnRButtonDown(UINT nFlags, CPoint point)
 //--------------------------------------------------------------------------------------------
 void CStdRaum::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -3494,7 +3494,7 @@ void CStdRaum::OnRButtonDown(UINT /*nFlags*/, CPoint point) {
 // void CGlobe::OnRButtonUp(UINT nFlags, CPoint point)
 //--------------------------------------------------------------------------------------------
 void CStdRaum::OnRButtonUp(UINT /*unused*/, CPoint /*unused*/) {
-    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.Players.AnzEntries() &&
+    if ((nOptionsOpen != 0) && (Sim.bNetwork != 0) && Sim.localPlayer < Sim.Players.AnzPlayers() &&
         Sim.Players.Players[Sim.localPlayer].GetRoom() != ROOM_OPTIONS && Sim.Players.Players[Sim.localPlayer].GetRoom() != 0) {
         return;
     }
@@ -4988,7 +4988,7 @@ void CStdRaum::MenuRepaint() {
             // Arrivals:
             for (pass = 1; pass < 48; pass++) {
                 // Für alle Spieler:
-                for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (Sim.Players.Players[c].IsOut == 0) {
                         // Für alle Flugzeuge des Spielers:
                         for (d = 0; d < Sim.Players.Players[c].Planes.AnzEntries(); d++) {
@@ -5072,7 +5072,7 @@ void CStdRaum::MenuRepaint() {
             Time = Sim.GetHour() - 1;
             for (pass = 1; pass < 48; pass++) {
                 // Für alle Spieler:
-                for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     // Für alle Flugzeuge des Spielers:
                     for (d = 0; d < Sim.Players.Players[c].Planes.AnzEntries(); d++) {
                         if (Sim.Players.Players[c].Planes.IsInAlbum(d) != 0) {
@@ -7007,7 +7007,7 @@ void CStdRaum::MenuRightClick(XY /*unused*/) {
 // Beendet das Menü:
 //--------------------------------------------------------------------------------------------
 void CStdRaum::MenuStop() {
-    if (PlayerNum >= Sim.Players.Players.AnzEntries()) {
+    if (PlayerNum >= Sim.Players.AnzPlayers()) {
         return;
     }
 

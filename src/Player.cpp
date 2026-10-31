@@ -67,7 +67,7 @@ __int64 abs64(__int64 v) {
 //============================================================================================
 // Konstruktor:
 //============================================================================================
-PLAYER::PLAYER() : mBot(new Bot(*this)), mClaudeBot(new ClaudeBot(*this)) {
+PLAYER::PLAYER() : mBot(std::make_unique<Bot>(*this)), mClaudeBot(std::make_unique<ClaudeBot>(*this)) {
     SLONG c = 0;
 
     NewDir = 8;
@@ -83,7 +83,6 @@ PLAYER::PLAYER() : mBot(new Bot(*this)), mClaudeBot(new ClaudeBot(*this)) {
     PlayerSmoking = 0;
     PlayerStinking = 0;
 
-    pSmack = nullptr;
     NetworkID = 0;
 
     RobotActions.ReSize(5);
@@ -107,27 +106,7 @@ PLAYER::PLAYER() : mBot(new Bot(*this)), mClaudeBot(new ClaudeBot(*this)) {
 //--------------------------------------------------------------------------------------------
 // Destruktiv:
 //--------------------------------------------------------------------------------------------
-PLAYER::~PLAYER() {
-    delete pSmack;
-    pSmack = nullptr;
-
-    delete mBot;
-    mBot = nullptr;
-    delete mClaudeBot;
-    mClaudeBot = nullptr;
-}
-
-void PLAYER::ReInitBot() {
-    if (mBot) {
-        delete mBot;
-    }
-    mBot = new Bot(*this);
-
-    if (mClaudeBot) {
-        delete mClaudeBot;
-    }
-    mClaudeBot = new ClaudeBot(*this);
-}
+PLAYER::~PLAYER() = default;
 
 //--------------------------------------------------------------------------------------------
 // Fügt 5 Flüge vom Uhrig hinzu:
@@ -1642,7 +1621,7 @@ void PLAYER::NewDay() {
         ChangeMoney(-tmp / 365, 3140, "");
     }
 
-    for (c = tmp = 0; c < Sim.Players.Players.AnzEntries(); c++) {
+    for (c = tmp = 0; c < Sim.Players.AnzPlayers(); c++) {
         if (c != PlayerNum && (Sim.Players.Players[c].IsOut == 0)) {
             tmp += OwnsAktien[c] * Sim.Players.Players[c].Dividende;
         }
@@ -2132,7 +2111,7 @@ void PLAYER::RentRoute(SLONG City1, SLONG City2, SLONG Miete) {
                 (Routen[c].VonCity == static_cast<ULONG>(City2) && Routen[c].NachCity == static_cast<ULONG>(City1))) {
                 n = 1;
 
-                for (d = 0; d < Sim.Players.AnzPlayers; d++) {
+                for (d = 0; d < Sim.Players.AnzPlayers(); d++) {
                     if (Sim.Players.Players[d].RentRouten.RentRouten[c].Rang != 0U) {
                         n++;
                     }
@@ -3262,8 +3241,7 @@ void PLAYER::RobotPump() {
 
     if (pSmack != nullptr) {
         if (pSmack->Next(&Bricks[SLONG(0x10000000 + 734 + PlayerNum)].Bitmap[0]) == 0) {
-            delete pSmack;
-            pSmack = nullptr;
+            pSmack.reset();
             AIRPORT::UpdateStaticDoorImage();
             Sim.FocusPerson = -1;
 
@@ -4320,7 +4298,7 @@ void PLAYER::RobotExecuteAction() {
         }
 
         if ((Image > -100 && (DoRoutes == 0)) || (Image > 100 || (DoRoutes != 0))) {
-            for (c = n = 0; c < Sim.Players.AnzPlayers; c++) {
+            for (c = n = 0; c < Sim.Players.AnzPlayers(); c++) {
                 if ((Sim.Players.Players[c].IsOut == 0) && c != PlayerNum) {
                     if (Planes.GetNumUsed() <= Sim.Players.Players[c].Planes.GetNumUsed()) {
                         n++;
@@ -5025,7 +5003,7 @@ void PLAYER::RobotExecuteAction() {
         }
         if ((Credit > 1000000 && RobotUse(ROBOT_USE_SELLSHARES)) || Credit > 3000000) {
             if (RobotUse(ROBOT_USE_EAGER_SELLSHARES) || Money < -100000) {
-                for (c = 0; c < Sim.Players.AnzPlayers; c++) {
+                for (c = 0; c < Sim.Players.AnzPlayers(); c++) {
                     if (OwnsAktien[c] != 0) {
                         if (c != PlayerNum || Sim.Date > 10) {
                             SLONG Sells = min(OwnsAktien[c], 20000);
@@ -7210,11 +7188,54 @@ void PLAYER::ApplyMood(PERSON &qPerson) {
 // Konstruirt das Spieler-Array
 //============================================================================================
 PLAYERS::PLAYERS() {
-    AnzPlayers = 4;
-    Players.ReSize(AnzPlayers);
-
-    for (SLONG c = 0; c < AnzPlayers; c++) {
+    for (SLONG c = 0; c < AnzPlayers(); c++) {
         Players[c].PlayerNum = c;
+    }
+}
+
+//--------------------------------------------------------------------------------------------
+// Gives every player a freshly constructed PLAYER, so nothing is left from the last game.
+// Keeps what the lobby set up for the coming game and the open windows.
+//--------------------------------------------------------------------------------------------
+void PLAYERS::ResetForNewGame() {
+    for (SLONG c = 0; c < AnzPlayers(); c++) {
+        PLAYER &qPlayer = Players[c];
+
+        // Set in the lobby before the game starts:
+        CString Name = qPlayer.Name;
+        CString NameX = qPlayer.NameX;
+        CString Airline = qPlayer.Airline;
+        CString AirlineX = qPlayer.AirlineX;
+        CString Abk = qPlayer.Abk;
+        UBYTE Owner = qPlayer.Owner;
+        ULONG NetworkID = qPlayer.NetworkID;
+        UBYTE Logo = qPlayer.Logo;
+        SLONG BotLevel = qPlayer.BotLevel;
+        BOOL bReadyForMorning = qPlayer.bReadyForMorning;
+
+        /* The windows belong to the GameFrame, and SIM::LoadGame deletes an open room only
+           after calling ChooseStartup(). */
+        CStdRaum *LocationWin = qPlayer.LocationWin;
+        CStdRaum *DialogWin = qPlayer.DialogWin;
+
+        /* Constructed in place, not assigned: the bots keep a reference to their PLAYER, which
+           must stay this one. */
+        std::destroy_at(&qPlayer);
+        ::new (static_cast<void *>(&qPlayer)) PLAYER();
+
+        qPlayer.PlayerNum = c;
+        qPlayer.Name = Name;
+        qPlayer.NameX = NameX;
+        qPlayer.Airline = Airline;
+        qPlayer.AirlineX = AirlineX;
+        qPlayer.Abk = Abk;
+        qPlayer.Owner = Owner;
+        qPlayer.NetworkID = NetworkID;
+        qPlayer.Logo = Logo;
+        qPlayer.BotLevel = BotLevel;
+        qPlayer.bReadyForMorning = bReadyForMorning;
+        qPlayer.LocationWin = LocationWin;
+        qPlayer.DialogWin = DialogWin;
     }
 }
 
@@ -7222,7 +7243,7 @@ PLAYERS::PLAYERS() {
 // Überprüft alle Flugpläne auf tote Einträge: (crasht bei toten Einträgen; nur zum testen)
 //--------------------------------------------------------------------------------------------
 void PLAYERS::CheckFlighplans() {
-    for (SLONG c = 0; c < AnzPlayers; c++) {
+    for (SLONG c = 0; c < AnzPlayers(); c++) {
         if (Players[c].IsOut == 0) {
             for (SLONG d = 0; d < Players[c].Planes.AnzEntries(); d++) {
                 if (Players[c].Planes.IsInAlbum(d) != 0) {
@@ -7306,7 +7327,7 @@ void PLAYER::UpdateStaffStatistics() {
 // Bringt die Statistiken auf den neusten Stand:
 //--------------------------------------------------------------------------------------------
 void PLAYERS::UpdateStatistics() {
-    for (SLONG c = 0; c < AnzPlayers; c++) {
+    for (SLONG c = 0; c < AnzPlayers(); c++) {
         if (Players[c].IsOut == 0) {
             Players[c].UpdateStatistics();
         }
@@ -7317,7 +7338,7 @@ void PLAYERS::UpdateStatistics() {
 // Bringt STAT_MITARBEITER und STAT_ZUFR_PERSONAL aller Spieler auf den neusten Stand:
 //--------------------------------------------------------------------------------------------
 void PLAYERS::UpdateStaffStatistics() {
-    for (SLONG c = 0; c < AnzPlayers; c++) {
+    for (SLONG c = 0; c < AnzPlayers(); c++) {
         if (Players[c].IsOut == 0) {
             Players[c].UpdateStaffStatistics();
         }
@@ -7331,7 +7352,7 @@ SLONG PLAYERS::GetAnzHumanPlayers() const {
     SLONG c = 0;
     SLONG Anz = 0;
 
-    for (c = Anz = 0; c < AnzPlayers; c++) {
+    for (c = Anz = 0; c < AnzPlayers(); c++) {
         if ((Players[c].IsOut == 0) && Players[c].Owner != 1) {
             Anz++;
         }
@@ -7347,7 +7368,7 @@ SLONG PLAYERS::GetAnzRobotPlayers() const {
     SLONG c = 0;
     SLONG Anz = 0;
 
-    for (c = Anz = 0; c < AnzPlayers; c++) {
+    for (c = Anz = 0; c < AnzPlayers(); c++) {
         if ((Players[c].IsOut == 0) && Players[c].Owner == 1) {
             Anz++;
         }
@@ -7363,7 +7384,7 @@ SLONG PLAYERS::GetIndexOfHumanPlayerNumberX(SLONG x) {
     SLONG c = 0;
     SLONG Anz = 0;
 
-    for (c = Anz = 0; c < AnzPlayers; c++) {
+    for (c = Anz = 0; c < AnzPlayers(); c++) {
         if (Players[c].Owner != 1) {
             Anz++;
             if (Anz == x) {
@@ -7398,7 +7419,7 @@ BOOL PLAYERS::IsLogoInUse(SLONG Player, UBYTE Logo) {
 BOOL PLAYERS::IsPlaneNameInUse(const CString &PlaneName) {
     SLONG c = 0;
 
-    for (c = 0; c < AnzPlayers; c++) {
+    for (c = 0; c < AnzPlayers(); c++) {
         if (Players[c].Planes.IsPlaneNameInUse(PlaneName) != 0) {
             return (TRUE);
         }
@@ -7413,7 +7434,7 @@ BOOL PLAYERS::IsPlaneNameInUse(const CString &PlaneName) {
 void PLAYERS::WalkToStartingPoint() {
     SLONG c = 0;
 
-    for (c = 0; c < AnzPlayers; c++) {
+    for (c = 0; c < AnzPlayers(); c++) {
         if (Sim.Players.Players[c].IsOut == 0) {
             Players[c].WalkToRoom(ROOM_AUFSICHT);
         }
@@ -7428,7 +7449,7 @@ void PLAYERS::RobotPump() {
     BOOL DoIt = TRUE;
     static SLONG LastTenMinutes = 0;
 
-    for (c = 0; c < AnzPlayers; c++) {
+    for (c = 0; c < AnzPlayers(); c++) {
         if ((Sim.Players.Players[c].IsOut == 0) && (DoIt != 0)) {
             if ((Sim.Players.Players[c].Locations[1] != 0U) || (Sim.Players.Players[c].DialogWin != nullptr) ||
                 (Sim.CallItADay == 0 && (Sim.Persons[Sim.Persons.GetPlayerIndex(c)].StatePar != 0))) {
@@ -7471,7 +7492,7 @@ void PLAYERS::MessagePump() { Players[Sim.localPlayer].Messages.Pump(); }
 void PLAYERS::RobotInit() {
     SLONG c = 0;
 
-    for (c = 0; c < AnzPlayers; c++) {
+    for (c = 0; c < AnzPlayers(); c++) {
         Players[c].RobotInit();
     }
 }
@@ -7479,7 +7500,7 @@ void PLAYERS::RobotInit() {
 void PLAYERS::RandomBeraterMessage() {
     SLONG c = 0;
 
-    for (c = 0; c < AnzPlayers; c++) {
+    for (c = 0; c < AnzPlayers(); c++) {
         Players[c].RandomBeraterMessage();
     }
 }
@@ -7980,7 +8001,11 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
 // Speichert ein PLAYERS-Objekt:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator<<(TEAKFILE &File, const PLAYERS &Players) {
-    File << Players.AnzPlayers << Players.Players;
+    // Same layout as the former BUFFER_V<PLAYER>: count, then size, iterator offset and elements
+    File << Players.AnzPlayers() << Players.AnzPlayers() << SLONG(0);
+    for (const auto &qPlayer : Players.Players) {
+        File << qPlayer;
+    }
 
     return (File);
 }
@@ -7989,7 +8014,17 @@ TEAKFILE &operator<<(TEAKFILE &File, const PLAYERS &Players) {
 // Lädt ein PLAYERS-Objekt:
 //--------------------------------------------------------------------------------------------
 TEAKFILE &operator>>(TEAKFILE &File, PLAYERS &Players) {
-    File >> Players.AnzPlayers >> Players.Players;
+    SLONG AnzPlayers = 0;
+    SLONG Size = 0;
+    SLONG Offset = 0;
+    File >> AnzPlayers >> Size >> Offset;
+    if (AnzPlayers != Players.AnzPlayers() || Size != Players.AnzPlayers()) {
+        TeakLibW_Exception(nullptr, 0, ExcRead, "players (wrong number of players)");
+    }
+    File.CheckBufferOffset(Offset, Size);
+    for (auto &qPlayer : Players.Players) {
+        File >> qPlayer;
+    }
 
     return (File);
 }

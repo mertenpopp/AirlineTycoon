@@ -415,7 +415,7 @@ void CTafelData::Randomize(SLONG Day) {
     for (c = f = 0; c < Anz && f < 7; c++) {
         BOOL Found = FALSE;
 
-        for (d = 0; d < Sim.Players.Players.AnzEntries(); d++) {
+        for (d = 0; d < Sim.Players.AnzPlayers(); d++) {
             if (Sim.Players.Players[d].IsOut == 0) {
                 for (e = 0; e < Sim.Players.Players[d].Gates.Gates.AnzEntries(); e++) {
                     if (Sim.Players.Players[d].Gates.Gates[e].Miete != -1 && Sim.Players.Players[d].Gates.Gates[e].Nummer == c) {
@@ -446,7 +446,7 @@ void CTafelData::GetAvailableCities(std::vector<CTafelZettel> &results, const st
     for (cityIndex = 0; cityIndex < Cities.AnzEntries(); cityIndex++) {
         SLONG PlayerIndex = 0;
         SLONG PlayerUsed = 0;
-        for (PlayerIndex = 0; PlayerIndex < Sim.Players.AnzPlayers; PlayerIndex++) {
+        for (PlayerIndex = 0; PlayerIndex < Sim.Players.AnzPlayers(); PlayerIndex++) {
             if (Sim.Players.Players[PlayerIndex].RentCities.RentCities[cityIndex].Rang != 0U) {
                 PlayerUsed++;
             }
