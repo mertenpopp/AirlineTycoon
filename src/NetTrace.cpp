@@ -183,9 +183,9 @@ void NetTraceFingerprint(const char *When) {
             if (bDetail && (qRoute.Rang > 0 || qRoute.Auslastung > 0 || qRoute.RoutenAuslastung > 0)) {
                 /* The values themselves rather than a hash of them: which one differs says which
                    code changed it. rank/usage/route usage/price/price FC/image/last flown */
-                snprintf(One, sizeof(One), "%ld:%ld/%ld/%ld/%ld/%ld/%ld/%ld,", static_cast<long>(d), static_cast<long>(qRoute.Rang), static_cast<long>(qRoute.Auslastung),
-                         static_cast<long>(qRoute.RoutenAuslastung), static_cast<long>(qRoute.Ticketpreis), static_cast<long>(qRoute.TicketpreisFC),
-                         static_cast<long>(qRoute.Image), static_cast<long>(qRoute.LastFlown));
+                snprintf(One, sizeof(One), "%ld:%ld/%ld/%ld/%ld/%ld/%ld/%ld,", static_cast<long>(d), static_cast<long>(qRoute.Rang),
+                         static_cast<long>(qRoute.Auslastung), static_cast<long>(qRoute.RoutenAuslastung), static_cast<long>(qRoute.Ticketpreis),
+                         static_cast<long>(qRoute.TicketpreisFC), static_cast<long>(qRoute.Image), static_cast<long>(qRoute.LastFlown));
                 RoutesText += One;
             }
         }
@@ -542,10 +542,10 @@ void NetTraceFingerprint(const char *When) {
         AT_Log("FPDETAIL %s day=%ld p=pool planes= routes=%s", When, static_cast<long>(Sim.Date), DemandText.c_str());
     }
 
-    AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld applicants=%ld expand=%ld hash=%08lx", When, static_cast<long>(Sim.Date),
-           static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()), static_cast<long>(ReisebueroAuftraege.GetNumUsed()),
-           static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()), static_cast<long>(UsedPlanes), static_cast<long>(Applicants),
-           static_cast<long>(Sim.ExpandAirport), static_cast<unsigned long>(Pool.Get()));
+    AT_Log("FP  %s day=%ld t=%ld pool lma=%ld rba=%ld fracht=%ld ausland=%ld usedplanes=%ld applicants=%ld expand=%ld hash=%08lx", When,
+           static_cast<long>(Sim.Date), static_cast<long>(Sim.Time), static_cast<long>(LastMinuteAuftraege.GetNumUsed()),
+           static_cast<long>(ReisebueroAuftraege.GetNumUsed()), static_cast<long>(gFrachten.GetNumUsed()), static_cast<long>(AuslandsAuftraege.size()),
+           static_cast<long>(UsedPlanes), static_cast<long>(Applicants), static_cast<long>(Sim.ExpandAirport), static_cast<unsigned long>(Pool.Get()));
 }
 
 void NetTraceSetMainThread() { gMainThread = SDL_ThreadID(); }
@@ -560,7 +560,7 @@ void NetTraceCheckThread(const char *Where) {
     }
     /* Capped: a path that runs off-thread usually does so on every timer tick. */
     if (gThreadViolations.fetch_add(1) < 200) {
-        NetTraceEvent("THREAD where=%s thread=%lu main=%lu - network or game state touched off the main thread", Where,
-                      static_cast<unsigned long>(Current), static_cast<unsigned long>(gMainThread));
+        NetTraceEvent("THREAD where=%s thread=%lu main=%lu - network or game state touched off the main thread", Where, static_cast<unsigned long>(Current),
+                      static_cast<unsigned long>(gMainThread));
     }
 }
