@@ -47,9 +47,44 @@ static bool bNewGamePopupIsOpen = false;
 /* Game settings that each machine reads from its own options, but that decide shared state:
    the clients must play with the host's. Sent right before ATNET_BEGINGAME(LOADING), which
    reaches them after this (messages from one sender arrive in order). */
+static SLONG ClampBotLevel(SLONG Level) { return (Level >= BotDifficultyClassic && Level <= BotDifficultyMax) ? Level : BotDifficultyClassic; }
+
+/* Each peer keeps the bot levels of its previous game, and the lobby only sends a level when
+   someone changes it. Every peer runs the bots' actions and their rules (fines, bonuses)
+   itself, so the levels must match: they travel with the game rules. */
+static void LogBotLevels(const char *Who) {
+    for (SLONG c = 0; c < 4; c++) {
+        const auto &qPlayer = Sim.Players.Players[c];
+        AT_Log_I("NET", "%s: player %ld owner %ld bot level %ld", Who, static_cast<long>(c), static_cast<long>(qPlayer.Owner),
+               static_cast<long>(qPlayer.BotLevel));
+    }
+}
+
 static void SendGameRules() {
-    SIM::SendSimpleMessage(ATNET_GAMERULES, 0, static_cast<SLONG>(Sim.Options.OptionRentOfficeTriggerPercent),
-                           static_cast<SLONG>(Sim.Options.OptionRentOfficeMinAvailable), static_cast<SLONG>(Sim.Options.OptionRentOfficeMaxAvailable));
+    TEAKFILE Message;
+
+    Message.Announce(64);
+    Message << ATNET_GAMERULES << static_cast<SLONG>(Sim.Options.OptionRentOfficeTriggerPercent)
+            << static_cast<SLONG>(Sim.Options.OptionRentOfficeMinAvailable) << static_cast<SLONG>(Sim.Options.OptionRentOfficeMaxAvailable);
+    for (SLONG c = 0; c < 4; c++) {
+        Sim.Players.Players[c].BotLevel = ClampBotLevel(Sim.Players.Players[c].BotLevel);
+        Message << Sim.Players.Players[c].BotLevel;
+    }
+    Sim.SendMemFile(Message);
+
+    LogBotLevels("host sends game rules");
+}
+
+/* Host: tell the clients the current level of every bot slot, so the lobby shows the same. */
+static void SendBotLevels() {
+    if (gNetworkSavegameLoading != -1) {
+        return; // the savegame decides
+    }
+    for (SLONG c = 0; c < 4; c++) {
+        if (Sim.Players.Players[c].Owner == 1) {
+            SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, c, ClampBotLevel(Sim.Players.Players[c].BotLevel));
+        }
+    }
 }
 
 const SLONG MissionValues[] = {
@@ -1549,6 +1584,7 @@ void NewGamePopup::OnLButtonDown(UINT nFlags, CPoint point) {
                     RefreshKlackerField();
 
                     SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, -1, 0);
+                    SendBotLevels();
 
                     return;
                 }
@@ -2371,7 +2407,7 @@ void NewGamePopup::CheckNetEvents() {
 
                             if (BotIndex >= 0 && BotIndex < 4) {
                                 Sim.Players.Players[BotIndex].Owner = 1;
-                                Sim.Players.Players[BotIndex].BotLevel = BotDifficulty;
+                                Sim.Players.Players[BotIndex].BotLevel = ClampBotLevel(static_cast<SLONG>(BotDifficulty));
                             }
 
                             RefreshKlackerField();
@@ -2408,9 +2444,21 @@ void NewGamePopup::CheckNetEvents() {
                         SLONG MinAvailable = 0;
                         SLONG MaxAvailable = 0;
 
+                        SLONG BotLevels[4] = {};
+
                         Message >> TriggerPercent >> MinAvailable >> MaxAvailable;
+                        for (auto &Level : BotLevels) {
+                            Message >> Level;
+                        }
                         Sim.HostRentOffice = {static_cast<ULONG>(TriggerPercent), static_cast<ULONG>(MinAvailable), static_cast<ULONG>(MaxAvailable)};
                         Sim.bHasHostRentOffice = true;
+
+                        if (!bThisIsSessionMaster) {
+                            for (SLONG c = 0; c < 4; c++) {
+                                Sim.Players.Players[c].BotLevel = ClampBotLevel(BotLevels[c]);
+                            }
+                            LogBotLevels("client got game rules");
+                        }
                     } break;
 
                     case ATNET_BEGINGAME:
@@ -2758,6 +2806,7 @@ void NewGamePopup::AutoLobbyPump() {
         PageSub = 0;
         RefreshKlackerField();
         SIM::SendSimpleMessage(ATNET_BOTSELECT, 0, -1, 0);
+        SendBotLevels();
     } break;
 
     case PAGE_TYPE::SELECT_BOT_NETWORK: {
