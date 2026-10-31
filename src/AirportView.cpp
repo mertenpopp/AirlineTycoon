@@ -3996,8 +3996,14 @@ void AIRPORT::UpdateStaticDoorImage() {
         }
 
         if (Sim.Players.Players[c].OfficeState == 2 || (Editor != 0)) {
-            Bricks[SLONG(0x10000000 + 734 + c)].Bitmap[0].ReSize(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0].Size);
-            Bricks[SLONG(0x10000000 + 734 + c)].Bitmap[0].BlitFrom(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0]);
+            SBBM &qDoor = Bricks[SLONG(0x10000000 + 734 + c)].Bitmap[0];
+
+            /* The explosion video plays into this bitmap and leaves an 8-bit surface with the
+               video's palette. ReSize() keeps a bitmap of the same size, so the destroyed door
+               would be squeezed into that palette: create it anew in the normal format. */
+            qDoor.Destroy();
+            qDoor.ReSize(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0].Size);
+            qDoor.BlitFrom(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0]);
         } else if (Sim.Players.Players[c].OfficeState == 3) {
             Bricks[SLONG(0x10000000 + door)].Bitmap[0].ReSize(Bricks[SLONG(0x10000000 + 749)].Bitmap[0].Size);
             Bricks[SLONG(0x10000000 + door)].Bitmap[0].BlitFrom(Bricks[SLONG(0x10000000 + 749)].Bitmap[0]);
