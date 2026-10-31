@@ -3981,34 +3981,29 @@ void AIRPORT::TryDoor(XY ArrayPos, BOOL Player, SLONG PlayerNum) {
 // Sorgt dafür, daß nach neuem Tag/LoadGame eine Tür richtig (Explodiert oder nicht) angezeigt wird:
 //--------------------------------------------------------------------------------------------
 void AIRPORT::UpdateStaticDoorImage() {
-    SLONG c = 0;
+    static const std::array<SLONG, 4> OfficeDoorBricks = {700, 707, 708, 709};
 
-    for (c = 0; c < 4; c++) {
-        SLONG door = 0;
-        if (c == 0) {
-            door = 700;
-        } else if (c == 1) {
-            door = 707;
-        } else if (c == 2) {
-            door = 708;
-        } else if (c == 3) {
-            door = 709;
-        }
+    SBBM &qDestroyedDoor = Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0];
+    SBBM &qDarkDoor = Bricks[SLONG(0x10000000 + 749)].Bitmap[0];
 
-        if (Sim.Players.Players[c].OfficeState == 2 || (Editor != 0)) {
-            SBBM &qDoor = Bricks[SLONG(0x10000000 + 734 + c)].Bitmap[0];
+    for (SLONG c = 0; c < 4; c++) {
+        const SLONG OfficeState = Sim.Players.Players[c].OfficeState;
+        SBBM &qExplosionDoor = Bricks[SLONG(0x10000000 + 734 + c)].Bitmap[0]; // the explosion video plays here
 
-            /* The explosion video plays into this bitmap and leaves an 8-bit surface with the
-               video's palette. ReSize() keeps a bitmap of the same size, so the destroyed door
-               would be squeezed into that palette: create it anew in the normal format. */
-            qDoor.Destroy();
-            qDoor.ReSize(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0].Size);
-            qDoor.BlitFrom(Bricks[SLONG(0x10000000 + 734 + 4)].Bitmap[0]);
-        } else if (Sim.Players.Players[c].OfficeState == 3) {
-            Bricks[SLONG(0x10000000 + door)].Bitmap[0].ReSize(Bricks[SLONG(0x10000000 + 749)].Bitmap[0].Size);
-            Bricks[SLONG(0x10000000 + door)].Bitmap[0].BlitFrom(Bricks[SLONG(0x10000000 + 749)].Bitmap[0]);
+        if (OfficeState == 2 || (Editor != 0)) {
+            /* The explosion video leaves an 8-bit surface with the video's palette in this
+               bitmap. ReSize() keeps a bitmap of the same size, so the destroyed door would be
+               squeezed into that palette: create it anew in the normal format. */
+            qExplosionDoor.Destroy();
+            qExplosionDoor.ReSize(qDestroyedDoor.Size);
+            qExplosionDoor.BlitFrom(qDestroyedDoor);
+        } else if (OfficeState == 3) {
+            SBBM &qOfficeDoor = Bricks[SLONG(0x10000000 + OfficeDoorBricks[c])].Bitmap[0];
+
+            qOfficeDoor.ReSize(qDarkDoor.Size);
+            qOfficeDoor.BlitFrom(qDarkDoor);
         } else {
-            Bricks[0x10000000 + 734 + c].Bitmap[0].Destroy();
+            qExplosionDoor.Destroy();
         }
     }
 }
