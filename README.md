@@ -8,19 +8,19 @@ Therefore, you need an existing installation of the game. You can purchase the g
 
 ## Major Additions
 
-- Many new computer players 
+- Many new computer players
     - you can choose from many different play styles
-    - from an easier laid-back competitor to brutal rival
-    - from "fair play" to cruel nemesis who will target you specifically
+    - from an easier laid-back competitor to a brutal rival
+    - from "fair play" to a cruel nemesis who will target you specifically
 - Massive multiplayer overhaul to reduce desyncs and improve stability
 - Native Linux support
-- Support for Macos, including native Apple Silicon builds
+- Support for macOS
 
 ### Since last release
 
 The new bots got a lot tougher! Update and see if you can still keep up.
 
-The computer opponent has been rebuilt from the ground up. In our test games it now earns seven times as much in the first 60 days as it did in 1.9.0 and ends with a fleet of around 70+ planes instead of 10+.
+The computer opponent has been rebuilt from the ground up. In our test games it now earns seven times as much in the first 60 days as it did in 1.9.0 and ends with a fleet of 70+ planes instead of 10+.
 
 What you'll notice:
 
@@ -34,9 +34,9 @@ What you'll notice:
 
 ## License
 
-The code in the repository is licensed under the terms included in the GOG release. As such the code can only be used for non-commercial purposes and remains property of BFG.
+The code in this repository is licensed under the terms included in the GOG release. As such the code can only be used for non-commercial purposes and remains property of BFG.
 
-It is therefore *not* open-source in the free software sense, for more information refer to the License.txt.
+It is therefore *not* open-source in the free software sense. For more information, refer to License.txt.
 
 ## Installation
 
@@ -61,7 +61,7 @@ You can see the instructions to build and run the project in [BUILDING.md](BUILD
 
 ### General
 * Now runnable on Linux (including support for FLC animations found in some versions)
-* Can run on MacOS as well
+* Can run on macOS as well
 * Game can be configured for windowed / borderless / fullscreen display
 * Language can be selected in the options menu (Misc page)
 
@@ -71,10 +71,10 @@ When starting a new game, you can pick a play style for each computer-controlled
 
 * **Classic**: The original computer player you know from the base game. It is cheating (see the table below), but it is not a particularly clever manager. Pick it for the nostalgia.
 * **Laid-Back**: The nicest of the new competitors. It plays by the rules and builds a proper airline, but it strolls through the airport instead of running, is not picky about which jobs it takes, charges modest ticket prices and does not sabotage or take over competitors. A good first opponent if you want to learn the game or just have a relaxed round.
-* **Freight Baron**: A bit tougher competitor with a passion for cargo. It heads for the freight office first and fills its fleet with freight jobs. A fair opponent with a noticeably different rhythm than the others. Also does not sabotage nor take over competitors.
+* **Freight Baron**: A slightly tougher competitor with a passion for cargo. It heads for the freight office first and fills its fleet with freight jobs. A fair opponent with a noticeably different rhythm from the others. It neither sabotages nor takes over competitors.
 * **Route Tycoon**: A pure profit machine, fair but relentless. It never uses sabotage. Instead it starts building a huge route network almost immediately, trades kerosene cleverly and keeps an eye on the stock market, where it will happily buy up a struggling rival. Keep hold of your own shares if you want to see the end of the game.
-* **Challenger**: The best strategist. Picks only lucrative jobs to then bootstrap a route network, pushes ticket prices as far as the passengers tolerate and stocks up on cheap kerosene. Compared to the *Route Tycoon*, it expands its route network slower and will always fully operate the most profitable routes. It never plays dirty, so expect a tough but honest race for the top spot.
-* **Saboteur**: Runs its airline just as well as the *Challenger*, but is also a regular customer of the saboteur. Expect trouble with your aeroplanes and your office whenever you pull ahead, so a visit to the security office might be money well spent. It will also employ stock warfare in an attempt to take you over.
+* **Challenger**: The best strategist. Picks only lucrative jobs to then bootstrap a route network, pushes ticket prices as far as the passengers tolerate and stocks up on cheap kerosene. Compared to the *Route Tycoon*, it expands its route network more slowly and will always fully operate the most profitable routes. It never plays dirty, so expect a tough but honest race for the top spot.
+* **Saboteur**: Runs its airline just as well as the *Challenger*, but is also a regular customer of the saboteur. Expect trouble with your planes and your office whenever you pull ahead, so a visit to the security office might be money well spent. It will also employ stock warfare in an attempt to take you over.
 * **Nemesis**: Everything the *Saboteur* does, and it is personal. The Nemesis singles out the human player with extra dirty tricks that no other level uses. Pick it if you want an opponent who is out to ruin your day, not just to win.
 
 All new computer players have one thing in common:
@@ -92,17 +92,17 @@ All new computer players have one thing in common:
 | | ❌ Up to 25% bonus when competing for routes | ✅ No hidden bonus |
 | | ❌ Small bonus to image every day | ✅ No hidden bonus |
 | Employees | ❌ Completely fakes airline employees | ✅ Needs to hire employees |
-| Laptop virus | ❌ Removed next day | ✅ Has to act himself |
-| Strike | ❌ Will end randomly | ✅ Has to act himself |
+| Laptop virus | ❌ Removed next day | ✅ Has to deal with it itself |
+| Strike | ❌ Will end randomly | ✅ Has to deal with it itself |
 | Illness | ❌ No action taken | ✅ Uses medicine |
 | Missions | ❌ Uses various cheats | ✅ No cheating |
-| Info | ❌ Accesses game state directly | ✅ Only acts on information that would be available to human player |
+| Info | ❌ Accesses game state directly | ✅ Only acts on information that would be available to the human player |
 
 ### Statistics screen
-* Showing far more categories where money was spent
+* Shows far more categories where money was spent
    * For example income from freight jobs, total tons transported, money spent on planes, sabotage or stocks and money gained from interest, credit or stocks
 * Accurate summation of money spent
-   * Fixed many bugs where especially money earned / spent by competitor would not show up in balance
+   * Fixed many bugs where especially money earned / spent by competitors would not show up in balance
 * Whether or not values are shown depends on skill of financial advisor (for your airline) or skill of spy (regarding competitors)
 * Unlimited statistics: Store statistics data for each day since beginning of the game
 * Fix rendering of graph when zooming out
@@ -116,7 +116,7 @@ All new computer players have one thing in common:
 * Detailed information from kerosene advisor (quality / value of kerosene, money saved by using tanks)
 
 ### Option menu
-* Game Speed is adjustable in options menu. Available values: 1, 5, 10, 15, 20, 25, 30 (default value). The hosts game speed is synced to clients in a network game.
+* Game speed is adjustable in options menu. Available values: 1, 5, 10, 15, 20, 25, 30 (default value). The host's game speed is synced to clients in a network game.
 
 ### Keyboard navigation
 * Allow Enter/Backspace in calculator
@@ -148,7 +148,7 @@ All new computer players have one thing in common:
     * Plane build years now count from 2026 instead of 2002
     * Old saves are compatible, plane build years are shifted on load
 * First-class seating changes now take effect when the plane is on the ground.
-* Plane maintenance costs reset daily. Old value showed total cost per plane which makes it impossible to compare repair costs unless planes where bought on the exact same day.
+* Plane maintenance costs reset daily. Old value showed total cost per plane which makes it impossible to compare repair costs unless planes were bought on the exact same day.
 
 ### Kerosene
 * Adjust impact of bad kerosene:
@@ -175,7 +175,7 @@ All new computer players have one thing in common:
 
 ### Bug fixes
 * Fixed frozen windows on laptop
-* Integer overflow fixed when emitting lots of stock (resulted in loosing money when emitting)
+* Integer overflow fixed when emitting lots of stock (resulted in losing money when emitting)
 * Fixed formula for credit limit
 * Stock trading: Show correct new account balance in form (including fee)
 * Fix saving/reloading of plane equipment configuration
@@ -196,7 +196,7 @@ All new computer players have one thing in common:
 * Do not show route utilization for defeated players
 * Patched Space station mission prices and texts in stats
 * Patched various text scrambling on UI
-* Bug fixed in calculation in maximum amount of stock that can be emitted
+* Bug fixed in calculation of the maximum amount of stock that can be emitted
     * Bug limited max amount of stock to around 2.1 million
     * Integer overflow is fixed now, but the originally intended limit of 250 million was changed to 2.5 million
 * Fixed game shifting flights on its own even if they are already locked
@@ -205,13 +205,13 @@ All new computer players have one thing in common:
 * Timeout for sabotage: Jobs canceled if it was not possible to execute job for some time
     * Can happen if selected plane is not used anymore by owner
     * Without this fix in a situation like this the player would never be able to use sabotage again
-* Fixed bug where player can 'survive' being overtaken by skipping dialog at the right moment
+* Fixed bug where player can 'survive' being taken over by skipping dialog at the right moment
 * Classic mission 04 now uses correct route utilization
     * Previously, even though boss said that routes must be 20% utilized, game would check for 20% plane utilization
 * Addon mission 05: Formula for luxury score changed
 * Addon mission 09: Uhrig flights are now all in the region of the home airport
 * Addon mission 09: Fixed counting of Uhrig flights
-    * Note that computer players always have and still are cheating in this mission
+    * Note that computer players have always cheated and still do in this mission
 * First class mission 07: Only need to have two repaired planes, not all of them in case more than two were bought
 * Evolution mission 02: Only need to have five planes with full safety upgrades, not all of them in case more than five were bought
 * Fixed crash when quickly clicking through dialog options
@@ -220,19 +220,19 @@ All new computer players have one thing in common:
 * Dragging a flight in the flight planner could make it start before its plane arrived (#44).
 * Fixed bug where computer player buys or sells more stock than available
 * Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
-* Show correct price for auctions (gates and branch offices). Real price is three times monthly rent, previously, only one time the monthly rent was displayed
-* The advisor does no longer recommend an incompatible flight to replace an automatic flight
+* Show correct price for auctions (gates and branch offices). The real price is three times the monthly rent; previously, only one month's rent was displayed
+* The advisor no longer recommends an incompatible flight to replace an automatic flight
 * Fixed many random crashes
 
 ### Default computer player
 * Max. range of a plane now also has to be considered by the computer player
 * Max. number of seats now also has to be considered by the computer player
-* Uses now same credit limit
-* Uses now same rules for trading stock
+* Now uses the same credit limit
+* Now uses the same rules for trading stock
     * Trading fee (100 + 10% of volume) now also for computer players (fee existed only for player)
     * Do not execute trades in steps of 1000 (this previously made stock prices worse for the human player only)
     * Align function to re-calculate stock price after trade
-* Uses now same rules for emitting stock
+* Now uses the same rules for emitting stock
 * Remove sabotage advantages
     * Computer now has to pay for sabotage as well
     * Consider all security measures (e.g. plane crash not possible anymore if plane is protected)
@@ -247,9 +247,9 @@ All new computer players have one thing in common:
 * Spy reports enemy activity based on skill
 * ArabAir opens one hour earlier
 * Calculate route utilization as average of previous 7 days
-* Adding NOTFAIR cheat to make competitors much richer
-* Adding ODDONEOUT cheat to improve image of competitors
-* Adding AUTORUN cheat for ultra-fast forward
+* Added NOTFAIR cheat to make competitors much richer
+* Added ODDONEOUT cheat to improve image of competitors
+* Added AUTORUN cheat for ultra-fast forward
 * Use player colors when showing routes on laptop
 * Buy kerosene by clicking price chart
 * Change tooltip of savegames (number of days played)
@@ -259,16 +259,16 @@ All new computer players have one thing in common:
 * Company value includes value of airline image (money required to reach current image)
 * Strikes will start after 9 am now to give player chance to react
 * Make planes in main menu comically long
-* Decryption of data files with the run argument "/savedata"
+* Decryption of data files with the command-line argument "/savedata"
 * Option "OptionTicketPriceIncrement" to increase ticket price increment per click
-* Director's board now allow for more post-it
-* Added options "OptionRentOffice*" to customize the branch number available / day.
-* Director's board post-it system improved and allow for more cities (up to 7)
+* Director's board now allows for more post-its
+* Added options "OptionRentOffice*" to customize the number of branch offices available per day.
+* Director's board post-it system improved and allows for more cities (up to 7)
 * Safety upgrades now protect against the intended problem
-    * Spring: Cockpit upgrade protect against "Migrating birds, due to the cockpit"
-    * Summer: Safety upgrade protect against "Missing life vests"
-    * Fall: Engine upgrade protect against "Engine damage, due to foliage"
-    * Winter: Tire upgrade protect against "Landing gear frozen solid"
+    * Spring: Cockpit upgrade protects against "Migrating birds, due to the cockpit"
+    * Summer: Safety upgrade protects against "Missing life vests"
+    * Fall: Engine upgrade protects against "Engine damage, due to foliage"
+    * Winter: Tire upgrade protects against "Landing gear frozen solid"
 * High/low route fares for first class now also affect image
 * Changed presets for route fares:
     * Old dumping price did nothing: Earned the same image bonus as the next preset but at only half the income
