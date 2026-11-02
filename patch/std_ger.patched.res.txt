@@ -1368,6 +1368,15 @@
   S::There is a profitable freight job %s at our office in %s that our plane %s could fly %s, %d o'clock for %s!
   D::In unserer Niederlassung in %s gibt es den lukrativen Frachtauftrag %s, den unser Flugzeug %s %s um %d Uhr für %s fliegen könnte!
 
+>>0002357
+  B::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  E::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  F::A bord de %s il y a des prospectus de %s. Les passagers pensent qu'ils volent avec un avion de la concurrence!
+  I::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  N::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  O::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  S::On board our %s there are brochures of %s. The passengers think they are flying with that competitor!
+  D::An Bord der %s liegen Flugblätter von %s herum. Die Leute glauben sie würden mit denen fliegen!
 //
 // Misc
 //

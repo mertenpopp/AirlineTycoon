@@ -65,9 +65,9 @@ extern SLONG gTimerCorrection;
 
 void CalcPlayerMaximums(bool bForce);
 
-// The format this build writes: version 1.9.1
+// The format this build writes
 static const SLONG kCurrentSaveVersion = 1;
-static const SLONG kCurrentSaveVersionSub = 204;
+static const SLONG kCurrentSaveVersionSub = 205;
 
 // Daten des aktuellen Savegames beim laden:
 SLONG SaveVersion = kCurrentSaveVersion;

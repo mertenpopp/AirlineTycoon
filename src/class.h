@@ -706,6 +706,7 @@ class CFlugplanEintrag {
     SLONG Ticketpreis{};      // Ticketpreis für Routen
     SLONG TicketpreisFC{};    // Ticketpreis für Routen (Erste Klasse)
     BOOL FlightBooked{FALSE}; // Added: Ensure flight is only "booked" once
+    SLONG BroschuereVon{-1};  // Added: Brochures of this player were on board when the flight was booked, -1 = none
 
   public:
     CFlugplanEintrag() = default;
