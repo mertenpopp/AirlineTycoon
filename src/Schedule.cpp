@@ -44,6 +44,26 @@ __int64 min64(__int64 a, __int64 b) {
 // CFlugplanEintrag::
 //============================================================================================
 //--------------------------------------------------------------------------------------------
+// Did one of the player's flights other than pSkip already leave today with brochures on board?
+//--------------------------------------------------------------------------------------------
+static bool HasBookedFlightWithBrochuresToday(PLAYER &qPlayer, const CFlugplanEintrag *pSkip) {
+    for (SLONG d = 0; d < qPlayer.Planes.AnzEntries(); d++) {
+        if (qPlayer.Planes.IsInAlbum(d) == 0) {
+            continue;
+        }
+        const BUFFER_V<CFlugplanEintrag> &qFlights = qPlayer.Planes[d].Flugplan.Flug;
+        for (SLONG e = 0; e < qFlights.AnzEntries(); e++) {
+            const CFlugplanEintrag &qFlight = qFlights[e];
+            if (&qFlight != pSkip && (qFlight.ObjectType == 1 || qFlight.ObjectType == 2) && (qFlight.FlightBooked != 0) && qFlight.BroschuereVon != -1 &&
+                qFlight.Startdate == Sim.Date) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+//--------------------------------------------------------------------------------------------
 // Konstruktor:
 //--------------------------------------------------------------------------------------------
 CFlugplanEintrag::CFlugplanEintrag(BOOL ObjectType, ULONG ObjectId) {
@@ -55,6 +75,7 @@ CFlugplanEintrag::CFlugplanEintrag(BOOL ObjectType, ULONG ObjectId) {
     CFlugplanEintrag::ObjectType = ObjectType;
     CFlugplanEintrag::ObjectId = ObjectId;
     CFlugplanEintrag::FlightBooked = FALSE;
+    CFlugplanEintrag::BroschuereVon = -1;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -71,7 +92,7 @@ TEAKFILE &operator<<(TEAKFILE &File, const CFlugplanEintrag &Eintrag) {
         if (Eintrag.ObjectType != 0) {
             File << Eintrag.Okay << Eintrag.HoursBefore << Eintrag.Passagiere << Eintrag.PassagiereFC << Eintrag.PArrived << Eintrag.Gate << Eintrag.VonCity
                  << Eintrag.GateWarning << Eintrag.NachCity << Eintrag.Startzeit << Eintrag.Landezeit << Eintrag.Startdate << Eintrag.Landedate
-                 << Eintrag.ObjectId << Eintrag.Ticketpreis << Eintrag.TicketpreisFC << Eintrag.FlightBooked;
+                 << Eintrag.ObjectId << Eintrag.Ticketpreis << Eintrag.TicketpreisFC << Eintrag.FlightBooked << Eintrag.BroschuereVon;
         }
     }
 
@@ -99,6 +120,12 @@ TEAKFILE &operator>>(TEAKFILE &File, CFlugplanEintrag &Eintrag) {
             } else {
                 Eintrag.FlightBooked = FALSE;
             }
+
+            if (SaveVersionSub >= 205) {
+                File >> Eintrag.BroschuereVon;
+            } else {
+                Eintrag.BroschuereVon = -1;
+            }
         } else {
             Eintrag.Okay = 0;
             Eintrag.Gate = -1;
@@ -108,6 +135,7 @@ TEAKFILE &operator>>(TEAKFILE &File, CFlugplanEintrag &Eintrag) {
             Eintrag.ObjectType = 0;
             Eintrag.ObjectId = -1;
             Eintrag.FlightBooked = FALSE;
+            Eintrag.BroschuereVon = -1;
         }
     }
 
@@ -613,6 +641,11 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     }
     FlightBooked = TRUE;
 
+    /* Remember whose brochures are on board now. The passengers judge the flight when the plane
+       lands (CPlane::CalculateHappyPassengers), which can be after midnight, when the sabotage
+       is already over. */
+    BroschuereVon = qPlayer.WerbeBroschuere;
+
     __int64 Saldo = 0;
     SLONG Einnahmen = 0;
     SLONG Kerosin = 0;
@@ -894,11 +927,12 @@ void CFlugplanEintrag::BookFlight(CPlane *Plane, SLONG PlayerNum) {
     // Auswirkungen auf's Image verbuchen
     if (ObjectType == 1 || ObjectType == 2) {
         SLONG pn = qPlayer.PlayerNum;
-        if (Sim.Players.Players[qPlayer.PlayerNum].WerbeBroschuere != -1) {
-            pn = Sim.Players.Players[qPlayer.PlayerNum].WerbeBroschuere;
-            if (Sim.Players.Players[qPlayer.PlayerNum].Owner == 0) {
-                Sim.Players.Players[qPlayer.PlayerNum].Messages.AddMessage(
-                    BERATERTYP_GIRL, bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2357), Plane->Name.c_str(), Sim.Players.Players[pn].AirlineX.c_str()));
+        if (BroschuereVon != -1) {
+            pn = BroschuereVon;
+            if (qPlayer.Owner == 0 && !HasBookedFlightWithBrochuresToday(qPlayer, this)) {
+                // Only for the first flight with brochures today, not for every one
+                qPlayer.Messages.AddMessage(BERATERTYP_GIRL,
+                                            bprintf(StandardTexte.GetS(TOKEN_ADVICE, 2357), Plane->Name.c_str(), Sim.Players.Players[pn].AirlineX.c_str()));
             }
         }
 

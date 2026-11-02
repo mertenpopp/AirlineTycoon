@@ -1573,15 +1573,18 @@ void PumpNetwork() {
                         if (qFlight.ObjectType == 0) {
                             continue;
                         }
-                        const bool bSame = std::any_of(BookedHere.begin(), BookedHere.end(), [&qFlight](const CFlugplanEintrag &qOld) {
+                        const auto itOld = std::find_if(BookedHere.begin(), BookedHere.end(), [&qFlight](const CFlugplanEintrag &qOld) {
                             return qOld.ObjectType == qFlight.ObjectType && qOld.ObjectId == qFlight.ObjectId && qOld.VonCity == qFlight.VonCity &&
                                    qOld.NachCity == qFlight.NachCity && qOld.Startdate == qFlight.Startdate && qOld.Startzeit == qFlight.Startzeit;
                         });
+                        const bool bSame = (itOld != BookedHere.end());
                         if ((qFlight.FlightBooked != 0) != bSame) {
                             NetTraceEvent("FLIGHTBOOKED p=%ld plane=%ld flight=%ld theirs=%ld mine=%ld", static_cast<long>(PlayerNum),
                                           static_cast<long>(PlaneId), static_cast<long>(e), static_cast<long>(qFlight.FlightBooked), static_cast<long>(bSame));
                         }
                         qFlight.FlightBooked = bSame ? TRUE : FALSE;
+                        // Booked here, so this peer also recorded the brochures on board
+                        qFlight.BroschuereVon = bSame ? itOld->BroschuereVon : -1;
                     }
 
                     // Daten aktualisieren

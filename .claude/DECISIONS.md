@@ -2475,3 +2475,13 @@ Fix: the sync sends NetTankStamp() per player; Money is taken only when the stam
 - run_multiplayer.sh 2 8 56 10 0 1 0 12345 before and after: all 90 fingerprints agree, per-day
   HabenZinsen identical for all airlines on both peers; no SKIP in either run (no straddle on Linux),
   so the fix is not yet confirmed against the Windows symptom.
+
+## 2026-11-02: Crew over-hiring A/B (ClaudeBot and MertenBot)
+All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change kept.
+- ClaudeBot level 6, baseline HEAD a939f6c0 (spare 3 planes' worth, every applicant from 4 planes on): 2.8711e9 (`dataCREW0_*`).
+  - No over-hiring (hire exactly what the fleet needs): 2.5822e9, **-10.06% (t -16.5)**, worse in 285 (`dataCREW1_*`).
+  - Moderate (spare = max(3, 25% of fleet) planes' worth, no unlimited stockpile): 2.6614e9, **-7.30% (t -13.7)**, worse in 271 (`dataCREW2_*`).
+- MertenBot level 2, `kStockpilePilots`/`kStockpileAttendants` true (current): 3.1244e9 (`dataMSTK1_*`); both false: 2.9222e9, **-6.47% (t -14.2)**, worse in 254 (`dataMSTK0_*`).
+- Conclusion: the unlimited late-game stockpile still pays for both bots; crew supply (10/day per type once the reserve is drained) is the binding limit on fleet growth in the last weeks.
+- ClaudeBot with MertenBot's rule (no stockpile; target = fleet need + crew for ceil(budget / price) of the plane type executeBuyPlane() last ranked best, at least one plane; budget = Money - DEBT_LIMIT - kPlaneCashReserve): 2.5991e9, **-9.47% (t -15.6)**, worse in 280 (`dataCREW3_*`). Barely above "exact need": ClaudeBot spends its cash on planes at once, so the budget rarely covers more than one plane.
+- Day 40 / day 59 means (planes, employees): current 11 / 530, 104 / 928; exact need 11 / 79, 97 / 481; moderate 11 / 101, 100 / 522; MertenBot's rule 11 / 85, 98 / 487. The stockpile builds staff long before it is needed, and only that keeps the late-game buying spree crewed.

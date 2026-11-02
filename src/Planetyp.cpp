@@ -899,6 +899,7 @@ void CPlane::ExtendFlugplaene(SLONG PlayerNum) {
                         Flugplan.Flug[AnzOkay + c].Startzeit += RapportL;
                         Flugplan.Flug[AnzOkay + c].Landezeit += RapportL;
                         Flugplan.Flug[AnzOkay + c].FlightBooked = FALSE;
+                        Flugplan.Flug[AnzOkay + c].BroschuereVon = -1;
                         while (Flugplan.Flug[AnzOkay + c].Landezeit > 24) {
                             Flugplan.Flug[AnzOkay + c].Landezeit -= 24;
                             Flugplan.Flug[AnzOkay + c].Landedate++;
@@ -957,6 +958,7 @@ void CPlane::FlugplaeneFortfuehren(SLONG PlayerNum) {
                 Flugplan.Flug[c].Ticketpreis = Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Flugplan.Flug[c].ObjectId)].Ticketpreis;     // new
                 Flugplan.Flug[c].TicketpreisFC = Sim.Players.Players[PlayerNum].RentRouten.RentRouten[Routen(Flugplan.Flug[c].ObjectId)].TicketpreisFC; // newer
                 Flugplan.Flug[c].FlightBooked = FALSE;
+                Flugplan.Flug[c].BroschuereVon = -1;
 
                 // Zeiten ggf. anpassen (Feintuning)
                 if (Flugplan.Flug[c].Startdate < LastDate || (Flugplan.Flug[c].Startdate == LastDate && Flugplan.Flug[c].Startzeit < LastTime)) {
@@ -1207,9 +1209,11 @@ void CPlane::CalculateHappyPassengers(SLONG PlayerNum, SLONG mod, bool addToQueu
 
     Saldo = PersonalQuality;
 
+    // Same airline as for the image in CFlugplanEintrag::BookFlight: whose brochures were on board at departure
     SLONG pn = PlayerNum;
-    if (Sim.Players.Players[PlayerNum].WerbeBroschuere != -1) {
-        pn = Sim.Players.Players[PlayerNum].WerbeBroschuere;
+    const SLONG broschuereVon = (fpe->FlightBooked != 0) ? fpe->BroschuereVon : Sim.Players.Players[PlayerNum].WerbeBroschuere;
+    if (broschuereVon != -1) {
+        pn = broschuereVon;
     }
 
     SLONG passtotal = fpe->Passagiere;
