@@ -109,6 +109,14 @@ bool Bot::minutesPassed(SLONG room, SLONG minutes) const {
     return ((Sim.Time - it->second) > (minutes * 1000));
 }
 
+bool Bot::notVisitedSinceHour(SLONG room, SLONG hour) const {
+    const auto it = mLastTimeInRoom.find(room);
+    if (it == mLastTimeInRoom.end() || it->second < hour * 60000) {
+        return true;
+    }
+    return false;
+}
+
 bool Bot::haveDiscount() const {
     /* wait until we have some discount */
     return (qPlayer.HasBerater(BERATERTYP_SICHERHEIT) >= 50) || (Sim.Date > 7);

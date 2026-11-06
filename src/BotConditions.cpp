@@ -402,6 +402,11 @@ Bot::Prio Bot::condVisitHR(__int64 &moneyAvailable) {
     if (hoursPassed(ACTION_PERSONAL, 24)) {
         prio = std::max(prio, Prio::Medium); /* hire new crew every day */
     }
+    if (checkLateGame() && (kStockpilePilots || kStockpileAttendants) && (Sim.GetHour() >= 12)) {
+        if (notVisitedSinceHour(ACTION_PERSONAL, 12)) {
+            prio = std::max(prio, Prio::Medium); /* stockpiling only allowed afternoon */
+        }
+    }
     if (hoursPassed(ACTION_PERSONAL, kFrequencyRouteStrategy) && qPlayer.HasBerater(BERATERTYP_PERSONAL) > 0 && (mQualifiedCrewForHire > 0)) {
         SLONG pilotsTarget = 3;     /* sensible default */
         SLONG stewardessTarget = 6; /* sensible default */

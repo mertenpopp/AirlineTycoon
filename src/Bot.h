@@ -325,6 +325,7 @@ class Bot {
     bool isOfficeUsable() const;
     bool hoursPassed(SLONG room, SLONG hours) const;
     bool minutesPassed(SLONG room, SLONG minutes) const;
+    bool notVisitedSinceHour(SLONG room, SLONG hour) const;
     bool haveDiscount() const;
     SLONG applyDiscount(SLONG money) const;
     bool checkLaptop() const;

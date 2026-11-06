@@ -2712,7 +2712,6 @@ class SIM // Die Simulationswelt; alles was zur aktuellen Partie gehört
     SLONG GetWeek(void) const;
     SLONG GetHour(void) const;
     SLONG GetMinute(void) const;
-    SLONG GetWeekday(void);
     CString GetTimeString(void) const;
     void NewDay(void);
     CPlane CreateRandomUsedPlane(SLONG seed) const;

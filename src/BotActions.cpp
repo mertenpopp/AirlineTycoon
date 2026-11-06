@@ -778,10 +778,10 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
         /* Crew limits how many planes we can buy at the end: once the reserve is drained, only 10 new pilots and
          * attendants appear per day (CWorkers::AddToPool()), and only while the reserve is below its target. Hire
          * all of them. */
-        if (kStockpilePilots) {
+        if (kStockpilePilots && (Sim.GetHour() >= 12)) {
             pilotsTarget = INT_MAX;
         }
-        if (kStockpileAttendants) {
+        if (kStockpileAttendants && (Sim.GetHour() >= 12)) {
             stewardessTarget = INT_MAX;
         }
     }
