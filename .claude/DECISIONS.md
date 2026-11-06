@@ -2485,3 +2485,11 @@ All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change k
 - Conclusion: the unlimited late-game stockpile still pays for both bots; crew supply (10/day per type once the reserve is drained) is the binding limit on fleet growth in the last weeks.
 - ClaudeBot with MertenBot's rule (no stockpile; target = fleet need + crew for ceil(budget / price) of the plane type executeBuyPlane() last ranked best, at least one plane; budget = Money - DEBT_LIMIT - kPlaneCashReserve): 2.5991e9, **-9.47% (t -15.6)**, worse in 280 (`dataCREW3_*`). Barely above "exact need": ClaudeBot spends its cash on planes at once, so the budget rarely covers more than one plane.
 - Day 40 / day 59 means (planes, employees): current 11 / 530, 104 / 928; exact need 11 / 79, 97 / 481; moderate 11 / 101, 100 / 522; MertenBot's rule 11 / 85, 98 / 487. The stockpile builds staff long before it is needed, and only that keeps the late-game buying spree crewed.
+
+## 2026-11-06: New rule - limit on unused crew (RULES.md), both bots adapted
+- Rule: unused pilots + unused attendants (each hired minus used, never below zero; a plane uses ptAnzPiloten and MaxBegleiter) <= max(15, 25% of all employees incl. advisors). Hiring the fleet's own need is always allowed.
+- ClaudeBot executePersonal(): advisors first, then the fleet's need, then spare crew up to the limit, split in the fleet's pilot:attendant ratio (pilots first). The old wish (3 planes' spare, stockpile from 4 planes) still applies below the limit.
+- MertenBot actionVisitHR(): same limit and split (ratio of the plane it wants to buy next) as a gate in the existing hiring loop; candidates blocked by the limit are not counted in mQualifiedCrewForHire, so they cause no extra HR visits.
+- Paired, 300 seeded games, day 59, against this session's baselines: ClaudeBot 2.8711e9 -> 2.6760e9, **-6.80% (t -13.0)** (`dataCLIM_*`); MertenBot 3.1244e9 -> 2.9824e9, **-4.54% (t -12.7)** (`dataMLIM_*`). Better than every earlier no-stockpile variant (ClaudeBot -7.3% to -10.1%, MertenBot -6.5%).
+- Checked in the logs: 0 of 26,169 ClaudeBot and 0 of 19,178 MertenBot HR visits end above the limit.
+- New baselines for further work: `dataCLIM_*` / `dataMLIM_*`.
