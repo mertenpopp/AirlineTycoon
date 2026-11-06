@@ -485,6 +485,7 @@ class ClaudeBot {
     SLONG mDay{-1};
     SLONG mJobsTakenToday{0};
     bool mVisitedPersonalToday{false};
+    bool mSpareCrewHiredToday{false}; /* spare crew is hired once a day, from kSpareCrewFromHour on */
     bool mVisitedMechToday{false};
     bool mVisitedRouteBoxToday{false};
     bool mVisitedAdsToday{false};

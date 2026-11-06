@@ -2500,3 +2500,10 @@ All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change k
 - Paired, 300 seeded games, day 59: ClaudeBot 2.6760e9 -> 2.6743e9, **-0.06% (t -3.9)** (`dataCNEW_*` vs `dataCOLD_*`); MertenBot 2.9824e9 -> 2.9794e9, **-0.10% (t -2.5)** (`dataMNEW_*` vs `dataMOLD_*`). Old-build numbers match the previous baselines exactly.
 - Logs: 0 of 26,169 ClaudeBot HR visits end above the limit.
 - New baselines: `dataCNEW_*` / `dataMNEW_*`.
+
+## 2026-11-06: Spare crew only from 12:00 (GitHub issue #52)
+- Players complained that Route Tycoon (ClaudeBot) empties the HR board right after the morning meeting. New rule (RULES.md): spare crew only from 12:00; crew the fleet uses at any time. MertenBot unchanged (players found it unproblematic, and its "spare" crew is mostly the next plane's).
+- ClaudeBot: executePersonal() returns after hiring the fleet's need before kSpareCrewFromHour (12); collectActions() plans a second HR visit after 12:00 until mSpareCrewHiredToday (savegame version 113).
+- Paired, 300 seeded games, day 59: 2.6743e9 -> 2.6741e9, **-0.01% (t -0.09)** (`dataCNOON_*` vs `dataCBASE_*`). Neutral.
+- Logs: 0 of 17,647 spare-crew hiring visits before 12:00 (all at 12:xx). Load test slots 1/2 (240 s): both reach day 59, 0 errors.
+- New baseline: `dataCNOON_*`.

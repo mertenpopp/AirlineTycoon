@@ -636,6 +636,10 @@ static const SLONG kCrewSparePlanes = 3;
  * left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
 static const SLONG kCrewStockpileFromPlanes = 4;
 
+/* RULES.md "Limit on unused crew": spare crew is only hired from this hour on, so that human players get the
+ * morning applicants first (GitHub issue #52). Crew the fleet uses is hired at any time. */
+static const SLONG kSpareCrewFromHour = 12;
+
 /* RULES.md "Limit on unused crew": pilots and attendants beyond what the fleet uses may not exceed
  * 15 or 25% of all pilots and attendants (advisors do not count), whichever is higher. */
 static SLONG crewUnusedLimit(SLONG totalEmployees) { return std::max<SLONG>(15, totalEmployees * 25 / 100); }
@@ -1460,6 +1464,7 @@ void ClaudeBot::startNewDay() {
     refreshMission();
     mJobsTakenToday = 0;
     mVisitedPersonalToday = false;
+    mSpareCrewHiredToday = false;
     mVisitedMechToday = false;
     mVisitedRouteBoxToday = false;
     mVisitedAdsToday = false;
@@ -1530,7 +1535,9 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
 
     /* 1) Make sure the planes are crewed. Worker data may only be read in the HR
      *    room, so we go there once a day and decide on arrival. */
-    if (!mVisitedPersonalToday && canUseAction(ACTION_PERSONAL)) {
+    /*    A second visit after kSpareCrewFromHour hires the spare crew. */
+    const bool wantSpareCrew = !mSpareCrewHiredToday && Sim.GetHour() >= kSpareCrewFromHour;
+    if ((!mVisitedPersonalToday || wantSpareCrew) && canUseAction(ACTION_PERSONAL)) {
         out.push_back(ACTION_PERSONAL);
     }
 
@@ -2558,6 +2565,14 @@ void ClaudeBot::executePersonal() {
             hire(k);
         }
     }
+
+    /* 2) Not before kSpareCrewFromHour: the morning applicants are left to the other players. */
+    if (Sim.GetHour() < kSpareCrewFromHour) {
+        AT_Log("ClaudeBot::executePersonal(): Hired %ld for the fleet, now %ld pilots / %ld attendants against %ld / %ld needed; spare crew from %ld:00.",
+               hired, havePilots, haveAttendants, needPilots, needAttendants, kSpareCrewFromHour);
+        return;
+    }
+    mSpareCrewHiredToday = true;
 
     /* 2) Spare crew, within RULES.md "Limit on unused crew": unused <= max(15, 25% of pilots + attendants), counted per
      * type and never below zero. Every spare hire adds one to both sides, so the allowance is found by stepping. The
@@ -6798,7 +6813,7 @@ SLONG ClaudeBot::getNextMood() {
 }
 
 TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
-    SLONG savegameVersion = 112;
+    SLONG savegameVersion = 113;
     File << savegameVersion;
 
     File << bot.mFirstRun;
@@ -6887,6 +6902,8 @@ TEAKFILE &operator<<(TEAKFILE &File, const ClaudeBot &bot) {
         File << id;
     }
     File << bot.LocalRandom;
+    /* version 113 */
+    File << bot.mSpareCrewHiredToday;
 
     SLONG magicnumber = 0x42;
     File << magicnumber;
@@ -7021,6 +7038,11 @@ TEAKFILE &operator>>(TEAKFILE &File, ClaudeBot &bot) {
         bot.mLastCallTime = -1;
         /* The castaway flags were not saved either: the next route box visit rents a stranded
          * plane's pair again if it still needs one. */
+    }
+    if (savegameVersion >= 113) {
+        File >> bot.mSpareCrewHiredToday;
+    } else {
+        bot.mSpareCrewHiredToday = false;
     }
 
     /* Nothing below is saved: it is derived from the game, or only lives inside one callback

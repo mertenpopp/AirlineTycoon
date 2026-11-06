@@ -435,6 +435,8 @@ Stockpiling crew drains the shared employee pool for all other players and is th
 
 ClaudeBot may not hire a pilot or stewardess if this would break the limit. If the limit is exceeded for other reasons (e.g. a plane was sold or crashed), ClaudeBot may not hire further crew until the limit holds again; it does not have to fire anyone.
 
+ClaudeBot may hire spare crew (crew beyond what its planes use) only from 12:00 on, so that human players get the first look at the morning's applicants. Crew its planes use may be hired at any time.
+
 Claude shall hire the following types of employees:
 - pilots (CWorker::Typ == WORKER_PILOT)
 - stewardesses (CWorker::Typ == WORKER_STEWARDESS)
