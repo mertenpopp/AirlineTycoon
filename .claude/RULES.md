@@ -431,7 +431,7 @@ Stockpiling crew drains the shared employee pool for all other players and is th
 `unusedCrew <= max(15, totalEmployees * 25 / 100)`
 
 - `unusedCrew`: unused pilots plus unused stewardesses, each counted as hired minus used and never below zero (a shortage of pilots does not offset surplus stewardesses). The crew a plane uses is `CPlane::ptAnzPiloten` pilots and `CPlane::MaxBegleiter` stewardesses (at least `CPlane::ptAnzBegleiter`), summed over all planes the player owns.
-- `totalEmployees`: all workers employed by the player (`CWorker::Employer == qPlayer.PlayerNum`), including advisors.
+- `totalEmployees`: all pilots and stewardesses employed by the player (`CWorker::Employer == qPlayer.PlayerNum` and `CWorker::Typ` is `WORKER_PILOT` or `WORKER_STEWARDESS`). Advisors do not count, so hiring advisors does not raise the limit.
 
 ClaudeBot may not hire a pilot or stewardess if this would break the limit. If the limit is exceeded for other reasons (e.g. a plane was sold or crashed), ClaudeBot may not hire further crew until the limit holds again; it does not have to fire anyone.
 
