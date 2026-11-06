@@ -772,6 +772,8 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
     SLONG pilotsTarget = 3;     /* sensible default */
     SLONG stewardessTarget = 6; /* sensible default */
     std::tie(pilotsTarget, stewardessTarget) = howMuchCrewToHire(moneyAvailable);
+    const SLONG ratioPilots = std::max<SLONG>(1, pilotsTarget);
+    const SLONG ratioAttendants = std::max<SLONG>(0, stewardessTarget);
     if (checkLateGame()) {
         /* Crew limits how many planes we can buy at the end: once the reserve is drained, only 10 new pilots and
          * attendants appear per day (CWorkers::AddToPool()), and only while the reserve is below its target. Hire
@@ -783,6 +785,50 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
             stewardessTarget = INT_MAX;
         }
     }
+
+    /* RULES.md "Limit on unused crew": unused pilots + unused attendants (each hired minus used, never below zero)
+     * may not exceed 15 or 25% of all employees, whichever is higher. Crew the fleet uses can always be hired. The
+     * allowance is split in the ratio of the plane we want to buy next, so that attendants (about five per pilot on
+     * the board) do not use it up alone. */
+    SLONG needPilots = 0;
+    SLONG needAttendants = 0;
+    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
+        if (qPlayer.Planes.IsInAlbum(c) == 0) {
+            continue;
+        }
+        const auto &qPlane = qPlayer.Planes[c];
+        needPilots += qPlane.ptAnzPiloten;
+        needAttendants += std::max(qPlane.MaxBegleiter, qPlane.ptAnzBegleiter);
+    }
+    SLONG havePilots = 0;
+    SLONG haveAttendants = 0;
+    SLONG totalEmployees = 0;
+    for (SLONG c = 0; c < Workers.Workers.AnzEntries(); c++) {
+        const auto &qWorker = Workers.Workers[c];
+        if (qWorker.Employer != qPlayer.PlayerNum) {
+            continue;
+        }
+        totalEmployees++;
+        if (qWorker.Typ == WORKER_PILOT) {
+            havePilots++;
+        } else if (qWorker.Typ == WORKER_STEWARDESS) {
+            haveAttendants++;
+        }
+    }
+    const SLONG unusedNow = std::max<SLONG>(0, havePilots - needPilots) + std::max<SLONG>(0, haveAttendants - needAttendants);
+    SLONG allowedUnused = unusedNow;
+    while (allowedUnused + 1 <= std::max<SLONG>(15, (totalEmployees + (allowedUnused - unusedNow) + 1) * 25 / 100)) {
+        allowedUnused++;
+    }
+    const SLONG maxSparePilots = allowedUnused * ratioPilots / (ratioPilots + ratioAttendants);
+    auto spareAllowed = [&](bool pilot) {
+        const SLONG sparePilots = std::max<SLONG>(0, havePilots - needPilots);
+        if (pilot) {
+            const SLONG spareAttendants = std::max<SLONG>(0, haveAttendants - needAttendants);
+            return havePilots < needPilots || (sparePilots < maxSparePilots && sparePilots + spareAttendants < allowedUnused);
+        }
+        return haveAttendants < needAttendants || (haveAttendants - needAttendants) < allowedUnused - std::max(sparePilots, maxSparePilots);
+    };
 
     mQualifiedCrewForHire = 0;
     SLONG numPilotsHired = 0;
@@ -801,9 +847,13 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
                 continue; /* do not count highly-skilled workers twice */
             }
             if (qWorker.Typ == WORKER_PILOT) {
+                if (!spareAllowed(true)) {
+                    continue; /* unused-crew limit; not counted as available, so it does not trigger extra HR visits */
+                }
                 if (qPlayer.xPiloten < pilotsTarget) {
                     if (GameMechanic::hireWorker(qPlayer, c)) {
                         mNumEmployees++;
+                        havePilots++;
                         numPilotsHired++;
                         talentSum += qWorker.Talent;
                     }
@@ -811,9 +861,13 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
                     mQualifiedCrewForHire++;
                 }
             } else if (qWorker.Typ == WORKER_STEWARDESS) {
+                if (!spareAllowed(false)) {
+                    continue; /* unused-crew limit; not counted as available, so it does not trigger extra HR visits */
+                }
                 if (qPlayer.xBegleiter < stewardessTarget) {
                     if (GameMechanic::hireWorker(qPlayer, c)) {
                         mNumEmployees++;
+                        haveAttendants++;
                         numStewardessHired++;
                         talentSum += qWorker.Talent;
                     }

@@ -424,6 +424,17 @@ Workers are paid daily, amount is `CWorker::Gehalt`/30. Worker talent (`CWorker:
 
 Workers might have quit over night. It should be checked regularly to see if there is a crew deficit. Assignment of crew to planes is done automatically. While it is possible to assign manually, we shall leave it to the automatic assignment and ClaudeBot only needs to ensure that enough people are hired in total.
 
+### Limit on unused crew
+
+Stockpiling crew drains the shared employee pool for all other players and is therefore not allowed. The number of unused crew may not exceed 15 or 25% of the total number of employees, whichever is higher:
+
+`unusedCrew <= max(15, totalEmployees * 25 / 100)`
+
+- `unusedCrew`: unused pilots plus unused stewardesses, each counted as hired minus used and never below zero (a shortage of pilots does not offset surplus stewardesses). The crew a plane uses is `CPlane::ptAnzPiloten` pilots and `CPlane::MaxBegleiter` stewardesses (at least `CPlane::ptAnzBegleiter`), summed over all planes the player owns.
+- `totalEmployees`: all workers employed by the player (`CWorker::Employer == qPlayer.PlayerNum`), including advisors.
+
+ClaudeBot may not hire a pilot or stewardess if this would break the limit. If the limit is exceeded for other reasons (e.g. a plane was sold or crashed), ClaudeBot may not hire further crew until the limit holds again; it does not have to fire anyone.
+
 Claude shall hire the following types of employees:
 - pilots (CWorker::Typ == WORKER_PILOT)
 - stewardesses (CWorker::Typ == WORKER_STEWARDESS)

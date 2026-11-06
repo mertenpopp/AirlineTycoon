@@ -627,7 +627,7 @@ static const bool kLogRouteFlights = false;
 
 /* Aeroplanes' worth of crew executePersonal() keeps on the payroll beyond what the fleet needs. */
 static const SLONG kCrewSparePlanes = 3;
-/* ...until the fleet has this many aeroplanes: from then on every applicant is hired.
+/* ...until the fleet has this many aeroplanes: from then on every applicant is wanted, up to the unused-crew limit.
  *
  * The board is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates
  * at most 10 pilots and 10 attendants a day - and only while the reserve is below its target (CWorkers::AddToPool).
@@ -635,6 +635,10 @@ static const SLONG kCrewSparePlanes = 3;
  * buys 7 to 9 a day in the last week: in a sample game 19 aeroplanes bought on days 55-58 never flew. Applicants
  * left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
 static const SLONG kCrewStockpileFromPlanes = 4;
+
+/* RULES.md "Limit on unused crew": pilots and attendants beyond what the fleet uses may not exceed
+ * 15 or 25% of all employees, whichever is higher. */
+static SLONG crewUnusedLimit(SLONG totalEmployees) { return std::max<SLONG>(15, totalEmployees * 25 / 100); }
 
 /* Image is worth roughly a factor two in route passengers ((400 + ImageTotal) / 1100 with
  * ImageTotal = 4 * routeImage + airlineImage + 200, capped at 1000). Advertising is not
@@ -2474,23 +2478,35 @@ bool ClaudeBot::planeCanFly(const CPlane &qPlane, const CAuftrag &qJob) const {
 void ClaudeBot::executePersonal() {
     mVisitedPersonalToday = true;
 
+    /* First, so that the advisors count towards the employees the unused-crew limit is measured against. */
+    hireAdvisors();
+
+    /* Crew the fleet uses: the minimum pilots, and the attendant target (MaxBegleiter, which the game caps at the
+     * minimum for a bot - Player.cpp:151). */
     SLONG needPilots = 0;
     SLONG needAttendants = 0;
+    SLONG maxPilotsPerPlane = 0;
+    SLONG maxAttendantsPerPlane = 0;
     for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
         if (qPlayer.Planes.IsInAlbum(c) == 0) {
             continue;
         }
-        needPilots += qPlayer.Planes[c].ptAnzPiloten;
-        needAttendants += qPlayer.Planes[c].ptAnzBegleiter;
+        const auto &qPlane = qPlayer.Planes[c];
+        needPilots += qPlane.ptAnzPiloten;
+        needAttendants += std::max(qPlane.MaxBegleiter, qPlane.ptAnzBegleiter);
+        maxPilotsPerPlane = std::max<SLONG>(maxPilotsPerPlane, qPlane.ptAnzPiloten);
+        maxAttendantsPerPlane = std::max<SLONG>(maxAttendantsPerPlane, qPlane.ptAnzBegleiter);
     }
 
     SLONG havePilots = 0;
     SLONG haveAttendants = 0;
+    SLONG totalEmployees = 0;
     for (SLONG i = 0; i < Workers.Workers.AnzEntries(); i++) {
         const auto &qWorker = Workers.Workers[i];
         if (qWorker.Employer != qPlayer.PlayerNum) {
             continue;
         }
+        totalEmployees++;
         if (qWorker.Typ == WORKER_PILOT) {
             havePilots++;
         } else if (qWorker.Typ == WORKER_STEWARDESS) {
@@ -2498,31 +2514,15 @@ void ClaudeBot::executePersonal() {
         }
     }
 
-    hireAdvisors();
-
-    /* Hire to what the fleet needs, plus a few aeroplanes' worth in hand - best talent first.
+    /* What we would like to keep in hand beyond the fleet's need, before the RULES.md limit on unused crew.
      *
-     * This used to take every applicant on the board, which was right for a fleet of 200 that
-     * drained the shared labour pool (at 161 aeroplanes the log read "still missing 39 pilots /
-     * 346 attendants"). It is wrong for a 59-day game: the airline flies two aeroplanes needing
-     * 13 crew until day 30, yet employed 705 people by then and 1,316 by day 59, and every one
-     * of them draws a scored salary. A bot's aeroplane cannot even carry surplus attendants -
-     * PLAYER::BuyPlane() caps MaxBegleiter at ptAnzBegleiter for a SuperBot (Player.cpp:162).
-     *
-     * Hiring assigns crew at once (GameMechanic::hireWorker -> MapWorkers), and executeBuyPlane()
-     * sends us back here the same day it buys, so the spare only has to cover a board that is
-     * thin at the moment of purchase. */
-    SLONG maxPilotsPerPlane = 0;
-    SLONG maxAttendantsPerPlane = 0;
-    for (SLONG c = 0; c < qPlayer.Planes.AnzEntries(); c++) {
-        if (qPlayer.Planes.IsInAlbum(c) != 0) {
-            maxPilotsPerPlane = std::max<SLONG>(maxPilotsPerPlane, qPlayer.Planes[c].ptAnzPiloten);
-            maxAttendantsPerPlane = std::max<SLONG>(maxAttendantsPerPlane, qPlayer.Planes[c].ptAnzBegleiter);
-        }
-    }
+     * Small fleets keep a few aeroplanes' worth. From kCrewStockpileFromPlanes on we want every applicant: the board
+     * is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates at most
+     * 10 pilots and 10 attendants a day, while the broker buys 7 to 9 aeroplanes a day in the last week. The limit
+     * below now decides how much of that stockpile we may actually hold. */
     const bool stockpile = !mMission.isMission && countPlanes() >= kCrewStockpileFromPlanes;
-    const SLONG wantPilots = stockpile ? INT32_MAX : needPilots + kCrewSparePlanes * maxPilotsPerPlane;
-    const SLONG wantAttendants = stockpile ? INT32_MAX : needAttendants + kCrewSparePlanes * maxAttendantsPerPlane;
+    const SLONG wishSparePilots = stockpile ? INT32_MAX : kCrewSparePlanes * maxPilotsPerPlane;
+    const SLONG wishSpareAttendants = stockpile ? INT32_MAX : kCrewSparePlanes * maxAttendantsPerPlane;
 
     std::vector<SLONG> applicants;
     for (SLONG i = 0; i < Workers.Workers.AnzEntries(); i++) {
@@ -2537,21 +2537,55 @@ void ClaudeBot::executePersonal() {
     }
     std::stable_sort(applicants.begin(), applicants.end(), [](SLONG a, SLONG b) { return Workers.Workers[a].Talent > Workers.Workers[b].Talent; });
 
+    std::vector<bool> taken(applicants.size(), false);
     SLONG hired = 0;
-    for (SLONG i : applicants) {
-        const bool pilot = Workers.Workers[i].Typ == WORKER_PILOT;
-        if (pilot ? havePilots >= wantPilots : haveAttendants >= wantAttendants) {
-            continue;
+    auto hire = [&](size_t k) {
+        if (!GameMechanic::hireWorker(qPlayer, applicants[k])) {
+            return false;
         }
-        if (!GameMechanic::hireWorker(qPlayer, i)) {
-            continue;
-        }
-        (pilot ? havePilots : haveAttendants)++;
+        taken[k] = true;
+        (Workers.Workers[applicants[k]].Typ == WORKER_PILOT ? havePilots : haveAttendants)++;
+        totalEmployees++;
         hired++;
+        return true;
+    };
+
+    /* 1) The fleet's own need: never unused crew, so always allowed. */
+    for (size_t k = 0; k < applicants.size(); k++) {
+        const bool pilot = Workers.Workers[applicants[k]].Typ == WORKER_PILOT;
+        if (pilot ? havePilots < needPilots : haveAttendants < needAttendants) {
+            hire(k);
+        }
     }
 
-    AT_Log("ClaudeBot::executePersonal(): Hired %ld, now %ld pilots / %ld attendants against %ld / %ld needed.", hired, havePilots, haveAttendants, needPilots,
-           needAttendants);
+    /* 2) Spare crew, within RULES.md "Limit on unused crew": unused <= max(15, 25% of all employees), counted per
+     * type and never below zero. Every spare hire adds one to both sides, so the allowance is found by stepping. The
+     * allowance is split in the fleet's crew ratio: the board offers about five attendants per pilot, and filling
+     * the allowance with attendants alone would leave the aeroplanes they are meant for without pilots. */
+    const SLONG unusedPilots = std::max<SLONG>(0, havePilots - needPilots);
+    const SLONG unusedAttendants = std::max<SLONG>(0, haveAttendants - needAttendants);
+    SLONG allowedUnused = unusedPilots + unusedAttendants;
+    while (allowedUnused + 1 <= crewUnusedLimit(totalEmployees + (allowedUnused - unusedPilots - unusedAttendants) + 1)) {
+        allowedUnused++;
+    }
+    const SLONG ratioPilots = maxPilotsPerPlane > 0 ? maxPilotsPerPlane : 1;
+    const SLONG ratioAttendants = maxAttendantsPerPlane > 0 ? maxAttendantsPerPlane : 2;
+    const SLONG targetSparePilots =
+        std::min<SLONG>({wishSparePilots, allowedUnused * ratioPilots / (ratioPilots + ratioAttendants), allowedUnused - unusedAttendants});
+    for (size_t k = 0; k < applicants.size() && havePilots - needPilots < targetSparePilots; k++) {
+        if (!taken[k] && Workers.Workers[applicants[k]].Typ == WORKER_PILOT) {
+            hire(k);
+        }
+    }
+    const SLONG targetSpareAttendants = std::min<SLONG>(wishSpareAttendants, allowedUnused - std::max<SLONG>(0, havePilots - needPilots));
+    for (size_t k = 0; k < applicants.size() && haveAttendants - needAttendants < targetSpareAttendants; k++) {
+        if (!taken[k] && Workers.Workers[applicants[k]].Typ == WORKER_STEWARDESS) {
+            hire(k);
+        }
+    }
+
+    AT_Log("ClaudeBot::executePersonal(): Hired %ld, now %ld pilots / %ld attendants against %ld / %ld needed, %ld employees (unused limit %ld).", hired,
+           havePilots, haveAttendants, needPilots, needAttendants, totalEmployees, crewUnusedLimit(totalEmployees));
 }
 
 //--------------------------------------------------------------------------------------------
