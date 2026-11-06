@@ -787,7 +787,7 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
     }
 
     /* RULES.md "Limit on unused crew": unused pilots + unused attendants (each hired minus used, never below zero)
-     * may not exceed 15 or 25% of all employees, whichever is higher. Crew the fleet uses can always be hired. The
+     * may not exceed 15 or 25% of all pilots and attendants (advisors do not count), whichever is higher. Crew the fleet uses can always be hired. The
      * allowance is split in the ratio of the plane we want to buy next, so that attendants (about five per pilot on
      * the board) do not use it up alone. */
     SLONG needPilots = 0;
@@ -808,11 +808,12 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
         if (qWorker.Employer != qPlayer.PlayerNum) {
             continue;
         }
-        totalEmployees++;
         if (qWorker.Typ == WORKER_PILOT) {
             havePilots++;
+            totalEmployees++;
         } else if (qWorker.Typ == WORKER_STEWARDESS) {
             haveAttendants++;
+            totalEmployees++;
         }
     }
     const SLONG unusedNow = std::max<SLONG>(0, havePilots - needPilots) + std::max<SLONG>(0, haveAttendants - needAttendants);

@@ -637,7 +637,7 @@ static const SLONG kCrewSparePlanes = 3;
 static const SLONG kCrewStockpileFromPlanes = 4;
 
 /* RULES.md "Limit on unused crew": pilots and attendants beyond what the fleet uses may not exceed
- * 15 or 25% of all employees, whichever is higher. */
+ * 15 or 25% of all pilots and attendants (advisors do not count), whichever is higher. */
 static SLONG crewUnusedLimit(SLONG totalEmployees) { return std::max<SLONG>(15, totalEmployees * 25 / 100); }
 
 /* Image is worth roughly a factor two in route passengers ((400 + ImageTotal) / 1100 with
@@ -2478,7 +2478,7 @@ bool ClaudeBot::planeCanFly(const CPlane &qPlane, const CAuftrag &qJob) const {
 void ClaudeBot::executePersonal() {
     mVisitedPersonalToday = true;
 
-    /* First, so that the advisors count towards the employees the unused-crew limit is measured against. */
+    /* Advisors do not count towards the unused-crew limit (RULES.md), so their order here does not matter. */
     hireAdvisors();
 
     /* Crew the fleet uses: the minimum pilots, and the attendant target (MaxBegleiter, which the game caps at the
@@ -2506,11 +2506,12 @@ void ClaudeBot::executePersonal() {
         if (qWorker.Employer != qPlayer.PlayerNum) {
             continue;
         }
-        totalEmployees++;
         if (qWorker.Typ == WORKER_PILOT) {
             havePilots++;
+            totalEmployees++;
         } else if (qWorker.Typ == WORKER_STEWARDESS) {
             haveAttendants++;
+            totalEmployees++;
         }
     }
 
@@ -2558,7 +2559,7 @@ void ClaudeBot::executePersonal() {
         }
     }
 
-    /* 2) Spare crew, within RULES.md "Limit on unused crew": unused <= max(15, 25% of all employees), counted per
+    /* 2) Spare crew, within RULES.md "Limit on unused crew": unused <= max(15, 25% of pilots + attendants), counted per
      * type and never below zero. Every spare hire adds one to both sides, so the allowance is found by stepping. The
      * allowance is split in the fleet's crew ratio: the board offers about five attendants per pilot, and filling
      * the allowance with attendants alone would leave the aeroplanes they are meant for without pilots. */

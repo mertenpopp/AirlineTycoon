@@ -2493,3 +2493,10 @@ All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change k
 - Paired, 300 seeded games, day 59, against this session's baselines: ClaudeBot 2.8711e9 -> 2.6760e9, **-6.80% (t -13.0)** (`dataCLIM_*`); MertenBot 3.1244e9 -> 2.9824e9, **-4.54% (t -12.7)** (`dataMLIM_*`). Better than every earlier no-stockpile variant (ClaudeBot -7.3% to -10.1%, MertenBot -6.5%).
 - Checked in the logs: 0 of 26,169 ClaudeBot and 0 of 19,178 MertenBot HR visits end above the limit.
 - New baselines for further work: `dataCLIM_*` / `dataMLIM_*`.
+
+## 2026-11-06: Unused-crew limit no longer counts advisors
+- Rule change (RULES.md): `totalEmployees` in the unused-crew limit is now pilots + attendants only. Counting advisors let a player hire extra advisors to hold more spare crew.
+- ClaudeBot executePersonal() and MertenBot actionVisitHR() count only WORKER_PILOT / WORKER_STEWARDESS; no other logic change (neither bot hired advisors to raise the limit).
+- Paired, 300 seeded games, day 59: ClaudeBot 2.6760e9 -> 2.6743e9, **-0.06% (t -3.9)** (`dataCNEW_*` vs `dataCOLD_*`); MertenBot 2.9824e9 -> 2.9794e9, **-0.10% (t -2.5)** (`dataMNEW_*` vs `dataMOLD_*`). Old-build numbers match the previous baselines exactly.
+- Logs: 0 of 26,169 ClaudeBot HR visits end above the limit.
+- New baselines: `dataCNEW_*` / `dataMNEW_*`.
