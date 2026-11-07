@@ -7992,6 +7992,12 @@ TEAKFILE &operator>>(TEAKFILE &File, PLAYER &Player) {
     if (SaveVersion == 1 && SaveVersionSub >= 204) {
         File >> *Player.mClaudeBot;
     }
+    AT_Log("Loaded player %s: Owner %ld, BotLevel %ld, room %ld, actions %ld/%ld, WorkCountdown %ld, StandStillSince %ld, WaitWorkTill %ld, "
+           "IsStuck %ld, iWalkActive %ld, IsTalking %ld",
+           Player.Abk.c_str(), static_cast<long>(Player.Owner), static_cast<long>(Player.BotLevel), static_cast<long>(Player.GetRoom()),
+           static_cast<long>(Player.RobotActions[0].ActionId), static_cast<long>(Player.RobotActions[1].ActionId), static_cast<long>(Player.WorkCountdown),
+           static_cast<long>(Player.StandStillSince), static_cast<long>(Player.WaitWorkTill), static_cast<long>(Player.IsStuck),
+           static_cast<long>(Player.iWalkActive), static_cast<long>(Player.IsTalking));
     // Player.Owner = (Player.PlayerNum == 3) ? 0 : 1;
 
     return (File);

@@ -1733,7 +1733,6 @@ void ClaudeBot::collectActions(std::vector<SLONG> &out) const {
     if (!mMission.wantFreight && wantFreightVisit) {
         out.push_back(ACTION_CHECKAGENT3);
     }
-
 }
 
 //--------------------------------------------------------------------------------------------
@@ -6750,7 +6749,7 @@ void ClaudeBot::tickItemDrop() {
     qPlayer.WorkCountdown = std::max<SLONG>(qPlayer.WorkCountdown, 20);
 
     const PERSON &qPerson = Sim.Persons[Sim.Persons.GetPlayerIndex(qPlayer.PlayerNum)];
-    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.GetDir() == 8 && qPerson.GetStatePar()  == 0;
+    const bool stopped = qPlayer.iWalkActive == 0 && qPerson.GetDir() == 8 && qPerson.GetStatePar() == 0;
     if (!stopped) {
         return;
     }
