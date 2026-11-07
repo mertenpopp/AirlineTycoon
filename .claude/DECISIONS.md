@@ -2517,3 +2517,10 @@ All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change k
   - 1/15: ClaudeBot +7.39% (t +15.3), MertenBot +6.74% (t +8.6).
 - Day 59 means at 1/12: ClaudeBot planes 99.8 -> 105.1, staff 528 -> 779 (the gain is mostly planes that now fly crewed); MertenBot planes 68.2 -> 82.7, staff 504 -> 743. Day 40 unchanged, day 50 ~+1%.
 - Kept 1/12: almost all of the gain, MertenBot flat beyond it, and less staff inflation than 1/10. New baselines: `dataLMC12_*` / `dataLMM12_*`.
+
+## 2026-11-07: Does fast-forwarding (/quick) change the score? Walking runs with /walkuntil
+- Harness (c54cd808): `/walkuntil H` keeps the idle human in until hour H, so all computer players walk from room to room in real time (18 = all day). `scripts/run_smoketest_walk.sh [H] [seed]`. A walking day takes ~2 min real time, so one 59-day game ~2 h; 24 in parallel keep that pace.
+- Seed 1, 5 days: identical through day 1, diverge from day 2. Walking ClaudeBot acts every ~5 game min instead of 7-14 min (435 vs 263 actions in 5 days), mostly extra travel-agency visits.
+- Found and fixed a game crash (fa1c3368): walking passengers whose flight lost its gate in PlanGates() hit ExcNever in GetRandomTypedRune(RUNE_WAIT, 255) (Person.cpp PERSON_2DURCHLEUCHTER). 23 of 24 walking games crashed between day 31 and 56 before the fix, 0 after. Fast-forwarded games replay byte-identical with the fix.
+- Paired, 24 seeds (1-24), ClaudeBot level 6, day 59 SaldoGesamt: /quick 2.7154e9 (`dataWQ_*`) vs walking 2.7163e9 (`dataWW_*`), **+0.03% (t +0.01, se 3.9%)**, walking better in 11 of 24. Day 14/30/45: +1.6% / +3.4% / +0.4%, all |t| < 1. CPU players FL -8.5% (t -1.2), PT +10.8% (t +0.9): no clear effect either.
+- Conclusion: no measurable score difference between fast-forwarded and walking games (95% interval about +-8% with 24 games). /quick measurements stay valid; the extra actions of the walking bot do not turn into money.
