@@ -3046,6 +3046,48 @@ TEAKFILE &operator>>(TEAKFILE &File, SIM &Sim) {
 //--------------------------------------------------------------------------------------------
 // Lädt einen Spielstand:
 //--------------------------------------------------------------------------------------------
+/* Writes the daily statistics of every airline in the savegame just loaded to SavegameStats.csv
+   in the working directory: one row per day and airline, one column per STAT_ value. The values
+   are what the statistics screen shows, so totals like passengers or income add up over the
+   whole game. The last day is the day the game was saved on and only covers it up to then. */
+[[maybe_unused]] static void DumpSavegameStatistics() {
+    static const char *const kStatNames[STAT_ANZ] = {
+        "Konto",          "Kredit",       "Flugzeuge",     "Passagiere",    "PassagiereHome", "Aktienkurs",    "Fluege",       "Auftraege",
+        "LMAuftraege",    "Strafe",       "Firmenwert",    "ZufrPassagiere", "UnzufrPassagiere", "ZufrPersonal", "Verspaetung", "Unfaelle",
+        "Sabotiert",      "Mitarbeiter",  "Missionsziel",  "Wartung",       "Niederlassungen", "Routen",       "Gehalt",       "Bekanntheit",
+        "Stat24",         "AktienAnzahl", "AktienSA",      "AktienFL",      "AktienPT",       "AktienHA",      "ERouten",      "EAuftraege",
+        "ERabatt",        "EZins",        "EKredit",       "EFlugzeuge",    "EAktien",        "ESonstiges",    "AMieten",      "AKerosin",
+        "AStrafen",       "AFlugzeuge",   "AZins",         "AKredit",       "AEssen",         "AExpansion",    "ASabotage",    "AAktien",
+        "AAgenturen",     "ASonstiges",   "Frachten",      "Tons",          "EFracht"};
+
+    FILE *pFile = fopen("SavegameStats.csv", "w");
+    if (pFile == nullptr) {
+        AT_Log("Could not write SavegameStats.csv");
+        return;
+    }
+
+    fprintf(pFile, "Day;Airline;Owner;BotLevel");
+    for (const char *pName : kStatNames) {
+        fprintf(pFile, ";%s", pName);
+    }
+    fprintf(pFile, "\n");
+
+    for (SLONG day = 0; day <= Sim.Date; day++) {
+        for (SLONG c = 0; c < Sim.Players.AnzPlayers(); c++) {
+            const PLAYER &qPlayer = Sim.Players.Players[c];
+            fprintf(pFile, "%ld;%s;%ld;%ld", static_cast<long>(day), qPlayer.Abk.c_str(), static_cast<long>(qPlayer.Owner),
+                    static_cast<long>(qPlayer.BotLevel));
+            for (SLONG s = 0; s < STAT_ANZ; s++) {
+                const __int64 value = (s < qPlayer.Statistiken.AnzEntries()) ? qPlayer.Statistiken[s].GetAtPastDay(Sim.Date - day) : 0;
+                fprintf(pFile, ";%lld", static_cast<long long>(value));
+            }
+            fprintf(pFile, "\n");
+        }
+    }
+    fclose(pFile);
+    AT_Log("Wrote the daily statistics of days 0-%ld to SavegameStats.csv", static_cast<long>(Sim.Date));
+}
+
 BOOL SIM::LoadGame(SLONG Number) {
     const char *pNamebaseStr = nullptr;
 
@@ -3117,6 +3159,8 @@ BOOL SIM::LoadGame(SLONG Number) {
 
     // Versionsnummer:
     InputFile >> SaveVersion >> SaveVersionSub;
+    AT_Log("Loading savegame '%s': SaveVersion = %ld, SaveVersionSub = %ld (current: %ld)", (LPCTSTR)Dummy, static_cast<long>(SaveVersion),
+           static_cast<long>(SaveVersionSub), static_cast<long>(kCurrentSaveVersionSub));
 
     if (SaveVersionSub > 0) {
         // Info-String ignorieren
