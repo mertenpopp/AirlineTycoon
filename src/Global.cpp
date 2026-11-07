@@ -164,6 +164,7 @@ BOOL bFirstClass = FALSE;
 SLONG gAutoQuitOnDay = -1;
 SLONG gAutoBotDiff = 0;
 SLONG gFixedSeed = 0;
+SLONG gQuickWalkUntil = 0;
 
 //--------------------------------------------------------------------------------------------
 // Das Spiel höchstpersönlich:

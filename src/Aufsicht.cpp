@@ -766,7 +766,10 @@ void CAufsicht::OnPaint() {
     }
     if (CheatAutoSkip != 0 && (gQuickTestRun > 0 || (Sim.Date % 100) != 99)) {
         OnRButtonDown(0, CPoint());
-        qPlayer.CallItADay = TRUE;
+        /* With /walkuntil the human leaves the briefing but only goes home later (Takeoff.cpp). */
+        if (gQuickWalkUntil <= 0 || Sim.bNetwork != 0) {
+            qPlayer.CallItADay = TRUE;
+        }
     }
 }
 
