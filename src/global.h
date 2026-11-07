@@ -172,6 +172,7 @@ extern BOOL bFirstClass;
 extern SLONG gAutoQuitOnDay; // Exit game on specified game
 extern SLONG gAutoBotDiff;
 extern SLONG gFixedSeed; // "/seed N": replay the same game for the same N (0 = seeded from the clock)
+extern SLONG gQuickWalkUntil; // "/walkuntil H": the idle human of /quick goes home at hour H, so everybody walks until then (0 = at the briefing)
 
 //--------------------------------------------------------------------------------------------
 // Das Spiel höchstpersönlich:

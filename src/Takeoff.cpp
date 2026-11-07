@@ -370,6 +370,14 @@ void CTakeOffApp::CLI(int argc, char *argv[]) {
                 srand(static_cast<unsigned>(gFixedSeed));
             }
         }
+        /* Unattended runs fast-forward the whole day, so nobody ever walks. With this the idle
+           human only goes home at the given hour (18 = stays until the game closes the day), and
+           until then the computer players walk from room to room as in a game with a human. */
+        if (stricmp(Argument, "/walkuntil") == 0) {
+            if (i + 1 < argc) {
+                gQuickWalkUntil = atoi(argv[++i]);
+            }
+        }
         if (stricmp(Argument, "/setbotlevel") == 0) {
             gAutoBotDiff = 3;
 
@@ -1198,7 +1206,17 @@ void CTakeOffApp::GameLoop(void * /*unused*/) {
                         }
                     }
                 } else {
-                    Sim.CallItADay = Sim.Players.Players[Sim.localPlayer].CallItADay;
+                    PLAYER &qLocal = Sim.Players.Players[Sim.localPlayer];
+                    /* Exactly what the briefing room does for /quick (Aufsicht.cpp): set the flag and
+                       let the game fast-forward to 18:00 and run the evening itself. Only during
+                       the working day, because from 18:00 the game clears the flag on every frame. */
+                    if (gQuickWalkUntil > 0 && CheatAutoSkip != 0 && qLocal.CallItADay == FALSE && Sim.DayState == 1 && Sim.Time >= 9 * 60000 &&
+                        Sim.Time < 18 * 60000 && Sim.GetHour() >= gQuickWalkUntil) {
+                        AT_Log("Idle human goes home at %02ld:%02ld (/walkuntil %ld)", static_cast<long>(Sim.GetHour()), static_cast<long>(Sim.GetMinute()),
+                               static_cast<long>(gQuickWalkUntil));
+                        qLocal.CallItADay = TRUE;
+                    }
+                    Sim.CallItADay = qLocal.CallItADay;
                 }
 
                 // Dinge, die nicht beschleunigt werden:
