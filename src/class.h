@@ -1783,6 +1783,11 @@ class /**/ CWorkers {
     CWorker createPilot(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
     CWorker createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) const;
     SLONG AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent);
+    SLONG CountEmployed(SLONG typ) const;
+    SLONG MaxNewWorkersPerDay(SLONG typ) const;
+
+    /* Daily supply of new pilots / attendants is 1/kWorkerSupplyDivisor of those employed (at least 10). */
+    static const SLONG kWorkerSupplyDivisor = 12;
 };
 
 //--------------------------------------------------------------------------------------------

@@ -630,10 +630,9 @@ static const SLONG kCrewSparePlanes = 3;
 /* ...until the fleet has this many aeroplanes: from then on every applicant is wanted, up to the unused-crew limit.
  *
  * The board is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates
- * at most 10 pilots and 10 attendants a day - and only while the reserve is below its target (CWorkers::AddToPool).
- * A 767 needs 2 and 4, so the fleet cannot grow by more than 2.5 aeroplanes a day out of that, while the broker
- * buys 7 to 9 a day in the last week: in a sample game 19 aeroplanes bought on days 55-58 never flew. Applicants
- * left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
+ * only max(10, employed / 12) pilots and attendants a day (CWorkers::MaxNewWorkersPerDay), counted over all
+ * airlines. That is roughly 8% growth a day, while the broker buys 7 to 9 aeroplanes a day in the last week.
+ * Applicants left on the board are gone the next morning, so the crew for the last week has to be hired before it. */
 static const SLONG kCrewStockpileFromPlanes = 4;
 
 /* RULES.md "Limit on unused crew": spare crew is only hired from this hour on, so that human players get the
@@ -2525,8 +2524,8 @@ void ClaudeBot::executePersonal() {
     /* What we would like to keep in hand beyond the fleet's need, before the RULES.md limit on unused crew.
      *
      * Small fleets keep a few aeroplanes' worth. From kCrewStockpileFromPlanes on we want every applicant: the board
-     * is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates at most
-     * 10 pilots and 10 attendants a day, while the broker buys 7 to 9 aeroplanes a day in the last week. The limit
+     * is redrawn every morning (CWorkers::NewDay), and once the reserve behind it is drained the game creates only
+     * max(10, employed / 12) pilots and attendants a day, while the broker buys 7 to 9 aeroplanes a day. The limit
      * below now decides how much of that stockpile we may actually hold. */
     const bool stockpile = !mMission.isMission && countPlanes() >= kCrewStockpileFromPlanes;
     const SLONG wishSparePilots = stockpile ? INT32_MAX : kCrewSparePlanes * maxPilotsPerPlane;

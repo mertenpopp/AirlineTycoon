@@ -775,8 +775,8 @@ void Bot::actionVisitHR(__int64 moneyAvailable) {
     const SLONG ratioPilots = std::max<SLONG>(1, pilotsTarget);
     const SLONG ratioAttendants = std::max<SLONG>(0, stewardessTarget);
     if (checkLateGame()) {
-        /* Crew limits how many planes we can buy at the end: once the reserve is drained, only 10 new pilots and
-         * attendants appear per day (CWorkers::AddToPool()), and only while the reserve is below its target. Hire
+        /* Crew limits how many planes we can buy at the end: once the reserve is drained, only max(10, employed / 12)
+         * new pilots and attendants appear per day (CWorkers::MaxNewWorkersPerDay()). Hire
          * all of them. */
         if (kStockpilePilots && (Sim.GetHour() >= 12)) {
             pilotsTarget = INT_MAX;

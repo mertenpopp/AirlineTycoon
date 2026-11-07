@@ -547,8 +547,10 @@ void CWorkers::NewDay() {
         }
     }
 
-    SLONG AnzahlPiloten = 10 + LocalRand.Rand(3);
-    SLONG AnzahlStewardessen = 50 + LocalRand.Rand(5);
+    /* The board grows with the labour market's daily supply (see MaxNewWorkersPerDay()); for small
+       airlines the extra is 0 and the board is what it always was. */
+    SLONG AnzahlPiloten = 10 + LocalRand.Rand(3) + (MaxNewWorkersPerDay(WORKER_PILOT) - 10);
+    SLONG AnzahlStewardessen = 50 + LocalRand.Rand(5) + (MaxNewWorkersPerDay(WORKER_STEWARDESS) - 10);
     bool GibtNochBerater = true;
 
     while (GibtNochBerater || AnzahlPiloten > 0 || AnzahlStewardessen > 0) {
@@ -720,6 +722,26 @@ CWorker CWorkers::createStewardess(TEAKRAND &LocalRand, TEAKRAND &NameRand) cons
     worker.OriginalGehalt = worker.Gehalt;
     return worker;
 }
+SLONG CWorkers::CountEmployed(SLONG typ) const {
+    SLONG n = 0;
+    for (SLONG c = 0; c < Workers.AnzEntries(); c++) {
+        if (Workers[c].Typ == typ && Workers[c].Employer >= 0 && Workers[c].Employer <= 3) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* New applicants a day: 10, or 1/12 (~8%) of the pilots / attendants that all players employ, whichever is
+   more. A fixed 10 a day capped every fast-growing airline from about day 45 on, while the computer
+   players (a few dozen staff) never come near the floor. Advisors stay at 10. */
+SLONG CWorkers::MaxNewWorkersPerDay(SLONG typ) const {
+    if (typ != WORKER_PILOT && typ != WORKER_STEWARDESS) {
+        return 10;
+    }
+    return std::max(SLONG(10), (CountEmployed(typ) + kWorkerSupplyDivisor - 1) / kWorkerSupplyDivisor);
+}
+
 SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompetent) {
     /* Names and a stewardess' gender used to come from the global rand(), which runs at its own
        pace on every machine: the peers ended up with different names for the same applicant, and
@@ -749,9 +771,14 @@ SLONG CWorkers::AddToPool(SLONG typ, TEAKRAND &LocalRand, SLONG zielAnzahlKompet
     AT_Log("Number of expired workers: %li (Typ: %s)", nExpired, Translate_WORKER_TYPE(typ));
     AT_Log("Number of competent workers: %li / %li (Typ: %s)", anzKompetent, anz, Translate_WORKER_TYPE(typ));
 
+    // Big airlines need a bigger reserve: add a quarter of the crew all players employ
+    if (typ == WORKER_PILOT || typ == WORKER_STEWARDESS) {
+        zielAnzahlKompetent += CountEmployed(typ) / 4;
+    }
+
     if (anzKompetent < zielAnzahlKompetent) {
-        // Zielwert ist 80 kompetente Leute, aber generiere nie mehr als 10 pro Tag
-        SLONG toCreate = std::min(SLONG(10), (zielAnzahlKompetent - anzKompetent));
+        // Fülle die Reserve auf, aber nur so schnell, wie der Arbeitsmarkt wächst
+        SLONG toCreate = std::min(MaxNewWorkersPerDay(typ), (zielAnzahlKompetent - anzKompetent));
         // Berechne, um wie viel wir die Liste vergrößern müssen. Berücksichtige, dass wir Karteileichen ersetzen können
         SLONG delta = std::max(SLONG(0), toCreate - nExpired);
         if (delta > 0) {
