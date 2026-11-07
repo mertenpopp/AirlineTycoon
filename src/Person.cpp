@@ -3105,6 +3105,12 @@ void PERSON::PersonReachedTarget() {
 
             // Am Durchleuchter angekommen, ist das Flugzeug noch da?
         case PERSON_2DURCHLEUCHTER: {
+            // The gate can be taken away while the passenger walks here (PlanGates()):
+            if (!fpe || fpe->Gate == -1) {
+                State = PERSON_LEAVING;
+                break;
+            }
+
             State = PERSON_BOARDING;
             Target = Airport.GetRandomTypedRune(RUNE_WAIT, static_cast<UBYTE>(fpe->Gate), false, &PersonalRand);
 
