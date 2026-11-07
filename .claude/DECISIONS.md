@@ -2507,3 +2507,13 @@ All paired, 300 seeded games (seed base 0), day 59 SaldoGesamt. No code change k
 - Paired, 300 seeded games, day 59: 2.6743e9 -> 2.6741e9, **-0.01% (t -0.09)** (`dataCNOON_*` vs `dataCBASE_*`). Neutral.
 - Logs: 0 of 17,647 spare-crew hiring visits before 12:00 (all at 12:xx). Load test slots 1/2 (240 s): both reach day 59, 0 errors.
 - New baseline: `dataCNOON_*`.
+
+## 2026-11-07: Labour market grows with the airlines (Personal.cpp)
+- Change (game, not bot): new pilots / attendants per day = max(10, employed / kWorkerSupplyDivisor), employed = that type's crew of all four players (CWorkers::MaxNewWorkersPerDay). The competent-reserve target is 80 / 160 + employed / 4, and the morning board shows (max - 10) more pilots / attendants than before. Advisors unchanged. Stateless (counted from the shared worker list): no savegame or network change; games with small airlines play out identically (FL/PT/SA day-59 numbers unchanged).
+- Why: from day ~45 both bots grew staff at exactly 20/day (the old 10 + 10 ceiling); MertenBot day 45-59 at that cap, ClaudeBot's late planes sat uncrewed.
+- Paired, 300 seeded games, day 59, against HEAD 32754f15 (ClaudeBot `dataLMC0_*` 2.6741e9, MertenBot `dataLMM0_*` 3.0010e9):
+  - 1/12: ClaudeBot 2.9203e9 **+9.21% (t +13.9)**, better in 294; MertenBot 3.2088e9 **+6.92% (t +8.3)**, better in 216.
+  - 1/10: ClaudeBot +9.77% (t +13.3), MertenBot +6.87%; vs 1/12: ClaudeBot +0.51% (t +5.7), MertenBot -0.05% (t -1.0).
+  - 1/15: ClaudeBot +7.39% (t +15.3), MertenBot +6.74% (t +8.6).
+- Day 59 means at 1/12: ClaudeBot planes 99.8 -> 105.1, staff 528 -> 779 (the gain is mostly planes that now fly crewed); MertenBot planes 68.2 -> 82.7, staff 504 -> 743. Day 40 unchanged, day 50 ~+1%.
+- Kept 1/12: almost all of the gain, MertenBot flat beyond it, and less staff inflation than 1/10. New baselines: `dataLMC12_*` / `dataLMM12_*`.
