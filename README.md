@@ -32,6 +32,11 @@ What you'll notice:
 
 **If 1.9.0's bot felt like a sparring partner, this one is a rival. Good luck.**
 
+### Adjustements in 1.9.2
+* New rule for the new computer players: spare crew may not exceed 15, or 25% of their pilots and attendants, whichever is higher. Advisors don't count toward the 25% (#52).
+* New computer players hire spare crew only from 12:00, so human players see the morning's applicants first (#52).
+* Bot levels are sent from the host to all clients before the game starts. Before, different levels could cause desyncs or crashes.
+
 ## License
 
 The code in this repository is licensed under the terms included in the GOG release. As such the code can only be used for non-commercial purposes and remains property of BFG.
@@ -141,6 +146,7 @@ All new computer players have one thing in common:
     * Chance to increase/decrease happiness each day based on how much salary is higher/lower than original salary
 * The 10% change when increasing/decreasing salary now always refers to the original salary
 * Regularly increase worker happiness if company image is great
+* The labour market now grows with the airlines. New pilots and flight attendants per day are now max(10, 1/12 of all crew employed) instead of a fixed 10
 
 ### Planes
 * Reduce (~ half) cost of plane security upgrades
@@ -222,6 +228,11 @@ All new computer players have one thing in common:
 * Fix bug in fare price for first-class passengers not being taken over when flight plan is automatically extended
 * Show correct price for auctions (gates and branch offices). The real price is three times the monthly rent; previously, only one month's rent was displayed
 * The advisor no longer recommends an incompatible flight to replace an automatic flight
+* Fixed the "false brochures" sabotage (whole flight now credited consistently, reduce advisor spam, fixed English message)
+* Auction notes now show the real price, which is three months' rent, for gates, branch offices and routes (#46)
+* Staff satisfaction could show more than 100% and could be out of date or differ between players in network games (#48)
+* The destroyed office door had the wrong colours after the explosion
+* Settings from a previous game (for example kiosk trust, smoke and stink effects, gate shortage, notepad pages) no longer carry over into a new game
 * Fixed many random crashes
 
 ### Default computer player
